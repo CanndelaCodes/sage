@@ -30,6 +30,11 @@ import type {
 } from "./types.ts";
 import type { NostrProfileFormState } from "./views/channels.nostr-profile-form.ts";
 import {
+  defaultConfirmationDialogState,
+  type ConfirmationDialogState,
+} from "./views/confirmation-dialog.ts";
+import { defaultGuardrailsViewState, type GuardrailsViewState } from "./views/guardrails.ts";
+import {
   handleChannelConfigReload as handleChannelConfigReloadInternal,
   handleChannelConfigSave as handleChannelConfigSaveInternal,
   handleNostrProfileCancel as handleNostrProfileCancelInternal,
@@ -82,7 +87,7 @@ import { type ChatAttachment, type ChatQueueItem, type CronFormState } from "./u
 
 declare global {
   interface Window {
-    __OPENCLAW_CONTROL_UI_BASE_PATH__?: string;
+    __SAGE_CONTROL_UI_BASE_PATH__?: string;
   }
 }
 
@@ -101,8 +106,8 @@ function resolveOnboardingMode(): boolean {
   return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
 }
 
-@customElement("openclaw-app")
-export class OpenClawApp extends LitElement {
+@customElement("sage-app")
+export class SageApp extends LitElement {
   @state() settings: UiSettings = loadSettings();
   @state() password = "";
   @state() tab: Tab = "chat";
@@ -263,6 +268,8 @@ export class OpenClawApp extends LitElement {
   };
   @state() logsAutoFollow = true;
   @state() logsTruncated = false;
+  @state() guardrails: GuardrailsViewState = defaultGuardrailsViewState();
+  @state() confirmationDialog: ConfirmationDialogState = defaultConfirmationDialogState();
   @state() logsCursor: number | null = null;
   @state() logsLastFetchAt: number | null = null;
   @state() logsLimit = 500;
@@ -457,6 +464,38 @@ export class OpenClawApp extends LitElement {
     } finally {
       this.execApprovalBusy = false;
     }
+  }
+
+  async handleConfirmationDecision(requestId: string, decision: string, remember: boolean) {
+    const active = this.confirmationDialog.queue[0];
+    if (!active || !this.client || this.confirmationDialog.busy) {
+      return;
+    }
+    this.confirmationDialog = { ...this.confirmationDialog, busy: true, error: null };
+    try {
+      await this.client.request("guardrails.confirmation.resolve", {
+        requestId,
+        decision,
+        remember,
+        decidedAtMs: Date.now(),
+      });
+      this.confirmationDialog = {
+        ...this.confirmationDialog,
+        queue: this.confirmationDialog.queue.filter((e) => e.request.id !== requestId),
+        busy: false,
+        remember: false,
+      };
+    } catch (err) {
+      this.confirmationDialog = {
+        ...this.confirmationDialog,
+        busy: false,
+        error: `Confirmation failed: ${String(err)}`,
+      };
+    }
+  }
+
+  handleConfirmationRememberToggle(remember: boolean) {
+    this.confirmationDialog = { ...this.confirmationDialog, remember };
   }
 
   handleGatewayUrlConfirm() {

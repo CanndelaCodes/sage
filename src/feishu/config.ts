@@ -1,4 +1,4 @@
-import type { OpenClawConfig } from "../config/config.js";
+import type { SageConfig } from "../config/config.js";
 import type { DmPolicy, GroupPolicy } from "../config/types.base.js";
 import type { FeishuGroupConfig } from "../config/types.feishu.js";
 import { firstDefined } from "./access.js";
@@ -24,7 +24,7 @@ export type ResolvedFeishuConfig = {
  * Account-level config overrides top-level feishu config, which overrides channel defaults.
  */
 export function resolveFeishuConfig(params: {
-  cfg: OpenClawConfig;
+  cfg: SageConfig;
   accountId?: string;
 }): ResolvedFeishuConfig {
   const { cfg, accountId } = params;
@@ -56,7 +56,7 @@ export function resolveFeishuConfig(params: {
  * Resolve group-specific configuration for a Feishu chat.
  */
 export function resolveFeishuGroupConfig(params: {
-  cfg: OpenClawConfig;
+  cfg: SageConfig;
   accountId?: string;
   chatId: string;
 }): { groupConfig?: FeishuGroupConfig } {
@@ -69,7 +69,7 @@ export function resolveFeishuGroupConfig(params: {
  * Check if a group requires @mention for the bot to respond.
  */
 export function resolveFeishuGroupRequireMention(params: {
-  cfg: OpenClawConfig;
+  cfg: SageConfig;
   accountId?: string;
   chatId: string;
 }): boolean {
@@ -82,7 +82,7 @@ export function resolveFeishuGroupRequireMention(params: {
  * Check if a group is enabled.
  */
 export function resolveFeishuGroupEnabled(params: {
-  cfg: OpenClawConfig;
+  cfg: SageConfig;
   accountId?: string;
   chatId: string;
 }): boolean {

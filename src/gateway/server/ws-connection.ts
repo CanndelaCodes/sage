@@ -2,6 +2,7 @@ import type { WebSocket, WebSocketServer } from "ws";
 import { randomUUID } from "node:crypto";
 import type { createSubsystemLogger } from "../../logging/subsystem.js";
 import type { ResolvedGatewayAuth } from "../auth.js";
+import type { RateLimiter } from "../rate-limit.js";
 import type { GatewayRequestContext, GatewayRequestHandlers } from "../server-methods/types.js";
 import type { GatewayWsClient } from "./ws-types.js";
 import { resolveCanvasHostUrl } from "../../infra/canvas-host-url.js";
@@ -39,6 +40,7 @@ export function attachGatewayWsConnectionHandler(params: {
     },
   ) => void;
   buildRequestContext: () => GatewayRequestContext;
+  rateLimiter?: RateLimiter;
 }) {
   const {
     wss,
@@ -56,6 +58,7 @@ export function attachGatewayWsConnectionHandler(params: {
     extraHandlers,
     broadcast,
     buildRequestContext,
+    rateLimiter,
   } = params;
 
   wss.on("connection", (socket, upgradeReq) => {
@@ -65,6 +68,23 @@ export function attachGatewayWsConnectionHandler(params: {
     const connId = randomUUID();
     const remoteAddr = (socket as WebSocket & { _socket?: { remoteAddress?: string } })._socket
       ?.remoteAddress;
+
+    // Rate limit check — reject before any processing.
+    if (rateLimiter) {
+      const rlResult = rateLimiter.check(remoteAddr);
+      if (!rlResult.allowed) {
+        logWsControl.warn(
+          `rate limited conn=${connId} remote=${remoteAddr ?? "?"} reason=${rlResult.reason}`,
+        );
+        try {
+          socket.close(1008, "Rate limit exceeded");
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+      rateLimiter.onConnect(remoteAddr);
+    }
     const headerValue = (value: string | string[] | undefined) =>
       Array.isArray(value) ? value[0] : value;
     const requestHost = headerValue(upgradeReq.headers.host);
@@ -130,6 +150,7 @@ export function attachGatewayWsConnectionHandler(params: {
       }
       closed = true;
       clearTimeout(handshakeTimer);
+      rateLimiter?.onDisconnect(remoteAddr);
       if (client) {
         clients.delete(client);
       }

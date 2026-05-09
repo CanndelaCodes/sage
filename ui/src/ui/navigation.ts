@@ -7,7 +7,7 @@ export const TAB_GROUPS = [
     tabs: ["overview", "channels", "instances", "sessions", "cron"],
   },
   { label: "Agent", tabs: ["agents", "skills", "nodes"] },
-  { label: "Settings", tabs: ["config", "debug", "logs"] },
+  { label: "Settings", tabs: ["guardrails", "config", "debug", "logs"] },
 ] as const;
 
 export type Tab =
@@ -20,6 +20,7 @@ export type Tab =
   | "skills"
   | "nodes"
   | "chat"
+  | "guardrails"
   | "config"
   | "debug"
   | "logs";
@@ -34,6 +35,7 @@ const TAB_PATHS: Record<Tab, string> = {
   skills: "/skills",
   nodes: "/nodes",
   chat: "/chat",
+  guardrails: "/guardrails",
   config: "/config",
   debug: "/debug",
   logs: "/logs",
@@ -140,6 +142,8 @@ export function iconForTab(tab: Tab): IconName {
       return "zap";
     case "nodes":
       return "monitor";
+    case "guardrails":
+      return "shield";
     case "config":
       return "settings";
     case "debug":
@@ -171,6 +175,8 @@ export function titleForTab(tab: Tab) {
       return "Nodes";
     case "chat":
       return "Chat";
+    case "guardrails":
+      return "Guardrails";
     case "config":
       return "Config";
     case "debug":
@@ -202,8 +208,10 @@ export function subtitleForTab(tab: Tab) {
       return "Paired devices, capabilities, and command exposure.";
     case "chat":
       return "Direct gateway chat session for quick interventions.";
+    case "guardrails":
+      return "Configure agent autonomy levels and safety presets.";
     case "config":
-      return "Edit ~/.openclaw/openclaw.json safely.";
+      return "Edit ~/.sage/sage.json safely.";
     case "debug":
       return "Gateway snapshots, events, and manual RPC calls.";
     case "logs":

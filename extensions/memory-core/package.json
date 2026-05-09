@@ -1,15 +1,15 @@
 {
-  "name": "@openclaw/memory-core",
+  "name": "@sage/memory-core",
   "version": "2026.2.3",
-  "description": "OpenClaw core memory search plugin",
+  "description": "Sage core memory search plugin",
   "type": "module",
   "devDependencies": {
-    "openclaw": "workspace:*"
+    "sage": "workspace:*"
   },
   "peerDependencies": {
-    "openclaw": ">=2026.1.26"
+    "sage": ">=2026.1.26"
   },
-  "openclaw": {
+  "sage": {
     "extensions": [
       "./index.ts"
     ]

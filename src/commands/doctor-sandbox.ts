@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { OpenClawConfig } from "../config/config.js";
+import type { SageConfig } from "../config/config.js";
 import type { RuntimeEnv } from "../runtime.js";
 import type { DoctorPrompter } from "./doctor-prompter.js";
 import {
@@ -9,6 +9,7 @@ import {
   DEFAULT_SANDBOX_IMAGE,
   resolveSandboxScope,
 } from "../agents/sandbox.js";
+import { detectContainerRuntime } from "../agents/sandbox/container-runtime.js";
 import { runCommandWithTimeout, runExec } from "../process/exec.js";
 import { note } from "../terminal/note.js";
 
@@ -62,20 +63,27 @@ async function runSandboxScript(scriptRel: string, runtime: RuntimeEnv): Promise
   return true;
 }
 
-async function isDockerAvailable(): Promise<boolean> {
-  try {
-    await runExec("docker", ["version", "--format", "{{.Server.Version}}"], {
-      timeoutMs: 5_000,
-    });
-    return true;
-  } catch {
-    return false;
+async function isContainerRuntimeAvailable(): Promise<{
+  available: boolean;
+  runtime?: "podman" | "docker";
+}> {
+  const detected = detectContainerRuntime();
+  if (detected) {
+    return { available: true, runtime: detected.runtime };
   }
+  return { available: false };
+}
+
+async function isDockerAvailable(): Promise<boolean> {
+  const result = await isContainerRuntimeAvailable();
+  return result.available;
 }
 
 async function dockerImageExists(image: string): Promise<boolean> {
+  const detected = detectContainerRuntime();
+  const command = detected?.command ?? "docker";
   try {
-    await runExec("docker", ["image", "inspect", image], { timeoutMs: 5_000 });
+    await runExec(command, ["image", "inspect", image], { timeoutMs: 5_000 });
     return true;
   } catch (error) {
     const stderr =
@@ -89,17 +97,17 @@ async function dockerImageExists(image: string): Promise<boolean> {
   }
 }
 
-function resolveSandboxDockerImage(cfg: OpenClawConfig): string {
+function resolveSandboxDockerImage(cfg: SageConfig): string {
   const image = cfg.agents?.defaults?.sandbox?.docker?.image?.trim();
   return image ? image : DEFAULT_SANDBOX_IMAGE;
 }
 
-function resolveSandboxBrowserImage(cfg: OpenClawConfig): string {
+function resolveSandboxBrowserImage(cfg: SageConfig): string {
   const image = cfg.agents?.defaults?.sandbox?.browser?.image?.trim();
   return image ? image : DEFAULT_SANDBOX_BROWSER_IMAGE;
 }
 
-function updateSandboxDockerImage(cfg: OpenClawConfig, image: string): OpenClawConfig {
+function updateSandboxDockerImage(cfg: SageConfig, image: string): SageConfig {
   return {
     ...cfg,
     agents: {
@@ -118,7 +126,7 @@ function updateSandboxDockerImage(cfg: OpenClawConfig, image: string): OpenClawC
   };
 }
 
-function updateSandboxBrowserImage(cfg: OpenClawConfig, image: string): OpenClawConfig {
+function updateSandboxBrowserImage(cfg: SageConfig, image: string): SageConfig {
   return {
     ...cfg,
     agents: {
@@ -176,21 +184,22 @@ async function handleMissingSandboxImage(
 }
 
 export async function maybeRepairSandboxImages(
-  cfg: OpenClawConfig,
+  cfg: SageConfig,
   runtime: RuntimeEnv,
   prompter: DoctorPrompter,
-): Promise<OpenClawConfig> {
+): Promise<SageConfig> {
   const sandbox = cfg.agents?.defaults?.sandbox;
   const mode = sandbox?.mode ?? "off";
   if (!sandbox || mode === "off") {
     return cfg;
   }
 
-  const dockerAvailable = await isDockerAvailable();
-  if (!dockerAvailable) {
-    note("Docker not available; skipping sandbox image checks.", "Sandbox");
+  const runtimeStatus = await isContainerRuntimeAvailable();
+  if (!runtimeStatus.available) {
+    note("No container runtime (Podman or Docker) found; skipping sandbox image checks.", "Sandbox");
     return cfg;
   }
+  note(`Container runtime detected: ${runtimeStatus.runtime}`, "Sandbox");
 
   let next = cfg;
   const changes: string[] = [];
@@ -238,7 +247,7 @@ export async function maybeRepairSandboxImages(
   return next;
 }
 
-export function noteSandboxScopeWarnings(cfg: OpenClawConfig) {
+export function noteSandboxScopeWarnings(cfg: SageConfig) {
   const globalSandbox = cfg.agents?.defaults?.sandbox;
   const agents = Array.isArray(cfg.agents?.list) ? cfg.agents.list : [];
   const warnings: string[] = [];

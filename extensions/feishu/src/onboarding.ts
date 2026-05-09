@@ -2,25 +2,25 @@ import type {
   ChannelOnboardingAdapter,
   ChannelOnboardingDmPolicy,
   DmPolicy,
-  OpenClawConfig,
+  SageConfig,
   WizardPrompter,
-} from "openclaw/plugin-sdk";
+} from "sage/plugin-sdk";
 import {
   addWildcardAllowFrom,
   DEFAULT_ACCOUNT_ID,
   formatDocsLink,
   normalizeAccountId,
   promptAccountId,
-} from "openclaw/plugin-sdk";
+} from "sage/plugin-sdk";
 import {
   listFeishuAccountIds,
   resolveDefaultFeishuAccountId,
   resolveFeishuAccount,
-} from "openclaw/plugin-sdk";
+} from "sage/plugin-sdk";
 
 const channel = "feishu" as const;
 
-function setFeishuDmPolicy(cfg: OpenClawConfig, policy: DmPolicy): OpenClawConfig {
+function setFeishuDmPolicy(cfg: SageConfig, policy: DmPolicy): SageConfig {
   const allowFrom =
     policy === "open" ? addWildcardAllowFrom(cfg.channels?.feishu?.allowFrom) : undefined;
   return {
@@ -62,10 +62,10 @@ function resolveDomainChoice(domain?: string | null): "feishu" | "lark" {
 }
 
 async function promptFeishuAllowFrom(params: {
-  cfg: OpenClawConfig;
+  cfg: SageConfig;
   prompter: WizardPrompter;
   accountId?: string | null;
-}): Promise<OpenClawConfig> {
+}): Promise<SageConfig> {
   const { cfg, prompter } = params;
   const accountId = normalizeAccountId(params.accountId);
   const isDefault = accountId === DEFAULT_ACCOUNT_ID;
@@ -151,12 +151,12 @@ const dmPolicy: ChannelOnboardingDmPolicy = {
 };
 
 function updateFeishuConfig(
-  cfg: OpenClawConfig,
+  cfg: SageConfig,
   accountId: string,
   updates: { appId?: string; appSecret?: string; domain?: string; enabled?: boolean },
-): OpenClawConfig {
+): SageConfig {
   const isDefault = accountId === DEFAULT_ACCOUNT_ID;
-  const next = { ...cfg } as OpenClawConfig;
+  const next = { ...cfg } as SageConfig;
   const feishu = { ...next.channels?.feishu } as Record<string, unknown>;
   const accounts = feishu.accounts
     ? { ...(feishu.accounts as Record<string, unknown>) }

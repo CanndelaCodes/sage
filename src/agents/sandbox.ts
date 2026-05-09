@@ -12,7 +12,29 @@ export {
 } from "./sandbox/constants.js";
 export { ensureSandboxWorkspaceForSession, resolveSandboxContext } from "./sandbox/context.js";
 
-export { buildSandboxCreateArgs } from "./sandbox/docker.js";
+export {
+  type ContainerRuntime,
+  type RuntimeDetectionResult,
+  type RuntimeInfo,
+  detectContainerRuntime,
+  getCachedContainerRuntime,
+  resetRuntimeCache,
+  execContainerCommand,
+  translateContainerArgs,
+} from "./sandbox/container-runtime.js";
+export { buildSandboxCreateArgs, getActiveRuntime } from "./sandbox/docker.js";
+export {
+  type E2BSandboxConfig,
+  type E2BSandboxInstance,
+  type E2BExecResult,
+  isE2BAvailable,
+  createE2BSandbox,
+  execInE2BSandbox,
+  destroyE2BSandbox,
+  listE2BSandboxes,
+  writeFileToE2BSandbox,
+  readFileFromE2BSandbox,
+} from "./sandbox/e2b-sandbox.js";
 export {
   listSandboxBrowsers,
   listSandboxContainers,

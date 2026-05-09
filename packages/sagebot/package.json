@@ -1,0 +1,16 @@
+{
+  "name": "sagebot",
+  "version": "2026.1.27-beta.1",
+  "description": "Compatibility shim that forwards to sage",
+  "bin": {
+    "sagebot": "./bin/sagebot.js"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./cli-entry": "./bin/sagebot.js"
+  },
+  "dependencies": {
+    "sage": "workspace:*"
+  }
+}

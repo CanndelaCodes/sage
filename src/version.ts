@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 
-declare const __OPENCLAW_VERSION__: string | undefined;
+declare const __SAGE_VERSION__: string | undefined;
 
 function readVersionFromPackageJson(): string | null {
   try {
@@ -32,12 +32,12 @@ function readVersionFromBuildInfo(): string | null {
   }
 }
 
-// Single source of truth for the current OpenClaw version.
+// Single source of truth for the current Sage version.
 // - Embedded/bundled builds: injected define or env var.
 // - Dev/npm builds: package.json.
 export const VERSION =
-  (typeof __OPENCLAW_VERSION__ === "string" && __OPENCLAW_VERSION__) ||
-  process.env.OPENCLAW_BUNDLED_VERSION ||
+  (typeof __SAGE_VERSION__ === "string" && __SAGE_VERSION__) ||
+  process.env.SAGE_BUNDLED_VERSION ||
   readVersionFromPackageJson() ||
   readVersionFromBuildInfo() ||
   "0.0.0";

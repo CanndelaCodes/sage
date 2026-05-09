@@ -1,0 +1,16 @@
+{
+  "name": "sage",
+  "version": "2026.1.27-beta.1",
+  "description": "Compatibility shim that forwards to sage",
+  "bin": {
+    "sage": "./bin/sage.js"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./cli-entry": "./bin/sage.js"
+  },
+  "dependencies": {
+    "sage": "workspace:*"
+  }
+}

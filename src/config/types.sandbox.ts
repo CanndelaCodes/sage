@@ -1,4 +1,6 @@
 export type SandboxDockerSettings = {
+  /** Container runtime: "podman" (preferred) or "docker" (fallback). Auto-detected if not set. */
+  runtime?: "podman" | "docker";
   /** Docker image to use for sandbox containers. */
   image?: string;
   /** Prefix for sandbox container names. */

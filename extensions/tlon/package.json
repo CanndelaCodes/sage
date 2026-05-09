@@ -1,16 +1,16 @@
 {
-  "name": "@openclaw/tlon",
+  "name": "@sage/tlon",
   "version": "2026.2.3",
-  "description": "OpenClaw Tlon/Urbit channel plugin",
+  "description": "Sage Tlon/Urbit channel plugin",
   "type": "module",
   "dependencies": {
     "@urbit/aura": "^3.0.0",
     "@urbit/http-api": "^3.0.0"
   },
   "devDependencies": {
-    "openclaw": "workspace:*"
+    "sage": "workspace:*"
   },
-  "openclaw": {
+  "sage": {
     "extensions": [
       "./index.ts"
     ],
@@ -25,7 +25,7 @@
       "quickstartAllowFrom": true
     },
     "install": {
-      "npmSpec": "@openclaw/tlon",
+      "npmSpec": "@sage/tlon",
       "localPath": "extensions/tlon",
       "defaultChoice": "npm"
     }

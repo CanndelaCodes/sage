@@ -1,12 +1,12 @@
 ---
-summary: "Install OpenClaw, onboard the Gateway, and pair your first channel."
+summary: "Install Sage, onboard the Gateway, and pair your first channel."
 read_when:
   - You want the fastest path from install to a working Gateway
 title: "Quick start"
 ---
 
 <Note>
-OpenClaw requires Node 22 or newer.
+Sage requires Node 22 or newer.
 </Note>
 
 ## Install
@@ -14,12 +14,12 @@ OpenClaw requires Node 22 or newer.
 <Tabs>
   <Tab title="npm">
     ```bash
-    npm install -g openclaw@latest
+    npm install -g sage@latest
     ```
   </Tab>
   <Tab title="pnpm">
     ```bash
-    pnpm add -g openclaw@latest
+    pnpm add -g sage@latest
     ```
   </Tab>
 </Tabs>
@@ -29,47 +29,47 @@ OpenClaw requires Node 22 or newer.
 <Steps>
   <Step title="Onboard and install the service">
     ```bash
-    openclaw onboard --install-daemon
+    sage onboard --install-daemon
     ```
   </Step>
   <Step title="Pair WhatsApp">
     ```bash
-    openclaw channels login
+    sage channels login
     ```
   </Step>
   <Step title="Start the Gateway">
     ```bash
-    openclaw gateway --port 18789
+    sage gateway --port 18789
     ```
   </Step>
 </Steps>
 
-After onboarding, the Gateway runs via the user service. You can still run it manually with `openclaw gateway`.
+After onboarding, the Gateway runs via the user service. You can still run it manually with `sage gateway`.
 
 <Info>
 Switching between npm and git installs later is easy. Install the other flavor and run
-`openclaw doctor` to update the gateway service entrypoint.
+`sage doctor` to update the gateway service entrypoint.
 </Info>
 
 ## From source (development)
 
 ```bash
-git clone https://github.com/openclaw/openclaw.git
-cd openclaw
+git clone https://github.com/sage/sage.git
+cd sage
 pnpm install
 pnpm ui:build # auto-installs UI deps on first run
 pnpm build
-openclaw onboard --install-daemon
+sage onboard --install-daemon
 ```
 
-If you do not have a global install yet, run onboarding via `pnpm openclaw ...` from the repo.
+If you do not have a global install yet, run onboarding via `pnpm sage ...` from the repo.
 
 ## Multi instance quickstart (optional)
 
 ```bash
-OPENCLAW_CONFIG_PATH=~/.openclaw/a.json \
-OPENCLAW_STATE_DIR=~/.openclaw-a \
-openclaw gateway --port 19001
+SAGE_CONFIG_PATH=~/.sage/a.json \
+SAGE_STATE_DIR=~/.sage-a \
+sage gateway --port 19001
 ```
 
 ## Send a test message
@@ -77,5 +77,5 @@ openclaw gateway --port 19001
 Requires a running Gateway.
 
 ```bash
-openclaw message send --target +15555550123 --message "Hello from OpenClaw"
+sage message send --target +15555550123 --message "Hello from Sage"
 ```

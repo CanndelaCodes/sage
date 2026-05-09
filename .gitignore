@@ -19,14 +19,14 @@ ui/test-results/
 # Bun build artifacts
 *.bun-build
 apps/macos/.build/
-apps/shared/MoltbotKit/.build/
+apps/shared/SageKit/.build/
 **/ModuleCache/
 bin/
-bin/clawdbot-mac
+bin/sagebot-mac
 bin/docs-list
 apps/macos/.build-local/
 apps/macos/.swiftpm/
-apps/shared/MoltbotKit/.swiftpm/
+apps/shared/SageKit/.swiftpm/
 Core/
 apps/ios/*.xcodeproj/
 apps/ios/*.xcworkspace/
@@ -68,6 +68,9 @@ apps/ios/*.mobileprovision
 IDENTITY.md
 USER.md
 .tgz
+*tsc-output.txt
+.claude/
+Sage VDE/
 
 # local tooling
 .serena/

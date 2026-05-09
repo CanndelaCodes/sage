@@ -24,7 +24,7 @@ type PiTranslator struct {
 
 func NewPiTranslator(srcLang, tgtLang string, glossary []GlossaryEntry, thinking string) (*PiTranslator, error) {
 	options := pi.DefaultOneShotOptions()
-	options.AppName = "openclaw-docs-i18n"
+	options.AppName = "sage-docs-i18n"
 	options.WorkDir = "/tmp"
 	options.Mode = pi.ModeDragons
 	options.Dragons = pi.DragonsOptions{
@@ -269,8 +269,8 @@ Rules:
 - Use neutral documentation tone; prefer “你/你的”, avoid “您/您的”.
 - Insert a space between Latin characters and CJK text (W3C CLREQ), e.g., “Gateway 网关”, “Skills 配置”.
 - Use Chinese quotation marks “ and ” for Chinese prose; keep ASCII quotes inside code spans/blocks or literal CLI/keys.
-- Keep product names in English: OpenClaw, Pi, WhatsApp, Telegram, Discord, iMessage, Slack, Microsoft Teams, Google Chat, Signal.
-- For the OpenClaw Gateway, use “Gateway 网关”.
+- Keep product names in English: Sage, Pi, WhatsApp, Telegram, Discord, iMessage, Slack, Microsoft Teams, Google Chat, Signal.
+- For the Sage Gateway, use “Gateway 网关”.
 - Keep these terms in English: Skills, local loopback, Tailscale.
 - Never output an empty response; if unsure, return the source text unchanged.
 

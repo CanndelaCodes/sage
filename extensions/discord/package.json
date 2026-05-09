@@ -1,12 +1,12 @@
 {
-  "name": "@openclaw/discord",
+  "name": "@sage/discord",
   "version": "2026.2.3",
-  "description": "OpenClaw Discord channel plugin",
+  "description": "Sage Discord channel plugin",
   "type": "module",
   "devDependencies": {
-    "openclaw": "workspace:*"
+    "sage": "workspace:*"
   },
-  "openclaw": {
+  "sage": {
     "extensions": [
       "./index.ts"
     ]

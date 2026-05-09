@@ -1,12 +1,12 @@
 {
-  "name": "@openclaw/llm-task",
+  "name": "@sage/llm-task",
   "version": "2026.2.3",
-  "description": "OpenClaw JSON-only LLM task plugin",
+  "description": "Sage JSON-only LLM task plugin",
   "type": "module",
   "devDependencies": {
-    "openclaw": "workspace:*"
+    "sage": "workspace:*"
   },
-  "openclaw": {
+  "sage": {
     "extensions": [
       "./index.ts"
     ]

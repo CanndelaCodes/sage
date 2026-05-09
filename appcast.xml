@@ -1,15 +1,15 @@
 <?xml version="1.0" standalone="yes"?>
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
     <channel>
-        <title>OpenClaw</title>
+        <title>Sage</title>
         <item>
             <title>2026.2.3</title>
             <pubDate>Wed, 04 Feb 2026 17:47:10 -0800</pubDate>
-            <link>https://raw.githubusercontent.com/openclaw/openclaw/main/appcast.xml</link>
+            <link>https://raw.githubusercontent.com/sage/sage/main/appcast.xml</link>
             <sparkle:version>8900</sparkle:version>
             <sparkle:shortVersionString>2026.2.3</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>OpenClaw 2026.2.3</h2>
+            <description><![CDATA[<h2>Sage 2026.2.3</h2>
 <h3>Changes</h3>
 <ul>
 <li>Telegram: remove last <code>@ts-nocheck</code> from <code>bot-handlers.ts</code>, use Grammy types directly, deduplicate <code>StickerMetadata</code>. Zero <code>@ts-nocheck</code> remaining in <code>src/telegram/</code>. (#9206)</li>
@@ -48,21 +48,21 @@
 <li>Telegram: include forward_from_chat metadata in forwarded messages and harden cron delivery target checks. (#8392) Thanks @Glucksberg.</li>
 <li>macOS: fix cron payload summary rendering and ISO 8601 formatter concurrency safety.</li>
 </ul>
-<p><a href="https://github.com/openclaw/openclaw/blob/main/CHANGELOG.md">View full changelog</a></p>
+<p><a href="https://github.com/sage/sage/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
-            <enclosure url="https://github.com/openclaw/openclaw/releases/download/v2026.2.3/OpenClaw-2026.2.3.zip" length="22530161" type="application/octet-stream" sparkle:edSignature="7eHUaQC6cx87HWbcaPh9T437+LqfE9VtQBf4p9JBjIyBrqGYxxp9KPvI5unEjg55j9j2djCXhseSMeyyRmvYBg=="/>
+            <enclosure url="https://github.com/sage/sage/releases/download/v2026.2.3/Sage-2026.2.3.zip" length="22530161" type="application/octet-stream" sparkle:edSignature="7eHUaQC6cx87HWbcaPh9T437+LqfE9VtQBf4p9JBjIyBrqGYxxp9KPvI5unEjg55j9j2djCXhseSMeyyRmvYBg=="/>
         </item>
         <item>
             <title>2026.2.2</title>
             <pubDate>Tue, 03 Feb 2026 17:04:17 -0800</pubDate>
-            <link>https://raw.githubusercontent.com/openclaw/openclaw/main/appcast.xml</link>
+            <link>https://raw.githubusercontent.com/sage/sage/main/appcast.xml</link>
             <sparkle:version>8809</sparkle:version>
             <sparkle:shortVersionString>2026.2.2</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>OpenClaw 2026.2.2</h2>
+            <description><![CDATA[<h2>Sage 2026.2.2</h2>
 <h3>Changes</h3>
 <ul>
-<li>Feishu: add Feishu/Lark plugin support + docs. (#7313) Thanks @jiulingyun (openclaw-cn).</li>
+<li>Feishu: add Feishu/Lark plugin support + docs. (#7313) Thanks @jiulingyun (sage-cn).</li>
 <li>Web UI: add Agents dashboard for managing agent files, tools, skills, models, channels, and cron jobs.</li>
 <li>Memory: implement the opt-in QMD backend for workspace memory. (#3160) Thanks @vignesh07.</li>
 <li>Security: add healthcheck skill and bootstrap audit guidance. (#7641) Thanks @Takhoffman.</li>
@@ -89,21 +89,21 @@
 <li>CLI/Zsh completion: cache scripts in state dir and escape option descriptions to avoid invalid option errors.</li>
 <li>fix(ui): resolve Control UI asset path correctly.</li>
 <li>fix(ui): refresh agent files after external edits.</li>
-<li>Docs: finish renaming the QMD memory docs to reference the OpenClaw state dir.</li>
+<li>Docs: finish renaming the QMD memory docs to reference the Sage state dir.</li>
 <li>Tests: stub SSRF DNS pinning in web auto-reply + Gemini video coverage. (#6619) Thanks @joshp123.</li>
 </ul>
-<p><a href="https://github.com/openclaw/openclaw/blob/main/CHANGELOG.md">View full changelog</a></p>
+<p><a href="https://github.com/sage/sage/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
-            <enclosure url="https://github.com/openclaw/openclaw/releases/download/v2026.2.2/OpenClaw-2026.2.2.zip" length="22519052" type="application/octet-stream" sparkle:edSignature="a6viD+aS5EfY/RkPIPMfoQQNkJCk6QTdV5WobXFxyYwURskUm8/nXTHVXsCh1c5+0WKUnmlDIyf0i+6IWiavAA=="/>
+            <enclosure url="https://github.com/sage/sage/releases/download/v2026.2.2/Sage-2026.2.2.zip" length="22519052" type="application/octet-stream" sparkle:edSignature="a6viD+aS5EfY/RkPIPMfoQQNkJCk6QTdV5WobXFxyYwURskUm8/nXTHVXsCh1c5+0WKUnmlDIyf0i+6IWiavAA=="/>
         </item>
         <item>
             <title>2026.2.1</title>
             <pubDate>Mon, 02 Feb 2026 03:53:03 -0800</pubDate>
-            <link>https://raw.githubusercontent.com/openclaw/openclaw/main/appcast.xml</link>
+            <link>https://raw.githubusercontent.com/sage/sage/main/appcast.xml</link>
             <sparkle:version>8650</sparkle:version>
             <sparkle:shortVersionString>2026.2.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>OpenClaw 2026.2.1</h2>
+            <description><![CDATA[<h2>Sage 2026.2.1</h2>
 <h3>Changes</h3>
 <ul>
 <li>Docs: onboarding/install/i18n/exec-approvals/Control UI/exe.dev/cacheRetention updates + misc nav/typos. (#3050, #3461, #4064, #4675, #4729, #4763, #5003, #5402, #5446, #5474, #5663, #5689, #5694, #5967, #6270, #6300, #6311, #6416, #6487, #6550, #6789)</li>
@@ -130,7 +130,7 @@
 <li>Auto-reply: avoid referencing workspace files in /new greeting prompt. (#5706) Thanks @bravostation.</li>
 <li>Tools: align tool execute adapters/signatures (legacy + parameter order + arg normalization).</li>
 <li>Tools: treat <code>"*"</code> tool allowlist entries as valid to avoid spurious unknown-entry warnings.</li>
-<li>Skills: update session-logs paths from .clawdbot to .openclaw. (#4502)</li>
+<li>Skills: update session-logs paths from .sagebot to .sage. (#4502)</li>
 <li>Slack: harden media fetch limits and Slack file URL validation. (#6639) Thanks @davidiach.</li>
 <li>Lint: satisfy curly rule after import sorting. (#6310)</li>
 <li>Process: resolve Windows <code>spawn()</code> failures for npm-family CLIs by appending <code>.cmd</code> when needed. (#5815) Thanks @thejhinvirtuoso.</li>
@@ -158,9 +158,9 @@
 <li>Security: harden web tool content wrapping + file parsing safeguards. (#4058) Thanks @VACInc.</li>
 <li>Security: enforce Twitch <code>allowFrom</code> allowlist gating (deny non-allowlisted senders). Thanks @MegaManSec.</li>
 </ul>
-<p><a href="https://github.com/openclaw/openclaw/blob/main/CHANGELOG.md">View full changelog</a></p>
+<p><a href="https://github.com/sage/sage/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
-            <enclosure url="https://github.com/openclaw/openclaw/releases/download/v2026.2.1/OpenClaw-2026.2.1.zip" length="22458919" type="application/octet-stream" sparkle:edSignature="kA/8VQlVdtYphcB1iuFrhWczwWKgkVZMfDfQ7T9WD405D8JKTv5CZ1n8lstIVkpk4xog3UhrfaaoTG8Bf8DMAQ=="/>
+            <enclosure url="https://github.com/sage/sage/releases/download/v2026.2.1/Sage-2026.2.1.zip" length="22458919" type="application/octet-stream" sparkle:edSignature="kA/8VQlVdtYphcB1iuFrhWczwWKgkVZMfDfQ7T9WD405D8JKTv5CZ1n8lstIVkpk4xog3UhrfaaoTG8Bf8DMAQ=="/>
         </item>
     </channel>
 </rss>

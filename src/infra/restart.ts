@@ -2,11 +2,12 @@ import { spawnSync } from "node:child_process";
 import {
   resolveGatewayLaunchAgentLabel,
   resolveGatewaySystemdServiceName,
+  resolveGatewayWindowsTaskName,
 } from "../daemon/constants.js";
 
 export type RestartAttempt = {
   ok: boolean;
-  method: "launchctl" | "systemd" | "supervisor";
+  method: "launchctl" | "systemd" | "schtasks" | "supervisor";
   detail?: string;
   tried?: string[];
 };
@@ -103,16 +104,44 @@ function normalizeSystemdUnit(raw?: string, profile?: string): string {
   return unit.endsWith(".service") ? unit : `${unit}.service`;
 }
 
-export function triggerOpenClawRestart(): RestartAttempt {
+export function triggerSageRestart(): RestartAttempt {
   if (process.env.VITEST || process.env.NODE_ENV === "test") {
     return { ok: true, method: "supervisor", detail: "test mode" };
   }
   const tried: string[] = [];
   if (process.platform !== "darwin") {
+    if (process.platform === "win32") {
+      const taskName =
+        process.env.SAGE_WINDOWS_TASK_NAME?.trim() ||
+        resolveGatewayWindowsTaskName(process.env.SAGE_PROFILE);
+      const endArgs = ["/End", "/TN", taskName];
+      tried.push(`schtasks ${endArgs.join(" ")}`);
+      spawnSync("schtasks", endArgs, {
+        encoding: "utf8",
+        timeout: SPAWN_TIMEOUT_MS,
+        windowsHide: true,
+      });
+      const runArgs = ["/Run", "/TN", taskName];
+      tried.push(`schtasks ${runArgs.join(" ")}`);
+      const runResult = spawnSync("schtasks", runArgs, {
+        encoding: "utf8",
+        timeout: SPAWN_TIMEOUT_MS,
+        windowsHide: true,
+      });
+      if (!runResult.error && runResult.status === 0) {
+        return { ok: true, method: "schtasks", tried };
+      }
+      return {
+        ok: false,
+        method: "schtasks",
+        detail: formatSpawnDetail(runResult),
+        tried,
+      };
+    }
     if (process.platform === "linux") {
       const unit = normalizeSystemdUnit(
-        process.env.OPENCLAW_SYSTEMD_UNIT,
-        process.env.OPENCLAW_PROFILE,
+        process.env.SAGE_SYSTEMD_UNIT,
+        process.env.SAGE_PROFILE,
       );
       const userArgs = ["--user", "restart", unit];
       tried.push(`systemctl ${userArgs.join(" ")}`);
@@ -146,8 +175,8 @@ export function triggerOpenClawRestart(): RestartAttempt {
   }
 
   const label =
-    process.env.OPENCLAW_LAUNCHD_LABEL ||
-    resolveGatewayLaunchAgentLabel(process.env.OPENCLAW_PROFILE);
+    process.env.SAGE_LAUNCHD_LABEL ||
+    resolveGatewayLaunchAgentLabel(process.env.SAGE_PROFILE);
   const uid = typeof process.getuid === "function" ? process.getuid() : undefined;
   const target = uid !== undefined ? `gui/${uid}/${label}` : label;
   const args = ["kickstart", "-k", target];
@@ -196,9 +225,11 @@ export function scheduleGatewaySigusr1Restart(opts?: {
     try {
       if (hasListener) {
         process.emit("SIGUSR1");
-      } else {
+      } else if (process.platform !== "win32") {
         process.kill(pid, "SIGUSR1");
       }
+      // On Windows, SIGUSR1 is not supported via process.kill.
+      // Fall through silently if no listener is registered.
     } catch {
       /* ignore */
     }

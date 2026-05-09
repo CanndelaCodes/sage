@@ -1,12 +1,12 @@
 {
-  "name": "@openclaw/imessage",
+  "name": "@sage/imessage",
   "version": "2026.2.3",
-  "description": "OpenClaw iMessage channel plugin",
+  "description": "Sage iMessage channel plugin",
   "type": "module",
   "devDependencies": {
-    "openclaw": "workspace:*"
+    "sage": "workspace:*"
   },
-  "openclaw": {
+  "sage": {
     "extensions": [
       "./index.ts"
     ]

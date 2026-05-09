@@ -1,4 +1,4 @@
-import type { OpenClawConfig } from "../../config/config.js";
+import type { SageConfig } from "../../config/config.js";
 import type {
   SandboxBrowserConfig,
   SandboxConfig,
@@ -55,6 +55,7 @@ export function resolveSandboxDockerConfig(params: {
   const binds = [...(globalDocker?.binds ?? []), ...(agentDocker?.binds ?? [])];
 
   return {
+    runtime: agentDocker?.runtime ?? globalDocker?.runtime,
     image: agentDocker?.image ?? globalDocker?.image ?? DEFAULT_SANDBOX_IMAGE,
     containerPrefix:
       agentDocker?.containerPrefix ??
@@ -124,7 +125,7 @@ export function resolveSandboxPruneConfig(params: {
 }
 
 export function resolveSandboxConfigForAgent(
-  cfg?: OpenClawConfig,
+  cfg?: SageConfig,
   agentId?: string,
 ): SandboxConfig {
   const agent = cfg?.agents?.defaults?.sandbox;

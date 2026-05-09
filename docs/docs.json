@@ -1,6 +1,6 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "name": "OpenClaw",
+  "name": "Sage",
   "theme": "mint",
   "icons": {
     "library": "lucide"
@@ -11,28 +11,28 @@
   },
   "fonts": {
     "body": {
-      "family": "Fragment Mono"
+      "family": "Inter"
     },
     "heading": {
-      "family": "DM Sans"
+      "family": "Inter"
     }
   },
   "favicon": "/assets/pixel-lobster.svg",
   "colors": {
-    "primary": "#FF5A36",
-    "dark": "#FF5A36",
-    "light": "#FF8A6B"
+    "primary": "#14F195",
+    "dark": "#14F195",
+    "light": "#5CFBB1"
   },
   "navbar": {
     "links": [
       {
         "label": "GitHub",
-        "href": "https://github.com/openclaw/openclaw",
+        "href": "https://github.com/CanndelaCodes/sage",
         "icon": "github"
       },
       {
         "label": "Releases",
-        "href": "https://github.com/openclaw/openclaw/releases",
+        "href": "https://github.com/CanndelaCodes/sage/releases",
         "icon": "package"
       }
     ]
@@ -256,27 +256,27 @@
     },
     {
       "source": "/clawd",
-      "destination": "/start/openclaw"
+      "destination": "/start/sage"
     },
     {
       "source": "/start/clawd",
-      "destination": "/start/openclaw"
+      "destination": "/start/sage"
     },
     {
       "source": "/start/clawd/",
-      "destination": "/start/openclaw"
+      "destination": "/start/sage"
     },
     {
-      "source": "/clawhub",
-      "destination": "/tools/clawhub"
+      "source": "/sageskills",
+      "destination": "/tools/sageskills"
     },
     {
       "source": "/clawdhub",
-      "destination": "/tools/clawhub"
+      "destination": "/tools/sageskills"
     },
     {
       "source": "/tools/clawdhub",
-      "destination": "/tools/clawhub"
+      "destination": "/tools/sageskills"
     },
     {
       "source": "/configuration",
@@ -754,7 +754,7 @@
                   "start/setup",
                   "start/onboarding",
                   "start/pairing",
-                  "start/openclaw",
+                  "start/sage",
                   "start/hubs",
                   "start/docs-directory"
                 ]
@@ -892,7 +892,7 @@
                   "tools/slash-commands",
                   "tools/skills",
                   "tools/skills-config",
-                  "tools/clawhub",
+                  "tools/sageskills",
                   "plugin",
                   "plugins/voice-call",
                   "plugins/zalouser"
@@ -1192,7 +1192,7 @@
                   "zh-CN/start/setup",
                   "zh-CN/start/onboarding",
                   "zh-CN/start/pairing",
-                  "zh-CN/start/openclaw",
+                  "zh-CN/start/sage",
                   "zh-CN/start/hubs"
                 ]
               },
@@ -1333,7 +1333,7 @@
                   "zh-CN/tools/slash-commands",
                   "zh-CN/tools/skills",
                   "zh-CN/tools/skills-config",
-                  "zh-CN/tools/clawhub",
+                  "zh-CN/tools/sageskills",
                   "zh-CN/plugin",
                   "zh-CN/plugins/voice-call",
                   "zh-CN/plugins/zalouser"

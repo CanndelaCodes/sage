@@ -3,6 +3,7 @@ import { ToolsSchema } from "./zod-schema.agent-runtime.js";
 import { AgentsSchema, AudioSchema, BindingsSchema, BroadcastSchema } from "./zod-schema.agents.js";
 import { ApprovalsSchema } from "./zod-schema.approvals.js";
 import { HexColorSchema, ModelsConfigSchema } from "./zod-schema.core.js";
+import { GuardrailsSchema } from "./zod-schema.guardrails.js";
 import { HookMappingSchema, HooksGmailSchema, InternalHooksSchema } from "./zod-schema.hooks.js";
 import { ChannelsSchema } from "./zod-schema.providers.js";
 import {
@@ -87,7 +88,7 @@ const MemorySchema = z
   .strict()
   .optional();
 
-export const OpenClawSchema = z
+export const SageSchema = z
   .object({
     meta: z
       .object({
@@ -282,6 +283,7 @@ export const OpenClawSchema = z
     messages: MessagesSchema,
     commands: CommandsSchema,
     approvals: ApprovalsSchema,
+    guardrails: GuardrailsSchema,
     session: SessionSchema,
     cron: z
       .object({

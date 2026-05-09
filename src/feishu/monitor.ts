@@ -1,5 +1,5 @@
 import * as Lark from "@larksuiteoapi/node-sdk";
-import type { OpenClawConfig } from "../config/config.js";
+import type { SageConfig } from "../config/config.js";
 import type { RuntimeEnv } from "../runtime.js";
 import { loadConfig } from "../config/config.js";
 import { getChildLogger } from "../logging.js";
@@ -14,7 +14,7 @@ export type MonitorFeishuOpts = {
   appId?: string;
   appSecret?: string;
   accountId?: string;
-  config?: OpenClawConfig;
+  config?: SageConfig;
   runtime?: RuntimeEnv;
   abortSignal?: AbortSignal;
 };

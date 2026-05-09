@@ -1,7 +1,35 @@
-#!/bin/sh
-FILES=$(git diff --cached --name-only --diff-filter=ACMR | sed 's| |\\ |g')
-[ -z "$FILES" ] && exit 0
-echo "$FILES" | xargs pnpm format:fix --no-error-on-unmatched-pattern
-echo "$FILES" | xargs git add
+#!/usr/bin/env node
+/**
+ * Cross-platform pre-commit hook.
+ * Formats staged files and re-stages them.
+ */
+const { execSync } = require("node:child_process");
 
-exit 0
+const files = execSync("git diff --cached --name-only --diff-filter=ACMR", { encoding: "utf8" })
+  .trim();
+
+if (!files) {
+  process.exit(0);
+}
+
+const fileList = files.split("\n").filter(Boolean);
+
+try {
+  execSync(
+    "pnpm format:fix --no-error-on-unmatched-pattern " +
+      fileList.map((f) => '"' + f + '"').join(" "),
+    { stdio: "inherit" },
+  );
+} catch {
+  // format:fix may exit non-zero if no files matched; that's fine
+}
+
+for (const file of fileList) {
+  try {
+    execSync('git add "' + file + '"', { stdio: "inherit" });
+  } catch {
+    // ignore files that may have been deleted
+  }
+}
+
+process.exit(0);

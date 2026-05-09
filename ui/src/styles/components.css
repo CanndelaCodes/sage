@@ -1509,6 +1509,265 @@
 }
 
 /* ===========================================
+   Confirmation Dialog (Guardrails)
+   =========================================== */
+
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 210;
+}
+
+.confirm-card {
+  width: min(560px, 100%);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  animation: scale-in 0.2s var(--ease-out);
+}
+
+.confirm-card--payment {
+  border-color: var(--danger);
+}
+
+.confirm-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.confirm-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.confirm-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.confirm-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 700;
+  background: var(--secondary);
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.confirm-icon--payment {
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  color: var(--danger);
+}
+
+.confirm-icon--file_destruction {
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  color: var(--danger);
+}
+
+.confirm-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.confirm-sub {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.confirm-severity {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.severity-low {
+  background: color-mix(in srgb, var(--muted) 15%, transparent);
+  color: var(--muted);
+}
+
+.severity-medium {
+  background: color-mix(in srgb, var(--warning, #f59e0b) 15%, transparent);
+  color: var(--warning, #f59e0b);
+}
+
+.severity-high {
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  color: var(--danger);
+}
+
+.severity-critical {
+  background: var(--danger);
+  color: #fff;
+}
+
+.confirm-queue-badge {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  padding: 3px 8px;
+}
+
+.confirm-category {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.confirm-detail-section {
+  margin-top: 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.confirm-command {
+  padding: 10px 12px;
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  word-break: break-word;
+  white-space: pre-wrap;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.confirm-file-list {
+  display: grid;
+  gap: 4px;
+}
+
+.confirm-file-path {
+  padding: 6px 10px;
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.confirm-meta-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.confirm-meta-row span:last-child {
+  color: var(--text);
+  text-align: right;
+  word-break: break-all;
+}
+
+.confirm-flag {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+}
+
+.confirm-flag.warn {
+  background: color-mix(in srgb, var(--warning, #f59e0b) 12%, transparent);
+  color: var(--warning, #f59e0b);
+}
+
+.confirm-flag.danger {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+}
+
+.confirm-data-preview {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.confirm-data-preview pre {
+  margin-top: 4px;
+  padding: 8px 10px;
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  max-height: 120px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.confirm-payment-amount {
+  font-size: 24px;
+  font-weight: 700;
+  text-align: center;
+  padding: 12px;
+}
+
+.confirm-reason {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.confirm-error {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--danger);
+}
+
+.confirm-remember {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.confirm-remember input[type="checkbox"] {
+  accent-color: var(--primary);
+}
+
+.confirm-actions {
+  margin-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.confirm-trust-hint {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* ===========================================
    Agents
    =========================================== */
 
@@ -1908,4 +2167,163 @@
   .agent-tools-list {
     grid-template-columns: 1fr;
   }
+}
+
+/* ---------------------------------------------------------------------------
+ * Guardrails
+ * --------------------------------------------------------------------------- */
+
+.guardrails-section {
+  max-width: 800px;
+}
+
+.guardrails-presets-label,
+.guardrails-categories-label {
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.guardrails-presets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.guardrails-preset-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  background: var(--card);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color var(--duration-fast) ease,
+    background var(--duration-fast) ease;
+}
+
+.guardrails-preset-card:hover {
+  border-color: var(--border-strong);
+}
+
+.guardrails-preset-card--active {
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+.guardrails-preset-card__name {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.guardrails-preset-card__desc {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.guardrails-category-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.guardrails-category-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card);
+}
+
+.guardrails-category-row__name {
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.guardrails-behavior-badge,
+.guardrails-behavior-select {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.guardrails-behavior-badge {
+  display: inline-block;
+}
+
+.guardrails-behavior-select {
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: inherit;
+  cursor: pointer;
+}
+
+.guardrails-behavior--block {
+  color: var(--destructive, #e74c3c);
+  border-color: var(--destructive, #e74c3c);
+}
+
+.guardrails-behavior--confirm {
+  color: var(--warn, #f39c12);
+  border-color: var(--warn, #f39c12);
+}
+
+.guardrails-behavior--warn {
+  color: var(--warn, #f39c12);
+  border-color: var(--warn, #f39c12);
+}
+
+.guardrails-behavior--auto {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.guardrails-advanced {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+}
+
+.guardrails-advanced summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.guardrails-setting-row {
+  display: grid;
+  gap: 4px;
+}
+
+.guardrails-setting-label {
+  font-weight: 500;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.guardrails-setting-desc {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.guardrails-number-input {
+  width: 80px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 6px 10px;
+  background: var(--card);
+  color: inherit;
+  font-size: 13px;
 }

@@ -32,4 +32,4 @@ x-i18n:
 
 注意事项：
 - 将此文件保存在工作区根目录，命名为 `IDENTITY.md`。
-- 头像请使用工作区相对路径，例如 `avatars/openclaw.png`。
+- 头像请使用工作区相对路径，例如 `avatars/sage.png`。

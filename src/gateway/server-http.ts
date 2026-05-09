@@ -7,12 +7,14 @@ import {
   type ServerResponse,
 } from "node:http";
 import { createServer as createHttpsServer } from "node:https";
+import type { RateLimiter } from "./rate-limit.js";
 import type { CanvasHostHandler } from "../canvas-host/server.js";
 import type { createSubsystemLogger } from "../logging/subsystem.js";
 import { resolveAgentAvatar } from "../agents/identity-avatar.js";
 import { handleA2uiHttpRequest } from "../canvas-host/a2ui.js";
 import { loadConfig } from "../config/config.js";
 import { handleSlackHttpRequest } from "../slack/http/index.js";
+import { buildCorsHeaders, checkWsUpgradeSecurity } from "./ws-security.js";
 import {
   handleControlUiAvatarRequest,
   handleControlUiHttpRequest,
@@ -93,7 +95,7 @@ export function createHooksRequestHandler(
       logHooks.warn(
         "Hook token provided via query parameter is deprecated for security reasons. " +
           "Tokens in URLs appear in logs, browser history, and referrer headers. " +
-          "Use Authorization: Bearer <token> or X-OpenClaw-Token header instead.",
+          "Use Authorization: Bearer <token> or X-Sage-Token header instead.",
       );
     }
 
@@ -217,6 +219,7 @@ export function createGatewayHttpServer(opts: {
   handleHooksRequest: HooksRequestHandler;
   handlePluginRequest?: HooksRequestHandler;
   resolvedAuth: import("./auth.js").ResolvedGatewayAuth;
+  rateLimiter?: RateLimiter;
   tlsOptions?: TlsOptions;
 }): HttpServer {
   const {
@@ -230,6 +233,7 @@ export function createGatewayHttpServer(opts: {
     handleHooksRequest,
     handlePluginRequest,
     resolvedAuth,
+    rateLimiter,
   } = opts;
   const httpServer: HttpServer = opts.tlsOptions
     ? createHttpsServer(opts.tlsOptions, (req, res) => {
@@ -243,6 +247,35 @@ export function createGatewayHttpServer(opts: {
     // Don't interfere with WebSocket upgrades; ws handles the 'upgrade' event.
     if (String(req.headers.upgrade ?? "").toLowerCase() === "websocket") {
       return;
+    }
+
+    // CORS preflight and headers (CVE-2026-25253).
+    const configForCors = loadConfig();
+    const corsHeaders = buildCorsHeaders({
+      origin: Array.isArray(req.headers.origin) ? req.headers.origin[0] : req.headers.origin,
+      requestHost: Array.isArray(req.headers.host) ? req.headers.host[0] : req.headers.host,
+      allowedOrigins: configForCors.gateway?.controlUi?.allowedOrigins,
+    });
+    for (const [key, value] of Object.entries(corsHeaders)) {
+      res.setHeader(key, value);
+    }
+    if (req.method === "OPTIONS") {
+      res.statusCode = 204;
+      res.end();
+      return;
+    }
+
+    // Rate limit check for HTTP requests.
+    if (rateLimiter) {
+      const clientIp = req.socket.remoteAddress;
+      const rlResult = rateLimiter.check(clientIp);
+      if (!rlResult.allowed) {
+        res.statusCode = 429;
+        res.setHeader("Content-Type", "application/json; charset=utf-8");
+        res.setHeader("Retry-After", "60");
+        res.end(JSON.stringify({ error: "Too Many Requests" }));
+        return;
+      }
     }
 
     try {
@@ -331,12 +364,44 @@ export function attachGatewayUpgradeHandler(opts: {
   httpServer: HttpServer;
   wss: WebSocketServer;
   canvasHost: CanvasHostHandler | null;
+  logSecurity?: ReturnType<typeof createSubsystemLogger>;
 }) {
-  const { httpServer, wss, canvasHost } = opts;
+  const { httpServer, wss, canvasHost, logSecurity } = opts;
   httpServer.on("upgrade", (req, socket, head) => {
     if (canvasHost?.handleUpgrade(req, socket, head)) {
       return;
     }
+
+    // CVE-2026-25253: Validate origin and reject URL credentials before upgrade.
+    const configSnapshot = loadConfig();
+    const headerVal = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+    const securityCheck = checkWsUpgradeSecurity({
+      req,
+      remoteAddr: req.socket.remoteAddress,
+      origin: headerVal(req.headers.origin),
+      requestHost: headerVal(req.headers.host),
+      allowedOrigins: configSnapshot.gateway?.controlUi?.allowedOrigins,
+      onSuspicious: logSecurity
+        ? (event) => {
+            logSecurity.warn(
+              `suspicious ws connection: ${event.kind} remote=${event.remoteAddr ?? "?"} origin=${event.origin ?? "n/a"} host=${event.host ?? "n/a"} detail=${event.detail ?? "n/a"}`,
+            );
+          }
+        : undefined,
+    });
+
+    if (!securityCheck.ok) {
+      logSecurity?.warn(
+        `ws upgrade rejected: ${securityCheck.reason} remote=${req.socket.remoteAddress ?? "?"}`,
+      );
+      socket.write(
+        `HTTP/1.1 ${securityCheck.code} ${securityCheck.reason}\r\n` +
+          "Connection: close\r\n\r\n",
+      );
+      socket.destroy();
+      return;
+    }
+
     wss.handleUpgrade(req, socket, head, (ws) => {
       wss.emit("connection", ws, req);
     });

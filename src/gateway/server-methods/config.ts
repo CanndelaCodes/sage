@@ -19,7 +19,7 @@ import {
   writeRestartSentinel,
 } from "../../infra/restart-sentinel.js";
 import { scheduleGatewaySigusr1Restart } from "../../infra/restart.js";
-import { loadOpenClawPlugins } from "../../plugins/loader.js";
+import { loadSagePlugins } from "../../plugins/loader.js";
 import {
   ErrorCodes,
   errorShape,
@@ -116,7 +116,7 @@ export const configHandlers: GatewayRequestHandlers = {
     }
     const cfg = loadConfig();
     const workspaceDir = resolveAgentWorkspaceDir(cfg, resolveDefaultAgentId(cfg));
-    const pluginRegistry = loadOpenClawPlugins({
+    const pluginRegistry = loadSagePlugins({
       config: cfg,
       workspaceDir,
       logger: {

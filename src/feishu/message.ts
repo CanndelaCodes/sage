@@ -1,5 +1,5 @@
 import type { Client } from "@larksuiteoapi/node-sdk";
-import type { OpenClawConfig } from "../config/config.js";
+import type { SageConfig } from "../config/config.js";
 import { resolveSessionAgentId } from "../agents/agent-scope.js";
 import { dispatchReplyWithBufferedBlockDispatcher } from "../auto-reply/reply/provider-dispatcher.js";
 import { createReplyPrefixOptions } from "../channels/reply-prefix.js";
@@ -57,7 +57,7 @@ type FeishuEventPayload = {
 const SUPPORTED_MSG_TYPES = new Set(["text", "image", "file", "audio", "media", "sticker"]);
 
 export type ProcessFeishuMessageOptions = {
-  cfg?: OpenClawConfig;
+  cfg?: SageConfig;
   accountId?: string;
   resolvedConfig?: ResolvedFeishuConfig;
   /** Feishu app credentials for streaming card API */
@@ -188,14 +188,14 @@ export async function processFeishuMessage(
                 senderId,
                 {
                   text: [
-                    "OpenClaw access not configured.",
+                    "Sage access not configured.",
                     "",
                     `Your Feishu Open ID: ${senderId}`,
                     "",
                     `Pairing code: ${code}`,
                     "",
-                    "Ask the OpenClaw admin to approve with:",
-                    `openclaw pairing approve feishu ${code}`,
+                    "Ask the Sage admin to approve with:",
+                    `sage pairing approve feishu ${code}`,
                   ].join("\n"),
                 },
                 { receiveIdType: "open_id" },

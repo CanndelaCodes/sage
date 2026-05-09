@@ -1,12 +1,12 @@
 {
-  "name": "@openclaw/signal",
+  "name": "@sage/signal",
   "version": "2026.2.3",
-  "description": "OpenClaw Signal channel plugin",
+  "description": "Sage Signal channel plugin",
   "type": "module",
   "devDependencies": {
-    "openclaw": "workspace:*"
+    "sage": "workspace:*"
   },
-  "openclaw": {
+  "sage": {
     "extensions": [
       "./index.ts"
     ]

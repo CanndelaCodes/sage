@@ -1,4 +1,4 @@
-import type { OpenClawApp } from "./app.ts";
+import type { SageApp } from "./app.ts";
 import { refreshChat } from "./app-chat.ts";
 import {
   startLogsPolling,
@@ -112,19 +112,20 @@ export function applySettingsFromUrl(host: SettingsHost) {
   let shouldCleanUrl = false;
 
   if (tokenRaw != null) {
-    const token = tokenRaw.trim();
-    if (token && token !== host.settings.token) {
-      applySettings(host, { ...host.settings, token });
-    }
+    // CVE-2026-25253: Never accept auth credentials from URL params.
+    // An attacker could craft a link that silently connects to their gateway.
+    console.warn(
+      "[sage] Ignoring token from URL parameter — set credentials through Settings instead.",
+    );
     params.delete("token");
     shouldCleanUrl = true;
   }
 
   if (passwordRaw != null) {
-    const password = passwordRaw.trim();
-    if (password) {
-      (host as unknown as { password: string }).password = password;
-    }
+    // CVE-2026-25253: Same treatment for password.
+    console.warn(
+      "[sage] Ignoring password from URL parameter — set credentials through Settings instead.",
+    );
     params.delete("password");
     shouldCleanUrl = true;
   }
@@ -142,10 +143,12 @@ export function applySettingsFromUrl(host: SettingsHost) {
   }
 
   if (gatewayUrlRaw != null) {
-    const gatewayUrl = normalizeGatewayUrl(gatewayUrlRaw);
-    if (gatewayUrl && gatewayUrl !== host.settings.gatewayUrl && isTopLevelWindow()) {
-      host.pendingGatewayUrl = gatewayUrl;
-    }
+    // CVE-2026-25253: Never accept gatewayUrl from URL params.
+    // An attacker could craft a link that silently redirects the client
+    // to connect to their malicious gateway server.
+    console.warn(
+      "[sage] Ignoring gatewayUrl from URL parameter — set the gateway URL through Settings instead.",
+    );
     params.delete("gatewayUrl");
     shouldCleanUrl = true;
   }
@@ -201,19 +204,19 @@ export async function refreshActiveTab(host: SettingsHost) {
     await loadChannelsTab(host);
   }
   if (host.tab === "instances") {
-    await loadPresence(host as unknown as OpenClawApp);
+    await loadPresence(host as unknown as SageApp);
   }
   if (host.tab === "sessions") {
-    await loadSessions(host as unknown as OpenClawApp);
+    await loadSessions(host as unknown as SageApp);
   }
   if (host.tab === "cron") {
     await loadCron(host);
   }
   if (host.tab === "skills") {
-    await loadSkills(host as unknown as OpenClawApp);
+    await loadSkills(host as unknown as SageApp);
   }
   if (host.tab === "agents") {
-    const app = host as unknown as OpenClawApp;
+    const app = host as unknown as SageApp;
     await loadAgents(app);
     await loadConfig(app);
     const agentIds = app.agentsList?.agents?.map((entry) => entry.id) ?? [];
@@ -236,10 +239,10 @@ export async function refreshActiveTab(host: SettingsHost) {
     }
   }
   if (host.tab === "nodes") {
-    await loadNodes(host as unknown as OpenClawApp);
-    await loadDevices(host as unknown as OpenClawApp);
-    await loadConfig(host as unknown as OpenClawApp);
-    await loadExecApprovals(host as unknown as OpenClawApp);
+    await loadNodes(host as unknown as SageApp);
+    await loadDevices(host as unknown as SageApp);
+    await loadConfig(host as unknown as SageApp);
+    await loadExecApprovals(host as unknown as SageApp);
   }
   if (host.tab === "chat") {
     await refreshChat(host as unknown as Parameters<typeof refreshChat>[0]);
@@ -248,17 +251,20 @@ export async function refreshActiveTab(host: SettingsHost) {
       !host.chatHasAutoScrolled,
     );
   }
+  if (host.tab === "guardrails") {
+    await loadConfig(host as unknown as SageApp);
+  }
   if (host.tab === "config") {
-    await loadConfigSchema(host as unknown as OpenClawApp);
-    await loadConfig(host as unknown as OpenClawApp);
+    await loadConfigSchema(host as unknown as SageApp);
+    await loadConfig(host as unknown as SageApp);
   }
   if (host.tab === "debug") {
-    await loadDebug(host as unknown as OpenClawApp);
+    await loadDebug(host as unknown as SageApp);
     host.eventLog = host.eventLogBuffer;
   }
   if (host.tab === "logs") {
     host.logsAtBottom = true;
-    await loadLogs(host as unknown as OpenClawApp, { reset: true });
+    await loadLogs(host as unknown as SageApp, { reset: true });
     scheduleLogsScroll(host as unknown as Parameters<typeof scheduleLogsScroll>[0], true);
   }
 }
@@ -267,7 +273,7 @@ export function inferBasePath() {
   if (typeof window === "undefined") {
     return "";
   }
-  const configured = window.__OPENCLAW_CONTROL_UI_BASE_PATH__;
+  const configured = window.__SAGE_CONTROL_UI_BASE_PATH__;
   if (typeof configured === "string" && configured.trim()) {
     return normalizeBasePath(configured);
   }
@@ -420,26 +426,26 @@ export function syncUrlWithSessionKey(sessionKey: string, replace: boolean) {
 
 export async function loadOverview(host: SettingsHost) {
   await Promise.all([
-    loadChannels(host as unknown as OpenClawApp, false),
-    loadPresence(host as unknown as OpenClawApp),
-    loadSessions(host as unknown as OpenClawApp),
-    loadCronStatus(host as unknown as OpenClawApp),
-    loadDebug(host as unknown as OpenClawApp),
+    loadChannels(host as unknown as SageApp, false),
+    loadPresence(host as unknown as SageApp),
+    loadSessions(host as unknown as SageApp),
+    loadCronStatus(host as unknown as SageApp),
+    loadDebug(host as unknown as SageApp),
   ]);
 }
 
 export async function loadChannelsTab(host: SettingsHost) {
   await Promise.all([
-    loadChannels(host as unknown as OpenClawApp, true),
-    loadConfigSchema(host as unknown as OpenClawApp),
-    loadConfig(host as unknown as OpenClawApp),
+    loadChannels(host as unknown as SageApp, true),
+    loadConfigSchema(host as unknown as SageApp),
+    loadConfig(host as unknown as SageApp),
   ]);
 }
 
 export async function loadCron(host: SettingsHost) {
   await Promise.all([
-    loadChannels(host as unknown as OpenClawApp, false),
-    loadCronStatus(host as unknown as OpenClawApp),
-    loadCronJobs(host as unknown as OpenClawApp),
+    loadChannels(host as unknown as SageApp, false),
+    loadCronStatus(host as unknown as SageApp),
+    loadCronJobs(host as unknown as SageApp),
   ]);
 }

@@ -1,12 +1,12 @@
 {
-  "name": "@openclaw/feishu",
+  "name": "@sage/feishu",
   "version": "2026.2.3",
-  "description": "OpenClaw Feishu channel plugin",
+  "description": "Sage Feishu channel plugin",
   "type": "module",
   "devDependencies": {
-    "openclaw": "workspace:*"
+    "sage": "workspace:*"
   },
-  "openclaw": {
+  "sage": {
     "extensions": [
       "./index.ts"
     ],
@@ -25,7 +25,7 @@
       "quickstartAllowFrom": true
     },
     "install": {
-      "npmSpec": "@openclaw/feishu",
+      "npmSpec": "@sage/feishu",
       "localPath": "extensions/feishu",
       "defaultChoice": "npm"
     }

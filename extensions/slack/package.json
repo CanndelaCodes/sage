@@ -1,12 +1,12 @@
 {
-  "name": "@openclaw/slack",
+  "name": "@sage/slack",
   "version": "2026.2.3",
-  "description": "OpenClaw Slack channel plugin",
+  "description": "Sage Slack channel plugin",
   "type": "module",
   "devDependencies": {
-    "openclaw": "workspace:*"
+    "sage": "workspace:*"
   },
-  "openclaw": {
+  "sage": {
     "extensions": [
       "./index.ts"
     ]

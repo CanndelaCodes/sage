@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { loadJsonFile, saveJsonFile } from "../infra/json-file.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
+import { vaultRead, vaultWrite } from "../security/credential-vault.js";
 import { resolveUserPath } from "../utils.js";
 
 const log = createSubsystemLogger("agents/auth-profiles");
@@ -291,6 +292,54 @@ function readClaudeCliKeychainCredentials(
   }
 }
 
+function readClaudeCliVaultCredentials(): ClaudeCliCredential | null {
+  try {
+    const entry = vaultRead(CLAUDE_CLI_KEYCHAIN_SERVICE, CLAUDE_CLI_KEYCHAIN_ACCOUNT);
+    if (!entry) {
+      return null;
+    }
+    const data = JSON.parse(entry.secret);
+    const claudeOauth = data?.claudeAiOauth;
+    if (!claudeOauth || typeof claudeOauth !== "object") {
+      return null;
+    }
+    const accessToken = claudeOauth.accessToken;
+    const refreshToken = claudeOauth.refreshToken;
+    const expiresAt = claudeOauth.expiresAt;
+    if (typeof accessToken !== "string" || !accessToken) {
+      return null;
+    }
+    if (typeof expiresAt !== "number" || expiresAt <= 0) {
+      return null;
+    }
+    if (typeof refreshToken === "string" && refreshToken) {
+      log.info("read anthropic credentials from credential vault", {
+        type: "oauth",
+        backend: entry.backend,
+      });
+      return {
+        type: "oauth",
+        provider: "anthropic",
+        access: accessToken,
+        refresh: refreshToken,
+        expires: expiresAt,
+      };
+    }
+    log.info("read anthropic credentials from credential vault", {
+      type: "token",
+      backend: entry.backend,
+    });
+    return {
+      type: "token",
+      provider: "anthropic",
+      token: accessToken,
+      expires: expiresAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function readClaudeCliCredentials(options?: {
   allowKeychainPrompt?: boolean;
   platform?: NodeJS.Platform;
@@ -298,6 +347,8 @@ export function readClaudeCliCredentials(options?: {
   execSync?: ExecSyncFn;
 }): ClaudeCliCredential | null {
   const platform = options?.platform ?? process.platform;
+
+  // macOS: use native security command (existing behavior)
   if (platform === "darwin" && options?.allowKeychainPrompt !== false) {
     const keychainCreds = readClaudeCliKeychainCredentials(options?.execSync);
     if (keychainCreds) {
@@ -305,6 +356,14 @@ export function readClaudeCliCredentials(options?: {
         type: keychainCreds.type,
       });
       return keychainCreds;
+    }
+  }
+
+  // Windows/Linux: try the cross-platform credential vault (OS keychain + encrypted file)
+  if (platform === "win32" || platform === "linux") {
+    const vaultCreds = readClaudeCliVaultCredentials();
+    if (vaultCreds) {
+      return vaultCreds;
     }
   }
 
@@ -464,6 +523,31 @@ export function writeClaudeCliFileCredentials(
   }
 }
 
+function writeClaudeCliVaultCredentials(newCredentials: OAuthCredentials): boolean {
+  try {
+    const payload = JSON.stringify({
+      claudeAiOauth: {
+        accessToken: newCredentials.access,
+        refreshToken: newCredentials.refresh,
+        expiresAt: newCredentials.expires,
+      },
+    });
+    const result = vaultWrite(CLAUDE_CLI_KEYCHAIN_SERVICE, CLAUDE_CLI_KEYCHAIN_ACCOUNT, payload);
+    if (result.ok) {
+      log.info("wrote anthropic credentials to credential vault", {
+        backend: result.backend,
+        expires: new Date(newCredentials.expires).toISOString(),
+      });
+    }
+    return result.ok;
+  } catch (error) {
+    log.warn("failed to write credentials to credential vault", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return false;
+  }
+}
+
 export function writeClaudeCliCredentials(
   newCredentials: OAuthCredentials,
   options?: ClaudeCliWriteOptions,
@@ -474,6 +558,7 @@ export function writeClaudeCliCredentials(
     options?.writeFile ??
     ((credentials, fileOptions) => writeClaudeCliFileCredentials(credentials, fileOptions));
 
+  // macOS: use native keychain (existing behavior)
   if (platform === "darwin") {
     const didWriteKeychain = writeKeychain(newCredentials);
     if (didWriteKeychain) {
@@ -481,19 +566,84 @@ export function writeClaudeCliCredentials(
     }
   }
 
+  // Windows/Linux: write to cross-platform credential vault
+  if (platform === "win32" || platform === "linux") {
+    const didWriteVault = writeClaudeCliVaultCredentials(newCredentials);
+    if (didWriteVault) {
+      // Also write to file as backup
+      writeFile(newCredentials, { homeDir: options?.homeDir });
+      return true;
+    }
+  }
+
   return writeFile(newCredentials, { homeDir: options?.homeDir });
+}
+
+function readCodexCliVaultCredentials(): CodexCliCredential | null {
+  try {
+    const entry = vaultRead("Codex Auth", "codex-cli");
+    if (!entry) {
+      return null;
+    }
+    const parsed = JSON.parse(entry.secret) as Record<string, unknown>;
+    const tokens = parsed.tokens as Record<string, unknown> | undefined;
+    const accessToken = tokens?.access_token;
+    const refreshToken = tokens?.refresh_token;
+    if (typeof accessToken !== "string" || !accessToken) {
+      return null;
+    }
+    if (typeof refreshToken !== "string" || !refreshToken) {
+      return null;
+    }
+    const lastRefreshRaw = parsed.last_refresh;
+    const lastRefresh =
+      typeof lastRefreshRaw === "string" || typeof lastRefreshRaw === "number"
+        ? new Date(lastRefreshRaw).getTime()
+        : Date.now();
+    const expires = Number.isFinite(lastRefresh)
+      ? lastRefresh + 60 * 60 * 1000
+      : Date.now() + 60 * 60 * 1000;
+    const accountId = typeof tokens?.account_id === "string" ? tokens.account_id : undefined;
+
+    log.info("read codex credentials from credential vault", {
+      backend: entry.backend,
+      expires: new Date(expires).toISOString(),
+    });
+
+    return {
+      type: "oauth",
+      provider: "openai-codex" as OAuthProvider,
+      access: accessToken,
+      refresh: refreshToken,
+      expires,
+      accountId,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export function readCodexCliCredentials(options?: {
   platform?: NodeJS.Platform;
   execSync?: ExecSyncFn;
 }): CodexCliCredential | null {
+  const platform = options?.platform ?? process.platform;
+
+  // macOS: try native keychain first (existing behavior)
   const keychain = readCodexKeychainCredentials({
     platform: options?.platform,
     execSync: options?.execSync,
   });
   if (keychain) {
     return keychain;
+  }
+
+  // Windows/Linux: try cross-platform credential vault
+  if (platform === "win32" || platform === "linux") {
+    const vaultCreds = readCodexCliVaultCredentials();
+    if (vaultCreds) {
+      return vaultCreds;
+    }
   }
 
   const authPath = resolveCodexCliAuthPath();

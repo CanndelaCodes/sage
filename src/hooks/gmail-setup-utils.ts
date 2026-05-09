@@ -97,12 +97,22 @@ function ensureGcloudOnPath(): boolean {
   if (hasBinary("gcloud")) {
     return true;
   }
-  const candidates = [
-    "/opt/homebrew/share/google-cloud-sdk/bin/gcloud",
-    "/usr/local/share/google-cloud-sdk/bin/gcloud",
-    "/opt/homebrew/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/bin/gcloud",
-    "/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/bin/gcloud",
-  ];
+  const candidates: string[] = [];
+  if (process.platform === "win32") {
+    const localAppData = process.env.LOCALAPPDATA ?? path.join(process.env.USERPROFILE ?? "", "AppData", "Local");
+    candidates.push(
+      path.join(localAppData, "Google", "Cloud SDK", "google-cloud-sdk", "bin", "gcloud.cmd"),
+      path.join(process.env.ProgramFiles ?? "C:\\Program Files", "Google", "Cloud SDK", "google-cloud-sdk", "bin", "gcloud.cmd"),
+      path.join(process.env["ProgramFiles(x86)"] ?? "C:\\Program Files (x86)", "Google", "Cloud SDK", "google-cloud-sdk", "bin", "gcloud.cmd"),
+    );
+  } else {
+    candidates.push(
+      "/opt/homebrew/share/google-cloud-sdk/bin/gcloud",
+      "/usr/local/share/google-cloud-sdk/bin/gcloud",
+      "/opt/homebrew/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/bin/gcloud",
+      "/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/bin/gcloud",
+    );
+  }
   for (const candidate of candidates) {
     try {
       fs.accessSync(candidate, fs.constants.X_OK);

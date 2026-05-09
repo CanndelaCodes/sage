@@ -1,17 +1,17 @@
-# @openclaw/zalo
+# @sage/zalo
 
-Zalo channel plugin for OpenClaw (Bot API).
+Zalo channel plugin for Sage (Bot API).
 
 ## Install (local checkout)
 
 ```bash
-openclaw plugins install ./extensions/zalo
+sage plugins install ./extensions/zalo
 ```
 
 ## Install (npm)
 
 ```bash
-openclaw plugins install @openclaw/zalo
+sage plugins install @sage/zalo
 ```
 
 Onboarding: select Zalo and confirm the install prompt to fetch the plugin automatically.

@@ -1,12 +1,12 @@
 {
-  "name": "@openclaw/line",
+  "name": "@sage/line",
   "version": "2026.2.3",
-  "description": "OpenClaw LINE channel plugin",
+  "description": "Sage LINE channel plugin",
   "type": "module",
   "devDependencies": {
-    "openclaw": "workspace:*"
+    "sage": "workspace:*"
   },
-  "openclaw": {
+  "sage": {
     "extensions": [
       "./index.ts"
     ],
@@ -21,7 +21,7 @@
       "quickstartAllowFrom": true
     },
     "install": {
-      "npmSpec": "@openclaw/line",
+      "npmSpec": "@sage/line",
       "localPath": "extensions/line",
       "defaultChoice": "npm"
     }

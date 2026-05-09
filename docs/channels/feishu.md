@@ -8,7 +8,7 @@ title: Feishu
 
 # Feishu bot
 
-Feishu (Lark) is a team chat platform used by companies for messaging and collaboration. This plugin connects OpenClaw to a Feishu/Lark bot using the platform’s WebSocket event subscription so messages can be received without exposing a public webhook URL.
+Feishu (Lark) is a team chat platform used by companies for messaging and collaboration. This plugin connects Sage to a Feishu/Lark bot using the platform’s WebSocket event subscription so messages can be received without exposing a public webhook URL.
 
 ---
 
@@ -17,13 +17,13 @@ Feishu (Lark) is a team chat platform used by companies for messaging and collab
 Install the Feishu plugin:
 
 ```bash
-openclaw plugins install @openclaw/feishu
+sage plugins install @sage/feishu
 ```
 
 Local checkout (when running from a git repo):
 
 ```bash
-openclaw plugins install ./extensions/feishu
+sage plugins install ./extensions/feishu
 ```
 
 ---
@@ -34,38 +34,38 @@ There are two ways to add the Feishu channel:
 
 ### Method 1: onboarding wizard (recommended)
 
-If you just installed OpenClaw, run the wizard:
+If you just installed Sage, run the wizard:
 
 ```bash
-openclaw onboard
+sage onboard
 ```
 
 The wizard guides you through:
 
 1. Creating a Feishu app and collecting credentials
-2. Configuring app credentials in OpenClaw
+2. Configuring app credentials in Sage
 3. Starting the gateway
 
 ✅ **After configuration**, check gateway status:
 
-- `openclaw gateway status`
-- `openclaw logs --follow`
+- `sage gateway status`
+- `sage logs --follow`
 
 ### Method 2: CLI setup
 
 If you already completed initial install, add the channel via CLI:
 
 ```bash
-openclaw channels add
+sage channels add
 ```
 
 Choose **Feishu**, then enter the App ID and App Secret.
 
 ✅ **After configuration**, manage the gateway:
 
-- `openclaw gateway status`
-- `openclaw gateway restart`
-- `openclaw logs --follow`
+- `sage gateway status`
+- `sage gateway restart`
+- `sage logs --follow`
 
 ---
 
@@ -141,8 +141,8 @@ In **App Capability** > **Bot**:
 
 ⚠️ **Important:** before setting event subscription, make sure:
 
-1. You already ran `openclaw channels add` for Feishu
-2. The gateway is running (`openclaw gateway status`)
+1. You already ran `sage channels add` for Feishu
+2. The gateway is running (`sage gateway status`)
 
 In **Event Subscription**:
 
@@ -161,19 +161,19 @@ In **Event Subscription**:
 
 ---
 
-## Step 2: Configure OpenClaw
+## Step 2: Configure Sage
 
 ### Configure with the wizard (recommended)
 
 ```bash
-openclaw channels add
+sage channels add
 ```
 
 Choose **Feishu** and paste your App ID + App Secret.
 
 ### Configure via config file
 
-Edit `~/.openclaw/openclaw.json`:
+Edit `~/.sage/sage.json`:
 
 ```json5
 {
@@ -227,7 +227,7 @@ If your tenant is on Lark (international), set the domain to `lark` (or a full d
 ### 1. Start the gateway
 
 ```bash
-openclaw gateway
+sage gateway
 ```
 
 ### 2. Send a test message
@@ -239,7 +239,7 @@ In Feishu, find your bot and send a message.
 By default, the bot replies with a pairing code. Approve it:
 
 ```bash
-openclaw pairing approve feishu <CODE>
+sage pairing approve feishu <CODE>
 ```
 
 After approval, you can chat normally.
@@ -262,8 +262,8 @@ After approval, you can chat normally.
 - **Default**: `dmPolicy: "pairing"` (unknown users get a pairing code)
 - **Approve pairing**:
   ```bash
-  openclaw pairing list feishu
-  openclaw pairing approve feishu <CODE>
+  sage pairing list feishu
+  sage pairing approve feishu <CODE>
   ```
 - **Allowlist mode**: set `channels.feishu.allowFrom` with allowed Open IDs
 
@@ -335,7 +335,7 @@ Group IDs look like `oc_xxx`.
 **Method 1 (recommended)**
 
 1. Start the gateway and @mention the bot in the group
-2. Run `openclaw logs --follow` and look for `chat_id`
+2. Run `sage logs --follow` and look for `chat_id`
 
 **Method 2**
 
@@ -348,14 +348,14 @@ User IDs look like `ou_xxx`.
 **Method 1 (recommended)**
 
 1. Start the gateway and DM the bot
-2. Run `openclaw logs --follow` and look for `open_id`
+2. Run `sage logs --follow` and look for `open_id`
 
 **Method 2**
 
 Check pairing requests for user Open IDs:
 
 ```bash
-openclaw pairing list feishu
+sage pairing list feishu
 ```
 
 ---
@@ -374,11 +374,11 @@ openclaw pairing list feishu
 
 | Command                    | Description                   |
 | -------------------------- | ----------------------------- |
-| `openclaw gateway status`  | Show gateway status           |
-| `openclaw gateway install` | Install/start gateway service |
-| `openclaw gateway stop`    | Stop gateway service          |
-| `openclaw gateway restart` | Restart gateway service       |
-| `openclaw logs --follow`   | Tail gateway logs             |
+| `sage gateway status`  | Show gateway status           |
+| `sage gateway install` | Install/start gateway service |
+| `sage gateway stop`    | Stop gateway service          |
+| `sage gateway restart` | Restart gateway service       |
+| `sage logs --follow`   | Tail gateway logs             |
 
 ---
 
@@ -389,7 +389,7 @@ openclaw pairing list feishu
 1. Ensure the bot is added to the group
 2. Ensure you @mention the bot (default behavior)
 3. Check `groupPolicy` is not set to `"disabled"`
-4. Check logs: `openclaw logs --follow`
+4. Check logs: `sage logs --follow`
 
 ### Bot does not receive messages
 
@@ -397,8 +397,8 @@ openclaw pairing list feishu
 2. Ensure event subscription includes `im.message.receive_v1`
 3. Ensure **long connection** is enabled
 4. Ensure app permissions are complete
-5. Ensure the gateway is running: `openclaw gateway status`
-6. Check logs: `openclaw logs --follow`
+5. Ensure the gateway is running: `sage gateway status`
+6. Check logs: `sage logs --follow`
 
 ### App Secret leak
 

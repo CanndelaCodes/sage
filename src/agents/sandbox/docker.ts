@@ -4,33 +4,38 @@ import { formatCliCommand } from "../../cli/command-format.js";
 import { defaultRuntime } from "../../runtime.js";
 import { computeSandboxConfigHash } from "./config-hash.js";
 import { DEFAULT_SANDBOX_IMAGE, SANDBOX_AGENT_WORKSPACE_MOUNT } from "./constants.js";
+import {
+  type ContainerRuntime,
+  execContainerCommand,
+  getCachedContainerRuntime,
+  translateContainerArgs,
+} from "./container-runtime.js";
 import { readRegistry, updateRegistry } from "./registry.js";
 import { resolveSandboxAgentId, resolveSandboxScopeKey, slugifySessionKey } from "./shared.js";
 
 const HOT_CONTAINER_WINDOW_MS = 5 * 60 * 1000;
 
+/**
+ * Resolve the active container runtime command name.
+ * Returns "podman" or "docker" based on detection.
+ */
+function resolveRuntimeCommand(): string {
+  const cached = getCachedContainerRuntime();
+  return cached?.command ?? "docker";
+}
+
+/**
+ * Get the active container runtime type.
+ */
+export function getActiveRuntime(): ContainerRuntime {
+  const cached = getCachedContainerRuntime();
+  return cached?.runtime ?? "docker";
+}
+
 export function execDocker(args: string[], opts?: { allowFailure?: boolean }) {
-  return new Promise<{ stdout: string; stderr: string; code: number }>((resolve, reject) => {
-    const child = spawn("docker", args, {
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    let stdout = "";
-    let stderr = "";
-    child.stdout?.on("data", (chunk) => {
-      stdout += chunk.toString();
-    });
-    child.stderr?.on("data", (chunk) => {
-      stderr += chunk.toString();
-    });
-    child.on("close", (code) => {
-      const exitCode = code ?? 0;
-      if (exitCode !== 0 && !opts?.allowFailure) {
-        reject(new Error(stderr.trim() || `docker ${args.join(" ")} failed`));
-        return;
-      }
-      resolve({ stdout, stderr, code: exitCode });
-    });
-  });
+  const runtime = getActiveRuntime();
+  const translatedArgs = translateContainerArgs(runtime, args);
+  return execContainerCommand(runtime, translatedArgs, opts);
 }
 
 export async function readDockerPort(containerName: string, port: number) {
@@ -132,11 +137,11 @@ export function buildSandboxCreateArgs(params: {
 }) {
   const createdAtMs = params.createdAtMs ?? Date.now();
   const args = ["create", "--name", params.name];
-  args.push("--label", "openclaw.sandbox=1");
-  args.push("--label", `openclaw.sessionKey=${params.scopeKey}`);
-  args.push("--label", `openclaw.createdAtMs=${createdAtMs}`);
+  args.push("--label", "sage.sandbox=1");
+  args.push("--label", `sage.sessionKey=${params.scopeKey}`);
+  args.push("--label", `sage.createdAtMs=${createdAtMs}`);
   if (params.configHash) {
-    args.push("--label", `openclaw.configHash=${params.configHash}`);
+    args.push("--label", `sage.configHash=${params.configHash}`);
   }
   for (const [key, value] of Object.entries(params.labels ?? {})) {
     if (key && value) {
@@ -259,18 +264,18 @@ async function readContainerConfigHash(containerName: string): Promise<string | 
     }
     return raw;
   };
-  return await readLabel("openclaw.configHash");
+  return await readLabel("sage.configHash");
 }
 
 function formatSandboxRecreateHint(params: { scope: SandboxConfig["scope"]; sessionKey: string }) {
   if (params.scope === "session") {
-    return formatCliCommand(`openclaw sandbox recreate --session ${params.sessionKey}`);
+    return formatCliCommand(`sage sandbox recreate --session ${params.sessionKey}`);
   }
   if (params.scope === "agent") {
     const agentId = resolveSandboxAgentId(params.sessionKey) ?? "main";
-    return formatCliCommand(`openclaw sandbox recreate --agent ${agentId}`);
+    return formatCliCommand(`sage sandbox recreate --agent ${agentId}`);
   }
-  return formatCliCommand("openclaw sandbox recreate --all");
+  return formatCliCommand("sage sandbox recreate --all");
 }
 
 export async function ensureSandboxContainer(params: {

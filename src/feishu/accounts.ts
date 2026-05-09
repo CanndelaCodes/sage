@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import type { OpenClawConfig } from "../config/config.js";
+import type { SageConfig } from "../config/config.js";
 import type { FeishuAccountConfig } from "../config/types.feishu.js";
 import { DEFAULT_ACCOUNT_ID, normalizeAccountId } from "../routing/session-key.js";
 
@@ -25,7 +25,7 @@ function readFileIfExists(filePath?: string): string | undefined {
 }
 
 function resolveAccountConfig(
-  cfg: OpenClawConfig,
+  cfg: SageConfig,
   accountId: string,
 ): FeishuAccountConfig | undefined {
   const accounts = cfg.channels?.feishu?.accounts;
@@ -41,7 +41,7 @@ function resolveAccountConfig(
   return matchKey ? (accounts[matchKey] as FeishuAccountConfig | undefined) : undefined;
 }
 
-function mergeFeishuAccountConfig(cfg: OpenClawConfig, accountId: string): FeishuAccountConfig {
+function mergeFeishuAccountConfig(cfg: SageConfig, accountId: string): FeishuAccountConfig {
   const { accounts: _ignored, ...base } = (cfg.channels?.feishu ?? {}) as FeishuAccountConfig & {
     accounts?: unknown;
   };
@@ -64,7 +64,7 @@ function resolveAppSecret(config?: { appSecret?: string; appSecretFile?: string 
   return {};
 }
 
-export function listFeishuAccountIds(cfg: OpenClawConfig): string[] {
+export function listFeishuAccountIds(cfg: SageConfig): string[] {
   const feishuCfg = cfg.channels?.feishu;
   const accounts = feishuCfg?.accounts;
   const ids = new Set<string>();
@@ -88,7 +88,7 @@ export function listFeishuAccountIds(cfg: OpenClawConfig): string[] {
   return Array.from(ids);
 }
 
-export function resolveDefaultFeishuAccountId(cfg: OpenClawConfig): string {
+export function resolveDefaultFeishuAccountId(cfg: SageConfig): string {
   const ids = listFeishuAccountIds(cfg);
   if (ids.includes(DEFAULT_ACCOUNT_ID)) {
     return DEFAULT_ACCOUNT_ID;
@@ -97,7 +97,7 @@ export function resolveDefaultFeishuAccountId(cfg: OpenClawConfig): string {
 }
 
 export function resolveFeishuAccount(params: {
-  cfg: OpenClawConfig;
+  cfg: SageConfig;
   accountId?: string | null;
 }): ResolvedFeishuAccount {
   const accountId = normalizeAccountId(params.accountId);

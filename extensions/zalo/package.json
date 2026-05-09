@@ -1,16 +1,16 @@
 {
-  "name": "@openclaw/zalo",
+  "name": "@sage/zalo",
   "version": "2026.2.3",
-  "description": "OpenClaw Zalo channel plugin",
+  "description": "Sage Zalo channel plugin",
   "type": "module",
   "dependencies": {
-    "openclaw": "workspace:*",
-    "undici": "7.20.0"
+    "undici": "7.20.0",
+    "sage": "workspace:*"
   },
   "devDependencies": {
-    "openclaw": "workspace:*"
+    "sage": "workspace:*"
   },
-  "openclaw": {
+  "sage": {
     "extensions": [
       "./index.ts"
     ],
@@ -28,7 +28,7 @@
       "quickstartAllowFrom": true
     },
     "install": {
-      "npmSpec": "@openclaw/zalo",
+      "npmSpec": "@sage/zalo",
       "localPath": "extensions/zalo",
       "defaultChoice": "npm"
     }

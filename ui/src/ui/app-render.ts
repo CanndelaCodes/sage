@@ -3,7 +3,7 @@ import type { AppViewState } from "./app-view-state.ts";
 import { parseAgentSessionKey } from "../../../src/routing/session-key.js";
 import { ChatHost, refreshChatAvatar } from "./app-chat.ts";
 import { renderChatControls, renderTab, renderThemeToggle } from "./app-render.helpers.ts";
-import { OpenClawApp } from "./app.ts";
+import { SageApp } from "./app.ts";
 import { loadAgentFileContent, loadAgentFiles, saveAgentFile } from "./controllers/agent-files.ts";
 import { loadAgentIdentities, loadAgentIdentity } from "./controllers/agent-identity.ts";
 import { loadAgentSkills } from "./controllers/agent-skills.ts";
@@ -60,8 +60,10 @@ import { renderChat } from "./views/chat.ts";
 import { renderConfig } from "./views/config.ts";
 import { renderCron } from "./views/cron.ts";
 import { renderDebug } from "./views/debug.ts";
+import { renderConfirmationDialog } from "./views/confirmation-dialog.ts";
 import { renderExecApprovalPrompt } from "./views/exec-approval.ts";
 import { renderGatewayUrlConfirmation } from "./views/gateway-url-confirmation.ts";
+import { renderGuardrails } from "./views/guardrails.ts";
 import { renderInstances } from "./views/instances.ts";
 import { renderLogs } from "./views/logs.ts";
 import { renderNodes } from "./views/nodes.ts";
@@ -147,10 +149,10 @@ export function renderApp(state: AppViewState) {
           </button>
           <div class="brand">
             <div class="brand-logo">
-              <img src="${logoHref}" alt="OpenClaw" />
+              <img src="${logoHref}" alt="Sage" />
             </div>
             <div class="brand-text">
-              <div class="brand-title">OPENCLAW</div>
+              <div class="brand-title">SAGE</div>
               <div class="brand-sub">Gateway Dashboard</div>
             </div>
           </div>
@@ -198,7 +200,7 @@ export function renderApp(state: AppViewState) {
           <div class="nav-group__items">
             <a
               class="nav-item nav-item--external"
-              href="https://docs.openclaw.ai"
+              href="https://docs.sage.ai"
               target="_blank"
               rel="noreferrer"
               title="Docs (opens in new tab)"
@@ -239,7 +241,7 @@ export function renderApp(state: AppViewState) {
                 onSessionKeyChange: (next) => {
                   state.sessionKey = next;
                   state.chatMessage = "";
-                  (state as unknown as OpenClawApp).resetToolStream();
+                  (state as unknown as SageApp).resetToolStream();
                   state.applySettings({
                     ...state.settings,
                     sessionKey: next,
@@ -920,10 +922,10 @@ export function renderApp(state: AppViewState) {
                   state.chatAttachments = [];
                   state.chatStream = null;
                   state.chatRunId = null;
-                  (state as unknown as OpenClawApp).chatStreamStartedAt = null;
+                  (state as unknown as SageApp).chatStreamStartedAt = null;
                   state.chatQueue = [];
-                  (state as unknown as OpenClawApp).resetToolStream();
-                  (state as unknown as OpenClawApp).resetChatScroll();
+                  (state as unknown as SageApp).resetToolStream();
+                  (state as unknown as SageApp).resetChatScroll();
                   state.applySettings({
                     ...state.settings,
                     sessionKey: next,
@@ -965,30 +967,89 @@ export function renderApp(state: AppViewState) {
                     chatFocusMode: !state.settings.chatFocusMode,
                   });
                 },
-                onChatScroll: (event) => (state as unknown as OpenClawApp).handleChatScroll(event),
+                onChatScroll: (event) => (state as unknown as SageApp).handleChatScroll(event),
                 onDraftChange: (next) => (state.chatMessage = next),
                 attachments: state.chatAttachments,
                 onAttachmentsChange: (next) => (state.chatAttachments = next),
-                onSend: () => (state as unknown as OpenClawApp).handleSendChat(),
+                onSend: () => (state as unknown as SageApp).handleSendChat(),
                 canAbort: Boolean(state.chatRunId),
-                onAbort: () => void (state as unknown as OpenClawApp).handleAbortChat(),
-                onQueueRemove: (id) => (state as unknown as OpenClawApp).removeQueuedMessage(id),
+                onAbort: () => void (state as unknown as SageApp).handleAbortChat(),
+                onQueueRemove: (id) => (state as unknown as SageApp).removeQueuedMessage(id),
                 onNewSession: () =>
-                  (state as unknown as OpenClawApp).handleSendChat("/new", { restoreDraft: true }),
+                  (state as unknown as SageApp).handleSendChat("/new", { restoreDraft: true }),
                 showNewMessages: state.chatNewMessagesBelow,
                 onScrollToBottom: () => state.scrollToBottom(),
                 // Sidebar props for tool output viewing
-                sidebarOpen: (state as unknown as OpenClawApp).sidebarOpen,
-                sidebarContent: (state as unknown as OpenClawApp).sidebarContent,
-                sidebarError: (state as unknown as OpenClawApp).sidebarError,
-                splitRatio: (state as unknown as OpenClawApp).splitRatio,
+                sidebarOpen: (state as unknown as SageApp).sidebarOpen,
+                sidebarContent: (state as unknown as SageApp).sidebarContent,
+                sidebarError: (state as unknown as SageApp).sidebarError,
+                splitRatio: (state as unknown as SageApp).splitRatio,
                 onOpenSidebar: (content: string) =>
-                  (state as unknown as OpenClawApp).handleOpenSidebar(content),
-                onCloseSidebar: () => (state as unknown as OpenClawApp).handleCloseSidebar(),
+                  (state as unknown as SageApp).handleOpenSidebar(content),
+                onCloseSidebar: () => (state as unknown as SageApp).handleCloseSidebar(),
                 onSplitRatioChange: (ratio: number) =>
-                  (state as unknown as OpenClawApp).handleSplitRatioChange(ratio),
+                  (state as unknown as SageApp).handleSplitRatioChange(ratio),
                 assistantName: state.assistantName,
                 assistantAvatar: state.assistantAvatar,
+              })
+            : nothing
+        }
+
+        ${
+          state.tab === "guardrails"
+            ? renderGuardrails({
+                state: state.guardrails,
+                onPresetChange: (preset) => {
+                  state.guardrails = { ...state.guardrails, preset, dirty: true };
+                  (state as unknown as SageApp).requestUpdate();
+                },
+                onCategoryOverride: (category, behavior) => {
+                  state.guardrails = {
+                    ...state.guardrails,
+                    customOverrides: { ...state.guardrails.customOverrides, [category]: behavior },
+                    dirty: true,
+                  };
+                  (state as unknown as SageApp).requestUpdate();
+                },
+                onAdaptiveTrustToggle: (enabled) => {
+                  state.guardrails = { ...state.guardrails, adaptiveTrust: enabled, dirty: true };
+                  (state as unknown as SageApp).requestUpdate();
+                },
+                onWarnAutoApproveChange: (seconds) => {
+                  state.guardrails = {
+                    ...state.guardrails,
+                    warnAutoApproveSeconds: seconds,
+                    dirty: true,
+                  };
+                  (state as unknown as SageApp).requestUpdate();
+                },
+                onSave: async () => {
+                  state.guardrails = { ...state.guardrails, saving: true };
+                  (state as unknown as SageApp).requestUpdate();
+                  try {
+                    const patch: Record<string, unknown> = {
+                      guardrails: {
+                        preset: state.guardrails.preset,
+                        adaptiveTrust: state.guardrails.adaptiveTrust,
+                        warnAutoApproveSeconds: state.guardrails.warnAutoApproveSeconds,
+                        ...(state.guardrails.preset === "custom"
+                          ? {
+                              categories: Object.fromEntries(
+                                Object.entries(state.guardrails.customOverrides).map(
+                                  ([k, v]) => [k, { behavior: v }],
+                                ),
+                              ),
+                            }
+                          : {}),
+                      },
+                    };
+                    await (state as unknown as SageApp).client?.call("config.patch", patch);
+                    state.guardrails = { ...state.guardrails, saving: false, dirty: false };
+                  } catch {
+                    state.guardrails = { ...state.guardrails, saving: false };
+                  }
+                  (state as unknown as SageApp).requestUpdate();
+                },
               })
             : nothing
         }
@@ -1011,27 +1072,27 @@ export function renderApp(state: AppViewState) {
                 formMode: state.configFormMode,
                 formValue: state.configForm,
                 originalValue: state.configFormOriginal,
-                searchQuery: (state as unknown as OpenClawApp).configSearchQuery,
-                activeSection: (state as unknown as OpenClawApp).configActiveSection,
-                activeSubsection: (state as unknown as OpenClawApp).configActiveSubsection,
+                searchQuery: (state as unknown as SageApp).configSearchQuery,
+                activeSection: (state as unknown as SageApp).configActiveSection,
+                activeSubsection: (state as unknown as SageApp).configActiveSubsection,
                 onRawChange: (next) => {
                   state.configRaw = next;
                 },
                 onFormModeChange: (mode) => (state.configFormMode = mode),
                 onFormPatch: (path, value) =>
-                  updateConfigFormValue(state as unknown as OpenClawApp, path, value),
+                  updateConfigFormValue(state as unknown as SageApp, path, value),
                 onSearchChange: (query) =>
-                  ((state as unknown as OpenClawApp).configSearchQuery = query),
+                  ((state as unknown as SageApp).configSearchQuery = query),
                 onSectionChange: (section) => {
-                  (state as unknown as OpenClawApp).configActiveSection = section;
-                  (state as unknown as OpenClawApp).configActiveSubsection = null;
+                  (state as unknown as SageApp).configActiveSection = section;
+                  (state as unknown as SageApp).configActiveSubsection = null;
                 },
                 onSubsectionChange: (section) =>
-                  ((state as unknown as OpenClawApp).configActiveSubsection = section),
-                onReload: () => loadConfig(state as unknown as OpenClawApp),
-                onSave: () => saveConfig(state as unknown as OpenClawApp),
-                onApply: () => applyConfig(state as unknown as OpenClawApp),
-                onUpdate: () => runUpdate(state as unknown as OpenClawApp),
+                  ((state as unknown as SageApp).configActiveSubsection = section),
+                onReload: () => loadConfig(state as unknown as SageApp),
+                onSave: () => saveConfig(state as unknown as SageApp),
+                onApply: () => applyConfig(state as unknown as SageApp),
+                onUpdate: () => runUpdate(state as unknown as SageApp),
               })
             : nothing
         }
@@ -1075,14 +1136,20 @@ export function renderApp(state: AppViewState) {
                 onToggleAutoFollow: (next) => (state.logsAutoFollow = next),
                 onRefresh: () => loadLogs(state as unknown as LogsState, { reset: true }),
                 onExport: (lines, label) =>
-                  (state as unknown as OpenClawApp).exportLogs(lines, label),
-                onScroll: (event) => (state as unknown as OpenClawApp).handleLogsScroll(event),
+                  (state as unknown as SageApp).exportLogs(lines, label),
+                onScroll: (event) => (state as unknown as SageApp).handleLogsScroll(event),
               })
             : nothing
         }
       </main>
       ${renderExecApprovalPrompt(state)}
       ${renderGatewayUrlConfirmation(state)}
+      ${renderConfirmationDialog({
+        state: state.confirmationDialog,
+        onDecision: (requestId, decision, remember) =>
+          state.handleConfirmationDecision(requestId, decision, remember),
+        onRememberToggle: (remember) => state.handleConfirmationRememberToggle(remember),
+      })}
     </div>
   `;
 }
