@@ -12,6 +12,8 @@ import { fileURLToPath } from "node:url";
 import type { SageConfig } from "../../../config/config.js";
 import type { HookHandler } from "../../hooks.js";
 import { resolveAgentWorkspaceDir } from "../../../agents/agent-scope.js";
+import { resolveMemoryBackendConfig } from "../../../memory/backend-config.js";
+import { SageMemoryManager } from "../../../memory/sage-memory-manager.js";
 import { resolveAgentIdFromSessionKey } from "../../../routing/session-key.js";
 import { resolveHookConfig } from "../../config.js";
 
@@ -172,6 +174,18 @@ const saveSessionToMemory: HookHandler = async (event) => {
     // Log completion (but don't send user-visible confirmation - it's internal housekeeping)
     const relPath = memoryFilePath.replace(os.homedir(), "~");
     console.log(`[session-memory] Session context saved to ${relPath}`);
+    if (cfg?.memory?.backend === "sage-memory") {
+      await captureSessionMemoryToRemote({
+        cfg,
+        agentId,
+        eventSessionKey: event.sessionKey,
+        sessionId,
+        source,
+        title: `Session: ${dateStr} ${timeStr} UTC`,
+        entry,
+        relPath,
+      });
+    }
   } catch (err) {
     console.error(
       "[session-memory] Failed to save session memory:",
@@ -179,5 +193,46 @@ const saveSessionToMemory: HookHandler = async (event) => {
     );
   }
 };
+
+async function captureSessionMemoryToRemote(params: {
+  cfg: SageConfig;
+  agentId: string;
+  eventSessionKey: string;
+  sessionId: string;
+  source: string;
+  title: string;
+  entry: string;
+  relPath: string;
+}): Promise<void> {
+  try {
+    const resolved = resolveMemoryBackendConfig({ cfg: params.cfg, agentId: params.agentId });
+    if (resolved.backend !== "sage-memory" || !resolved.remote) {
+      return;
+    }
+    const manager = new SageMemoryManager({ config: resolved.remote });
+    await manager.capture({
+      namespace: resolved.remote.defaultNamespace ?? "sage.sessions",
+      sourceUri: `sage://session/${params.sessionId}`,
+      sourceType: "session",
+      captureMethod: "session-memory-hook",
+      contentText: params.entry,
+      metadata: {
+        sessionKey: params.eventSessionKey,
+        sessionId: params.sessionId,
+        source: params.source,
+        markdownPath: params.relPath,
+      },
+      sensitivity: "normal",
+      nodeKind: "note",
+      title: params.title,
+    });
+    console.log("[session-memory] Session context captured to Sage Memory");
+  } catch (err) {
+    console.warn(
+      "[session-memory] Failed to capture session memory to Sage Memory:",
+      err instanceof Error ? err.message : String(err),
+    );
+  }
+}
 
 export default saveSessionToMemory;

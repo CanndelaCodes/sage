@@ -277,6 +277,12 @@ const FIELD_LABELS: Record<string, string> = {
   "memory.qmd.limits.maxInjectedChars": "QMD Max Injected Chars",
   "memory.qmd.limits.timeoutMs": "QMD Search Timeout (ms)",
   "memory.qmd.scope": "QMD Surface Scope",
+  "memory.remote.baseUrl": "Sage Memory URL",
+  "memory.remote.tokenEnv": "Sage Memory Token Env",
+  "memory.remote.timeoutMs": "Sage Memory Timeout (ms)",
+  "memory.remote.tokenBudget": "Sage Memory Token Budget",
+  "memory.remote.defaultNamespace": "Sage Memory Namespace",
+  "memory.remote.failOpenToBuiltin": "Sage Memory Builtin Fallback",
   "auth.profiles": "Auth Profiles",
   "auth.order": "Auth Profile Order",
   "auth.cooldowns.billingBackoffHours": "Billing Backoff (hours)",
@@ -414,8 +420,7 @@ const FIELD_HELP: Record<string, string> = {
   "gateway.auth.token":
     "Required by default for gateway access (unless using Tailscale Serve identity); required for non-loopback binds.",
   "gateway.auth.password": "Required for Tailscale funnel.",
-  "gateway.controlUi.basePath":
-    "Optional URL prefix where the Control UI is served (e.g. /sage).",
+  "gateway.controlUi.basePath": "Optional URL prefix where the Control UI is served (e.g. /sage).",
   "gateway.controlUi.root":
     "Optional filesystem root for Control UI assets (defaults to dist/control-ui).",
   "gateway.controlUi.allowedOrigins":
@@ -579,7 +584,8 @@ const FIELD_HELP: Record<string, string> = {
   "agents.defaults.memorySearch.cache.enabled":
     "Cache chunk embeddings in SQLite to speed up reindexing and frequent updates (default: true).",
   memory: "Memory backend configuration (global).",
-  "memory.backend": 'Memory backend ("builtin" for Sage embeddings, "qmd" for QMD sidecar).',
+  "memory.backend":
+    'Memory backend ("builtin" for Sage embeddings, "qmd" for QMD sidecar, or "sage-memory" for the local Sage Memory service).',
   "memory.citations": 'Default citation behavior ("auto", "on", or "off").',
   "memory.qmd.command": "Path to the qmd binary (default: resolves from PATH).",
   "memory.qmd.includeDefaultMemory":
@@ -609,6 +615,16 @@ const FIELD_HELP: Record<string, string> = {
   "memory.qmd.limits.timeoutMs": "Per-query timeout for QMD searches (default: 4000).",
   "memory.qmd.scope":
     "Session/channel scope for QMD recall (same syntax as session.sendPolicy; default: direct-only).",
+  "memory.remote.baseUrl":
+    "Base URL for the Sage Memory HTTP API (default: http://127.0.0.1:18790).",
+  "memory.remote.tokenEnv":
+    "Environment variable containing the optional Sage Memory bearer token (default: SAGE_MEMORY_TOKEN).",
+  "memory.remote.timeoutMs": "HTTP timeout for Sage Memory requests (default: 10000).",
+  "memory.remote.tokenBudget": "Optional recall budget reserved for future remote-side clipping.",
+  "memory.remote.defaultNamespace":
+    "Optional namespace filter sent with Sage Memory search requests.",
+  "memory.remote.failOpenToBuiltin":
+    "When true, read-only recall falls back to the builtin Markdown index if Sage Memory fails.",
   "agents.defaults.memorySearch.cache.maxEntries":
     "Optional cap on cached embeddings (best-effort).",
   "agents.defaults.memorySearch.sync.onSearch":
@@ -633,8 +649,7 @@ const FIELD_HELP: Record<string, string> = {
   "plugins.installs.*.source": 'Install source ("npm", "archive", or "path").',
   "plugins.installs.*.spec": "Original npm spec used for install (if source is npm).",
   "plugins.installs.*.sourcePath": "Original archive/path used for install (if any).",
-  "plugins.installs.*.installPath":
-    "Resolved install directory (usually ~/.sage/extensions/<id>).",
+  "plugins.installs.*.installPath": "Resolved install directory (usually ~/.sage/extensions/<id>).",
   "plugins.installs.*.version": "Version recorded at install time (if available).",
   "plugins.installs.*.installedAt": "ISO timestamp of last install/update.",
   "agents.list.*.identity.avatar":

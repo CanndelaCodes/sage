@@ -7,8 +7,13 @@ read_when:
 
 # Memory
 
-Sage memory is **plain Markdown in the agent workspace**. The files are the
-source of truth; the model only "remembers" what gets written to disk.
+By default, Sage memory is **plain Markdown in the agent workspace**. The files
+are the source of truth; the model only "remembers" what gets written to disk.
+
+Optional backends can replace the search/read layer while keeping the same
+agent tools. `memory.backend = "qmd"` uses a local QMD sidecar over Markdown.
+`memory.backend = "sage-memory"` uses a local Sage Memory service for canonical
+recall and best-effort session handoff capture.
 
 Memory search tools are provided by the active memory plugin (default:
 `memory-core`). Disable memory plugins with `plugins.slots.memory = "none"`.
@@ -216,6 +221,55 @@ memory: {
   parsed, the search manager logs a warning and returns the builtin provider
   (existing Markdown embeddings) until QMD recovers.
 
+### Sage Memory backend
+
+Set `memory.backend = "sage-memory"` to use a local Sage Memory service as the
+read backend for `memory_search` and `memory_get`. This mode keeps Sage as a
+thin client: the service owns canonical Postgres storage, retrieval, review, and
+Obsidian export, while Sage keeps the existing tool names and result shape.
+
+The backend calls:
+
+- `POST /v1/search` for `memory_search`.
+- `GET /v1/nodes/{id}` for `memory_get`.
+- `POST /v1/capture` for session handoff capture from the bundled
+  `session-memory` hook.
+
+Search results use paths like `sage-memory/<node-id>`, so agents can pass the
+selected result path directly into `memory_get`.
+
+When the bundled `session-memory` hook runs on `/new`, it still writes the
+workspace Markdown memory file. If this backend is active, it also best-effort
+captures the same handoff entry into Sage Memory with source URI
+`sage://session/<session-id>`. Capture uses `memory.remote.defaultNamespace`
+when set, or `sage.sessions` otherwise.
+
+**Config surface (`memory.remote.*`)**
+
+- `baseUrl` (default `http://127.0.0.1:18790`): Sage Memory HTTP API.
+- `tokenEnv` (default `SAGE_MEMORY_TOKEN`): optional bearer token environment
+  variable for secured local deployments.
+- `timeoutMs` (default `10000`): per-request timeout.
+- `defaultNamespace`: optional namespace filter sent with every search.
+- `failOpenToBuiltin` (default `true`): if remote read-only recall fails, fall
+  back to the builtin Markdown index.
+- `tokenBudget`: reserved for future remote-side clipping.
+
+Example:
+
+```json5
+memory: {
+  backend: "sage-memory",
+  citations: "auto",
+  remote: {
+    baseUrl: "http://127.0.0.1:18790",
+    tokenEnv: "SAGE_MEMORY_TOKEN",
+    defaultNamespace: "jason.sage.coding",
+    failOpenToBuiltin: true
+  }
+}
+```
+
 ### Additional memory paths
 
 If you want to index Markdown files outside the default workspace layout, add
@@ -325,8 +379,8 @@ agents: {
 
 Tools:
 
-- `memory_search` — returns snippets with file + line ranges.
-- `memory_get` — read memory file content by path.
+- `memory_search` — returns snippets and a path that can be expanded.
+- `memory_get` — reads the selected memory path.
 
 Local mode:
 
@@ -336,16 +390,18 @@ Local mode:
 
 ### How the memory tools work
 
-- `memory_search` semantically searches Markdown chunks (~400 token target, 80-token overlap) from `MEMORY.md` + `memory/**/*.md`. It returns snippet text (capped ~700 chars), file path, line range, score, provider/model, and whether we fell back from local → remote embeddings. No full file payload is returned.
-- `memory_get` reads a specific memory Markdown file (workspace-relative), optionally from a starting line and for N lines. Paths outside `MEMORY.md` / `memory/` are rejected.
-- Both tools are enabled only when `memorySearch.enabled` resolves true for the agent.
+- With the builtin backend, `memory_search` semantically searches Markdown chunks (~400 token target, 80-token overlap) from `MEMORY.md` + `memory/**/*.md`. It returns snippet text (capped ~700 chars), file path, line range, score, provider/model, and whether Sage fell back from local to remote embeddings. No full file payload is returned.
+- With the `sage-memory` backend, `memory_search` calls the configured service and returns `sage-memory/<node-id>` paths. `memory_get` expands those paths through `GET /v1/nodes/{id}`.
+- With the builtin backend, `memory_get` reads a specific memory Markdown file (workspace-relative), optionally from a starting line and for N lines. Paths outside `MEMORY.md` / `memory/` are rejected.
+- Both tools are enabled only when `memorySearch.enabled` resolves true for the agent. It defaults to true, including non-builtin backends.
 
 ### What gets indexed (and when)
 
-- File type: Markdown only (`MEMORY.md`, `memory/**/*.md`).
-- Index storage: per-agent SQLite at `~/.sage/memory/<agentId>.sqlite` (configurable via `agents.defaults.memorySearch.store.path`, supports `{agentId}` token).
-- Freshness: watcher on `MEMORY.md` + `memory/` marks the index dirty (debounce 1.5s). Sync is scheduled on session start, on search, or on an interval and runs asynchronously. Session transcripts use delta thresholds to trigger background sync.
-- Reindex triggers: the index stores the embedding **provider/model + endpoint fingerprint + chunking params**. If any of those change, Sage automatically resets and reindexes the entire store.
+- Builtin file type: Markdown only (`MEMORY.md`, `memory/**/*.md`).
+- Builtin index storage: per-agent SQLite at `~/.sage/memory/<agentId>.sqlite` (configurable via `agents.defaults.memorySearch.store.path`, supports `{agentId}` token).
+- Builtin freshness: watcher on `MEMORY.md` + `memory/` marks the index dirty (debounce 1.5s). Sync is scheduled on session start, on search, or on an interval and runs asynchronously. Session transcripts use delta thresholds to trigger background sync.
+- Builtin reindex triggers: the index stores the embedding **provider/model + endpoint fingerprint + chunking params**. If any of those change, Sage automatically resets and reindexes the entire store.
+- `sage-memory` indexing is owned by the external service. `sage memory index` reports that manual reindex is unsupported for that backend.
 
 ### Hybrid search (BM25 + vector)
 
@@ -440,8 +496,8 @@ agents: {
 
 ### Session memory search (experimental)
 
-You can optionally index **session transcripts** and surface them via `memory_search`.
-This is gated behind an experimental flag.
+With the builtin backend, you can optionally index **session transcripts** and
+surface them via `memory_search`. This is gated behind an experimental flag.
 
 ```json5
 agents: {
@@ -459,7 +515,7 @@ Notes:
 - Session indexing is **opt-in** (off by default).
 - Session updates are debounced and **indexed asynchronously** once they cross delta thresholds (best-effort).
 - `memory_search` never blocks on indexing; results can be slightly stale until background sync finishes.
-- Results still include snippets only; `memory_get` remains limited to memory files.
+- Results still include snippets only; `memory_get` remains limited to memory files for the builtin backend.
 - Session indexing is isolated per agent (only that agent’s session logs are indexed).
 - Session logs live on disk (`~/.sage/agents/<agentId>/sessions/*.jsonl`). Any process/user with filesystem access can read them, so treat disk access as the trust boundary. For stricter isolation, run agents under separate OS users or hosts.
 

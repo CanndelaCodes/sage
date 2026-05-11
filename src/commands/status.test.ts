@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 let previousProfile: string | undefined;
 
@@ -84,6 +84,7 @@ const mocks = vi.hoisted(() => ({
       },
     ],
   }),
+  loadConfig: vi.fn().mockReturnValue({ session: {} }),
 }));
 
 vi.mock("../memory/manager.js", () => ({
@@ -248,7 +249,7 @@ vi.mock("../config/config.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../config/config.js")>();
   return {
     ...actual,
-    loadConfig: () => ({ session: {} }),
+    loadConfig: mocks.loadConfig,
   };
 });
 vi.mock("../daemon/service.js", () => ({
@@ -290,6 +291,10 @@ const runtime = {
 };
 
 describe("statusCommand", () => {
+  afterEach(() => {
+    mocks.loadConfig.mockReturnValue({ session: {} });
+  });
+
   it("prints JSON when requested", async () => {
     await statusCommand({ json: true }, runtime as never);
     const payload = JSON.parse((runtime.log as vi.Mock).mock.calls[0][0]);
@@ -341,6 +346,29 @@ describe("statusCommand", () => {
           l.includes("sage --profile isolated status --all"),
       ),
     ).toBe(true);
+  });
+
+  it("summarizes sage-memory backend without local index counts", async () => {
+    mocks.loadConfig.mockReturnValueOnce({
+      session: {},
+      memory: {
+        backend: "sage-memory",
+        remote: {
+          baseUrl: "http://127.0.0.1:18790",
+          defaultNamespace: "jason.sage.sessions",
+          failOpenToBuiltin: false,
+        },
+      },
+    });
+
+    (runtime.log as vi.Mock).mockClear();
+    await statusCommand({}, runtime as never);
+
+    const output = (runtime.log as vi.Mock).mock.calls.map((c) => String(c[0])).join("\n");
+    expect(output).toContain("sage-memory");
+    expect(output).toContain("http://127.0.0.1:18790");
+    expect(output).toContain("namespace jason.sage.sessions");
+    expect(output).not.toContain("undefined files");
   });
 
   it("shows gateway auth when reachable", async () => {

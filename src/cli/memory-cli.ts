@@ -81,6 +81,14 @@ function formatExtraPaths(workspaceDir: string, extraPaths: string[]): string[] 
   return normalizeExtraMemoryPaths(workspaceDir, extraPaths).map((entry) => shortenHomePath(entry));
 }
 
+function statusCustomString(
+  custom: Record<string, unknown> | undefined,
+  key: string,
+): string | null {
+  const value = custom?.[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
 async function checkReadableFile(pathname: string): Promise<{ exists: boolean; issue?: string }> {
   try {
     await fs.access(pathname, fsSync.constants.R_OK);
@@ -249,6 +257,7 @@ export async function runMemoryStatus(opts: MemoryCommandOptions) {
     status: ReturnType<MemoryManager["status"]>;
     embeddingProbe?: Awaited<ReturnType<MemoryManager["probeEmbeddingAvailability"]>>;
     indexError?: string;
+    indexSkipped?: string;
     scan?: MemorySourceScan;
   }> = [];
 
@@ -263,11 +272,16 @@ export async function runMemoryStatus(opts: MemoryCommandOptions) {
       },
       run: async (manager) => {
         const deep = Boolean(opts.deep || opts.index);
+        const initialStatus = manager.status();
         let embeddingProbe:
           | Awaited<ReturnType<typeof manager.probeEmbeddingAvailability>>
           | undefined;
         let indexError: string | undefined;
-        const syncFn = manager.sync ? manager.sync.bind(manager) : undefined;
+        let indexSkipped: string | undefined;
+        const syncFn =
+          initialStatus.backend !== "sage-memory" && manager.sync
+            ? manager.sync.bind(manager)
+            : undefined;
         if (deep) {
           await withProgress({ label: "Checking memory…", total: 2 }, async (progress) => {
             progress.setLabel("Probing vector…");
@@ -307,8 +321,8 @@ export async function runMemoryStatus(opts: MemoryCommandOptions) {
                 }
               },
             );
-          } else if (opts.index && !syncFn) {
-            defaultRuntime.log("Memory backend does not support manual reindex.");
+          } else if (opts.index) {
+            indexSkipped = "Memory backend does not support manual reindex.";
           }
         } else {
           await manager.probeVectorAvailability();
@@ -326,7 +340,7 @@ export async function runMemoryStatus(opts: MemoryCommandOptions) {
               extraPaths: status.extraPaths,
             })
           : undefined;
-        allResults.push({ agentId, status, embeddingProbe, indexError, scan });
+        allResults.push({ agentId, status, embeddingProbe, indexError, indexSkipped, scan });
       },
     });
   }
@@ -346,7 +360,7 @@ export async function runMemoryStatus(opts: MemoryCommandOptions) {
   const label = (text: string) => muted(`${text}:`);
 
   for (const result of allResults) {
-    const { agentId, status, embeddingProbe, indexError, scan } = result;
+    const { agentId, status, embeddingProbe, indexError, indexSkipped, scan } = result;
     const filesIndexed = status.files ?? 0;
     const chunksIndexed = status.chunks ?? 0;
     const totalFiles = scan?.totalFiles ?? null;
@@ -355,11 +369,16 @@ export async function runMemoryStatus(opts: MemoryCommandOptions) {
         ? `${filesIndexed}/? files · ${chunksIndexed} chunks`
         : `${filesIndexed}/${totalFiles} files · ${chunksIndexed} chunks`;
     if (opts.index) {
-      const line = indexError ? `Memory index failed: ${indexError}` : "Memory index complete.";
+      const line = indexError
+        ? `Memory index failed: ${indexError}`
+        : (indexSkipped ?? "Memory index complete.");
       defaultRuntime.log(line);
     }
     const requestedProvider = status.requestedProvider ?? status.provider;
     const modelLabel = status.model ?? status.provider;
+    const isRemoteBackend = status.backend === "sage-memory";
+    const remoteBaseUrl = statusCustomString(status.custom, "baseUrl");
+    const remoteNamespace = statusCustomString(status.custom, "defaultNamespace");
     const storePath = status.dbPath ? shortenHomePath(status.dbPath) : "<unknown>";
     const workspacePath = status.workspaceDir ? shortenHomePath(status.workspaceDir) : "<unknown>";
     const sourceList = status.sources?.length ? status.sources.join(", ") : null;
@@ -368,14 +387,19 @@ export async function runMemoryStatus(opts: MemoryCommandOptions) {
       : [];
     const lines = [
       `${heading("Memory Search")} ${muted(`(${agentId})`)}`,
+      status.backend ? `${label("Backend")} ${info(status.backend)}` : null,
       `${label("Provider")} ${info(status.provider)} ${muted(`(requested: ${requestedProvider})`)}`,
       `${label("Model")} ${info(modelLabel)}`,
-      sourceList ? `${label("Sources")} ${info(sourceList)}` : null,
-      extraPaths.length ? `${label("Extra paths")} ${info(extraPaths.join(", "))}` : null,
-      `${label("Indexed")} ${success(indexedLabel)}`,
-      `${label("Dirty")} ${status.dirty ? warn("yes") : muted("no")}`,
-      `${label("Store")} ${info(storePath)}`,
-      `${label("Workspace")} ${info(workspacePath)}`,
+      remoteBaseUrl ? `${label("Endpoint")} ${info(remoteBaseUrl)}` : null,
+      remoteNamespace ? `${label("Namespace")} ${info(remoteNamespace)}` : null,
+      !isRemoteBackend && sourceList ? `${label("Sources")} ${info(sourceList)}` : null,
+      !isRemoteBackend && extraPaths.length
+        ? `${label("Extra paths")} ${info(extraPaths.join(", "))}`
+        : null,
+      !isRemoteBackend ? `${label("Indexed")} ${success(indexedLabel)}` : null,
+      !isRemoteBackend ? `${label("Dirty")} ${status.dirty ? warn("yes") : muted("no")}` : null,
+      !isRemoteBackend ? `${label("Store")} ${info(storePath)}` : null,
+      !isRemoteBackend ? `${label("Workspace")} ${info(workspacePath)}` : null,
     ].filter(Boolean) as string[];
     if (embeddingProbe) {
       const state = embeddingProbe.ok ? "ready" : "unavailable";
@@ -526,9 +550,12 @@ export function registerMemoryCli(program: Command) {
           },
           run: async (manager) => {
             try {
-              const syncFn = manager.sync ? manager.sync.bind(manager) : undefined;
+              const status = manager.status();
+              const syncFn =
+                status.backend !== "sage-memory" && manager.sync
+                  ? manager.sync.bind(manager)
+                  : undefined;
               if (opts.verbose) {
-                const status = manager.status();
                 const rich = isRich();
                 const heading = (text: string) => colorize(rich, theme.heading, text);
                 const muted = (text: string) => colorize(rich, theme.muted, text);

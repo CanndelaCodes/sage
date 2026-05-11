@@ -6,6 +6,7 @@ import type {
   MemoryCitationsMode,
   MemoryQmdConfig,
   MemoryQmdIndexPath,
+  MemoryRemoteConfig,
 } from "../config/types.memory.js";
 import { resolveAgentWorkspaceDir } from "../agents/agent-scope.js";
 import { parseDurationMs } from "../cli/parse-duration.js";
@@ -16,6 +17,7 @@ export type ResolvedMemoryBackendConfig = {
   backend: MemoryBackend;
   citations: MemoryCitationsMode;
   qmd?: ResolvedQmdConfig;
+  remote?: ResolvedSageMemoryConfig;
 };
 
 export type ResolvedQmdCollection = {
@@ -55,8 +57,20 @@ export type ResolvedQmdConfig = {
   scope?: SessionSendPolicyConfig;
 };
 
+export type ResolvedSageMemoryConfig = {
+  baseUrl: string;
+  tokenEnv: string;
+  timeoutMs: number;
+  tokenBudget?: number;
+  defaultNamespace?: string;
+  failOpenToBuiltin: boolean;
+};
+
 const DEFAULT_BACKEND: MemoryBackend = "builtin";
 const DEFAULT_CITATIONS: MemoryCitationsMode = "auto";
+const DEFAULT_SAGE_MEMORY_BASE_URL = "http://127.0.0.1:18790";
+const DEFAULT_SAGE_MEMORY_TOKEN_ENV = "SAGE_MEMORY_TOKEN";
+const DEFAULT_SAGE_MEMORY_TIMEOUT_MS = 10_000;
 const DEFAULT_QMD_INTERVAL = "5m";
 const DEFAULT_QMD_DEBOUNCE_MS = 15_000;
 const DEFAULT_QMD_TIMEOUT_MS = 4_000;
@@ -157,6 +171,28 @@ function resolveLimits(raw?: MemoryQmdConfig["limits"]): ResolvedQmdLimitsConfig
   return parsed;
 }
 
+function resolveSageMemoryConfig(raw?: MemoryRemoteConfig): ResolvedSageMemoryConfig {
+  const baseUrl = (raw?.baseUrl?.trim() || DEFAULT_SAGE_MEMORY_BASE_URL).replace(/\/+$/g, "");
+  const tokenEnv = raw?.tokenEnv?.trim() || DEFAULT_SAGE_MEMORY_TOKEN_ENV;
+  const timeoutMs =
+    typeof raw?.timeoutMs === "number" && Number.isFinite(raw.timeoutMs) && raw.timeoutMs > 0
+      ? Math.floor(raw.timeoutMs)
+      : DEFAULT_SAGE_MEMORY_TIMEOUT_MS;
+  const tokenBudget =
+    typeof raw?.tokenBudget === "number" && Number.isFinite(raw.tokenBudget) && raw.tokenBudget > 0
+      ? Math.floor(raw.tokenBudget)
+      : undefined;
+  const defaultNamespace = raw?.defaultNamespace?.trim() || undefined;
+  return {
+    baseUrl,
+    tokenEnv,
+    timeoutMs,
+    tokenBudget,
+    defaultNamespace,
+    failOpenToBuiltin: raw?.failOpenToBuiltin !== false,
+  };
+}
+
 function resolveSessionConfig(
   cfg: MemoryQmdConfig["sessions"],
   workspaceDir: string,
@@ -233,6 +269,13 @@ export function resolveMemoryBackendConfig(params: {
 }): ResolvedMemoryBackendConfig {
   const backend = params.cfg.memory?.backend ?? DEFAULT_BACKEND;
   const citations = params.cfg.memory?.citations ?? DEFAULT_CITATIONS;
+  if (backend === "sage-memory") {
+    return {
+      backend: "sage-memory",
+      citations,
+      remote: resolveSageMemoryConfig(params.cfg.memory?.remote),
+    };
+  }
   if (backend !== "qmd") {
     return { backend: "builtin", citations };
   }

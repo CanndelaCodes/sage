@@ -248,6 +248,9 @@ sage hooks enable session-memory
 
 **Output:** `~/.sage/workspace/memory/YYYY-MM-DD-slug.md`
 
+When `memory.backend = "sage-memory"` is configured, the hook also best-effort
+captures the same `/new` handoff through the Sage Memory API.
+
 **See:** [session-memory documentation](/hooks#session-memory)
 
 ### command-logger

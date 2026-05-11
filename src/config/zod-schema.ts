@@ -79,11 +79,23 @@ const MemoryQmdSchema = z
   })
   .strict();
 
+const MemoryRemoteSchema = z
+  .object({
+    baseUrl: z.string().optional(),
+    tokenEnv: z.string().optional(),
+    timeoutMs: z.number().int().positive().optional(),
+    tokenBudget: z.number().int().positive().optional(),
+    defaultNamespace: z.string().optional(),
+    failOpenToBuiltin: z.boolean().optional(),
+  })
+  .strict();
+
 const MemorySchema = z
   .object({
-    backend: z.union([z.literal("builtin"), z.literal("qmd")]).optional(),
+    backend: z.union([z.literal("builtin"), z.literal("qmd"), z.literal("sage-memory")]).optional(),
     citations: z.union([z.literal("auto"), z.literal("on"), z.literal("off")]).optional(),
     qmd: MemoryQmdSchema.optional(),
+    remote: MemoryRemoteSchema.optional(),
   })
   .strict()
   .optional();

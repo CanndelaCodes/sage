@@ -67,4 +67,31 @@ describe("resolveMemoryBackendConfig", () => {
     const workspaceRoot = resolveAgentWorkspaceDir(cfg, "main");
     expect(custom?.path).toBe(path.resolve(workspaceRoot, "notes"));
   });
+
+  it("resolves sage-memory backend defaults and overrides", () => {
+    const cfg = {
+      agents: { defaults: { workspace: "/tmp/memory-test" } },
+      memory: {
+        backend: "sage-memory",
+        remote: {
+          baseUrl: "http://127.0.0.1:18790/",
+          tokenEnv: "SAGE_MEMORY_DEV_TOKEN",
+          timeoutMs: 2500,
+          defaultNamespace: "jason.sage.coding",
+          failOpenToBuiltin: false,
+        },
+      },
+    } as SageConfig;
+
+    const resolved = resolveMemoryBackendConfig({ cfg, agentId: "main" });
+
+    expect(resolved.backend).toBe("sage-memory");
+    expect(resolved.remote).toEqual({
+      baseUrl: "http://127.0.0.1:18790",
+      tokenEnv: "SAGE_MEMORY_DEV_TOKEN",
+      timeoutMs: 2500,
+      defaultNamespace: "jason.sage.coding",
+      failOpenToBuiltin: false,
+    });
+  });
 });

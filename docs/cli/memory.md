@@ -43,3 +43,6 @@ Notes:
 - `memory status --deep --index` runs a reindex if the store is dirty.
 - `memory index --verbose` prints per-phase details (provider, model, sources, batch activity).
 - `memory status` includes any extra paths configured via `memorySearch.extraPaths`.
+- With `memory.backend = "sage-memory"`, `memory status` prints the remote
+  endpoint and namespace instead of local SQLite index paths. Manual reindex is
+  not supported because indexing is owned by the Sage Memory service.

@@ -71,6 +71,111 @@ describe("memory cli", () => {
     expect(close).toHaveBeenCalled();
   });
 
+  it("prints sage-memory remote status without local index fields", async () => {
+    const { registerMemoryCli } = await import("./memory-cli.js");
+    const { defaultRuntime } = await import("../runtime.js");
+    const close = vi.fn(async () => {});
+    getMemorySearchManager.mockResolvedValueOnce({
+      manager: {
+        probeVectorAvailability: vi.fn(async () => true),
+        status: () => ({
+          backend: "sage-memory",
+          provider: "sage-memory",
+          model: "remote",
+          requestedProvider: "sage-memory",
+          dirty: false,
+          custom: {
+            baseUrl: "http://127.0.0.1:18790",
+            defaultNamespace: "jason.sage.sessions",
+          },
+        }),
+        close,
+      },
+    });
+
+    const log = vi.spyOn(defaultRuntime, "log").mockImplementation(() => {});
+    const program = new Command();
+    program.name("test");
+    registerMemoryCli(program);
+    await program.parseAsync(["memory", "status"], { from: "user" });
+
+    const output = log.mock.calls.map((call) => String(call[0])).join("\n");
+    expect(output).toContain("Backend: sage-memory");
+    expect(output).toContain("Endpoint: http://127.0.0.1:18790");
+    expect(output).toContain("Namespace: jason.sage.sessions");
+    expect(output).not.toContain("Indexed:");
+    expect(output).not.toContain("Store:");
+    expect(output).not.toContain("Workspace:");
+    expect(close).toHaveBeenCalled();
+  });
+
+  it("does not manually reindex sage-memory backends even when the wrapper exposes sync", async () => {
+    const { registerMemoryCli } = await import("./memory-cli.js");
+    const { defaultRuntime } = await import("../runtime.js");
+    const close = vi.fn(async () => {});
+    const sync = vi.fn(async () => {});
+    getMemorySearchManager.mockResolvedValueOnce({
+      manager: {
+        sync,
+        status: () => ({
+          backend: "sage-memory",
+          provider: "sage-memory",
+          model: "remote",
+          requestedProvider: "sage-memory",
+          dirty: false,
+          custom: { baseUrl: "http://127.0.0.1:18790" },
+        }),
+        close,
+      },
+    });
+
+    const log = vi.spyOn(defaultRuntime, "log").mockImplementation(() => {});
+    const program = new Command();
+    program.name("test");
+    registerMemoryCli(program);
+    await program.parseAsync(["memory", "index"], { from: "user" });
+
+    expect(sync).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledWith("Memory backend does not support manual reindex.");
+    expect(log).not.toHaveBeenCalledWith("Memory index updated (main).");
+    expect(close).toHaveBeenCalled();
+  });
+
+  it("does not run status --index for sage-memory backends", async () => {
+    const { registerMemoryCli } = await import("./memory-cli.js");
+    const { defaultRuntime } = await import("../runtime.js");
+    const close = vi.fn(async () => {});
+    const sync = vi.fn(async () => {});
+    getMemorySearchManager.mockResolvedValueOnce({
+      manager: {
+        probeVectorAvailability: vi.fn(async () => true),
+        probeEmbeddingAvailability: vi.fn(async () => ({ ok: true })),
+        sync,
+        status: () => ({
+          backend: "sage-memory",
+          provider: "sage-memory",
+          model: "remote",
+          requestedProvider: "sage-memory",
+          dirty: false,
+          custom: { baseUrl: "http://127.0.0.1:18790" },
+        }),
+        close,
+      },
+    });
+
+    const log = vi.spyOn(defaultRuntime, "log").mockImplementation(() => {});
+    const program = new Command();
+    program.name("test");
+    registerMemoryCli(program);
+    await program.parseAsync(["memory", "status", "--index"], { from: "user" });
+
+    const output = log.mock.calls.map((call) => String(call[0])).join("\n");
+    expect(sync).not.toHaveBeenCalled();
+    expect(output).toContain("Memory backend does not support manual reindex.");
+    expect(output).not.toContain("Memory index complete.");
+    expect(close).toHaveBeenCalled();
+  });
+
   it("prints vector error when unavailable", async () => {
     const { registerMemoryCli } = await import("./memory-cli.js");
     const { defaultRuntime } = await import("../runtime.js");

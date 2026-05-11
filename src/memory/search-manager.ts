@@ -10,6 +10,7 @@ import { resolveMemoryBackendConfig } from "./backend-config.js";
 
 const log = createSubsystemLogger("memory");
 const QMD_MANAGER_CACHE = new Map<string, MemorySearchManager>();
+const SAGE_MEMORY_MANAGER_CACHE = new Map<string, MemorySearchManager>();
 
 export type MemorySearchManagerResult = {
   manager: MemorySearchManager | null;
@@ -21,6 +22,33 @@ export async function getMemorySearchManager(params: {
   agentId: string;
 }): Promise<MemorySearchManagerResult> {
   const resolved = resolveMemoryBackendConfig(params);
+  if (resolved.backend === "sage-memory" && resolved.remote) {
+    const cacheKey = buildSageMemoryCacheKey(params.agentId, resolved.remote);
+    const cached = SAGE_MEMORY_MANAGER_CACHE.get(cacheKey);
+    if (cached) {
+      return { manager: cached };
+    }
+    const { SageMemoryManager } = await import("./sage-memory-manager.js");
+    const primary = await SageMemoryManager.create({ resolved });
+    if (primary) {
+      const manager = resolved.remote.failOpenToBuiltin
+        ? new FallbackMemoryManager(
+            {
+              primary,
+              fallbackFrom: "sage-memory",
+              fallbackFactory: async () => {
+                const { MemoryIndexManager } = await import("./manager.js");
+                return await MemoryIndexManager.get(params);
+              },
+            },
+            () => SAGE_MEMORY_MANAGER_CACHE.delete(cacheKey),
+          )
+        : primary;
+      SAGE_MEMORY_MANAGER_CACHE.set(cacheKey, manager);
+      return { manager };
+    }
+  }
+
   if (resolved.backend === "qmd" && resolved.qmd) {
     const cacheKey = buildQmdCacheKey(params.agentId, resolved.qmd);
     const cached = QMD_MANAGER_CACHE.get(cacheKey);
@@ -38,6 +66,7 @@ export async function getMemorySearchManager(params: {
         const wrapper = new FallbackMemoryManager(
           {
             primary,
+            fallbackFrom: "qmd",
             fallbackFactory: async () => {
               const { MemoryIndexManager } = await import("./manager.js");
               return await MemoryIndexManager.get(params);
@@ -72,6 +101,7 @@ class FallbackMemoryManager implements MemorySearchManager {
   constructor(
     private readonly deps: {
       primary: MemorySearchManager;
+      fallbackFrom: string;
       fallbackFactory: () => Promise<MemorySearchManager | null>;
     },
     private readonly onClose?: () => void,
@@ -87,7 +117,9 @@ class FallbackMemoryManager implements MemorySearchManager {
       } catch (err) {
         this.primaryFailed = true;
         this.lastError = err instanceof Error ? err.message : String(err);
-        log.warn(`qmd memory failed; switching to builtin index: ${this.lastError}`);
+        log.warn(
+          `${this.deps.fallbackFrom} memory failed; switching to builtin index: ${this.lastError}`,
+        );
         await this.deps.primary.close?.().catch(() => {});
       }
     }
@@ -114,7 +146,7 @@ class FallbackMemoryManager implements MemorySearchManager {
       return this.deps.primary.status();
     }
     const fallbackStatus = this.fallback?.status();
-    const fallbackInfo = { from: "qmd", reason: this.lastError ?? "unknown" };
+    const fallbackInfo = { from: this.deps.fallbackFrom, reason: this.lastError ?? "unknown" };
     if (fallbackStatus) {
       const custom = fallbackStatus.custom ?? {};
       return {
@@ -191,6 +223,13 @@ class FallbackMemoryManager implements MemorySearchManager {
 }
 
 function buildQmdCacheKey(agentId: string, config: ResolvedQmdConfig): string {
+  return `${agentId}:${stableSerialize(config)}`;
+}
+
+function buildSageMemoryCacheKey(
+  agentId: string,
+  config: NonNullable<ReturnType<typeof resolveMemoryBackendConfig>["remote"]>,
+): string {
   return `${agentId}:${stableSerialize(config)}`;
 }
 

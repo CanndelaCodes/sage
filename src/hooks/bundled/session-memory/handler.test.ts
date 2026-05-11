@@ -1,10 +1,15 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SageConfig } from "../../../config/config.js";
 import { makeTempWorkspace, writeWorkspaceFile } from "../../../test-helpers/workspace.js";
 import { createHookEvent } from "../../hooks.js";
 import handler from "./handler.js";
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+});
 
 /**
  * Create a mock session JSONL file with various entry types
@@ -374,4 +379,93 @@ describe("session-memory hook", () => {
     expect(memoryContent).toContain("user: Only message 1");
     expect(memoryContent).toContain("assistant: Only message 2");
   });
+
+  it("best-effort captures session memory to sage-memory backend on /new", async () => {
+    const tempDir = await makeTempWorkspace("sage-session-memory-");
+    const sessionsDir = path.join(tempDir, "sessions");
+    await fs.mkdir(sessionsDir, { recursive: true });
+    const sessionFile = await writeWorkspaceFile({
+      dir: sessionsDir,
+      name: "test-session.jsonl",
+      content: "",
+    });
+    vi.stubEnv("SAGE_MEMORY_TOKEN", "test-token");
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      expect(requestUrl(input)).toBe("http://127.0.0.1:18790/v1/capture");
+      expect(init?.method).toBe("POST");
+      const headers = new Headers(init?.headers);
+      expect(headers.get("authorization")).toBe("Bearer test-token");
+      const body = JSON.parse(requestBody(init)) as Record<string, unknown>;
+      expect(body).toMatchObject({
+        namespace: "jason.sage.sessions",
+        source_uri: "sage://session/test-123",
+        source_type: "session",
+        capture_method: "session-memory-hook",
+        sensitivity: "normal",
+        node_kind: "note",
+      });
+      expect(String(body.content_text)).toContain("Session ID**: test-123");
+      return jsonResponse({
+        evidence_id: "33333333-3333-4333-8333-333333333333",
+        node_id: "11111111-1111-4111-8111-111111111111",
+        namespace_id: "22222222-2222-4222-8222-222222222222",
+        namespace: "jason.sage.sessions",
+        content_sha256: "a".repeat(64),
+        normalized_sha256: "b".repeat(64),
+        deduplicated: false,
+        event_id: "44444444-4444-4444-8444-444444444444",
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const cfg: SageConfig = {
+      agents: { defaults: { workspace: tempDir } },
+      memory: {
+        backend: "sage-memory",
+        remote: {
+          baseUrl: "http://127.0.0.1:18790",
+          tokenEnv: "SAGE_MEMORY_TOKEN",
+          defaultNamespace: "jason.sage.sessions",
+        },
+      },
+    };
+
+    const event = createHookEvent("command", "new", "agent:main:main", {
+      cfg,
+      previousSessionEntry: {
+        sessionId: "test-123",
+        sessionFile,
+      },
+    });
+
+    await handler(event);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const memoryDir = path.join(tempDir, "memory");
+    const files = await fs.readdir(memoryDir);
+    expect(files.length).toBe(1);
+  });
 });
+
+function jsonResponse(body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status: 201,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+function requestUrl(input: string | URL | Request): string {
+  if (typeof input === "string") {
+    return input;
+  }
+  if (input instanceof URL) {
+    return input.toString();
+  }
+  return input.url;
+}
+
+function requestBody(init?: RequestInit): string {
+  if (typeof init?.body === "string") {
+    return init.body;
+  }
+  throw new Error("expected string request body");
+}

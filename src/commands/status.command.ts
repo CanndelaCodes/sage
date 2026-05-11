@@ -40,6 +40,14 @@ import {
   resolveUpdateAvailability,
 } from "./status.update.js";
 
+function memoryCustomString(
+  custom: Record<string, unknown> | undefined,
+  key: string,
+): string | null {
+  const value = custom?.[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
 export async function statusCommand(
   opts: {
     json?: boolean;
@@ -315,6 +323,21 @@ export async function statusCommand(
       return muted(`enabled (${slot}) · unavailable`);
     }
     const parts: string[] = [];
+    if (memory.backend === "sage-memory") {
+      parts.push(memory.provider || "sage-memory");
+      const baseUrl = memoryCustomString(memory.custom, "baseUrl");
+      const namespace = memoryCustomString(memory.custom, "defaultNamespace");
+      if (baseUrl) {
+        parts.push(baseUrl);
+      }
+      if (namespace) {
+        parts.push(`namespace ${namespace}`);
+      }
+      if (memoryPlugin.slot) {
+        parts.push(`plugin ${memoryPlugin.slot}`);
+      }
+      return parts.join(" · ");
+    }
     const dirtySuffix = memory.dirty ? ` · ${warn("dirty")}` : "";
     parts.push(`${memory.files} files · ${memory.chunks} chunks${dirtySuffix}`);
     if (memory.sources?.length) {

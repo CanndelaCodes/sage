@@ -1,12 +1,22 @@
 import type { SessionSendPolicyConfig } from "./types.base.js";
 
-export type MemoryBackend = "builtin" | "qmd";
+export type MemoryBackend = "builtin" | "qmd" | "sage-memory";
 export type MemoryCitationsMode = "auto" | "on" | "off";
 
 export type MemoryConfig = {
   backend?: MemoryBackend;
   citations?: MemoryCitationsMode;
   qmd?: MemoryQmdConfig;
+  remote?: MemoryRemoteConfig;
+};
+
+export type MemoryRemoteConfig = {
+  baseUrl?: string;
+  tokenEnv?: string;
+  timeoutMs?: number;
+  tokenBudget?: number;
+  defaultNamespace?: string;
+  failOpenToBuiltin?: boolean;
 };
 
 export type MemoryQmdConfig = {

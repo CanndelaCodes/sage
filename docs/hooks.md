@@ -129,8 +129,7 @@ The `HOOK.md` file contains metadata in YAML frontmatter plus Markdown documenta
 name: my-hook
 description: "Short description of what this hook does"
 homepage: https://docs.sage.ai/hooks#my-hook
-metadata:
-  { "sage": { "emoji": "🔗", "events": ["command:new"], "requires": { "bins": ["node"] } } }
+metadata: { "sage": { "emoji": "🔗", "events": ["command:new"], "requires": { "bins": ["node"] } } }
 ---
 
 # My Hook
@@ -456,12 +455,19 @@ Saves session context to memory when you issue `/new`.
 
 **Output**: `<workspace>/memory/YYYY-MM-DD-slug.md` (defaults to `~/.sage/workspace`)
 
+If `memory.backend = "sage-memory"` is configured, the hook also best-effort
+captures the same entry through `POST /v1/capture` using source URI
+`sage://session/<session-id>`. The Markdown write still happens first and remains
+the local fallback. Capture uses `memory.remote.defaultNamespace` when set, or
+`sage.sessions` otherwise.
+
 **What it does**:
 
 1. Uses the pre-reset session entry to locate the correct transcript
 2. Extracts the last 15 lines of conversation
 3. Uses LLM to generate a descriptive filename slug
 4. Saves session metadata to a dated memory file
+5. Optionally captures the same handoff into Sage Memory when that backend is active
 
 **Example output**:
 

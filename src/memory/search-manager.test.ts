@@ -28,6 +28,12 @@ vi.mock("./qmd-manager.js", () => ({
   },
 }));
 
+vi.mock("./sage-memory-manager.js", () => ({
+  SageMemoryManager: {
+    create: vi.fn(async () => mockPrimary),
+  },
+}));
+
 vi.mock("./manager.js", () => ({
   MemoryIndexManager: {
     get: vi.fn(async () => null),
@@ -35,6 +41,7 @@ vi.mock("./manager.js", () => ({
 }));
 
 import { QmdMemoryManager } from "./qmd-manager.js";
+import { SageMemoryManager } from "./sage-memory-manager.js";
 import { getMemorySearchManager } from "./search-manager.js";
 
 beforeEach(() => {
@@ -46,6 +53,7 @@ beforeEach(() => {
   mockPrimary.probeVectorAvailability.mockClear();
   mockPrimary.close.mockClear();
   QmdMemoryManager.create.mockClear();
+  SageMemoryManager.create.mockClear();
 });
 
 describe("getMemorySearchManager caching", () => {
@@ -61,5 +69,21 @@ describe("getMemorySearchManager caching", () => {
     expect(first.manager).toBe(second.manager);
     // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(QmdMemoryManager.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("creates the sage-memory manager when configured", async () => {
+    const cfg = {
+      memory: {
+        backend: "sage-memory",
+        remote: { baseUrl: "http://127.0.0.1:18790", failOpenToBuiltin: false },
+      },
+      agents: { list: [{ id: "main", default: true, workspace: "/tmp/workspace" }] },
+    } as const;
+
+    const result = await getMemorySearchManager({ cfg, agentId: "main" });
+
+    expect(result.manager).toBe(mockPrimary);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(SageMemoryManager.create).toHaveBeenCalledTimes(1);
   });
 });

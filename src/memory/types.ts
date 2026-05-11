@@ -22,7 +22,7 @@ export type MemorySyncProgressUpdate = {
 };
 
 export type MemoryProviderStatus = {
-  backend: "builtin" | "qmd";
+  backend: "builtin" | "qmd" | "sage-memory";
   provider: string;
   model?: string;
   requestedProvider?: string;
