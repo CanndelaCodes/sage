@@ -154,6 +154,72 @@ describe("SageMemoryManager", () => {
     });
   });
 
+  it("ingests full LLM session transcripts through sage-memory using bearer token", async () => {
+    const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      expect(requestUrl(url)).toBe("http://127.0.0.1:18790/v1/ingest/llm-session");
+      expect(init?.method).toBe("POST");
+      const headers = new Headers(init?.headers);
+      expect(headers.get("authorization")).toBe("Bearer test-token");
+      expect(JSON.parse(requestBody(init))).toEqual({
+        namespace: "jason.sage.sessions",
+        source: "sage",
+        session_id: "sage-session-1",
+        title: "Sage Session sage-session-1",
+        source_uri: "sage://session/sage-session-1",
+        workspace: { session_key: "agent:main:main" },
+        messages: [{ role: "user", content: "Capture the full session." }],
+        metadata: {
+          capture_method: "sage-session-memory-hook",
+          sessionKey: "agent:main:main",
+        },
+        sensitivity: "private",
+      });
+      return jsonResponse({
+        evidence_id: "33333333-3333-4333-8333-333333333333",
+        source_uri: "sage://session/sage-session-1",
+        session_node_id: nodeId,
+        derived_node_ids: ["55555555-5555-4555-8555-555555555555"],
+        deduplicated: false,
+        event_id: "44444444-4444-4444-8444-444444444444",
+      });
+    });
+    const manager = new SageMemoryManager({
+      config: {
+        baseUrl: "http://127.0.0.1:18790",
+        tokenEnv: "SAGE_MEMORY_TOKEN",
+        timeoutMs: 5000,
+        defaultNamespace: "jason.sage.sessions",
+        failOpenToBuiltin: true,
+      },
+      fetch: fetchImpl,
+      env: { SAGE_MEMORY_TOKEN: "test-token" },
+    });
+
+    await expect(
+      manager.ingestLlmSession({
+        namespace: "jason.sage.sessions",
+        source: "sage",
+        session_id: "sage-session-1",
+        title: "Sage Session sage-session-1",
+        source_uri: "sage://session/sage-session-1",
+        workspace: { session_key: "agent:main:main" },
+        messages: [{ role: "user", content: "Capture the full session." }],
+        metadata: {
+          capture_method: "sage-session-memory-hook",
+          sessionKey: "agent:main:main",
+        },
+        sensitivity: "private",
+      }),
+    ).resolves.toEqual({
+      evidenceId: "33333333-3333-4333-8333-333333333333",
+      sourceUri: "sage://session/sage-session-1",
+      sessionNodeId: nodeId,
+      derivedNodeIds: ["55555555-5555-4555-8555-555555555555"],
+      deduplicated: false,
+      eventId: "44444444-4444-4444-8444-444444444444",
+    });
+  });
+
   it("does not expose manual index sync for the remote backend", () => {
     const manager = new SageMemoryManager({
       config: {

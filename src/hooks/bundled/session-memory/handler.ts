@@ -8,12 +8,13 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import type { SageConfig } from "../../../config/config.js";
 import type { HookHandler } from "../../hooks.js";
 import { resolveAgentWorkspaceDir } from "../../../agents/agent-scope.js";
 import { resolveMemoryBackendConfig } from "../../../memory/backend-config.js";
 import { SageMemoryManager } from "../../../memory/sage-memory-manager.js";
+import { loadSageSessionTranscriptForMemory } from "../../../memory/sage-session-transcript.js";
 import { resolveAgentIdFromSessionKey } from "../../../routing/session-key.js";
 import { resolveHookConfig } from "../../config.js";
 
@@ -122,7 +123,7 @@ const saveSessionToMemory: HookHandler = async (event) => {
         // Going up ../.. puts us at dist/hooks/, so just add llm-slug-generator.js
         const sageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
         const slugGenPath = path.join(sageRoot, "llm-slug-generator.js");
-        const { generateSlugViaLLM } = await import(slugGenPath);
+        const { generateSlugViaLLM } = await import(pathToFileURL(slugGenPath).href);
 
         // Use LLM to generate a descriptive slug
         slug = await generateSlugViaLLM({ sessionContent, cfg });
@@ -184,6 +185,7 @@ const saveSessionToMemory: HookHandler = async (event) => {
         title: `Session: ${dateStr} ${timeStr} UTC`,
         entry,
         relPath,
+        sessionFile,
       });
     }
   } catch (err) {
@@ -203,6 +205,7 @@ async function captureSessionMemoryToRemote(params: {
   title: string;
   entry: string;
   relPath: string;
+  sessionFile?: string;
 }): Promise<void> {
   try {
     const resolved = resolveMemoryBackendConfig({ cfg: params.cfg, agentId: params.agentId });
@@ -210,6 +213,28 @@ async function captureSessionMemoryToRemote(params: {
       return;
     }
     const manager = new SageMemoryManager({ config: resolved.remote });
+    if (params.sessionFile) {
+      let ingestPayload: Awaited<ReturnType<typeof loadSageSessionTranscriptForMemory>> = null;
+      try {
+        ingestPayload = await loadSageSessionTranscriptForMemory({
+          sessionFile: params.sessionFile,
+          sessionId: params.sessionId,
+          sessionKey: params.eventSessionKey,
+          namespace: resolved.remote.defaultNamespace ?? "sage.sessions",
+          markdownPath: params.relPath,
+        });
+      } catch (err) {
+        console.warn(
+          "[session-memory] Failed to load full session transcript for Sage Memory:",
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+      if (ingestPayload) {
+        await manager.ingestLlmSession(ingestPayload);
+        console.log("[session-memory] Session transcript captured to Sage Memory");
+        return;
+      }
+    }
     await manager.capture({
       namespace: resolved.remote.defaultNamespace ?? "sage.sessions",
       sourceUri: `sage://session/${params.sessionId}`,

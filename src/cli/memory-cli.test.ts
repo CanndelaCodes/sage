@@ -361,6 +361,16 @@ describe("memory cli", () => {
     getMemorySearchManager.mockResolvedValueOnce({
       manager: {
         sync,
+        status: () => ({
+          files: 0,
+          chunks: 0,
+          dirty: false,
+          workspaceDir: "/tmp/sage",
+          dbPath: "/tmp/memory.sqlite",
+          provider: "openai",
+          model: "text-embedding-3-small",
+          requestedProvider: "openai",
+        }),
         close,
       },
     });
@@ -388,6 +398,16 @@ describe("memory cli", () => {
     getMemorySearchManager.mockResolvedValueOnce({
       manager: {
         sync,
+        status: () => ({
+          files: 0,
+          chunks: 0,
+          dirty: false,
+          workspaceDir: "/tmp/sage",
+          dbPath: "/tmp/memory.sqlite",
+          provider: "openai",
+          model: "text-embedding-3-small",
+          requestedProvider: "openai",
+        }),
         close,
       },
     });

@@ -1,4 +1,5 @@
 import type { ResolvedSageMemoryConfig } from "./backend-config.js";
+import type { SageMemoryLlmSessionIngestInput } from "./sage-session-transcript.js";
 import type {
   MemoryEmbeddingProbeResult,
   MemorySearchManager,
@@ -60,6 +61,24 @@ type SageMemoryCaptureResponse = {
   evidence_id: string;
   node_id: string | null;
   namespace: string;
+  deduplicated: boolean;
+  event_id: string;
+};
+
+export type SageMemoryLlmSessionIngestResult = {
+  evidenceId: string;
+  sourceUri: string;
+  sessionNodeId: string;
+  derivedNodeIds: string[];
+  deduplicated: boolean;
+  eventId: string;
+};
+
+type SageMemoryLlmSessionIngestResponse = {
+  evidence_id: string;
+  source_uri: string;
+  session_node_id: string;
+  derived_node_ids: string[];
   deduplicated: boolean;
   event_id: string;
 };
@@ -149,6 +168,26 @@ export class SageMemoryManager implements MemorySearchManager {
       evidenceId: response.evidence_id,
       nodeId: response.node_id,
       namespace: response.namespace,
+      deduplicated: response.deduplicated,
+      eventId: response.event_id,
+    };
+  }
+
+  async ingestLlmSession(
+    input: SageMemoryLlmSessionIngestInput,
+  ): Promise<SageMemoryLlmSessionIngestResult> {
+    const response = await this.requestJson<SageMemoryLlmSessionIngestResponse>(
+      "/v1/ingest/llm-session",
+      {
+        method: "POST",
+        body: JSON.stringify(input),
+      },
+    );
+    return {
+      evidenceId: response.evidence_id,
+      sourceUri: response.source_uri,
+      sessionNodeId: response.session_node_id,
+      derivedNodeIds: response.derived_node_ids,
       deduplicated: response.deduplicated,
       eventId: response.event_id,
     };
