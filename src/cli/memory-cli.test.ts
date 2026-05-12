@@ -6,6 +6,8 @@ const loadConfig = vi.fn(() => ({}));
 const resolveDefaultAgentId = vi.fn(() => "main");
 const captureSageSessionTranscript = vi.fn();
 const runSageMemoryDoctor = vi.fn();
+const listSageMemoryCaptureQueue = vi.fn();
+const replaySageMemoryCaptureQueue = vi.fn();
 
 vi.mock("../memory/index.js", () => ({
   getMemorySearchManager,
@@ -27,11 +29,18 @@ vi.mock("../memory/sage-memory-doctor.js", () => ({
   runSageMemoryDoctor,
 }));
 
+vi.mock("../memory/sage-memory-capture-queue.js", () => ({
+  listSageMemoryCaptureQueue,
+  replaySageMemoryCaptureQueue,
+}));
+
 afterEach(async () => {
   vi.restoreAllMocks();
   getMemorySearchManager.mockReset();
   captureSageSessionTranscript.mockReset();
   runSageMemoryDoctor.mockReset();
+  listSageMemoryCaptureQueue.mockReset();
+  replaySageMemoryCaptureQueue.mockReset();
   process.exitCode = undefined;
   const { setVerbose } = await import("../globals.js");
   setVerbose(false);
@@ -593,6 +602,79 @@ describe("memory cli", () => {
     expect(JSON.parse(String(log.mock.calls[0]?.[0]))).toMatchObject({
       ok: true,
       sessionNodePath: "sage-memory/11111111-1111-4111-8111-111111111111",
+    });
+  });
+
+  it("prints capture queue status with JSON output", async () => {
+    const { registerMemoryCli } = await import("./memory-cli.js");
+    const { defaultRuntime } = await import("../runtime.js");
+    const cfg = { memory: { backend: "sage-memory" } };
+    loadConfig.mockReturnValueOnce(cfg);
+    listSageMemoryCaptureQueue.mockResolvedValueOnce({
+      path: "C:/Users/jason/.sage/agents/main/sage-memory/capture-queue.json",
+      counts: { total: 1, pending: 1, failed: 0 },
+      entries: [
+        {
+          id: "capture-1",
+          status: "pending",
+          agentId: "main",
+          sessionFile: "session.jsonl",
+          captureMethod: "sage-memory-heartbeat",
+        },
+      ],
+    });
+
+    const log = vi.spyOn(defaultRuntime, "log").mockImplementation(() => {});
+    const program = new Command();
+    program.name("test");
+    registerMemoryCli(program);
+    await program.parseAsync(["memory", "capture-queue", "--agent", "main", "--json"], {
+      from: "user",
+    });
+
+    expect(listSageMemoryCaptureQueue).toHaveBeenCalledWith({ agentId: "main" });
+    expect(JSON.parse(String(log.mock.calls[0]?.[0]))).toMatchObject({
+      counts: { total: 1, pending: 1, failed: 0 },
+    });
+  });
+
+  it("replays capture queue entries with JSON output", async () => {
+    const { registerMemoryCli } = await import("./memory-cli.js");
+    const { defaultRuntime } = await import("../runtime.js");
+    const cfg = { memory: { backend: "sage-memory" } };
+    loadConfig.mockReturnValueOnce(cfg);
+    replaySageMemoryCaptureQueue.mockResolvedValueOnce({
+      attempted: 1,
+      captured: 1,
+      failed: 0,
+      remaining: 0,
+      results: [
+        {
+          id: "capture-1",
+          status: "captured",
+          sessionNodePath: "sage-memory/11111111-1111-4111-8111-111111111111",
+        },
+      ],
+    });
+
+    const log = vi.spyOn(defaultRuntime, "log").mockImplementation(() => {});
+    const program = new Command();
+    program.name("test");
+    registerMemoryCli(program);
+    await program.parseAsync(
+      ["memory", "capture-queue", "--agent", "main", "--replay", "--limit", "1", "--json"],
+      { from: "user" },
+    );
+
+    expect(replaySageMemoryCaptureQueue).toHaveBeenCalledWith({
+      cfg,
+      agentId: "main",
+      limit: 1,
+    });
+    expect(JSON.parse(String(log.mock.calls[0]?.[0]))).toMatchObject({
+      attempted: 1,
+      captured: 1,
+      remaining: 0,
     });
   });
 });

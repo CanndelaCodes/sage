@@ -1,5 +1,5 @@
 ---
-summary: "CLI reference for `sage memory` (status/index/search/capture-session/doctor)"
+summary: "CLI reference for `sage memory` (status/index/search/capture-session/capture-queue/doctor)"
 read_when:
   - You want to index or search semantic memory
   - You’re debugging memory availability or indexing
@@ -30,6 +30,8 @@ sage memory status --agent main
 sage memory index --agent main --verbose
 sage memory capture-session ~/.sage/agents/main/sessions/session.jsonl
 sage memory capture-session ./session.jsonl --namespace jason.sage.manual --json
+sage memory capture-queue
+sage memory capture-queue --replay --limit 5
 sage memory doctor
 sage memory doctor --json
 sage doctor memory
@@ -69,8 +71,9 @@ existing `/new` session-memory hook, memory-flush compaction, heartbeat runs,
 and Gateway `sessions.reset`, `sessions.delete`, and `sessions.compact`
 lifecycle operations. Automatic capture uses the same LLM session ingest
 contract as `capture-session`, includes lifecycle metadata in the ingested
-payload, and deduplicates background heartbeat/compaction captures for a short
-window so repeated triggers do not spam the remote service.
+payload, queues failed capture attempts locally, and deduplicates background
+heartbeat/compaction captures for a short window so repeated triggers do not
+spam the remote service.
 
 Minimal backend config:
 
@@ -100,3 +103,17 @@ configured `tokenEnv` name before capture or diagnostic writes can succeed.
 
 `sage doctor memory` accepts the same `--agent`, `--namespace`, and `--json`
 options.
+
+`capture-queue` shows durable failed automatic captures waiting for replay.
+Sage writes this queue under the agent state directory, for example
+`~/.sage/agents/main/sage-memory/capture-queue.json`. Successful automatic
+captures are not queued. Failed replay attempts remain in the queue with
+attempt count and last-error metadata.
+
+`capture-queue` options:
+
+- `--agent <id>`: resolve the queue for a specific agent.
+- `--replay`: retry queued captures through the current Sage Memory backend
+  configuration.
+- `--limit <n>`: replay at most `n` queued captures.
+- `--json`: print machine-readable output.

@@ -3,6 +3,10 @@ import fs from "node:fs/promises";
 import { promisify } from "node:util";
 import type { SageConfig } from "../config/config.js";
 import { resolveMemoryBackendConfig } from "./backend-config.js";
+import {
+  listSageMemoryCaptureQueue,
+  type SageMemoryCaptureQueueSummary,
+} from "./sage-memory-capture-queue.js";
 
 type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
@@ -25,6 +29,7 @@ export type SageMemoryDoctorReport = {
   nodeId?: string;
   sessionNodePath?: string;
   exportedFiles: string[];
+  captureQueue?: SageMemoryCaptureQueueSummary;
   checks: SageMemoryDoctorCheck[];
   warnings: string[];
   failures: string[];
@@ -82,6 +87,7 @@ export async function runSageMemoryDoctor(params: {
   randomSuffix?: () => string;
   processProbe?: ProcessProbe;
   fileExists?: FileExistsProbe;
+  queuePath?: string;
 }): Promise<SageMemoryDoctorReport> {
   const report: SageMemoryDoctorReport = {
     ok: false,
@@ -93,6 +99,12 @@ export async function runSageMemoryDoctor(params: {
     suggestions: [],
   };
   const addCheck = createCheckRecorder(report);
+  await checkCaptureQueue({
+    agentId: params.agentId,
+    queuePath: params.queuePath,
+    report,
+    addCheck,
+  });
   const resolved = resolveMemoryBackendConfig({ cfg: params.cfg, agentId: params.agentId });
   if (resolved.backend !== "sage-memory" || !resolved.remote) {
     addCheck("config", "fail", 'memory.backend is not "sage-memory"');
@@ -208,6 +220,46 @@ export async function runSageMemoryDoctor(params: {
     addCheck,
   });
   return finishReport(report);
+}
+
+async function checkCaptureQueue(params: {
+  agentId: string;
+  queuePath?: string;
+  report: SageMemoryDoctorReport;
+  addCheck: ReturnType<typeof createCheckRecorder>;
+}) {
+  try {
+    const summary = await listSageMemoryCaptureQueue({
+      agentId: params.agentId,
+      queuePath: params.queuePath,
+    });
+    params.report.captureQueue = summary;
+    if (summary.counts.total === 0) {
+      params.addCheck("capture-queue", "pass", "Capture queue is empty", {
+        path: summary.path,
+      });
+      return;
+    }
+    const pendingLabel = pluralize(summary.counts.pending, "pending item");
+    const failedLabel = pluralize(summary.counts.failed, "failed item");
+    params.addCheck(
+      "capture-queue",
+      "warn",
+      `Sage Memory capture queue has ${pendingLabel}${
+        summary.counts.failed > 0 ? ` and ${failedLabel}` : ""
+      }`,
+      {
+        path: summary.path,
+        counts: summary.counts,
+      },
+    );
+  } catch (err) {
+    params.addCheck(
+      "capture-queue",
+      "warn",
+      `Capture queue could not be read: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
 }
 
 function createCheckRecorder(report: SageMemoryDoctorReport) {
@@ -577,4 +629,8 @@ function resolveEndpointPort(baseUrl: string): number | null {
 function finishReport(report: SageMemoryDoctorReport): SageMemoryDoctorReport {
   report.ok = report.failures.length === 0;
   return report;
+}
+
+function pluralize(count: number, label: string): string {
+  return `${count} ${label}${count === 1 ? "" : "s"}`;
 }

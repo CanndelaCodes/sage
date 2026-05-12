@@ -120,6 +120,7 @@ describe("sage-memory automatic session capture", () => {
 
   it("does not deduplicate failed captures", async () => {
     const sessionFile = await writeTranscript("failed-session.jsonl");
+    const queuePath = path.join(tempDir, "capture-queue.json");
     const ingestLlmSession = vi
       .fn()
       .mockRejectedValueOnce(new Error("remote offline"))
@@ -138,6 +139,7 @@ describe("sage-memory automatic session capture", () => {
       sessionId: "lifecycle-session",
       sessionKey: "agent:main:main",
       captureMethod: "sage-memory-heartbeat",
+      queuePath,
       managerFactory: () => ({ ingestLlmSession }),
       nowMs: () => 1000,
     };
@@ -148,6 +150,9 @@ describe("sage-memory automatic session capture", () => {
     expect(failed).toMatchObject({ status: "failed", reason: "remote offline" });
     expect(retried).toMatchObject({ status: "captured" });
     expect(ingestLlmSession).toHaveBeenCalledTimes(2);
+    const { listSageMemoryCaptureQueue } = await import("./sage-memory-capture-queue.js");
+    const summary = await listSageMemoryCaptureQueue({ queuePath });
+    expect(summary.entries).toEqual([]);
   });
 
   it("reports scheduler failures without reserving the capture key", () => {

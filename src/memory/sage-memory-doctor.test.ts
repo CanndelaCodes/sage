@@ -1,10 +1,24 @@
-import { describe, expect, it, vi } from "vitest";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SageConfig } from "../config/config.js";
+import { enqueueSageMemoryCaptureFailure } from "./sage-memory-capture-queue.js";
 import { runSageMemoryDoctor } from "./sage-memory-doctor.js";
 
 const nodeId = "11111111-1111-4111-8111-111111111111";
 
 describe("runSageMemoryDoctor", () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "sage-memory-doctor-"));
+  });
+
+  afterEach(async () => {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
   it("fails early when memory backend is not sage-memory", async () => {
     const report = await runSageMemoryDoctor({
       cfg: { memory: { backend: "builtin" } } as SageConfig,
@@ -57,6 +71,40 @@ describe("runSageMemoryDoctor", () => {
     expect(report.failures).toContain("SAGE_MEMORY_TOKEN is not set");
     expect(report.suggestions).toContain(
       "Set SAGE_MEMORY_TOKEN in the Sage process environment before running capture diagnostics.",
+    );
+  });
+
+  it("warns when durable capture queue entries are pending", async () => {
+    const queuePath = path.join(tempDir, "capture-queue.json");
+    await enqueueSageMemoryCaptureFailure({
+      queuePath,
+      agentId: "main",
+      sessionFile: path.join(tempDir, "session.jsonl"),
+      sessionId: "session-1",
+      sessionKey: "agent:main:main",
+      captureMethod: "sage-memory-heartbeat",
+      error: "remote offline",
+      now: () => new Date("2026-05-12T12:00:00.000Z"),
+    });
+
+    const report = await runSageMemoryDoctor({
+      cfg: { memory: { backend: "builtin" } } as SageConfig,
+      agentId: "main",
+      fetch: vi.fn(),
+      env: {},
+      queuePath,
+    });
+
+    expect(report.captureQueue).toMatchObject({
+      path: queuePath,
+      counts: { total: 1, pending: 1, failed: 0 },
+    });
+    expect(report.warnings).toContain("Sage Memory capture queue has 1 pending item");
+    expect(report.checks).toContainEqual(
+      expect.objectContaining({
+        name: "capture-queue",
+        status: "warn",
+      }),
     );
   });
 

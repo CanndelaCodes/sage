@@ -22,6 +22,11 @@ export function formatDoctorReport(report: SageMemoryDoctorReport): string {
       : null,
     report.marker ? `${label("Marker")} ${info(report.marker)}` : null,
     report.sessionNodePath ? `${label("Session node")} ${success(report.sessionNodePath)}` : null,
+    report.captureQueue
+      ? `${label("Capture queue")} ${info(
+          `${report.captureQueue.counts.total} total (${report.captureQueue.counts.pending} pending, ${report.captureQueue.counts.failed} failed)`,
+        )}`
+      : null,
   ].filter(Boolean) as string[];
   for (const check of report.checks) {
     lines.push(

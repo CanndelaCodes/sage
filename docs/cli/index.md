@@ -125,6 +125,7 @@ sage [--dev] [--profile <name>] <command>
     index
     search
     capture-session
+    capture-queue
     doctor
   message
   agent
@@ -268,6 +269,7 @@ Vector search over `MEMORY.md` + `memory/*.md`:
 - `sage memory index` — reindex memory files.
 - `sage memory search "<query>"` — semantic search over memory.
 - `sage memory capture-session <session-file>` — ingest a Sage JSONL transcript into Sage Memory.
+- `sage memory capture-queue` — inspect or replay failed automatic Sage Memory captures.
 - `sage memory doctor` — diagnose Sage Memory capture, search, get, and export health.
 
 ## Chat slash commands

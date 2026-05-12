@@ -1,6 +1,10 @@
 import fs from "node:fs/promises";
 import type { SageConfig } from "../config/config.js";
 import { resolveMemoryBackendConfig, type ResolvedSageMemoryConfig } from "./backend-config.js";
+import {
+  enqueueSageMemoryCaptureFailure,
+  removeSageMemoryCaptureQueueEntry,
+} from "./sage-memory-capture-queue.js";
 import { SageMemoryManager } from "./sage-memory-manager.js";
 import {
   captureSageSessionTranscript,
@@ -54,6 +58,7 @@ export type SageMemoryAutoCaptureParams = {
   namespace?: string;
   captureMethod: string;
   metadata?: Record<string, unknown>;
+  queuePath?: string;
   managerFactory?: (
     config: ResolvedSageMemoryConfig,
   ) => SessionIngestManager | Promise<SessionIngestManager>;
@@ -192,12 +197,35 @@ async function runCapture(
       metadata: params.metadata,
       managerFactory: params.managerFactory,
     });
+    await removeSageMemoryCaptureQueueEntry({
+      queuePath: params.queuePath,
+      agentId: params.agentId,
+      sessionFile: params.sessionFile,
+      sessionId: params.sessionId,
+      sessionKey: params.sessionKey,
+      captureMethod: params.captureMethod,
+    }).catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      params.logger?.(`sage-memory auto capture queue cleanup failed: ${message}`);
+    });
     return { status: "captured", key: params.key, result };
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
     if (reason.includes("No usable transcript messages found")) {
       return { status: "skipped", reason: "empty-transcript", key: params.key };
     }
+    await enqueueSageMemoryCaptureFailure({
+      queuePath: params.queuePath,
+      agentId: params.agentId,
+      sessionFile: params.sessionFile,
+      sessionId: params.sessionId,
+      sessionKey: params.sessionKey,
+      namespace: params.namespace,
+      captureMethod: params.captureMethod,
+      metadata: params.metadata,
+      error: reason,
+      now: () => new Date(params.nowMs?.() ?? Date.now()),
+    });
     params.logger?.(`sage-memory auto capture ${params.captureMethod} failed: ${reason}`);
     return { status: "failed", reason, key: params.key };
   }

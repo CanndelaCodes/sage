@@ -10,6 +10,12 @@ import { resolveSessionTranscriptsDirForAgent } from "../config/sessions/paths.j
 import { setVerbose } from "../globals.js";
 import { getMemorySearchManager, type MemorySearchManagerResult } from "../memory/index.js";
 import { listMemoryFiles, normalizeExtraMemoryPaths } from "../memory/internal.js";
+import {
+  listSageMemoryCaptureQueue,
+  replaySageMemoryCaptureQueue,
+  type SageMemoryCaptureQueueReplayResult,
+  type SageMemoryCaptureQueueSummary,
+} from "../memory/sage-memory-capture-queue.js";
 import { formatDoctorReport } from "../memory/sage-memory-doctor-format.js";
 import { runSageMemoryDoctor } from "../memory/sage-memory-doctor.js";
 import {
@@ -40,6 +46,11 @@ type CaptureSessionOptions = MemoryCommandOptions & {
 
 type DoctorOptions = MemoryCommandOptions & {
   namespace?: string;
+};
+
+type CaptureQueueOptions = MemoryCommandOptions & {
+  replay?: boolean;
+  limit?: string;
 };
 
 type MemoryManager = NonNullable<MemorySearchManagerResult["manager"]>;
@@ -279,6 +290,64 @@ function formatCaptureSessionResult(result: SageMemorySessionCaptureResult): str
     `${label("Messages")} ${info(String(result.messageCount))}`,
     `${label("Deduplicated")} ${result.deduplicated ? info("yes") : muted("no")}`,
   ].join("\n");
+}
+
+function formatCaptureQueueSummary(summary: SageMemoryCaptureQueueSummary): string {
+  const rich = isRich();
+  const heading = (text: string) => colorize(rich, theme.heading, text);
+  const muted = (text: string) => colorize(rich, theme.muted, text);
+  const info = (text: string) => colorize(rich, theme.info, text);
+  const warn = (text: string) => colorize(rich, theme.warn, text);
+  const label = (text: string) => muted(`${text}:`);
+  const lines = [
+    heading("Sage Memory Capture Queue"),
+    `${label("Queue")} ${info(shortenHomePath(summary.path))}`,
+    `${label("Total")} ${info(String(summary.counts.total))}`,
+    `${label("Pending")} ${info(String(summary.counts.pending))}`,
+    `${label("Failed")} ${summary.counts.failed > 0 ? warn(String(summary.counts.failed)) : info("0")}`,
+  ];
+  for (const entry of summary.entries.slice(0, 20)) {
+    lines.push(
+      `${entry.status === "failed" ? warn("[failed]") : info("[pending]")} ${entry.id} ${entry.captureMethod} ${shortenHomePath(entry.sessionFile)}`,
+    );
+    if (entry.lastError) {
+      lines.push(`  ${label("Last error")} ${entry.lastError}`);
+    }
+  }
+  return lines.join("\n");
+}
+
+function formatCaptureQueueReplayResult(result: SageMemoryCaptureQueueReplayResult): string {
+  const rich = isRich();
+  const heading = (text: string) => colorize(rich, theme.heading, text);
+  const muted = (text: string) => colorize(rich, theme.muted, text);
+  const info = (text: string) => colorize(rich, theme.info, text);
+  const success = (text: string) => colorize(rich, theme.success, text);
+  const warn = (text: string) => colorize(rich, theme.warn, text);
+  const label = (text: string) => muted(`${text}:`);
+  const lines = [
+    heading("Sage Memory Capture Queue Replay"),
+    `${label("Attempted")} ${info(String(result.attempted))}`,
+    `${label("Captured")} ${success(String(result.captured))}`,
+    `${label("Failed")} ${result.failed > 0 ? warn(String(result.failed)) : info("0")}`,
+    `${label("Remaining")} ${info(String(result.remaining))}`,
+  ];
+  for (const item of result.results) {
+    if (item.status === "captured") {
+      lines.push(`${success("[captured]")} ${item.id} ${item.sessionNodePath}`);
+    } else {
+      lines.push(`${warn("[failed]")} ${item.id} ${item.error}`);
+    }
+  }
+  return lines.join("\n");
+}
+
+function parseOptionalPositiveInt(raw: string | undefined): number | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 }
 
 export async function runMemoryStatus(opts: MemoryCommandOptions) {
@@ -598,6 +667,36 @@ export function registerMemoryCli(program: Command) {
       if (!report.ok) {
         process.exitCode = 1;
       }
+    });
+
+  memory
+    .command("capture-queue")
+    .description("Show or replay queued Sage Memory session captures")
+    .option("--agent <id>", "Agent id (default: default agent)")
+    .option("--replay", "Replay queued captures")
+    .option("--limit <n>", "Maximum queued captures to replay")
+    .option("--json", "Print JSON")
+    .action(async (opts: CaptureQueueOptions) => {
+      const cfg = loadConfig();
+      const agentId = resolveAgent(cfg, opts.agent);
+      if (opts.replay) {
+        const result = await replaySageMemoryCaptureQueue({
+          cfg,
+          agentId,
+          limit: parseOptionalPositiveInt(opts.limit),
+        });
+        defaultRuntime.log(
+          opts.json ? JSON.stringify(result, null, 2) : formatCaptureQueueReplayResult(result),
+        );
+        if (result.failed > 0) {
+          process.exitCode = 1;
+        }
+        return;
+      }
+      const summary = await listSageMemoryCaptureQueue({ agentId });
+      defaultRuntime.log(
+        opts.json ? JSON.stringify(summary, null, 2) : formatCaptureQueueSummary(summary),
+      );
     });
 
   memory
