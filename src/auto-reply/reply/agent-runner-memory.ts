@@ -16,6 +16,7 @@ import {
 } from "../../config/sessions.js";
 import { logVerbose } from "../../globals.js";
 import { registerAgentRunContext } from "../../infra/agent-events.js";
+import { scheduleSageSessionTranscriptCapture } from "../../memory/sage-memory-auto-capture.js";
 import { buildThreadingToolContext, resolveEnforceFinalTag } from "./agent-runner-utils.js";
 import {
   resolveMemoryFlushContextWindowTokens,
@@ -192,6 +193,22 @@ export async function runMemoryFlushIfNeeded(params: {
       } catch (err) {
         logVerbose(`failed to persist memory flush metadata: ${String(err)}`);
       }
+    }
+    if (memoryCompactionCompleted && params.sessionKey) {
+      scheduleSageSessionTranscriptCapture({
+        cfg: params.cfg,
+        agentId: resolveAgentIdFromSessionKey(params.sessionKey),
+        sessionFile: params.followupRun.run.sessionFile,
+        sessionId: params.followupRun.run.sessionId,
+        sessionKey: params.sessionKey,
+        captureMethod: "sage-memory-compaction",
+        metadata: {
+          trigger: "memory-flush-compaction",
+          compactionCount: memoryFlushCompactionCount,
+          flushRunId,
+        },
+        logger: (message) => logVerbose(message),
+      });
     }
   } catch (err) {
     logVerbose(`memory flush run failed: ${String(err)}`);

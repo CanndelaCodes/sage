@@ -35,6 +35,7 @@ import {
   updateSessionStore,
 } from "../config/sessions.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
+import { scheduleSageSessionTranscriptCapture } from "../memory/sage-memory-auto-capture.js";
 import { getQueueSize } from "../process/command-queue.js";
 import { CommandLane } from "../process/lanes.js";
 import { normalizeAgentId, toAgentStoreSessionKey } from "../routing/session-key.js";
@@ -218,10 +219,7 @@ export function isHeartbeatEnabledForAgent(cfg: SageConfig, agentId?: string): b
   return resolvedAgentId === resolveDefaultAgentId(cfg);
 }
 
-function resolveHeartbeatConfig(
-  cfg: SageConfig,
-  agentId?: string,
-): HeartbeatConfig | undefined {
+function resolveHeartbeatConfig(cfg: SageConfig, agentId?: string): HeartbeatConfig | undefined {
   const defaults = cfg.agents?.defaults?.heartbeat;
   if (!agentId) {
     return defaults;
@@ -338,11 +336,7 @@ function resolveHeartbeatAckMaxChars(cfg: SageConfig, heartbeat?: HeartbeatConfi
   );
 }
 
-function resolveHeartbeatSession(
-  cfg: SageConfig,
-  agentId?: string,
-  heartbeat?: HeartbeatConfig,
-) {
+function resolveHeartbeatSession(cfg: SageConfig, agentId?: string, heartbeat?: HeartbeatConfig) {
   const sessionCfg = cfg.session;
   const scope = sessionCfg?.scope ?? "per-sender";
   const resolvedAgentId = normalizeAgentId(agentId ?? resolveDefaultAgentId(cfg));
@@ -619,6 +613,15 @@ export async function runHeartbeatOnce(opts: {
 
   try {
     const replyResult = await getReplyFromConfig(ctx, { isHeartbeat: true }, cfg);
+    scheduleHeartbeatSageMemoryCapture({
+      cfg,
+      agentId,
+      storePath,
+      sessionKey,
+      fallbackEntry: entry,
+      reason: opts.reason,
+      startedAt,
+    });
     const replyPayload = resolveHeartbeatReplyPayload(replyResult);
     const includeReasoning = heartbeat?.includeReasoning === true;
     const reasoningPayloads = includeReasoning
@@ -837,6 +840,42 @@ export async function runHeartbeatOnce(opts: {
     });
     log.error(`heartbeat failed: ${reason}`, { error: reason });
     return { status: "failed", reason };
+  }
+}
+
+function scheduleHeartbeatSageMemoryCapture(params: {
+  cfg: SageConfig;
+  agentId: string;
+  storePath: string;
+  sessionKey: string;
+  fallbackEntry?: { sessionId?: string; sessionFile?: string };
+  reason?: string;
+  startedAt: number;
+}) {
+  try {
+    const latestEntry =
+      loadSessionStore(params.storePath)[params.sessionKey] ?? params.fallbackEntry;
+    if (!latestEntry?.sessionId || !latestEntry.sessionFile) {
+      return;
+    }
+    scheduleSageSessionTranscriptCapture({
+      cfg: params.cfg,
+      agentId: params.agentId,
+      sessionFile: latestEntry.sessionFile,
+      sessionId: latestEntry.sessionId,
+      sessionKey: params.sessionKey,
+      captureMethod: "sage-memory-heartbeat",
+      metadata: {
+        trigger: "heartbeat",
+        reason: params.reason ?? "interval",
+        startedAt: new Date(params.startedAt).toISOString(),
+      },
+      logger: (message) => log.debug(message),
+    });
+  } catch (err) {
+    log.debug("heartbeat sage-memory capture scheduling skipped", {
+      error: formatErrorMessage(err),
+    });
   }
 }
 

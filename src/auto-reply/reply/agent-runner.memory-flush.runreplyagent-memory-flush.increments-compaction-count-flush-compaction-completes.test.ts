@@ -9,6 +9,7 @@ import { createMockTypingController } from "./test-helpers.js";
 
 const runEmbeddedPiAgentMock = vi.fn();
 const runCliAgentMock = vi.fn();
+const scheduleSageSessionTranscriptCaptureMock = vi.fn();
 
 type EmbeddedRunParams = {
   prompt?: string;
@@ -49,6 +50,11 @@ vi.mock("./queue.js", async () => {
     scheduleFollowupDrain: vi.fn(),
   };
 });
+
+vi.mock("../../memory/sage-memory-auto-capture.js", () => ({
+  scheduleSageSessionTranscriptCapture: (params: unknown) =>
+    scheduleSageSessionTranscriptCaptureMock(params),
+}));
 
 import { runReplyAgent } from "./agent-runner.js";
 
@@ -183,5 +189,18 @@ describe("runReplyAgent memory flush", () => {
     const stored = JSON.parse(await fs.readFile(storePath, "utf-8"));
     expect(stored[sessionKey].compactionCount).toBe(2);
     expect(stored[sessionKey].memoryFlushCompactionCount).toBe(2);
+    expect(scheduleSageSessionTranscriptCaptureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentId: "main",
+        sessionFile: "/tmp/session.jsonl",
+        sessionId: "session",
+        sessionKey: "main",
+        captureMethod: "sage-memory-compaction",
+        metadata: expect.objectContaining({
+          trigger: "memory-flush-compaction",
+          compactionCount: 2,
+        }),
+      }),
+    );
   });
 });

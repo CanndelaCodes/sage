@@ -14,7 +14,7 @@ export type SageMemoryLlmSessionMessage = {
 
 export type SageMemoryLlmSessionIngestInput = {
   namespace: string;
-  source: "sage";
+  source: "other";
   session_id: string;
   title: string;
   source_uri: string;
@@ -32,6 +32,8 @@ export async function loadSageSessionTranscriptForMemory(params: {
   sessionKey: string;
   namespace?: string;
   markdownPath?: string;
+  captureMethod?: string;
+  metadata?: JsonObject;
 }): Promise<SageMemoryLlmSessionIngestInput | null> {
   const rows = parseJsonl(await fs.readFile(params.sessionFile, "utf-8"));
   const header = rows.find((row) => readString(row.type) === "session");
@@ -52,8 +54,11 @@ export async function loadSageSessionTranscriptForMemory(params: {
     workspace.cwd = cwd;
   }
 
+  const captureMethod = params.captureMethod?.trim() || "sage-session-memory-hook";
   const metadata: JsonObject = {
-    capture_method: "sage-session-memory-hook",
+    ...params.metadata,
+    capture_method: captureMethod,
+    source_system: "sage",
     sessionKey: params.sessionKey,
     sessionId,
     sessionFile: params.sessionFile,
@@ -64,7 +69,7 @@ export async function loadSageSessionTranscriptForMemory(params: {
 
   return {
     namespace: params.namespace?.trim() || "sage.sessions",
-    source: "sage",
+    source: "other",
     session_id: sessionId,
     title: `Sage Session ${sessionId}`,
     source_uri: `sage://session/${encodeURIComponent(sessionId)}`,

@@ -67,7 +67,7 @@ describe("loadSageSessionTranscriptForMemory", () => {
 
     expect(payload).toEqual({
       namespace: "jason.sage.sessions",
-      source: "sage",
+      source: "other",
       session_id: "sage-session-1",
       title: "Sage Session sage-session-1",
       source_uri: "sage://session/sage-session-1",
@@ -102,6 +102,7 @@ describe("loadSageSessionTranscriptForMemory", () => {
       ],
       metadata: {
         capture_method: "sage-session-memory-hook",
+        source_system: "sage",
         sessionKey: "agent:main:main",
         sessionId: "sage-session-1",
         sessionFile,
@@ -130,5 +131,49 @@ describe("loadSageSessionTranscriptForMemory", () => {
         sessionKey: "agent:main:main",
       }),
     ).resolves.toBeNull();
+  });
+
+  it("allows callers to tag the capture method and add lifecycle metadata", async () => {
+    const sessionFile = path.join(tempDir, "heartbeat.jsonl");
+    await fs.writeFile(
+      sessionFile,
+      [
+        JSON.stringify({
+          type: "session",
+          id: "heartbeat-session",
+          timestamp: "2026-05-12T12:00:00.000Z",
+        }),
+        JSON.stringify({
+          type: "message",
+          message: {
+            role: "assistant",
+            content: "Heartbeat checked the session.",
+            timestamp: "2026-05-12T12:05:00.000Z",
+          },
+        }),
+      ].join("\n"),
+      "utf-8",
+    );
+
+    const payload = await loadSageSessionTranscriptForMemory({
+      sessionFile,
+      sessionId: "heartbeat-session",
+      sessionKey: "agent:main:main",
+      captureMethod: "sage-memory-heartbeat",
+      metadata: {
+        trigger: "heartbeat",
+        reason: "interval",
+      },
+    });
+
+    expect(payload?.metadata).toEqual({
+      capture_method: "sage-memory-heartbeat",
+      source_system: "sage",
+      trigger: "heartbeat",
+      reason: "interval",
+      sessionKey: "agent:main:main",
+      sessionId: "heartbeat-session",
+      sessionFile,
+    });
   });
 });

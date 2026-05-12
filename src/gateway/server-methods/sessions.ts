@@ -13,6 +13,7 @@ import {
   type SessionEntry,
   updateSessionStore,
 } from "../../config/sessions.js";
+import { captureSageSessionTranscriptBestEffort } from "../../memory/sage-memory-auto-capture.js";
 import { normalizeAgentId, parseAgentSessionKey } from "../../routing/session-key.js";
 import {
   ErrorCodes,
@@ -41,6 +42,39 @@ import {
 } from "../session-utils.js";
 import { applySessionsPatchToStore } from "../sessions-patch.js";
 import { resolveSessionKeyFromResolveParams } from "../sessions-resolve.js";
+
+async function captureGatewaySessionTranscriptBeforeMutation(params: {
+  cfg: ReturnType<typeof loadConfig>;
+  agentId: string;
+  storePath: string;
+  sessionKey: string;
+  entry?: SessionEntry;
+  captureMethod: string;
+  trigger: string;
+}) {
+  const sessionId = params.entry?.sessionId;
+  if (!sessionId) {
+    return;
+  }
+  const sessionFile = resolveSessionTranscriptCandidates(
+    sessionId,
+    params.storePath,
+    params.entry?.sessionFile,
+    params.agentId,
+  ).find((candidate) => fs.existsSync(candidate));
+  if (!sessionFile) {
+    return;
+  }
+  await captureSageSessionTranscriptBestEffort({
+    cfg: params.cfg,
+    agentId: params.agentId,
+    sessionFile,
+    sessionId,
+    sessionKey: params.sessionKey,
+    captureMethod: params.captureMethod,
+    metadata: { trigger: params.trigger },
+  });
+}
 
 export const sessionsHandlers: GatewayRequestHandlers = {
   "sessions.list": ({ params, respond }) => {
@@ -234,6 +268,19 @@ export const sessionsHandlers: GatewayRequestHandlers = {
     const cfg = loadConfig();
     const target = resolveGatewaySessionStoreTarget({ cfg, key });
     const storePath = target.storePath;
+    const resetStore = loadSessionStore(storePath);
+    const resetPrimaryKey = target.storeKeys[0] ?? key;
+    const resetExistingKey = target.storeKeys.find((candidate) => resetStore[candidate]);
+    const resetEntry = resetStore[resetExistingKey ?? resetPrimaryKey];
+    await captureGatewaySessionTranscriptBeforeMutation({
+      cfg,
+      agentId: target.agentId,
+      storePath,
+      sessionKey: target.canonicalKey,
+      entry: resetEntry,
+      captureMethod: "sage-memory-session-reset",
+      trigger: "sessions.reset",
+    });
     const next = await updateSessionStore(storePath, (store) => {
       const primaryKey = target.storeKeys[0] ?? key;
       const existingKey = target.storeKeys.find((candidate) => store[candidate]);
@@ -329,6 +376,15 @@ export const sessionsHandlers: GatewayRequestHandlers = {
         return;
       }
     }
+    await captureGatewaySessionTranscriptBeforeMutation({
+      cfg,
+      agentId: target.agentId,
+      storePath,
+      sessionKey: target.canonicalKey,
+      entry,
+      captureMethod: "sage-memory-session-delete",
+      trigger: "sessions.delete",
+    });
     await updateSessionStore(storePath, (store) => {
       const primaryKey = target.storeKeys[0] ?? key;
       const existingKey = target.storeKeys.find((candidate) => store[candidate]);
@@ -434,6 +490,16 @@ export const sessionsHandlers: GatewayRequestHandlers = {
       );
       return;
     }
+
+    await captureGatewaySessionTranscriptBeforeMutation({
+      cfg,
+      agentId: target.agentId,
+      storePath,
+      sessionKey: target.canonicalKey,
+      entry: { ...entry, sessionFile: filePath },
+      captureMethod: "sage-memory-session-compact",
+      trigger: "sessions.compact",
+    });
 
     const raw = fs.readFileSync(filePath, "utf-8");
     const lines = raw.split(/\r?\n/).filter((l) => l.trim().length > 0);

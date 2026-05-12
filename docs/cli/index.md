@@ -95,6 +95,7 @@ sage [--dev] [--profile <name>] <command>
     set
     unset
   doctor
+    memory
   security
     audit
   reset
@@ -123,6 +124,8 @@ sage [--dev] [--profile <name>] <command>
     status
     index
     search
+    capture-session
+    doctor
   message
   agent
   agents
@@ -264,6 +267,8 @@ Vector search over `MEMORY.md` + `memory/*.md`:
 - `sage memory status` — show index stats.
 - `sage memory index` — reindex memory files.
 - `sage memory search "<query>"` — semantic search over memory.
+- `sage memory capture-session <session-file>` — ingest a Sage JSONL transcript into Sage Memory.
+- `sage memory doctor` — diagnose Sage Memory capture, search, get, and export health.
 
 ## Chat slash commands
 
@@ -355,6 +360,10 @@ Subcommands:
 ### `doctor`
 
 Health checks + quick fixes (config + gateway + legacy services).
+
+Scoped diagnostics:
+
+- `sage doctor memory` — run the Sage Memory backend diagnostic report.
 
 Options:
 

@@ -20,6 +20,9 @@ const sessionCleanupMocks = vi.hoisted(() => ({
   clearSessionQueues: vi.fn(() => ({ followupCleared: 0, laneCleared: 0, keys: [] })),
   stopSubagentsForRequester: vi.fn(() => ({ stopped: 0 })),
 }));
+const sageMemoryCaptureMocks = vi.hoisted(() => ({
+  captureBestEffort: vi.fn(async () => ({ status: "captured" })),
+}));
 
 vi.mock("../auto-reply/reply/queue.js", async () => {
   const actual = await vi.importActual<typeof import("../auto-reply/reply/queue.js")>(
@@ -40,6 +43,11 @@ vi.mock("../auto-reply/reply/abort.js", async () => {
     stopSubagentsForRequester: sessionCleanupMocks.stopSubagentsForRequester,
   };
 });
+
+vi.mock("../memory/sage-memory-auto-capture.js", () => ({
+  captureSageSessionTranscriptBestEffort: (params: unknown) =>
+    sageMemoryCaptureMocks.captureBestEffort(params),
+}));
 
 installGatewayTestHooks({ scope: "suite" });
 
@@ -74,6 +82,7 @@ describe("gateway server sessions", () => {
   beforeEach(() => {
     sessionCleanupMocks.clearSessionQueues.mockClear();
     sessionCleanupMocks.stopSubagentsForRequester.mockClear();
+    sageMemoryCaptureMocks.captureBestEffort.mockClear();
   });
 
   test("lists and patches session store via sessions.* RPC", async () => {
@@ -329,6 +338,16 @@ describe("gateway server sessions", () => {
     });
     expect(compacted.ok).toBe(true);
     expect(compacted.payload?.compacted).toBe(true);
+    expect(sageMemoryCaptureMocks.captureBestEffort).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentId: "main",
+        sessionId: "sess-main",
+        sessionFile: path.join(dir, "sess-main.jsonl"),
+        sessionKey: "agent:main:main",
+        captureMethod: "sage-memory-session-compact",
+        metadata: expect.objectContaining({ trigger: "sessions.compact" }),
+      }),
+    );
     const compactedLines = (await fs.readFile(path.join(dir, "sess-main.jsonl"), "utf-8"))
       .split(/\r?\n/)
       .filter((l) => l.trim().length > 0);
@@ -341,6 +360,16 @@ describe("gateway server sessions", () => {
     });
     expect(deleted.ok).toBe(true);
     expect(deleted.payload?.deleted).toBe(true);
+    expect(sageMemoryCaptureMocks.captureBestEffort).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentId: "main",
+        sessionId: "sess-group",
+        sessionFile: path.join(dir, "sess-group.jsonl"),
+        sessionKey: "agent:main:discord:group:dev",
+        captureMethod: "sage-memory-session-delete",
+        metadata: expect.objectContaining({ trigger: "sessions.delete" }),
+      }),
+    );
     const listAfterDelete = await rpcReq<{
       sessions: Array<{ key: string }>;
     }>(ws, "sessions.list", {});
@@ -359,6 +388,16 @@ describe("gateway server sessions", () => {
     expect(reset.ok).toBe(true);
     expect(reset.payload?.key).toBe("agent:main:main");
     expect(reset.payload?.entry.sessionId).not.toBe("sess-main");
+    expect(sageMemoryCaptureMocks.captureBestEffort).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentId: "main",
+        sessionId: "sess-main",
+        sessionFile: path.join(dir, "sess-main.jsonl"),
+        sessionKey: "agent:main:main",
+        captureMethod: "sage-memory-session-reset",
+        metadata: expect.objectContaining({ trigger: "sessions.reset" }),
+      }),
+    );
 
     const badThinking = await rpcReq(ws, "sessions.patch", {
       key: "agent:main:main",

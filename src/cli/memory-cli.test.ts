@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const getMemorySearchManager = vi.fn();
 const loadConfig = vi.fn(() => ({}));
 const resolveDefaultAgentId = vi.fn(() => "main");
+const captureSageSessionTranscript = vi.fn();
+const runSageMemoryDoctor = vi.fn();
 
 vi.mock("../memory/index.js", () => ({
   getMemorySearchManager,
@@ -17,9 +19,19 @@ vi.mock("../agents/agent-scope.js", () => ({
   resolveDefaultAgentId,
 }));
 
+vi.mock("../memory/sage-memory-session-capture.js", () => ({
+  captureSageSessionTranscript,
+}));
+
+vi.mock("../memory/sage-memory-doctor.js", () => ({
+  runSageMemoryDoctor,
+}));
+
 afterEach(async () => {
   vi.restoreAllMocks();
   getMemorySearchManager.mockReset();
+  captureSageSessionTranscript.mockReset();
+  runSageMemoryDoctor.mockReset();
   process.exitCode = undefined;
   const { setVerbose } = await import("../globals.js");
   setVerbose(false);
@@ -488,5 +500,99 @@ describe("memory cli", () => {
     expect(close).toHaveBeenCalled();
     expect(error).toHaveBeenCalledWith(expect.stringContaining("Memory search failed: boom"));
     expect(process.exitCode).toBe(1);
+  });
+
+  it("captures a session transcript with JSON output", async () => {
+    const { registerMemoryCli } = await import("./memory-cli.js");
+    const { defaultRuntime } = await import("../runtime.js");
+    const cfg = { memory: { backend: "sage-memory" } };
+    loadConfig.mockReturnValueOnce(cfg);
+    captureSageSessionTranscript.mockResolvedValueOnce({
+      namespace: "jason.sage.manual",
+      sourceUri: "sage://session/manual-session",
+      sessionNodeId: "11111111-1111-4111-8111-111111111111",
+      sessionNodePath: "sage-memory/11111111-1111-4111-8111-111111111111",
+      evidenceId: "22222222-2222-4222-8222-222222222222",
+      derivedNodeIds: [],
+      deduplicated: false,
+      eventId: "33333333-3333-4333-8333-333333333333",
+      messageCount: 1,
+    });
+
+    const log = vi.spyOn(defaultRuntime, "log").mockImplementation(() => {});
+    const program = new Command();
+    program.name("test");
+    registerMemoryCli(program);
+    await program.parseAsync(
+      [
+        "memory",
+        "capture-session",
+        "session.jsonl",
+        "--agent",
+        "ops",
+        "--session-key",
+        "agent:ops:main",
+        "--session-id",
+        "manual-session",
+        "--namespace",
+        "jason.sage.manual",
+        "--json",
+      ],
+      { from: "user" },
+    );
+
+    expect(captureSageSessionTranscript).toHaveBeenCalledWith({
+      cfg,
+      agentId: "ops",
+      sessionFile: "session.jsonl",
+      sessionKey: "agent:ops:main",
+      sessionId: "manual-session",
+      namespace: "jason.sage.manual",
+    });
+    expect(JSON.parse(String(log.mock.calls[0]?.[0]))).toMatchObject({
+      sessionNodePath: "sage-memory/11111111-1111-4111-8111-111111111111",
+      messageCount: 1,
+    });
+  });
+
+  it("runs sage-memory doctor with JSON output", async () => {
+    const { registerMemoryCli } = await import("./memory-cli.js");
+    const { defaultRuntime } = await import("../runtime.js");
+    const cfg = { memory: { backend: "sage-memory" } };
+    loadConfig.mockReturnValueOnce(cfg);
+    runSageMemoryDoctor.mockResolvedValueOnce({
+      ok: true,
+      agentId: "main",
+      baseUrl: "http://127.0.0.1:18790",
+      namespace: "jason.sage.sessions",
+      diagnosticNamespace: "jason.sage.sessions.diagnostics",
+      marker: "sage-memory-doctor-marker",
+      nodeId: "11111111-1111-4111-8111-111111111111",
+      sessionNodePath: "sage-memory/11111111-1111-4111-8111-111111111111",
+      exportedFiles: ["C:/Users/jason/SecondBrain/vault/Sage Memory Doctor.md"],
+      checks: [{ name: "config", status: "pass", message: "ok" }],
+      warnings: [],
+      failures: [],
+      suggestions: [],
+    });
+
+    const log = vi.spyOn(defaultRuntime, "log").mockImplementation(() => {});
+    const program = new Command();
+    program.name("test");
+    registerMemoryCli(program);
+    await program.parseAsync(
+      ["memory", "doctor", "--agent", "main", "--namespace", "jason.sage.diagnostics", "--json"],
+      { from: "user" },
+    );
+
+    expect(runSageMemoryDoctor).toHaveBeenCalledWith({
+      cfg,
+      agentId: "main",
+      namespace: "jason.sage.diagnostics",
+    });
+    expect(JSON.parse(String(log.mock.calls[0]?.[0]))).toMatchObject({
+      ok: true,
+      sessionNodePath: "sage-memory/11111111-1111-4111-8111-111111111111",
+    });
   });
 });

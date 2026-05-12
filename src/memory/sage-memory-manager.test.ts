@@ -162,7 +162,7 @@ describe("SageMemoryManager", () => {
       expect(headers.get("authorization")).toBe("Bearer test-token");
       expect(JSON.parse(requestBody(init))).toEqual({
         namespace: "jason.sage.sessions",
-        source: "sage",
+        source: "other",
         session_id: "sage-session-1",
         title: "Sage Session sage-session-1",
         source_uri: "sage://session/sage-session-1",
@@ -170,6 +170,7 @@ describe("SageMemoryManager", () => {
         messages: [{ role: "user", content: "Capture the full session." }],
         metadata: {
           capture_method: "sage-session-memory-hook",
+          source_system: "sage",
           sessionKey: "agent:main:main",
         },
         sensitivity: "private",
@@ -198,7 +199,7 @@ describe("SageMemoryManager", () => {
     await expect(
       manager.ingestLlmSession({
         namespace: "jason.sage.sessions",
-        source: "sage",
+        source: "other",
         session_id: "sage-session-1",
         title: "Sage Session sage-session-1",
         source_uri: "sage://session/sage-session-1",
@@ -206,6 +207,7 @@ describe("SageMemoryManager", () => {
         messages: [{ role: "user", content: "Capture the full session." }],
         metadata: {
           capture_method: "sage-session-memory-hook",
+          source_system: "sage",
           sessionKey: "agent:main:main",
         },
         sensitivity: "private",

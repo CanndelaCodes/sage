@@ -10,6 +10,12 @@ import { resolveSessionTranscriptsDirForAgent } from "../config/sessions/paths.j
 import { setVerbose } from "../globals.js";
 import { getMemorySearchManager, type MemorySearchManagerResult } from "../memory/index.js";
 import { listMemoryFiles, normalizeExtraMemoryPaths } from "../memory/internal.js";
+import { formatDoctorReport } from "../memory/sage-memory-doctor-format.js";
+import { runSageMemoryDoctor } from "../memory/sage-memory-doctor.js";
+import {
+  captureSageSessionTranscript,
+  type SageMemorySessionCaptureResult,
+} from "../memory/sage-memory-session-capture.js";
 import { defaultRuntime } from "../runtime.js";
 import { formatDocsLink } from "../terminal/links.js";
 import { colorize, isRich, theme } from "../terminal/theme.js";
@@ -24,6 +30,16 @@ type MemoryCommandOptions = {
   index?: boolean;
   force?: boolean;
   verbose?: boolean;
+};
+
+type CaptureSessionOptions = MemoryCommandOptions & {
+  sessionKey?: string;
+  sessionId?: string;
+  namespace?: string;
+};
+
+type DoctorOptions = MemoryCommandOptions & {
+  namespace?: string;
 };
 
 type MemoryManager = NonNullable<MemorySearchManagerResult["manager"]>;
@@ -246,6 +262,23 @@ async function scanMemorySources(params: {
     ? null
     : numericTotals.reduce((sum, total) => sum + total, 0);
   return { sources: scans, totalFiles, issues };
+}
+
+function formatCaptureSessionResult(result: SageMemorySessionCaptureResult): string {
+  const rich = isRich();
+  const heading = (text: string) => colorize(rich, theme.heading, text);
+  const muted = (text: string) => colorize(rich, theme.muted, text);
+  const info = (text: string) => colorize(rich, theme.info, text);
+  const success = (text: string) => colorize(rich, theme.success, text);
+  const label = (text: string) => muted(`${text}:`);
+  return [
+    heading("Sage Memory Capture"),
+    `${label("Session node")} ${success(result.sessionNodePath)}`,
+    `${label("Source URI")} ${info(result.sourceUri)}`,
+    `${label("Namespace")} ${info(result.namespace)}`,
+    `${label("Messages")} ${info(String(result.messageCount))}`,
+    `${label("Deduplicated")} ${result.deduplicated ? info("yes") : muted("no")}`,
+  ].join("\n");
 }
 
 export async function runMemoryStatus(opts: MemoryCommandOptions) {
@@ -516,6 +549,56 @@ export function registerMemoryCli(program: Command) {
       () =>
         `\n${theme.muted("Docs:")} ${formatDocsLink("/cli/memory", "docs.sage.ai/cli/memory")}\n`,
     );
+
+  memory
+    .command("capture-session")
+    .description("Capture a Sage session transcript into Sage Memory")
+    .argument("<session-file>", "Sage JSONL session transcript")
+    .option("--agent <id>", "Agent id (default: default agent)")
+    .option("--session-key <key>", "Session key metadata for the transcript")
+    .option("--session-id <id>", "Override transcript session id")
+    .option("--namespace <namespace>", "Override Sage Memory namespace")
+    .option("--json", "Print JSON")
+    .action(async (sessionFile: string, opts: CaptureSessionOptions) => {
+      const cfg = loadConfig();
+      const agentId = resolveAgent(cfg, opts.agent);
+      try {
+        const result = await captureSageSessionTranscript({
+          cfg,
+          agentId,
+          sessionFile,
+          sessionKey: opts.sessionKey,
+          sessionId: opts.sessionId,
+          namespace: opts.namespace,
+        });
+        defaultRuntime.log(
+          opts.json ? JSON.stringify(result, null, 2) : formatCaptureSessionResult(result),
+        );
+      } catch (err) {
+        defaultRuntime.error(`Memory session capture failed: ${formatErrorMessage(err)}`);
+        process.exitCode = 1;
+      }
+    });
+
+  memory
+    .command("doctor")
+    .description("Diagnose Sage Memory backend capture and retrieval")
+    .option("--agent <id>", "Agent id (default: default agent)")
+    .option("--namespace <namespace>", "Diagnostic namespace override")
+    .option("--json", "Print JSON")
+    .action(async (opts: DoctorOptions) => {
+      const cfg = loadConfig();
+      const agentId = resolveAgent(cfg, opts.agent);
+      const report = await runSageMemoryDoctor({
+        cfg,
+        agentId,
+        namespace: opts.namespace,
+      });
+      defaultRuntime.log(opts.json ? JSON.stringify(report, null, 2) : formatDoctorReport(report));
+      if (!report.ok) {
+        process.exitCode = 1;
+      }
+    });
 
   memory
     .command("status")

@@ -436,7 +436,7 @@ describe("session-memory hook", () => {
     const body = JSON.parse(requestBody(firstCall[1])) as Record<string, unknown>;
     expect(body).toMatchObject({
       namespace: "jason.sage.sessions",
-      source: "sage",
+      source: "other",
       session_id: "test-123",
       source_uri: "sage://session/test-123",
       sensitivity: "private",

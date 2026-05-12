@@ -1,8 +1,12 @@
 import type { Command } from "commander";
+import { resolveDefaultAgentId } from "../../agents/agent-scope.js";
 import { dashboardCommand } from "../../commands/dashboard.js";
 import { doctorCommand } from "../../commands/doctor.js";
 import { resetCommand } from "../../commands/reset.js";
 import { uninstallCommand } from "../../commands/uninstall.js";
+import { loadConfig } from "../../config/config.js";
+import { formatDoctorReport } from "../../memory/sage-memory-doctor-format.js";
+import { runSageMemoryDoctor } from "../../memory/sage-memory-doctor.js";
 import { defaultRuntime } from "../../runtime.js";
 import { formatDocsLink } from "../../terminal/links.js";
 import { theme } from "../../terminal/theme.js";
@@ -12,6 +16,7 @@ export function registerMaintenanceCommands(program: Command) {
   program
     .command("doctor")
     .description("Health checks + quick fixes for the gateway and channels")
+    .argument("[scope]", "Optional doctor scope (memory)")
     .addHelpText(
       "after",
       () =>
@@ -25,8 +30,36 @@ export function registerMaintenanceCommands(program: Command) {
     .option("--non-interactive", "Run without prompts (safe migrations only)", false)
     .option("--generate-gateway-token", "Generate and configure a gateway token", false)
     .option("--deep", "Scan system services for extra gateway installs", false)
-    .action(async (opts) => {
+    .option("--agent <id>", "Agent id for scoped doctor checks")
+    .option("--namespace <namespace>", "Namespace for scoped doctor checks")
+    .option("--json", "Print JSON for scoped doctor checks", false)
+    .action(async (scope, opts) => {
       await runCommandWithRuntime(defaultRuntime, async () => {
+        const normalizedScope = typeof scope === "string" ? scope.trim().toLowerCase() : "";
+        if (normalizedScope === "memory") {
+          const cfg = loadConfig();
+          const agentId =
+            typeof opts.agent === "string" && opts.agent.trim()
+              ? opts.agent.trim()
+              : resolveDefaultAgentId(cfg);
+          const report = await runSageMemoryDoctor({
+            cfg,
+            agentId,
+            namespace: typeof opts.namespace === "string" ? opts.namespace : undefined,
+          });
+          defaultRuntime.log(
+            opts.json ? JSON.stringify(report, null, 2) : formatDoctorReport(report),
+          );
+          if (!report.ok) {
+            process.exitCode = 1;
+          }
+          return;
+        }
+        if (normalizedScope) {
+          defaultRuntime.error(`Unknown doctor scope: ${scope}`);
+          process.exitCode = 1;
+          return;
+        }
         await doctorCommand(defaultRuntime, {
           workspaceSuggestions: opts.workspaceSuggestions,
           yes: Boolean(opts.yes),
@@ -61,8 +94,7 @@ export function registerMaintenanceCommands(program: Command) {
     .description("Reset local config/state (keeps the CLI installed)")
     .addHelpText(
       "after",
-      () =>
-        `\n${theme.muted("Docs:")} ${formatDocsLink("/cli/reset", "docs.sage.ai/cli/reset")}\n`,
+      () => `\n${theme.muted("Docs:")} ${formatDocsLink("/cli/reset", "docs.sage.ai/cli/reset")}\n`,
     )
     .option("--scope <scope>", "config|config+creds+sessions|full (default: interactive prompt)")
     .option("--yes", "Skip confirmation prompts", false)
