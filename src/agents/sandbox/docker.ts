@@ -1,4 +1,3 @@
-import { spawn } from "node:child_process";
 import type { SandboxConfig, SandboxDockerConfig, SandboxWorkspaceAccess } from "./types.js";
 import { formatCliCommand } from "../../cli/command-format.js";
 import { defaultRuntime } from "../../runtime.js";
@@ -14,15 +13,6 @@ import { readRegistry, updateRegistry } from "./registry.js";
 import { resolveSandboxAgentId, resolveSandboxScopeKey, slugifySessionKey } from "./shared.js";
 
 const HOT_CONTAINER_WINDOW_MS = 5 * 60 * 1000;
-
-/**
- * Resolve the active container runtime command name.
- * Returns "podman" or "docker" based on detection.
- */
-function resolveRuntimeCommand(): string {
-  const cached = getCachedContainerRuntime();
-  return cached?.command ?? "docker";
-}
 
 /**
  * Get the active container runtime type.

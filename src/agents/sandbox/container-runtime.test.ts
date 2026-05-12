@@ -4,7 +4,6 @@ import {
   detectDocker,
   detectPodman,
   ensurePodmanMachine,
-  execContainerCommand,
   getCachedContainerRuntime,
   getRuntimeInfo,
   isPodmanMachineRunning,
@@ -155,7 +154,7 @@ describe("cached runtime detection", () => {
   it("caches the detection result", () => {
     let callCount = 0;
     const deps: ContainerRuntimeDeps = {
-      checkCommand: (cmd, args) => {
+      checkCommand: (cmd, _args) => {
         callCount++;
         if (cmd === "podman") {
           return ok("4.9.3");
@@ -236,9 +235,9 @@ describe("podman machine management", () => {
 
     const result = listPodmanMachines(deps);
     expect(result).toHaveLength(2);
-    expect(result[0]!.name).toBe("sage-sandbox");
-    expect(result[0]!.running).toBe(true);
-    expect(result[1]!.running).toBe(false);
+    expect(result[0].name).toBe("sage-sandbox");
+    expect(result[0].running).toBe(true);
+    expect(result[1].running).toBe(false);
   });
 
   it("returns empty list on failure", () => {
@@ -329,7 +328,9 @@ describe("podman machine management", () => {
       platform: "darwin",
       checkCommand: (cmd, args) => {
         calls.push(`${cmd} ${args.join(" ")}`);
-        if (args.includes("list")) return ok("[]");
+        if (args.includes("list")) {
+          return ok("[]");
+        }
         return ok("OK");
       },
     };
@@ -353,10 +354,13 @@ describe("translateContainerArgs", () => {
   it("handles podman args (mostly compatible)", () => {
     const args = [
       "create",
-      "--name", "test",
+      "--name",
+      "test",
       "--read-only",
-      "--security-opt", "no-new-privileges",
-      "--cap-drop", "ALL",
+      "--security-opt",
+      "no-new-privileges",
+      "--cap-drop",
+      "ALL",
     ];
     const translated = translateContainerArgs("podman", args);
     // Podman accepts the same flags

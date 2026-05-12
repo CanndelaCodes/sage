@@ -58,9 +58,9 @@ import { renderAgents } from "./views/agents.ts";
 import { renderChannels } from "./views/channels.ts";
 import { renderChat } from "./views/chat.ts";
 import { renderConfig } from "./views/config.ts";
+import { renderConfirmationDialog } from "./views/confirmation-dialog.ts";
 import { renderCron } from "./views/cron.ts";
 import { renderDebug } from "./views/debug.ts";
-import { renderConfirmationDialog } from "./views/confirmation-dialog.ts";
 import { renderExecApprovalPrompt } from "./views/exec-approval.ts";
 import { renderGatewayUrlConfirmation } from "./views/gateway-url-confirmation.ts";
 import { renderGuardrails } from "./views/guardrails.ts";
@@ -1035,15 +1035,16 @@ export function renderApp(state: AppViewState) {
                         ...(state.guardrails.preset === "custom"
                           ? {
                               categories: Object.fromEntries(
-                                Object.entries(state.guardrails.customOverrides).map(
-                                  ([k, v]) => [k, { behavior: v }],
-                                ),
+                                Object.entries(state.guardrails.customOverrides).map(([k, v]) => [
+                                  k,
+                                  { behavior: v },
+                                ]),
                               ),
                             }
                           : {}),
                       },
                     };
-                    await (state as unknown as SageApp).client?.call("config.patch", patch);
+                    await (state as unknown as SageApp).client?.request("config.patch", patch);
                     state.guardrails = { ...state.guardrails, saving: false, dirty: false };
                   } catch {
                     state.guardrails = { ...state.guardrails, saving: false };
@@ -1135,8 +1136,7 @@ export function renderApp(state: AppViewState) {
                 },
                 onToggleAutoFollow: (next) => (state.logsAutoFollow = next),
                 onRefresh: () => loadLogs(state as unknown as LogsState, { reset: true }),
-                onExport: (lines, label) =>
-                  (state as unknown as SageApp).exportLogs(lines, label),
+                onExport: (lines, label) => (state as unknown as SageApp).exportLogs(lines, label),
                 onScroll: (event) => (state as unknown as SageApp).handleLogsScroll(event),
               })
             : nothing

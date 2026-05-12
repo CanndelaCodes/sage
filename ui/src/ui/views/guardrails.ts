@@ -3,14 +3,14 @@ import type {
   DangerCategory,
   GuardrailActionBehavior,
   GuardrailPreset,
-} from "../../config/types.guardrails.js";
+} from "../../../../src/config/types.guardrails.js";
 import {
   allDangerCategories,
   categoryLabel,
   presetDescription,
   presetLabel,
   resolvePresetConfig,
-} from "../../config/guardrail-presets.js";
+} from "../../../../src/config/guardrail-presets.js";
 
 // ---------------------------------------------------------------------------
 // View state
@@ -177,7 +177,13 @@ function renderCategoryGrid(
     <div class="guardrails-categories" style="margin-top: 20px;">
       <div class="guardrails-categories-label">
         Category Behaviors
-        ${isCustom ? html`<span class="muted"> (click to customize)</span>` : nothing}
+        ${
+          isCustom
+            ? html`
+                <span class="muted"> (click to customize)</span>
+              `
+            : nothing
+        }
       </div>
       <div class="guardrails-category-grid">
         ${categories.map((cat) => {
@@ -209,10 +215,7 @@ function renderCategoryRow(
                   .value=${behavior}
                   @change=${(e: Event) => {
                     const target = e.target as HTMLSelectElement;
-                    props.onCategoryOverride(
-                      category,
-                      target.value as GuardrailActionBehavior,
-                    );
+                    props.onCategoryOverride(category, target.value as GuardrailActionBehavior);
                   }}
                 >
                   ${BEHAVIOR_ORDER.map(

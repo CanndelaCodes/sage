@@ -74,11 +74,6 @@ async function isContainerRuntimeAvailable(): Promise<{
   return { available: false };
 }
 
-async function isDockerAvailable(): Promise<boolean> {
-  const result = await isContainerRuntimeAvailable();
-  return result.available;
-}
-
 async function dockerImageExists(image: string): Promise<boolean> {
   const detected = detectContainerRuntime();
   const command = detected?.command ?? "docker";
@@ -196,7 +191,10 @@ export async function maybeRepairSandboxImages(
 
   const runtimeStatus = await isContainerRuntimeAvailable();
   if (!runtimeStatus.available) {
-    note("No container runtime (Podman or Docker) found; skipping sandbox image checks.", "Sandbox");
+    note(
+      "No container runtime (Podman or Docker) found; skipping sandbox image checks.",
+      "Sandbox",
+    );
     return cfg;
   }
   note(`Container runtime detected: ${runtimeStatus.runtime}`, "Sandbox");

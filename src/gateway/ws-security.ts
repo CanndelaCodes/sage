@@ -32,9 +32,7 @@ export type WsOriginPolicy = {
   rejectUrlCredentials?: boolean;
 };
 
-export type WsSecurityCheckResult =
-  | { ok: true }
-  | { ok: false; code: number; reason: string };
+export type WsSecurityCheckResult = { ok: true } | { ok: false; code: number; reason: string };
 
 export type SuspiciousConnectionEvent = {
   kind:
@@ -146,14 +144,14 @@ export function validateWsOrigin(params: {
 
   // Check against allowed origins list
   if (allowedOrigins?.length) {
-    const normalizedAllowed = allowedOrigins.map((o) => o.trim().toLowerCase());
-    if (normalizedAllowed.includes(trimmedOrigin)) {
+    const normalizedAllowed = new Set(allowedOrigins.map((o) => o.trim().toLowerCase()));
+    if (normalizedAllowed.has(trimmedOrigin)) {
       return { ok: true };
     }
     // Also try matching just the origin (scheme + host)
     try {
       const originUrl = new URL(trimmedOrigin);
-      if (normalizedAllowed.includes(originUrl.origin.toLowerCase())) {
+      if (normalizedAllowed.has(originUrl.origin.toLowerCase())) {
         return { ok: true };
       }
     } catch {
@@ -172,11 +170,7 @@ export function validateWsOrigin(params: {
   // Allow if the request host is also loopback
   if (isLocal) {
     const reqHostname = reqHost.split(":")[0] ?? "";
-    if (
-      reqHostname === "localhost" ||
-      reqHostname === "127.0.0.1" ||
-      reqHostname === "::1"
-    ) {
+    if (reqHostname === "localhost" || reqHostname === "127.0.0.1" || reqHostname === "::1") {
       return { ok: true };
     }
   }
@@ -270,24 +264,20 @@ export function buildCorsHeaders(params: {
   // Loopback-to-loopback (dev servers)
   if (!allowed && isLoopbackOrigin(trimmedOrigin)) {
     const reqHostname = reqHost.split(":")[0] ?? "";
-    if (
-      reqHostname === "localhost" ||
-      reqHostname === "127.0.0.1" ||
-      reqHostname === "::1"
-    ) {
+    if (reqHostname === "localhost" || reqHostname === "127.0.0.1" || reqHostname === "::1") {
       allowed = true;
     }
   }
 
   // Explicit allowlist
   if (!allowed && params.allowedOrigins?.length) {
-    const normalizedAllowed = params.allowedOrigins.map((o) => o.trim().toLowerCase());
-    if (normalizedAllowed.includes(trimmedOrigin)) {
+    const normalizedAllowed = new Set(params.allowedOrigins.map((o) => o.trim().toLowerCase()));
+    if (normalizedAllowed.has(trimmedOrigin)) {
       allowed = true;
     }
     try {
       const originUrl = new URL(trimmedOrigin);
-      if (normalizedAllowed.includes(originUrl.origin.toLowerCase())) {
+      if (normalizedAllowed.has(originUrl.origin.toLowerCase())) {
         allowed = true;
       }
     } catch {
@@ -343,8 +333,8 @@ export function detectSuspiciousConnection(params: {
     const originHost = normalizeOriginHost(origin);
     const reqHost = normalizeRequestHost(requestHost);
     if (originHost && reqHost && originHost !== reqHost) {
-      const isKnownClient = KNOWN_CLIENT_UA_PATTERNS.some(
-        (p) => userAgent?.toLowerCase().includes(p),
+      const isKnownClient = KNOWN_CLIENT_UA_PATTERNS.some((p) =>
+        userAgent?.toLowerCase().includes(p),
       );
       if (!isKnownClient) {
         return {

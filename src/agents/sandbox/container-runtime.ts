@@ -292,10 +292,7 @@ export function listPodmanMachines(deps?: ContainerRuntimeDeps): PodmanMachineSt
 /**
  * Check if a Podman machine is running.
  */
-export function isPodmanMachineRunning(
-  machineName?: string,
-  deps?: ContainerRuntimeDeps,
-): boolean {
+export function isPodmanMachineRunning(machineName?: string, deps?: ContainerRuntimeDeps): boolean {
   const machines = listPodmanMachines(deps);
   const name = machineName ?? DEFAULT_PODMAN_MACHINE_NAME;
   return machines.some((m) => m.name === name && m.running);
@@ -319,9 +316,12 @@ export function initPodmanMachine(
     "machine",
     "init",
     name,
-    "--cpus", String(cpus),
-    "--memory", String(memory),
-    "--disk-size", String(diskSize),
+    "--cpus",
+    String(cpus),
+    "--memory",
+    String(memory),
+    "--disk-size",
+    String(diskSize),
     "--rootful=false",
   ];
 
@@ -332,10 +332,7 @@ export function initPodmanMachine(
 /**
  * Start a Podman machine.
  */
-export function startPodmanMachine(
-  machineName?: string,
-  deps?: ContainerRuntimeDeps,
-): ExecResult {
+export function startPodmanMachine(machineName?: string, deps?: ContainerRuntimeDeps): ExecResult {
   const check = deps?.checkCommand ?? execCommandSync;
   const name = machineName ?? DEFAULT_PODMAN_MACHINE_NAME;
 
@@ -346,10 +343,7 @@ export function startPodmanMachine(
 /**
  * Stop a Podman machine.
  */
-export function stopPodmanMachine(
-  machineName?: string,
-  deps?: ContainerRuntimeDeps,
-): ExecResult {
+export function stopPodmanMachine(machineName?: string, deps?: ContainerRuntimeDeps): ExecResult {
   const check = deps?.checkCommand ?? execCommandSync;
   const name = machineName ?? DEFAULT_PODMAN_MACHINE_NAME;
 
@@ -450,10 +444,7 @@ export function runtimeNeedsAdjustment(
  * Both Podman and Docker use nearly identical CLI interfaces,
  * but there are some differences.
  */
-export function translateContainerArgs(
-  runtime: ContainerRuntime,
-  args: string[],
-): string[] {
+export function translateContainerArgs(runtime: ContainerRuntime, args: string[]): string[] {
   if (runtime === "docker") {
     return args;
   }
@@ -461,7 +452,7 @@ export function translateContainerArgs(
   // Podman-specific translations
   const translated: string[] = [];
   for (let i = 0; i < args.length; i++) {
-    const arg = args[i]!;
+    const arg = args[i];
 
     // Podman doesn't need --security-opt no-new-privileges (it's default in rootless)
     // But we keep it for compatibility - Podman accepts it fine

@@ -8,8 +8,8 @@
  * The vault stores credentials as opaque JSON blobs keyed by a service+account pair.
  */
 
-import { createCipheriv, createDecipheriv, pbkdf2Sync, randomBytes } from "node:crypto";
 import { execFileSync } from "node:child_process";
+import { createCipheriv, createDecipheriv, pbkdf2Sync, randomBytes } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -59,7 +59,12 @@ export type VaultFileStore = {
 export type ExecSyncFn = (
   command: string,
   args: string[],
-  options: { encoding: "utf8"; timeout: number; stdio: ("pipe" | "ignore")[]; windowsHide?: boolean },
+  options: {
+    encoding: "utf8";
+    timeout: number;
+    stdio: ("pipe" | "ignore")[];
+    windowsHide?: boolean;
+  },
 ) => string;
 
 export type VaultDeps = {
@@ -192,11 +197,7 @@ function vaultStoreKey(service: string, account: string): string {
 // OS Keychain backends
 // ---------------------------------------------------------------------------
 
-function readKeychainDarwin(
-  service: string,
-  account: string,
-  deps?: VaultDeps,
-): string | null {
+function readKeychainDarwin(service: string, account: string, deps?: VaultDeps): string | null {
   const exec = deps?.execFileSync ?? defaultExecFileSync;
   try {
     const result = exec(
@@ -222,13 +223,7 @@ function writeKeychainDarwin(
     // -U flag updates if exists, creates if not
     exec(
       "/usr/bin/security",
-      [
-        "add-generic-password",
-        "-U",
-        "-s", service,
-        "-a", account,
-        "-w", secret,
-      ],
+      ["add-generic-password", "-U", "-s", service, "-a", account, "-w", secret],
       { encoding: "utf8", timeout: EXEC_TIMEOUT_MS, stdio: ["pipe", "pipe", "pipe"] },
     );
     return true;
@@ -237,36 +232,28 @@ function writeKeychainDarwin(
   }
 }
 
-function deleteKeychainDarwin(
-  service: string,
-  account: string,
-  deps?: VaultDeps,
-): boolean {
+function deleteKeychainDarwin(service: string, account: string, deps?: VaultDeps): boolean {
   const exec = deps?.execFileSync ?? defaultExecFileSync;
   try {
-    exec(
-      "/usr/bin/security",
-      ["delete-generic-password", "-s", service, "-a", account],
-      { encoding: "utf8", timeout: EXEC_TIMEOUT_MS, stdio: ["pipe", "pipe", "pipe"] },
-    );
+    exec("/usr/bin/security", ["delete-generic-password", "-s", service, "-a", account], {
+      encoding: "utf8",
+      timeout: EXEC_TIMEOUT_MS,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
     return true;
   } catch {
     return false;
   }
 }
 
-function readKeychainLinux(
-  service: string,
-  account: string,
-  deps?: VaultDeps,
-): string | null {
+function readKeychainLinux(service: string, account: string, deps?: VaultDeps): string | null {
   const exec = deps?.execFileSync ?? defaultExecFileSync;
   try {
-    const result = exec(
-      "secret-tool",
-      ["lookup", "service", service, "account", account],
-      { encoding: "utf8", timeout: EXEC_TIMEOUT_MS, stdio: ["pipe", "pipe", "pipe"] },
-    );
+    const result = exec("secret-tool", ["lookup", "service", service, "account", account], {
+      encoding: "utf8",
+      timeout: EXEC_TIMEOUT_MS,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
     const trimmed = result.trim();
     return trimmed.length > 0 ? trimmed : null;
   } catch {
@@ -286,12 +273,7 @@ function writeKeychainLinux(
     const { spawnSync } = require("node:child_process") as typeof import("node:child_process");
     const result = spawnSync(
       "secret-tool",
-      [
-        "store",
-        "--label", `${service} - ${account}`,
-        "service", service,
-        "account", account,
-      ],
+      ["store", "--label", `${service} - ${account}`, "service", service, "account", account],
       {
         input: secret,
         encoding: "utf8",
@@ -305,52 +287,25 @@ function writeKeychainLinux(
   }
 }
 
-function deleteKeychainLinux(
-  service: string,
-  account: string,
-  deps?: VaultDeps,
-): boolean {
+function deleteKeychainLinux(service: string, account: string, deps?: VaultDeps): boolean {
   const exec = deps?.execFileSync ?? defaultExecFileSync;
   try {
-    exec(
-      "secret-tool",
-      ["clear", "service", service, "account", account],
-      { encoding: "utf8", timeout: EXEC_TIMEOUT_MS, stdio: ["pipe", "pipe", "pipe"] },
-    );
+    exec("secret-tool", ["clear", "service", service, "account", account], {
+      encoding: "utf8",
+      timeout: EXEC_TIMEOUT_MS,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
     return true;
   } catch {
     return false;
   }
 }
 
-function readKeychainWindows(
-  service: string,
-  account: string,
-  deps?: VaultDeps,
-): string | null {
+function readKeychainWindows(service: string, account: string, deps?: VaultDeps): string | null {
   const exec = deps?.execFileSync ?? defaultExecFileSync;
   const target = `${service}/${account}`;
   try {
-    // Use PowerShell to read from Windows Credential Manager
-    const psScript = `
-      $cred = Get-StoredCredential -Target '${target.replace(/'/g, "''")}' -ErrorAction SilentlyContinue
-      if ($cred) { $cred.GetNetworkCredential().Password } else {
-        # Fallback: use cmdkey + CredRead via .NET
-        Add-Type -AssemblyName System.Runtime.InteropServices
-        $c = [System.Net.CredentialCache]::DefaultCredentials
-        # Try native CredRead
-        $target = '${target.replace(/'/g, "''")}'
-        try {
-          [void][Windows.Security.Credentials.PasswordVault,Windows.Security.Credentials,ContentType=WindowsRuntime]
-          $vault = New-Object Windows.Security.Credentials.PasswordVault
-          $entry = $vault.Retrieve($target, '${account.replace(/'/g, "''")}')
-          $entry.RetrievePassword()
-          $entry.Password
-        } catch { }
-      }
-    `.trim();
-
-    // Simpler approach: use cmdkey to check existence and PowerShell CredentialManager
+    // Use PowerShell CredentialManager to read from Windows Credential Manager.
     const result = exec(
       "powershell.exe",
       [
@@ -358,13 +313,18 @@ function readKeychainWindows(
         "-NonInteractive",
         "-Command",
         `$ErrorActionPreference='SilentlyContinue'; ` +
-        `[void][Windows.Security.Credentials.PasswordVault,Windows.Security.Credentials,ContentType=WindowsRuntime]; ` +
-        `$vault = New-Object Windows.Security.Credentials.PasswordVault; ` +
-        `$cred = $vault.Retrieve('${target.replace(/'/g, "''")}', '${account.replace(/'/g, "''")}'); ` +
-        `$cred.RetrievePassword(); ` +
-        `$cred.Password`,
+          `[void][Windows.Security.Credentials.PasswordVault,Windows.Security.Credentials,ContentType=WindowsRuntime]; ` +
+          `$vault = New-Object Windows.Security.Credentials.PasswordVault; ` +
+          `$cred = $vault.Retrieve('${target.replace(/'/g, "''")}', '${account.replace(/'/g, "''")}'); ` +
+          `$cred.RetrievePassword(); ` +
+          `$cred.Password`,
       ],
-      { encoding: "utf8", timeout: EXEC_TIMEOUT_MS, stdio: ["pipe", "pipe", "pipe"], windowsHide: true },
+      {
+        encoding: "utf8",
+        timeout: EXEC_TIMEOUT_MS,
+        stdio: ["pipe", "pipe", "pipe"],
+        windowsHide: true,
+      },
     );
     const trimmed = result.trim();
     return trimmed.length > 0 ? trimmed : null;
@@ -389,12 +349,17 @@ function writeKeychainWindows(
         "-NonInteractive",
         "-Command",
         `[void][Windows.Security.Credentials.PasswordVault,Windows.Security.Credentials,ContentType=WindowsRuntime]; ` +
-        `$vault = New-Object Windows.Security.Credentials.PasswordVault; ` +
-        `try { $old = $vault.Retrieve('${target.replace(/'/g, "''")}', '${account.replace(/'/g, "''")}'); $vault.Remove($old) } catch {}; ` +
-        `$cred = New-Object Windows.Security.Credentials.PasswordCredential('${target.replace(/'/g, "''")}', '${account.replace(/'/g, "''")}', '${secret.replace(/'/g, "''")}'); ` +
-        `$vault.Add($cred)`,
+          `$vault = New-Object Windows.Security.Credentials.PasswordVault; ` +
+          `try { $old = $vault.Retrieve('${target.replace(/'/g, "''")}', '${account.replace(/'/g, "''")}'); $vault.Remove($old) } catch {}; ` +
+          `$cred = New-Object Windows.Security.Credentials.PasswordCredential('${target.replace(/'/g, "''")}', '${account.replace(/'/g, "''")}', '${secret.replace(/'/g, "''")}'); ` +
+          `$vault.Add($cred)`,
       ],
-      { encoding: "utf8", timeout: EXEC_TIMEOUT_MS, stdio: ["pipe", "pipe", "pipe"], windowsHide: true },
+      {
+        encoding: "utf8",
+        timeout: EXEC_TIMEOUT_MS,
+        stdio: ["pipe", "pipe", "pipe"],
+        windowsHide: true,
+      },
     );
     return true;
   } catch {
@@ -402,11 +367,7 @@ function writeKeychainWindows(
   }
 }
 
-function deleteKeychainWindows(
-  service: string,
-  account: string,
-  deps?: VaultDeps,
-): boolean {
+function deleteKeychainWindows(service: string, account: string, deps?: VaultDeps): boolean {
   const exec = deps?.execFileSync ?? defaultExecFileSync;
   const target = `${service}/${account}`;
   try {
@@ -417,11 +378,16 @@ function deleteKeychainWindows(
         "-NonInteractive",
         "-Command",
         `[void][Windows.Security.Credentials.PasswordVault,Windows.Security.Credentials,ContentType=WindowsRuntime]; ` +
-        `$vault = New-Object Windows.Security.Credentials.PasswordVault; ` +
-        `$cred = $vault.Retrieve('${target.replace(/'/g, "''")}', '${account.replace(/'/g, "''")}'); ` +
-        `$vault.Remove($cred)`,
+          `$vault = New-Object Windows.Security.Credentials.PasswordVault; ` +
+          `$cred = $vault.Retrieve('${target.replace(/'/g, "''")}', '${account.replace(/'/g, "''")}'); ` +
+          `$vault.Remove($cred)`,
       ],
-      { encoding: "utf8", timeout: EXEC_TIMEOUT_MS, stdio: ["pipe", "pipe", "pipe"], windowsHide: true },
+      {
+        encoding: "utf8",
+        timeout: EXEC_TIMEOUT_MS,
+        stdio: ["pipe", "pipe", "pipe"],
+        windowsHide: true,
+      },
     );
     return true;
   } catch {
@@ -436,14 +402,19 @@ function deleteKeychainWindows(
 function defaultExecFileSync(
   command: string,
   args: string[],
-  options: { encoding: "utf8"; timeout: number; stdio: ("pipe" | "ignore")[]; windowsHide?: boolean },
+  options: {
+    encoding: "utf8";
+    timeout: number;
+    stdio: ("pipe" | "ignore")[];
+    windowsHide?: boolean;
+  },
 ): string {
   return execFileSync(command, args, {
     encoding: options.encoding,
     timeout: options.timeout,
-    stdio: options.stdio as unknown as "pipe",
+    stdio: options.stdio,
     windowsHide: options.windowsHide,
-  }) as string;
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -531,11 +502,7 @@ export function vaultWrite(
  * Delete a credential from the vault.
  * Removes from both OS keychain and encrypted file.
  */
-export function vaultDelete(
-  service: string,
-  account: string,
-  deps?: VaultDeps,
-): boolean {
+export function vaultDelete(service: string, account: string, deps?: VaultDeps): boolean {
   const platform = deps?.platform ?? process.platform;
   let deleted = false;
 

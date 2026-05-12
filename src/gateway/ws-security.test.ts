@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
 import type { IncomingMessage } from "node:http";
+import { describe, expect, it, vi } from "vitest";
 import {
   buildCorsHeaders,
   checkUpgradeUrlCredentials,
@@ -365,7 +365,7 @@ describe("checkWsUpgradeSecurity", () => {
       onSuspicious,
     });
     expect(onSuspicious).toHaveBeenCalled();
-    expect(onSuspicious.mock.calls[0]![0].kind).toBe("url-credentials");
+    expect(onSuspicious.mock.calls[0][0].kind).toBe("url-credentials");
   });
 
   it("allows connection and still reports suspicious patterns", () => {

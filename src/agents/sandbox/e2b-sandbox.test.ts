@@ -82,8 +82,7 @@ describe("createE2BSandbox", () => {
     await createE2BSandbox(undefined, deps);
 
     expect(fetchMock).toHaveBeenCalled();
-    const [, init] = (fetchMock as unknown as { mock: { calls: Array<[string, RequestInit]> } }).mock
-      .calls[0]!;
+    const [, init] = fetchMock.mock.calls[0];
     const body = JSON.parse(init.body as string);
     expect(body.templateID).toBe("base");
   });
@@ -122,22 +121,16 @@ describe("execInE2BSandbox", () => {
 
   it("passes environment and cwd", async () => {
     const fetchMock = vi.fn(async () => {
-      return new Response(
-        JSON.stringify({ stdout: "", stderr: "", exitCode: 0 }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      );
+      return new Response(JSON.stringify({ stdout: "", stderr: "", exitCode: 0 }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
     }) as typeof fetch;
 
     const deps = makeDeps({ fetch: fetchMock });
-    await execInE2BSandbox(
-      "sbx-1",
-      "ls",
-      { cwd: "/workspace", env: { NODE_ENV: "test" } },
-      deps,
-    );
+    await execInE2BSandbox("sbx-1", "ls", { cwd: "/workspace", env: { NODE_ENV: "test" } }, deps);
 
-    const [, init] = (fetchMock as unknown as { mock: { calls: Array<[string, RequestInit]> } }).mock
-      .calls[0]!;
+    const [, init] = fetchMock.mock.calls[0];
     const body = JSON.parse(init.body as string);
     expect(body.cwd).toBe("/workspace");
     expect(body.envVars).toEqual({ NODE_ENV: "test" });
@@ -189,7 +182,7 @@ describe("listE2BSandboxes", () => {
     const sandboxes = await listE2BSandboxes(deps);
 
     expect(sandboxes).toHaveLength(1);
-    expect(sandboxes[0]!.sandboxId).toBe("sbx-1");
+    expect(sandboxes[0].sandboxId).toBe("sbx-1");
   });
 });
 
@@ -205,8 +198,7 @@ describe("file operations", () => {
     const deps = makeDeps({ fetch: fetchMock });
     await writeFileToE2BSandbox("sbx-1", "/workspace/test.ts", "const x = 1;", deps);
 
-    const [, init] = (fetchMock as unknown as { mock: { calls: Array<[string, RequestInit]> } }).mock
-      .calls[0]!;
+    const [, init] = fetchMock.mock.calls[0];
     const body = JSON.parse(init.body as string);
     expect(body.path).toBe("/workspace/test.ts");
     expect(body.content).toBe("const x = 1;");
