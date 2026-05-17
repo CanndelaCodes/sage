@@ -1,3 +1,7 @@
+import type {
+  SageMemoryActivityEventsIngestInput,
+  SageMemoryActivityEventsIngestResult,
+} from "../learning/types.js";
 import type { ResolvedSageMemoryConfig } from "./backend-config.js";
 import type { SageMemoryLlmSessionIngestInput } from "./sage-session-transcript.js";
 import type {
@@ -81,6 +85,15 @@ type SageMemoryLlmSessionIngestResponse = {
   derived_node_ids: string[];
   deduplicated: boolean;
   event_id: string;
+};
+
+type SageMemoryActivityEventsIngestResponse = {
+  namespace: string;
+  accepted: number;
+  evidence_ids: string[];
+  activity_node_ids: string[];
+  deduplicated: boolean;
+  event_ids: string[];
 };
 
 export class SageMemoryManager implements MemorySearchManager {
@@ -190,6 +203,35 @@ export class SageMemoryManager implements MemorySearchManager {
       derivedNodeIds: response.derived_node_ids,
       deduplicated: response.deduplicated,
       eventId: response.event_id,
+    };
+  }
+
+  async ingestActivityEvents(
+    input: SageMemoryActivityEventsIngestInput,
+  ): Promise<SageMemoryActivityEventsIngestResult> {
+    const namespace = input.namespace?.trim() || this.config.defaultNamespace;
+    if (!namespace) {
+      throw new Error(
+        "sage-memory activity ingest requires a namespace or memory.remote.defaultNamespace",
+      );
+    }
+    const response = await this.requestJson<SageMemoryActivityEventsIngestResponse>(
+      "/v1/ingest/activity-events",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          namespace,
+          events: input.events,
+        }),
+      },
+    );
+    return {
+      namespace: response.namespace,
+      accepted: response.accepted,
+      evidenceIds: response.evidence_ids,
+      activityNodeIds: response.activity_node_ids,
+      deduplicated: response.deduplicated,
+      eventIds: response.event_ids,
     };
   }
 

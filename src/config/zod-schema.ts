@@ -100,6 +100,60 @@ const MemorySchema = z
   .strict()
   .optional();
 
+const LearningSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    sources: z
+      .object({
+        sageSessions: z.boolean().optional(),
+        browser: z
+          .object({
+            enabled: z.boolean().optional(),
+          })
+          .strict()
+          .optional(),
+        appFocus: z
+          .object({
+            enabled: z.boolean().optional(),
+          })
+          .strict()
+          .optional(),
+      })
+      .strict()
+      .optional(),
+    review: z
+      .object({
+        timing: z
+          .union([z.literal("after-task"), z.literal("after-every-turn"), z.literal("idle-batch")])
+          .optional(),
+        modelPolicy: z
+          .union([
+            z.literal("hybrid-local-first"),
+            z.literal("current-best"),
+            z.literal("local-only"),
+          ])
+          .optional(),
+      })
+      .strict()
+      .optional(),
+    skills: z
+      .object({
+        autoApply: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
+    curator: z
+      .object({
+        enabled: z.boolean().optional(),
+        intervalHours: z.number().positive().optional(),
+        minIdleHours: z.number().nonnegative().optional(),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict()
+  .optional();
+
 export const SageSchema = z
   .object({
     meta: z
@@ -319,6 +373,7 @@ export const SageSchema = z
       })
       .strict()
       .optional(),
+    learning: LearningSchema,
     web: z
       .object({
         enabled: z.boolean().optional(),

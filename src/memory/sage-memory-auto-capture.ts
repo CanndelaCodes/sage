@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import type { SageConfig } from "../config/config.js";
+import { recordSageSessionLearningEvent } from "../learning/session-source.js";
 import { resolveMemoryBackendConfig, type ResolvedSageMemoryConfig } from "./backend-config.js";
 import {
   enqueueSageMemoryCaptureFailure,
@@ -55,10 +56,12 @@ export type SageMemoryAutoCaptureParams = {
   sessionFile?: string;
   sessionKey?: string;
   sessionId?: string;
+  workspace?: string;
   namespace?: string;
   captureMethod: string;
   metadata?: Record<string, unknown>;
   queuePath?: string;
+  learningQueuePath?: string;
   managerFactory?: (
     config: ResolvedSageMemoryConfig,
   ) => SessionIngestManager | Promise<SessionIngestManager>;
@@ -207,6 +210,21 @@ async function runCapture(
     }).catch((err: unknown) => {
       const message = err instanceof Error ? err.message : String(err);
       params.logger?.(`sage-memory auto capture queue cleanup failed: ${message}`);
+    });
+    await recordSageSessionLearningEvent({
+      cfg: params.cfg,
+      agentId: params.agentId,
+      sessionFile: params.sessionFile,
+      sessionId: params.sessionId,
+      sessionKey: params.sessionKey,
+      workspace: params.workspace,
+      captureMethod: params.captureMethod,
+      metadata: params.metadata,
+      captureResult: result,
+      queuePath: params.learningQueuePath,
+    }).catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      params.logger?.(`sage learning session event queue failed: ${message}`);
     });
     return { status: "captured", key: params.key, result };
   } catch (err) {

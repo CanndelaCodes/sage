@@ -1,6 +1,7 @@
 import type { SageConfig } from "../config/config.js";
 import type { GatewayMessageChannel } from "../utils/message-channel.js";
 import type { AnyAgentTool } from "./tools/common.js";
+import { resolveLearningEventQueuePath } from "../learning/activity-queue.js";
 import { resolvePluginTools } from "../plugins/tools.js";
 import { resolveSessionAgentId } from "./agent-scope.js";
 import { createAgentsListTool } from "./tools/agents-list-tool.js";
@@ -9,6 +10,7 @@ import { createCanvasTool } from "./tools/canvas-tool.js";
 import { createCronTool } from "./tools/cron-tool.js";
 import { createGatewayTool } from "./tools/gateway-tool.js";
 import { createImageTool } from "./tools/image-tool.js";
+import { createLearningTools } from "./tools/learning-tools.js";
 import { createMessageTool } from "./tools/message-tool.js";
 import { createNodesTool } from "./tools/nodes-tool.js";
 import { createSessionStatusTool } from "./tools/session-status-tool.js";
@@ -58,6 +60,10 @@ export function createSageTools(options?: {
   /** If true, omit the message tool from the tool list. */
   disableMessageTool?: boolean;
 }): AnyAgentTool[] {
+  const agentId = resolveSessionAgentId({
+    sessionKey: options?.agentSessionKey,
+    config: options?.config,
+  });
   const imageTool = options?.agentDir?.trim()
     ? createImageTool({
         config: options?.config,
@@ -92,6 +98,17 @@ export function createSageTools(options?: {
     createBrowserTool({
       sandboxBridgeUrl: options?.sandboxBrowserBridgeUrl,
       allowHostControl: options?.allowHostBrowserControl,
+      learning:
+        options?.config?.learning?.enabled === true &&
+        options.config.learning.sources?.browser?.enabled !== false
+          ? {
+              enabled: true,
+              queuePath: resolveLearningEventQueuePath({ agentId }),
+              agentId,
+              sessionKey: options.agentSessionKey,
+              workspace: options.workspaceDir,
+            }
+          : undefined,
     }),
     createCanvasTool(),
     createNodesTool({
@@ -146,6 +163,12 @@ export function createSageTools(options?: {
     ...(webSearchTool ? [webSearchTool] : []),
     ...(webFetchTool ? [webFetchTool] : []),
     ...(imageTool ? [imageTool] : []),
+    ...createLearningTools({
+      config: options?.config,
+      workspaceDir: options?.workspaceDir,
+      agentSessionKey: options?.agentSessionKey,
+      agentId,
+    }),
   ];
 
   const pluginTools = resolvePluginTools({
@@ -153,10 +176,7 @@ export function createSageTools(options?: {
       config: options?.config,
       workspaceDir: options?.workspaceDir,
       agentDir: options?.agentDir,
-      agentId: resolveSessionAgentId({
-        sessionKey: options?.agentSessionKey,
-        config: options?.config,
-      }),
+      agentId,
       sessionKey: options?.agentSessionKey,
       messageChannel: options?.agentChannel,
       agentAccountId: options?.agentAccountId,

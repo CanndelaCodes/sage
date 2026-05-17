@@ -8,6 +8,7 @@ import type { EmbeddedRunAttemptParams, EmbeddedRunAttemptResult } from "./types
 import { resolveHeartbeatPrompt } from "../../../auto-reply/heartbeat.js";
 import { resolveChannelCapabilities } from "../../../config/channel-capabilities.js";
 import { getMachineDisplayName } from "../../../infra/machine-name.js";
+import { recordAgentRunLearningReview } from "../../../learning/agent-review.js";
 import { MAX_IMAGE_BYTES } from "../../../media/constants.js";
 import { getGlobalHookRunner } from "../../../plugins/hook-runner-global.js";
 import { isSubagentSessionKey } from "../../../routing/session-key.js";
@@ -859,6 +860,26 @@ export async function runEmbeddedAttempt(
             .catch((err) => {
               log.warn(`agent_end hook failed: ${err}`);
             });
+        }
+        if (params.config?.learning?.enabled === true) {
+          void recordAgentRunLearningReview({
+            cfg: params.config,
+            agentId: sessionAgentId,
+            sessionKey: params.sessionKey,
+            workspace: effectiveWorkspace,
+            messages: messagesSnapshot,
+            success: !aborted && !promptError,
+            error: promptError ? describeUnknownError(promptError) : undefined,
+            durationMs: Date.now() - promptStartedAt,
+            toolMetas: toolMetas
+              .filter(
+                (entry): entry is { toolName: string; meta?: string } =>
+                  typeof entry.toolName === "string" && entry.toolName.trim().length > 0,
+              )
+              .map((entry) => ({ toolName: entry.toolName, meta: entry.meta })),
+          }).catch((err: unknown) => {
+            log.warn(`learning review queue failed: ${String(err)}`);
+          });
         }
       } finally {
         clearTimeout(abortTimer);

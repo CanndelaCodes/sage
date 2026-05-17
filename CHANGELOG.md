@@ -11,6 +11,7 @@ Docs: https://docs.sage.ai
 - Telegram: remove `@ts-nocheck` from `bot.ts`, fix duplicate `bot.catch` error handler (Grammy overrides), remove dead reaction `message_thread_id` routing, harden sticker cache guard. (#9077)
 - Memory: automatically capture Sage session transcripts into `sage-memory` on lifecycle events, add `sage memory capture-session`, and add Sage Memory doctor diagnostics.
 - Memory: queue failed automatic Sage Memory captures locally and add `sage memory capture-queue` replay/status diagnostics.
+- Learning: add opt-in autonomous learning activity queues, after-task review packets, browser/session source capture, and learned skill management tools.
 - Memory: add an optional `sage-memory` backend for remote recall and `/new` session handoff capture.
 - Onboarding: add Cloudflare AI Gateway provider setup and docs. (#7914) Thanks @roerohan.
 - Onboarding: add Moonshot (.cn) auth choice and keep the China base URL when preserving defaults. (#7180) Thanks @waynelwz.

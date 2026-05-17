@@ -1,6 +1,6 @@
 import type { AnyAgentTool } from "./tools/common.js";
 
-export type ToolProfileId = "minimal" | "coding" | "messaging" | "full";
+export type ToolProfileId = "minimal" | "coding" | "messaging" | "learning" | "full";
 
 type ToolProfilePolicy = {
   allow?: string[];
@@ -15,6 +15,8 @@ const TOOL_NAME_ALIASES: Record<string, string> = {
 export const TOOL_GROUPS: Record<string, string[]> = {
   // NOTE: Keep canonical (lowercase) tool names here.
   "group:memory": ["memory_search", "memory_get"],
+  "group:skills": ["skills_list", "skill_view", "skill_manage"],
+  "group:learning": ["learning_status", "learning_review"],
   "group:web": ["web_search", "web_fetch"],
   // Basic workspace/file tools
   "group:fs": ["read", "write", "edit", "apply_patch"],
@@ -52,6 +54,11 @@ export const TOOL_GROUPS: Record<string, string[]> = {
     "session_status",
     "memory_search",
     "memory_get",
+    "skills_list",
+    "skill_view",
+    "skill_manage",
+    "learning_status",
+    "learning_review",
     "web_search",
     "web_fetch",
     "image",
@@ -75,6 +82,9 @@ const TOOL_PROFILES: Record<ToolProfileId, ToolProfilePolicy> = {
       "sessions_send",
       "session_status",
     ],
+  },
+  learning: {
+    allow: ["group:memory", "group:skills", "group:learning", "group:fs", "group:runtime"],
   },
   full: {},
 };

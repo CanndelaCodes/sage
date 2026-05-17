@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SageConfig } from "../config/config.js";
+import { listLearningEventQueue } from "../learning/activity-queue.js";
 import {
   captureSageSessionTranscriptBestEffort,
   resetSageMemoryAutoCaptureStateForTests,
@@ -42,6 +43,7 @@ describe("sage-memory automatic session capture", () => {
 
   it("captures transcripts with lifecycle metadata", async () => {
     const sessionFile = await writeTranscript("session.jsonl");
+    const learningQueuePath = path.join(tempDir, "learning-activity.json");
     const ingestLlmSession = vi.fn(async () => ({
       evidenceId: "22222222-2222-4222-8222-222222222222",
       sourceUri: "sage://session/lifecycle-session",
@@ -52,13 +54,14 @@ describe("sage-memory automatic session capture", () => {
     }));
 
     const result = await captureSageSessionTranscriptBestEffort({
-      cfg: sageMemoryConfig(),
+      cfg: sageMemoryConfig({ learning: true }),
       agentId: "main",
       sessionFile,
       sessionId: "lifecycle-session",
       sessionKey: "agent:main:main",
       captureMethod: "sage-memory-session-reset",
       metadata: { trigger: "sessions.reset" },
+      learningQueuePath,
       managerFactory: () => ({ ingestLlmSession }),
     });
 
@@ -79,6 +82,16 @@ describe("sage-memory automatic session capture", () => {
         }),
       }),
     );
+    const activityQueue = await listLearningEventQueue({ queuePath: learningQueuePath });
+    expect(activityQueue.entries[0]?.event).toMatchObject({
+      source: "sage_session",
+      sessionKey: "agent:main:main",
+      payload: expect.objectContaining({
+        captureMethod: "sage-memory-session-reset",
+        messageCount: 1,
+        sessionNodeId: nodeId,
+      }),
+    });
   });
 
   it("deduplicates scheduled background captures by transcript and method", () => {
@@ -208,8 +221,16 @@ describe("sage-memory automatic session capture", () => {
   }
 });
 
-function sageMemoryConfig(): SageConfig {
+function sageMemoryConfig(opts?: { learning?: boolean }): SageConfig {
   return {
+    ...(opts?.learning
+      ? {
+          learning: {
+            enabled: true,
+            sources: { sageSessions: true },
+          },
+        }
+      : {}),
     memory: {
       backend: "sage-memory",
       remote: {
