@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import type { SageConfig } from "../config/config.js";
+import { replayLearningEventQueue } from "../learning/activity-queue.js";
 import { recordSageSessionLearningEvent } from "../learning/session-source.js";
 import { resolveMemoryBackendConfig, type ResolvedSageMemoryConfig } from "./backend-config.js";
 import {
@@ -14,6 +15,7 @@ import {
 
 type SessionIngestManager = {
   ingestLlmSession: SageMemoryManager["ingestLlmSession"];
+  ingestActivityEvents?: SageMemoryManager["ingestActivityEvents"];
 };
 
 type TimerLike = {
@@ -211,21 +213,31 @@ async function runCapture(
       const message = err instanceof Error ? err.message : String(err);
       params.logger?.(`sage-memory auto capture queue cleanup failed: ${message}`);
     });
-    await recordSageSessionLearningEvent({
-      cfg: params.cfg,
-      agentId: params.agentId,
-      sessionFile: params.sessionFile,
-      sessionId: params.sessionId,
-      sessionKey: params.sessionKey,
-      workspace: params.workspace,
-      captureMethod: params.captureMethod,
-      metadata: params.metadata,
-      captureResult: result,
-      queuePath: params.learningQueuePath,
-    }).catch((err: unknown) => {
+    try {
+      const learningRecord = await recordSageSessionLearningEvent({
+        cfg: params.cfg,
+        agentId: params.agentId,
+        sessionFile: params.sessionFile,
+        sessionId: params.sessionId,
+        sessionKey: params.sessionKey,
+        workspace: params.workspace,
+        captureMethod: params.captureMethod,
+        metadata: params.metadata,
+        captureResult: result,
+        queuePath: params.learningQueuePath,
+      });
+      if (learningRecord.status === "queued") {
+        const flushResult = await flushSageSessionLearningQueue(params);
+        if ("failed" in flushResult && flushResult.failed > 0) {
+          params.logger?.(
+            `sage learning session event queue failed: ${flushResult.failed} event(s) remain queued`,
+          );
+        }
+      }
+    } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       params.logger?.(`sage learning session event queue failed: ${message}`);
-    });
+    }
     return { status: "captured", key: params.key, result };
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
@@ -247,6 +259,30 @@ async function runCapture(
     params.logger?.(`sage-memory auto capture ${params.captureMethod} failed: ${reason}`);
     return { status: "failed", reason, key: params.key };
   }
+}
+
+async function flushSageSessionLearningQueue(params: ReservedCaptureParams) {
+  const resolved = resolveMemoryBackendConfig({ cfg: params.cfg, agentId: params.agentId });
+  if (resolved.backend !== "sage-memory" || !resolved.remote) {
+    return { status: "skipped", reason: "backend-disabled" };
+  }
+  const manager =
+    (await params.managerFactory?.(resolved.remote)) ??
+    new SageMemoryManager({ config: resolved.remote });
+  if (typeof manager.ingestActivityEvents !== "function") {
+    return { status: "skipped", reason: "activity-ingest-unavailable" };
+  }
+  const ingestActivityEvents = manager.ingestActivityEvents.bind(manager);
+  return await replayLearningEventQueue({
+    queuePath: params.learningQueuePath,
+    agentId: params.agentId,
+    namespace: resolved.remote.defaultNamespace ?? "sage.learning",
+    ingest: async (events, namespace) =>
+      await ingestActivityEvents({
+        namespace,
+        events,
+      }),
+  });
 }
 
 function isSageMemoryBackend(params: Pick<SageMemoryAutoCaptureParams, "cfg" | "agentId">) {

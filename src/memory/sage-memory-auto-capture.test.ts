@@ -52,6 +52,14 @@ describe("sage-memory automatic session capture", () => {
       deduplicated: false,
       eventId: "33333333-3333-4333-8333-333333333333",
     }));
+    const ingestActivityEvents = vi.fn(async (input: { events: Array<{ id: string }> }) => ({
+      namespace: "sage.learning",
+      accepted: input.events.length,
+      evidenceIds: ["44444444-4444-4444-8444-444444444444"],
+      activityNodeIds: ["55555555-5555-4555-8555-555555555555"],
+      deduplicated: false,
+      eventIds: input.events.map((event) => event.id),
+    }));
 
     const result = await captureSageSessionTranscriptBestEffort({
       cfg: sageMemoryConfig({ learning: true }),
@@ -62,7 +70,7 @@ describe("sage-memory automatic session capture", () => {
       captureMethod: "sage-memory-session-reset",
       metadata: { trigger: "sessions.reset" },
       learningQueuePath,
-      managerFactory: () => ({ ingestLlmSession }),
+      managerFactory: () => ({ ingestLlmSession, ingestActivityEvents }),
     });
 
     expect(result).toMatchObject({
@@ -82,6 +90,99 @@ describe("sage-memory automatic session capture", () => {
         }),
       }),
     );
+    expect(ingestActivityEvents).toHaveBeenCalledWith(
+      expect.objectContaining({
+        namespace: "jason.sage.sessions",
+        events: [
+          expect.objectContaining({
+            source: "sage_session",
+            sessionKey: "agent:main:main",
+            payload: expect.objectContaining({
+              captureMethod: "sage-memory-session-reset",
+              messageCount: 1,
+              sessionNodeId: nodeId,
+            }),
+          }),
+        ],
+      }),
+    );
+    const activityQueue = await listLearningEventQueue({ queuePath: learningQueuePath });
+    expect(activityQueue.counts).toEqual({ total: 0, pending: 0, failed: 0 });
+  });
+
+  it("keeps transcript capture successful when activity ingest fails", async () => {
+    const sessionFile = await writeTranscript("session.jsonl");
+    const learningQueuePath = path.join(tempDir, "learning-activity.json");
+    const ingestLlmSession = vi.fn(async () => ({
+      evidenceId: "22222222-2222-4222-8222-222222222222",
+      sourceUri: "sage://session/lifecycle-session",
+      sessionNodeId: nodeId,
+      derivedNodeIds: [],
+      deduplicated: false,
+      eventId: "33333333-3333-4333-8333-333333333333",
+    }));
+    const ingestActivityEvents = vi.fn(async () => {
+      throw new Error("sage-memory offline");
+    });
+    const logs: string[] = [];
+
+    const result = await captureSageSessionTranscriptBestEffort({
+      cfg: sageMemoryConfig({ learning: true }),
+      agentId: "main",
+      sessionFile,
+      sessionId: "lifecycle-session",
+      sessionKey: "agent:main:main",
+      captureMethod: "sage-memory-session-reset",
+      learningQueuePath,
+      logger: (message) => logs.push(message),
+      managerFactory: () => ({ ingestLlmSession, ingestActivityEvents }),
+    });
+
+    expect(result.status).toBe("captured");
+    expect(
+      logs.some((message) => message.includes("sage learning session event queue failed")),
+    ).toBe(true);
+    const activityQueue = await listLearningEventQueue({ queuePath: learningQueuePath });
+    expect(activityQueue.entries[0]).toMatchObject({
+      status: "failed",
+      attempts: 1,
+      lastError: "sage-memory offline",
+      event: {
+        source: "sage_session",
+        sessionKey: "agent:main:main",
+      },
+    });
+    expect(activityQueue.entries[0]?.event.payload).toMatchObject({
+      captureMethod: "sage-memory-session-reset",
+      messageCount: 1,
+      sessionNodeId: nodeId,
+    });
+  });
+
+  it("queues session capture evidence as learning activity when activity ingest is unavailable", async () => {
+    const sessionFile = await writeTranscript("session.jsonl");
+    const learningQueuePath = path.join(tempDir, "learning-activity.json");
+    const ingestLlmSession = vi.fn(async () => ({
+      evidenceId: "22222222-2222-4222-8222-222222222222",
+      sourceUri: "sage://session/lifecycle-session",
+      sessionNodeId: nodeId,
+      derivedNodeIds: [],
+      deduplicated: false,
+      eventId: "33333333-3333-4333-8333-333333333333",
+    }));
+
+    await captureSageSessionTranscriptBestEffort({
+      cfg: sageMemoryConfig({ learning: true }),
+      agentId: "main",
+      sessionFile,
+      sessionId: "lifecycle-session",
+      sessionKey: "agent:main:main",
+      captureMethod: "sage-memory-session-reset",
+      metadata: { trigger: "sessions.reset" },
+      learningQueuePath,
+      managerFactory: () => ({ ingestLlmSession }),
+    });
+
     const activityQueue = await listLearningEventQueue({ queuePath: learningQueuePath });
     expect(activityQueue.entries[0]?.event).toMatchObject({
       source: "sage_session",
