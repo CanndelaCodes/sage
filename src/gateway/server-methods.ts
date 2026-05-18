@@ -14,6 +14,7 @@ import { healthHandlers } from "./server-methods/health.js";
 import { logsHandlers } from "./server-methods/logs.js";
 import { modelsHandlers } from "./server-methods/models.js";
 import { nodeHandlers } from "./server-methods/nodes.js";
+import { sageOsHandlers } from "./server-methods/sageos.js";
 import { sendHandlers } from "./server-methods/send.js";
 import { sessionsHandlers } from "./server-methods/sessions.js";
 import { skillsHandlers } from "./server-methods/skills.js";
@@ -53,6 +54,10 @@ const READ_METHODS = new Set([
   "logs.tail",
   "channels.status",
   "status",
+  "sageos.status",
+  "sageos.agents.list",
+  "sageos.tasks.list",
+  "sageos.runs.list",
   "usage.status",
   "usage.cost",
   "tts.status",
@@ -88,6 +93,7 @@ const WRITE_METHODS = new Set([
   "chat.send",
   "chat.abort",
   "browser.request",
+  "sageos.control",
 ]);
 
 function authorizeGatewayMethod(method: string, client: GatewayRequestOptions["client"]) {
@@ -180,6 +186,7 @@ export const coreGatewayHandlers: GatewayRequestHandlers = {
   ...systemHandlers,
   ...updateHandlers,
   ...nodeHandlers,
+  ...sageOsHandlers,
   ...sendHandlers,
   ...usageHandlers,
   ...agentHandlers,

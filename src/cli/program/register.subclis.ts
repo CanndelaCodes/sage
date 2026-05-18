@@ -65,6 +65,14 @@ const entries: SubCliEntry[] = [
     },
   },
   {
+    name: "os",
+    description: "SageOS command center controls",
+    register: async (program) => {
+      const mod = await import("../sageos-cli.js");
+      mod.registerSageOsCli(program);
+    },
+  },
+  {
     name: "system",
     description: "System events, heartbeat, and presence",
     register: async (program) => {

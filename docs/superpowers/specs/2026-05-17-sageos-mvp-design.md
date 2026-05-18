@@ -4,201 +4,1557 @@ Date: 2026-05-17
 
 ## Goal
 
-Define the private-first SageOS MVP as a personal agent operating system for Jason. The MVP combines a local Command Center with an Ambient Copilot, backed by reliable Sage Memory capture, recall, diagnostics, and learning.
+Define SageOS as Jason's private, local-first, always-on personal agent operating system: a background Sage service that watches approved computer use, learns from work patterns, improves memory and the local wiki, creates skills and deterministic workflows, builds apps and widgets, continues coding work while Jason is away, and keeps Jason informed through Command Center and Telegram.
 
-SageOS is not a separate public product for this MVP. It is the working local operating layer that lets Jason see, steer, and trust his agents across sessions, apps, browser context, memory, and local automations.
+The MVP is not just a dashboard. The dashboard is the control plane. The product is an always-active autonomy substrate with trustworthy observation, memory, planning, execution, learning, self-improvement, monitoring, and recovery.
+
+The MVP combines:
+
+1. SageOS Supervisor: an always-on gateway-resident service that owns the background event loop, task scheduler, policy checks, pause/resume state, and autonomous task lifecycle.
+2. Command Center: the local inspect-and-steer surface for live status, plans, memory, learning, tasks, queues, approvals, automations, diagnostics, and audit.
+3. Ambient Copilot: the observer and recommender layer that watches approved context, recalls memory, proposes or starts work, and records outcomes.
+4. Autonomous Workforce: background worker agents that can run coding tasks, workflow implementation, memory/wiki improvements, skill creation, app/widget generation, diagnostics, and maintenance while Jason is away.
+5. Continuity and Learning Substrate: Sage Memory, transcript ingest, activity events, queue replay, provenance, skill/workflow library, evaluations, and local wiki rendering.
+6. Notification and Control Channel: Telegram updates, digests, approval prompts where needed, pause/stop commands, and task result reports.
+
+SageOS is not a separate public product for this MVP. It is the local daily-use layer that lets Jason delegate broad responsibility to Sage while still being able to see what it is doing, why it is doing it, what it changed, what it learned, and how to stop or roll back.
+
+## Vision Clarification
+
+Jason's clarified vision is stronger than the previous MVP framing:
+
+- SageOS should run all the time as a background service.
+- SageOS should actively watch computer use, not only wait for explicit prompts.
+- SageOS should learn job and work workflows from observation.
+- SageOS should improve Sage Memory and the local wiki automatically.
+- SageOS should create new skills, deterministic workflows, and automations from repeated tasks.
+- SageOS should build apps and widgets when it observes a need.
+- SageOS should continue coding projects while Jason is away or asleep.
+- SageOS should notify Jason via Telegram, but should not require constant input.
+- SageOS should have broad delegated autonomy, constrained by explicit policy, observability, verification, and rollback rather than constant permission prompts.
+
+This revision treats Command Center and bounded suggestions as the first trust layer, not as the whole product. The MVP should ship the smallest complete version of always-on supervised autonomy, then grow toward freer autonomous operation through explicit policy tiers.
+
+## Review of ChatGPT Pro Revision
+
+The ChatGPT Pro revision is useful but too conservative for this clarified vision.
+
+What it gets right:
+
+- The current repo should remain the substrate. Do not restart memory, sessions, channels, CLI/TUI/web, or gateway architecture.
+- Sage Memory should remain canonical, with Obsidian as a rendered review surface rather than the write target for normal operation.
+- Command Center is the right first control plane.
+- The shared status contract and CLI status command are the right first implementation brick.
+- Approval, provenance, diagnostics, queue replay, and bounded suggestions are necessary for trust.
+- Jumping straight to unrestricted Windows automation without observability would be brittle and unsafe.
+
+What it gets wrong or underspecifies:
+
+- It frames the MVP as mostly inspect-and-suggest, while Jason wants an always-on background worker that actually does useful work while unattended.
+- It makes autonomy sound like only post-MVP. In this spec, autonomy exists in the MVP, but starts with scoped work classes, policy tiers, dry runs, verification, audit, and rollback.
+- It underweights the autonomous workforce: coding tasks, skill creation, workflow compilation, memory/wiki maintenance, and app/widget generation need first-class task models.
+- It does not specify a durable supervisor loop, event log, task queue, run budgets, idle/night schedules, or Telegram update protocol.
+- It does not distinguish one-time policy delegation from per-action approval. Jason should be able to pre-authorize classes of work and let Sage operate without frequent interruption.
+
+Bottom line: keep ChatGPT Pro's Command Center-first grounding, but upgrade the MVP from "bounded local continuity dashboard" to "always-on supervised autonomy kernel with a local command center."
+
+## Research Findings
+
+This design is informed by repo audit plus agent and product research.
+
+### Academic and engineering research
+
+- ReAct shows that useful agents interleave reasoning, tool action, and observation: https://arxiv.org/abs/2210.03629
+- Toolformer shows models can learn tool-use patterns, but production systems still need explicit typed tools and evaluation: https://arxiv.org/abs/2302.04761
+- Reflexion shows durable self-feedback can improve future task attempts without weight updates: https://arxiv.org/abs/2303.11366
+- Voyager shows long-running agents can improve through a curriculum plus a reusable executable skill library: https://arxiv.org/abs/2305.16291
+- Generative Agents shows long-running behavior needs memory streams, retrieval, reflection, and planning: https://arxiv.org/abs/2304.03442
+- MemGPT frames LLM agents as operating-system-like processes that manage limited context plus external memory: https://arxiv.org/abs/2310.08560
+- WebArena and OSWorld show web/desktop computer-use agents are promising but brittle in realistic long-horizon tasks: https://arxiv.org/abs/2307.13854 and https://arxiv.org/abs/2404.07972
+- SWE-agent shows agent-computer interface design matters greatly for coding agents: https://arxiv.org/abs/2405.15793
+- AutoGen, LangGraph, Semantic Kernel, CrewAI, OpenHands, and related systems show production agent workflows need explicit state, roles, tool budgets, termination, observability, and retry logic.
+- NIST AI RMF and OWASP LLM Top 10 highlight risks around excessive agency, prompt injection, data leakage, tool misuse, credential misuse, and unclear accountability: https://www.nist.gov/itl/ai-risk-management-framework and https://owasp.org/www-project-top-10-for-large-language-model-applications/
+
+### Product and market research
+
+- Limitless/Rewind, Microsoft Recall, and Apple Intelligence show strong user demand for searchable personal memory and local personal context, but also intense privacy concerns.
+- Microsoft Recall's revised design emphasizes opt-in capture, Windows Hello, encryption, pause/delete controls, app/site filters, private browsing exclusions, sensitive-info filtering, and storage thresholds: https://support.microsoft.com/en-us/windows/retrace-your-steps-with-recall-aa03f8a0-a78b-4b3e-b0a1-2eb8ac48701c and https://learn.microsoft.com/en-us/windows/client-management/manage-recall
+- Apple Private Cloud Compute emphasizes on-device processing, request-scoped cloud processing, no storage, and verifiability: https://security.apple.com/blog/private-cloud-compute/
+- Lindy and Zapier Agents market unattended work across apps, but highlight permissions, logs, approvals, monitoring, and app-scoped integrations: https://www.lindy.ai/ and https://zapier.com/agents
+- Adept ACT-1, MultiOn, Rabbit r1, OpenAI Operator, and Anthropic computer-use work point toward cross-app action, but all reveal brittleness and the need for clear user handoff and verification.
+- HN, Reddit, The Verge, Ars Technica, and TechRadar discussions around Recall/Rewind show that users fear always-on capture becoming a searchable copy of secrets, a malware target, an employer/legal liability, or a feature re-enabled by updates.
+
+### Design implications
+
+- Build an event-driven agent OS, not a monolithic chatbot.
+- Separate observation, memory, planning, policy, execution, verification, reflection, and notification.
+- Prefer structured APIs and repo-aware tooling over GUI automation when available.
+- Use GUI/computer-use automation as a later fallback with sandboxing, screenshot/accessibility logs, and verification.
+- Store raw observations separately from OCR, summaries, embeddings, skills, and workflows, each with retention and deletion controls.
+- Treat all observed content from web pages, email, docs, screenshots, terminal output, and files as untrusted data that cannot change policies or permissions.
+- Give Jason broad one-time delegation controls, but never let Sage silently grant itself new powers, change its own safety policy, expose secrets, or erase audit trails.
+
+## Current Repo Grounding
+
+The Sage repo already contains much of the substrate needed for this MVP.
+
+### Always-on host
+
+Relevant files:
+
+- `src/gateway/server.ts`
+- `src/gateway/server-startup.ts`
+- `src/gateway/config-reload.ts`
+- `src/daemon/service.ts`
+- `src/daemon/schtasks.ts`
+- `src/cli/daemon-cli.ts`
+
+Implications:
+
+- SageOS should run inside the gateway lifecycle first, not as a separate app family.
+- Windows Task Scheduler support can install the gateway/SageOS service for always-on behavior.
+- Config reload should hot-restart the SageOS supervisor when `sageos.*` config changes.
+- Foreground app observation may require an interactive user session, so the spec must distinguish headless service work from desktop-session observation.
+
+### Scheduled and background work
+
+Relevant files:
+
+- `src/cron/service.ts`
+- `src/cron/types.ts`
+- `src/cron/isolated-agent/run.ts`
+- `src/gateway/server-methods/cron.ts`
+- `src/cli/cron-cli.ts`
+
+Implications:
+
+- Cron can support periodic memory consolidation, queue replay, nightly coding, daily digests, and health checks.
+- The SageOS Supervisor should combine event-driven triggers with scheduled and idle-window jobs.
+
+### Agent workers and coding
+
+Relevant files:
+
+- `src/agents/tools/sessions-spawn-tool.ts`
+- `src/agents/subagent-registry.ts`
+- `src/agents/sage-tools.ts`
+- `src/agents/tool-policy.ts`
+- `src/agents/bash-tools.exec.ts`
+- `src/agents/apply-patch.ts`
+- `src/agents/cli-backends.ts`
+- `src/agents/claude-cli-runner.ts`
+
+Implications:
+
+- SageOS can use subagent/session spawning as its autonomous workforce substrate.
+- Coding tasks should run in explicit SageOS task sessions with scoped tool profiles, budgets, and result announcements.
+- The code path already has file, terminal, patch, and external coding-agent support that can be wrapped in safer task policies.
+
+### Memory and learning
+
+Relevant files:
+
+- `src/memory/sage-memory-manager.ts`
+- `src/memory/sage-memory-auto-capture.ts`
+- `src/memory/sage-memory-capture-queue.ts`
+- `src/memory/sage-memory-session-capture.ts`
+- `src/learning/activity-queue.ts`
+- `src/learning/events.ts`
+- `src/learning/session-source.ts`
+- `src/learning/browser-source.ts`
+- `src/learning/app-focus.ts`
+- `src/learning/agent-review.ts`
+- `src/learning/skill-manager.ts`
+- `src/agents/tools/learning-tools.ts`
+
+Implications:
+
+- Sage Memory should remain the canonical memory backend.
+- Learning queues, skill management, browser/session learning events, and app-focus capture already exist and should feed SageOS.
+- `app-focus.ts` is a seed for Windows foreground app observation but is not full screen capture or desktop control.
+
+### Browser and computer-use substrate
+
+Relevant files:
+
+- `src/agents/tools/browser-tool.ts`
+- `src/browser/bridge-server.ts`
+- `src/browser/routes/agent.snapshot.ts`
+- `src/browser/routes/agent.act.ts`
+- `src/browser/routes/agent.debug.ts`
+- `src/browser/cdp.ts`
+- `src/config/types.browser.ts`
+
+Implications:
+
+- Browser observation and action can be part of MVP, but should be opt-in and policy-scoped.
+- Full desktop automation should be a later phase with a dedicated computer-use service.
+
+### Approvals and confirmations
+
+Relevant files:
+
+- `src/gateway/exec-approval-manager.ts`
+- `src/gateway/server-methods/exec-approval.ts`
+- `src/gateway/server-methods/exec-approvals.ts`
+- `src/security/confirmation.ts`
+- `src/config/types.approvals.ts`
+- `src/config/types.confirmation.ts`
+- `src/config/types.guardrails.ts`
+
+Implications:
+
+- SageOS should extend existing approval and confirmation infrastructure rather than invent a parallel system.
+- Autonomy should be controlled by policy tiers and pre-authorized scopes, not endless confirmation prompts.
+
+### Telegram and control surfaces
+
+Relevant files:
+
+- `src/telegram/monitor.ts`
+- `src/telegram/send.ts`
+- `src/telegram/bot.ts`
+- `src/telegram/accounts.ts`
+- `src/telegram/targets.ts`
+- `src/channels/registry.ts`
+- `src/gateway/control-ui.ts`
+- `src/gateway/server-http.ts`
+- `src/gateway/server-chat.ts`
+
+Implications:
+
+- Telegram is suitable for updates, digests, approvals, pause/resume, task summaries, and exception alerts.
+- Command Center can start in CLI/TUI, then move into gateway control UI and native app surfaces.
+
+## Product Definition
+
+SageOS MVP is an always-on, private-first, local agent service that can autonomously observe, learn, plan, act, verify, and improve itself within explicit delegated policy.
+
+It should feel like:
+
+- A local chief-of-staff agent watching the workday and keeping momentum.
+- A memory steward that improves recall, wiki quality, project continuity, and learning loops.
+- A workflow engineer that notices repeated work and converts it into deterministic scripts, skills, cron jobs, or applets.
+- A coding coworker that advances projects while Jason is away, using branches, tests, summaries, and rollbacks.
+- A personal toolsmith that builds widgets, dashboards, and small apps from observed needs.
+- A control tower that makes autonomous work monitorable, interruptible, explainable, and auditable.
 
 ## MVP Definition
 
-The MVP is complete when Sage can run as a daily local control layer that answers four questions without repo spelunking:
+The MVP is complete when SageOS can run continuously as a local service and answer these questions without repo spelunking:
 
-1. What is Sage doing right now?
-2. What does Sage know about my current work?
-3. What should Sage do next, and what needs my approval?
-4. Is memory, learning, capture, and automation healthy?
+1. What is SageOS doing right now?
+2. What has SageOS observed recently, and what did it learn?
+3. What does SageOS know about my current work, and where did that knowledge come from?
+4. What changed since I last checked?
+5. What work has SageOS started, completed, failed, paused, or queued?
+6. What workflows, skills, automations, apps, or widgets has SageOS proposed or created?
+7. What coding tasks did SageOS advance while I was away, and what tests prove the work?
+8. What memory/wiki improvements did SageOS make or propose?
+9. What needs my attention, approval, or policy decision?
+10. Is observation, memory, learning, automation, coding, and notification healthy?
+11. What exact repair action should happen when something fails?
+12. How do I pause, stop, roll back, or narrow SageOS autonomy?
 
-The first version must be useful to Jason even if no other user can install or understand it yet. Public onboarding, marketplace packaging, and polished beta flows are intentionally out of scope.
-
-## Context
-
-The current Sage repo already has the core substrate for this MVP:
-
-- `memory.backend = "sage-memory"` support for remote search, get, capture, full LLM session ingest, and activity event ingest.
-- Automatic transcript capture for session lifecycle events, heartbeat, and memory-flush compaction.
-- A durable Sage Memory capture queue plus replay and diagnostic commands.
-- `sage memory doctor` and `sage doctor memory` for live backend checks.
-- An autonomous learning kernel with activity queues, browser/session sources, learning review tools, and skill provenance.
-- Existing local surfaces, including CLI, TUI, gateway/web chat, mobile apps, and the macOS menubar app.
-
-The next work should not restart the memory project. It should make the current substrate visible, steerable, and useful in daily operation.
-
-## Scope
-
-The MVP includes two user-facing modes:
-
-1. Command Center: a local control surface for status, sessions, memory, learning, queues, approvals, automations, and diagnostics.
-2. Ambient Copilot: a bounded local assistant layer that observes approved context, recalls relevant memory, suggests next actions, and captures outcomes.
-
-Continuity is the substrate, not a separate MVP mode. SageOS must preserve and use context across sessions, but the visible product promise is command and ambient help.
+The MVP is not public beta-ready. It is a private operator system for Jason.
 
 ## Non-Goals
 
-- Public beta readiness.
 - A new standalone OS, window manager, or desktop environment.
-- A new MCP layer before the native capture and command contracts are proven live.
-- Unapproved external writes to messaging, email, calendars, files, tickets, or production systems.
-- A broad automation marketplace.
-- Multi-user, team, or cloud-sync behavior.
-- Replacing the existing Sage Memory service or moving personal data out of the local-first boundary.
+- A public automation marketplace.
+- A new memory system replacing Sage Memory.
+- Direct writes to the Obsidian vault during normal operation. Sage Memory remains canonical; Obsidian is rendered review output.
+- Silent permission escalation. SageOS may operate autonomously inside delegated policy, but may not grant itself new categories of access.
+- Silent credential, safety, approval, or audit-policy changes.
+- Silent external communication to people, production systems, financial systems, legal/medical systems, or public services unless Jason has explicitly pre-authorized that exact workflow class.
+- Full OS-wide screen/audio capture by default. Those require explicit source-level enablement.
+- Perfect autonomous correctness. The MVP must verify, report, and roll back rather than pretend agents never fail.
 
-## Chosen Design
+## Product Principles
 
-### Command Center
+1. Always on, but always inspectable.
+2. Broad autonomy through explicit delegation, not invisible power grabs.
+3. Evidence over vibes: every memory-backed claim, suggestion, workflow, or task result cites sources.
+4. Structured APIs before GUI automation; GUI automation only with sandboxing and verification.
+5. Local-first and private-first; external effects are policy-scoped and logged.
+6. Skills are code or procedures with provenance, tests, and rollback, not magic prompt residue.
+7. Workflows should become deterministic when possible.
+8. Every autonomous task needs a plan, budget, scope, logs, verification, and final report.
+9. Every watcher needs a pause switch, denylist, retention policy, and redaction path.
+10. Memory is an operating system component: typed, scoped, source-aware, and correctable.
+11. Learning must improve the system without corrupting it.
+12. Telegram updates should be useful, batched, and actionable, not spam.
+13. The user can say "free reign" for a scope, but SageOS still cannot self-modify its own safety boundaries or erase accountability.
 
-The Command Center is the primary inspect-and-steer surface. It should be reachable from the existing local Sage surfaces rather than introduced as a separate application family.
+## Autonomy Model
 
-The initial Command Center should expose:
+SageOS should use delegated autonomy tiers. Jason can choose the global mode and per-scope overrides.
 
-- System overview: gateway status, active agent sessions, current model/provider, connected channels, and recent failures.
-- Memory status: configured backend, capture health, capture queue count, last successful transcript ingest, last successful search/get/export proof, and default namespace.
-- Learning status: learning enabled state, queued activity count, recent learning reviews, learned skill count, and auto-apply policy.
-- Ambient status: which context sources are enabled, what context was last observed, what suggestions are pending, and which actions require approval.
-- Session controls: open, continue, reset, compact, delete, capture, replay failed capture, and inspect transcript-backed memory.
-- Diagnostics: one-click or one-command access to memory doctor, gateway health, and relevant queue replay.
+| Tier | Name | SageOS may do | Examples | Default for MVP |
+| --- | --- | --- | --- | --- |
+| 0 | Off | Nothing except serve status | Disabled service | Allowed |
+| 1 | Observe | Watch approved sources and capture memory | app focus, Sage sessions, browser observations | Default for new sources |
+| 2 | Suggest | Create suggestions, plans, drafts, and skill candidates | propose workflow, draft automation | Default for risky new domains |
+| 3 | Prepare | Create local artifacts without enabling them | scripts, widget drafts, branch changes | Allowed in approved workspaces |
+| 4 | Execute scoped | Run reversible low-risk work inside approved scopes | queue replay, local wiki export, tests, non-destructive repo edits | Target MVP autonomy |
+| 5 | Execute delegated | Run pre-approved playbooks unattended with notification | nightly coding in allowed repos, memory consolidation, deterministic work automations | Target after trust proof |
+| 6 | Full operator | Broad autonomy across computer use with active monitoring | cross-app task completion | Post-MVP, opt-in only |
 
-The Command Center should favor compact operational information over marketing layout. It should make broken state obvious and give Jason the next repair action.
+Tier 5 and Tier 6 do not mean no safety. They mean Jason has pre-authorized a class of work. SageOS still enforces budgets, deny rules, audit, verification, and stop controls.
 
-### Ambient Copilot
+## Action Risk Policy
 
-The Ambient Copilot watches approved local context and turns it into useful, bounded assistance.
+| Risk class | Examples | Autonomous behavior |
+| --- | --- | --- |
+| Read local low sensitivity | status, queue count, git diff, tests | Allowed in approved scopes |
+| Read local private context | memory nodes, session transcript, window titles | Allowed only for enabled sources and scoped tasks |
+| Local reversible write | draft doc, branch edit, generated widget, local script | Allowed at Tier 3 or higher with audit and diff |
+| Local destructive write | delete files, clear queues, reset sessions | Requires explicit workflow policy or approval |
+| External read | web docs, GitHub metadata, package docs | Allowed if task scope permits |
+| External write | Telegram, email, GitHub issue/PR comment, calendar | Requires explicit pre-authorized workflow or approval |
+| Production effect | deploy, restart production, mutate cloud resources | Requires workflow-specific policy, dry run, rollback plan, and notification |
+| Credential or policy change | tokens, allowlists, safety config | Approval required; never self-authorized |
+| Self-modification | prompts, skills, workflows, policies | Skills/workflows can be drafted and tested; safety policies cannot be silently changed |
 
-The MVP ambient loop should:
+## Core Use Cases
 
-- Observe allowed sources: active Sage sessions, browser observations made through Sage tools, session lifecycle events, heartbeat outcomes, memory-flush events, and learning reviews.
-- Normalize observations into durable activity events.
-- Capture relevant evidence into Sage Memory when the backend is active.
-- Recall memory before answering questions about prior work, decisions, tasks, people, dates, or preferences.
-- Produce suggestion cards rather than taking surprising action.
-- Require explicit approval for external writes, destructive changes, or production effects.
-- Capture the outcome after a suggestion is accepted, rejected, or completed.
+### Always-on daily observation
 
-Ambient behavior should be useful but quiet. MVP success is not constant notifications; it is the feeling that Sage understands the current work and has the next likely step ready.
+SageOS runs with the gateway. It samples approved sources, records activity events, detects work context, and maintains a fresh current-work model.
 
-### Continuity Substrate
+Initial approved sources:
 
-Sage Memory remains canonical. Obsidian remains a rendered review surface. The Sage repo should not write directly into the vault for normal operation.
+- Sage sessions.
+- Agent tool use.
+- Browser observations made through Sage tools.
+- Browser actions through the browser bridge, if enabled.
+- Windows active app focus metadata.
+- Heartbeat, memory flush, compaction, capture, queue, and learning events.
+- Coding workspace state for explicitly allowed repos.
 
-SageOS continuity depends on:
+Later sources:
 
-- Full transcript ingest for Sage sessions, plus recall over externally captured Codex sessions already stored in Sage Memory.
-- Activity-event ingest for browser and learning sources.
-- Capture queue replay for failed writes.
-- Search/get paths that agents already know how to use.
-- Doctor checks that prove ingest, search, get, export, and vault rendering.
-- Learning reviews that turn repeated activity into reusable skills or durable notes.
+- Screenshots and OCR.
+- Accessibility tree.
+- Clipboard.
+- Audio and meetings.
+- Email/calendar/tickets.
+- IDE integration.
+- Filesystem watchers.
 
-If Sage Memory is disabled or unhealthy, SageOS must degrade into a manual Command Center with clear warnings. It must not pretend continuity is working.
+### Memory and wiki improvement
 
-## Architecture
+SageOS continuously improves memory quality:
 
-SageOS should be implemented as a thin orchestration layer over existing subsystems:
+- Capture transcripts and activity events.
+- Replay failed capture and learning queues.
+- Detect stale, duplicate, or low-quality memories.
+- Consolidate episodic logs into semantic project facts.
+- Generate wiki summaries through Sage Memory export rather than direct vault writes.
+- Create review cards for ambiguous or high-impact memory changes.
+- Track memory coverage by project, task, person, decision, and workflow.
 
-- Status aggregation: a new Command Center status model that reads existing gateway, memory, learning, queue, session, channel, and automation status providers.
-- Context observation: existing browser/session/heartbeat/memory-flush hooks produce structured activity events.
-- Memory bridge: existing `SageMemoryManager` handles capture, transcript ingest, activity ingest, search, get, and status.
-- Suggestion engine: a small policy layer converts recent context plus retrieved memory into pending suggestions.
-- Approval gate: existing confirmation and tool-policy infrastructure controls writes and risky actions.
-- UI surfaces: CLI/TUI and the local app/web surfaces render the same underlying status and suggestion model.
+### Workflow discovery and automation
 
-The implementation should avoid a second parallel memory path or a second parallel session model. New UI should consume shared service functions so CLI and app surfaces stay consistent.
+SageOS watches repeated work patterns and turns them into automation candidates:
 
-## Data Flow
+1. Observe repeated task pattern.
+2. Cluster similar events by source, app, project, tool sequence, and outcome.
+3. Ask whether the task can be deterministic.
+4. Draft a workflow spec with inputs, outputs, tools, permissions, tests, and rollback.
+5. Build script/skill/cron/job/template in a sandbox.
+6. Run evals or dry-run against captured examples.
+7. Promote to enabled automation only if policy allows.
+8. Monitor future runs and improve from failures.
 
-1. A local event occurs: session update, browser observation, heartbeat, compaction, command, capture failure, learning review, or user request.
-2. Sage normalizes the event with source, timestamp, session key, workspace, sensitivity, and action metadata.
-3. If memory is active, Sage captures the event or transcript through Sage Memory. Failed writes are queued.
-4. The Command Center status model reads current health, queues, sessions, learned skills, pending approvals, and recent events.
-5. For ambient help, Sage retrieves relevant memory and builds a suggestion with evidence, confidence, proposed action, and required approval level.
-6. Jason accepts, rejects, edits, or ignores the suggestion.
-7. Sage captures the outcome and updates learning state.
+### Skill creation and self-improvement
 
-## Error Handling
+SageOS creates skills when it observes repeatable procedures or after successful complex work:
 
-- Memory backend disabled: show a clear warning and continue with local status only.
-- Memory service unreachable: record failed captures in the queue, surface the backlog, and offer replay.
-- Missing token or namespace: fail diagnostics clearly and show the exact config area to fix.
-- Stale context: label it with timestamp and source, and avoid using it as current state.
-- Suggestion cannot cite memory or live context: lower confidence or suppress the suggestion.
-- External write requested: require approval unless an existing explicit policy allows it.
-- Capture succeeds but export/vault rendering fails: treat memory as captured but review visibility as degraded.
-- Ambient loop failure: never block core session operations; log and surface the failure in Command Center.
+- Draft skill with trigger conditions, steps, commands, pitfalls, verification, and examples.
+- Attach provenance to source sessions and tasks.
+- Add tests/evals where possible.
+- Mark status as draft, active, deprecated, or retired.
+- Promote automatically only for scopes where Jason has allowed skill auto-apply.
+- Never silently change safety policy, approval thresholds, credential access, or audit behavior.
+
+### App and widget generation
+
+SageOS builds apps/widgets when it observes a recurring need:
+
+- Dashboard for recurring operational state.
+- One-click tool for job workflows.
+- Local web widget for memory/project summaries.
+- CLI/TUI shortcut for repeated commands.
+- Canvas/A2UI artifact for richer UI.
+- Small scripts or local services for deterministic tasks.
+
+Generated apps/widgets must include:
+
+- Purpose statement.
+- Inputs and data sensitivity.
+- Required permissions.
+- Source provenance.
+- Test or manual verification.
+- Preview link or command.
+- Install/enable policy.
+- Rollback/removal command.
+
+### Night Shift coding
+
+SageOS continues coding work while Jason is away or asleep.
+
+Rules:
+
+- Only in allowed repos/workspaces.
+- Check git status before work.
+- Do not discard unrelated changes.
+- Prefer branch or isolated task session; worktree use requires explicit approval in this repo.
+- Plan before editing.
+- Use patch/file tools and scoped terminal commands.
+- Run targeted tests and relevant checks.
+- Capture diff, test output, and blockers.
+- Notify Telegram at start, major blockers, and completion.
+- Never merge, release, publish, deploy, rotate secrets, or modify protected branches unless an explicit workflow allows it.
+
+### Telegram monitoring
+
+Telegram should support:
+
+- Startup and shutdown notices.
+- Daily morning briefing.
+- Night Shift start and completion reports.
+- Urgent incidents.
+- Approval prompts for non-delegated actions.
+- Pause, resume, stop, status, and task list commands.
+- Compact diffs and links/paths to full logs.
+
+Default Telegram policy:
+
+- Batch low-priority observations into digests.
+- Send immediate messages for failures, blocked tasks, risk escalation, approvals, and completed unattended work.
+- Do not send raw private content unless the Telegram target is explicitly allowed for that sensitivity.
+
+## Chosen Architecture
+
+### High-level components
+
+```txt
+Gateway / daemon service
+  SageOS Supervisor
+    Event bus and durable event log
+    Observation manager
+    Memory and learning manager
+    Task planner
+    Policy and capability gate
+    Autonomous task queue
+    Worker session orchestrator
+    Workflow and skill compiler
+    App/widget builder
+    Verification and evaluation harness
+    Notification manager
+    Command Center status model
+```
+
+### SageOS Supervisor
+
+The supervisor is the gateway-resident always-on coordinator.
+
+Responsibilities:
+
+- Start and stop with gateway lifecycle.
+- Maintain enabled, paused, active, idle, and degraded state.
+- Poll or subscribe to approved observation sources.
+- Normalize observations into events.
+- Trigger memory capture and learning queue updates.
+- Decide when to spawn autonomous work.
+- Enforce policy before tasks and tool calls.
+- Track active, queued, completed, failed, blocked, and cancelled tasks.
+- Send Telegram updates.
+- Expose status through CLI, TUI, gateway RPC, and Command Center.
+- Hot-reload config where safe.
+
+### Durable event log
+
+SageOS needs an append-only local event stream separate from memory.
+
+Event types:
+
+- observation
+- memory_capture
+- learning_event
+- recall
+- reflection
+- suggestion
+- task_planned
+- task_started
+- tool_call
+- approval_requested
+- approval_resolved
+- verification
+- task_completed
+- task_failed
+- workflow_candidate
+- skill_mutation
+- app_generated
+- notification_sent
+- incident
+- repair
+- policy_change
+
+Each event includes:
+
+- ID and correlation ID.
+- Timestamp.
+- Actor and agent ID.
+- Source and workspace.
+- Sensitivity.
+- Policy scope.
+- Redaction state.
+- Linked memory/session/queue/task IDs.
+- Summary safe for status surfaces.
+- Optional local path to full detail.
+
+### Observation manager
+
+Observation sources are pluggable, source-scoped, and denylist-aware.
+
+Source contract:
+
+```ts
+type SageOsObservationSource = {
+  id: string;
+  label: string;
+  enabled: boolean;
+  sensitivityDefault: "public" | "normal" | "private" | "secret";
+  intervalMs?: number;
+  lastObservedAt?: string;
+  lastError?: string;
+  collect(): Promise<SageOsObservation[]>;
+};
+```
+
+Initial sources:
+
+- Sage sessions.
+- Agent tool usage.
+- Browser learning events.
+- Windows app focus.
+- Capture queue changes.
+- Learning queue changes.
+- Cron/task results.
+- Git workspace state for allowed repos.
+
+Privacy rules:
+
+- Source-level opt-in.
+- Per-app and per-window denylist.
+- Secret patterns discard raw observation.
+- Raw screen/audio disabled by default.
+- Private/incognito browser windows excluded where detectable.
+- Storage quotas and retention by data class.
+
+### Memory OS
+
+SageOS should treat memory as layered:
+
+- Working memory: current task state, active project, recent observations.
+- Episodic memory: timestamped events, sessions, tool calls, decisions, outcomes.
+- Semantic memory: stable project facts, preferences, people, decisions, conventions.
+- Procedural memory: skills, scripts, workflows, playbooks, app/widget templates.
+- Archival memory: raw transcripts, logs, screenshots, OCR, exports, and evidence.
+
+Sage Memory remains canonical for durable recall. The local event log remains canonical for execution audit. Obsidian remains a rendered review/wiki surface.
+
+Memory writes require:
+
+- Source.
+- Timestamp.
+- Sensitivity.
+- Confidence.
+- Namespace/project.
+- Evidence reference.
+- Retention class.
+- Deletion path.
+
+### Planner and task queue
+
+Task sources:
+
+- User request.
+- Schedule.
+- Idle/night window.
+- Repeated workflow detection.
+- Memory health issue.
+- Learning review.
+- Coding backlog.
+- Failed queue replay.
+- App/widget opportunity.
+
+Task states:
+
+- proposed
+- queued
+- planning
+- blocked
+- waiting_for_policy
+- running
+- verifying
+- completed
+- failed
+- cancelled
+- paused
+- expired
+
+Task fields:
+
+- ID, title, objective.
+- Source trigger and evidence.
+- Workspace/repo/app scope.
+- Autonomy tier required.
+- Risk class.
+- Tool profile.
+- Budget: time, tokens, subprocesses, network, files, retries.
+- Schedule/idle constraints.
+- Expected outputs.
+- Verification plan.
+- Rollback plan.
+- Notification policy.
+
+### Autonomous workforce
+
+Workers should run as isolated Sage sessions or cron agent runs.
+
+Worker classes:
+
+- Memory steward.
+- Wiki curator.
+- Skill engineer.
+- Workflow compiler.
+- Coding worker.
+- App/widget builder.
+- Diagnostics and repair worker.
+- Research worker.
+- QA/reviewer.
+
+Each worker has:
+
+- Role prompt.
+- Tool profile.
+- Memory scope.
+- Workspace scope.
+- Budget.
+- Termination condition.
+- Verification requirements.
+- Notification policy.
+
+### Workflow compiler
+
+A workflow candidate becomes active through this lifecycle:
+
+```txt
+observed_pattern
+  -> candidate
+  -> drafted_spec
+  -> implemented_draft
+  -> dry_run_passed
+  -> enabled_for_scope
+  -> monitored
+  -> improved
+  -> retired
+```
+
+Workflow artifacts can be:
+
+- Skill markdown.
+- Script.
+- Cron job.
+- CLI command wrapper.
+- Browser automation recipe.
+- App/widget.
+- Agent task template.
+- Documentation/runbook.
+
+Promotion requires:
+
+- Clear trigger.
+- Deterministic steps where possible.
+- Inputs/outputs.
+- Permission scope.
+- Evals or captured examples.
+- Failure behavior.
+- Rollback or disable path.
+
+### Policy and capability gate
+
+Every task and tool call passes through policy.
+
+Policy checks:
+
+- Is SageOS enabled and not paused?
+- Is this source/task scope allowed?
+- Is the tool permitted for this worker?
+- Does the action match the delegated autonomy tier?
+- Is sensitive data leaving local context?
+- Is the action reversible?
+- Is there a dry-run or preview?
+- Is budget available?
+- Does the action involve credentials?
+- Does untrusted content appear to be instructing the agent?
+- Is user approval or Telegram confirmation required?
+
+Policy cannot be modified by observed content, memory, web pages, emails, screenshots, or worker agents.
+
+### Verification and evaluation
+
+SageOS must verify work before reporting success.
+
+Verification types:
+
+- File exists or changed as expected.
+- Git diff matches intended scope.
+- Tests pass.
+- Lint/typecheck passes.
+- CLI command output matches expected status.
+- Browser DOM/accessibility state matches expected state.
+- Screenshot/OCR state confirms UI task.
+- Memory search/get finds captured evidence.
+- Workflow dry-run output matches captured examples.
+- Generated widget/app loads and handles sample data.
+
+Failures produce reflections and learning events.
+
+### Notification manager
+
+Notification types:
+
+- lifecycle: started, paused, resumed, stopped.
+- digest: morning, evening, night shift complete.
+- task: started, blocked, completed, failed.
+- approval: required, expiring, denied, resolved.
+- incident: memory down, queue backlog, policy violation, source failure.
+- learning: new skill/workflow/app candidate.
+- coding: diff/test summary.
+
+Telegram message shape:
+
+```txt
+SageOS: Night Shift completed
+Task: Improve Command Center status contract
+Repo: C:\Users\jason\Desktop\sage
+Result: completed with tests passing
+Changed: 4 files, +210/-32
+Verification: pnpm test src/sageos/status.test.ts passed
+Risk: local repo edit only
+Next: review diff or allow follow-up cleanup
+Actions: [Open summary] [Pause SageOS] [Continue follow-up]
+```
+
+## Shared Contracts
+
+### SageOsStatusSnapshot
+
+```ts
+type SageOsStatusSnapshot = {
+  generatedAt: string;
+  mode: "off" | "observe" | "suggest" | "prepare" | "execute_scoped" | "execute_delegated";
+  supervisor: SageOsSupervisorStatus;
+  system: SageOsSystemStatus;
+  observations: SageOsObservationStatus;
+  memory: SageOsMemoryStatus;
+  learning: SageOsLearningStatus;
+  tasks: SageOsTaskStatus;
+  workflows: SageOsWorkflowStatus;
+  skills: SageOsSkillStatus;
+  apps: SageOsAppWidgetStatus;
+  coding: SageOsCodingStatus;
+  approvals: SageOsApprovalStatus;
+  notifications: SageOsNotificationStatus;
+  incidents: SageOsIncident[];
+  audit: SageOsAuditSummary;
+};
+```
+
+### SageOsTask
+
+```ts
+type SageOsTask = {
+  id: string;
+  title: string;
+  objective: string;
+  state: "proposed" | "queued" | "planning" | "blocked" | "waiting_for_policy" | "running" | "verifying" | "completed" | "failed" | "cancelled" | "paused" | "expired";
+  createdAt: string;
+  updatedAt: string;
+  trigger: SageOsEvidenceRef;
+  workspace?: string;
+  repo?: string;
+  autonomyTier: number;
+  riskClass: string;
+  toolProfile: string;
+  budget: SageOsTaskBudget;
+  plan?: string;
+  verification?: SageOsVerificationPlan;
+  rollback?: SageOsRollbackPlan;
+  evidenceRefs: SageOsEvidenceRef[];
+  result?: SageOsTaskResult;
+};
+```
+
+### SageOsWorkflow
+
+```ts
+type SageOsWorkflow = {
+  id: string;
+  name: string;
+  state: "candidate" | "drafted_spec" | "implemented_draft" | "dry_run_passed" | "enabled" | "paused" | "failed" | "retired";
+  observedPattern: string;
+  sourceEvents: SageOsEvidenceRef[];
+  inputs: SageOsWorkflowInput[];
+  outputs: SageOsWorkflowOutput[];
+  permissions: SageOsPermissionScope[];
+  implementationRefs: SageOsEvidenceRef[];
+  evalRefs: SageOsEvidenceRef[];
+  lastRun?: SageOsWorkflowRunSummary;
+};
+```
+
+### SageOsSkillRecord
+
+```ts
+type SageOsSkillRecord = {
+  name: string;
+  state: "draft" | "active" | "deprecated" | "retired";
+  createdAt: string;
+  updatedAt: string;
+  provenance: SageOsEvidenceRef[];
+  triggerConditions: string[];
+  tests: SageOsVerificationRef[];
+  allowedScopes: SageOsPermissionScope[];
+  rollbackRef?: SageOsEvidenceRef;
+};
+```
+
+### SageOsIncident
+
+```ts
+type SageOsIncident = {
+  id: string;
+  severity: "info" | "warning" | "error" | "critical";
+  category: string;
+  affectedCapability: string;
+  title: string;
+  summary: string;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  lastError?: string;
+  repairAction?: SageOsRepairAction;
+  autoRepairSafe: boolean;
+  verification: string;
+};
+```
+
+## Command Center
+
+Command Center is the local control tower.
+
+Surfaces in order:
+
+1. CLI status and JSON contract.
+2. TUI view.
+3. Gateway control UI panel.
+4. macOS/mobile/web panels.
+5. Windows tray or overlay later.
+
+CLI commands:
+
+```bash
+sage os status
+sage os status --json
+sage os pause
+sage os resume
+sage os tasks
+sage os tasks inspect <id>
+sage os tasks cancel <id>
+sage os memory
+sage os learning
+sage os workflows
+sage os skills
+sage os apps
+sage os coding
+sage os approvals
+sage os queues
+sage os doctor
+```
+
+Command Center sections:
+
+- Supervisor: enabled, paused, mode, uptime, loop health, last tick, next tick.
+- Current activity: active tasks, current observations, running workers.
+- Memory: backend, namespace, health, capture queue, learning queue, search/get/export/vault proof.
+- Learning: queued events, reviews, skill mutations, workflow candidates.
+- Workflows: candidates, drafts, dry runs, enabled automations, recent runs.
+- Coding: allowed repos, running coding workers, diffs, tests, blockers.
+- Apps/widgets: generated drafts, previews, active widgets, failures.
+- Notifications: Telegram target, last sent, failures, digest schedule.
+- Policy: current autonomy mode, allowed scopes, blocked actions.
+- Incidents: severity, cause, repair action.
+- Audit: recent events and full log paths.
+
+## Ambient Copilot
+
+Ambient Copilot is the observation and synthesis layer.
+
+Loop:
+
+1. Collect observations from enabled sources.
+2. Redact or discard sensitive observations.
+3. Normalize to activity events.
+4. Update working memory.
+5. Capture durable evidence to Sage Memory when healthy.
+6. Recall relevant memory when context changes.
+7. Detect suggestions, workflows, skills, app/widget opportunities, and coding tasks.
+8. Either queue work autonomously or create a review card depending on policy.
+9. Capture outcome and reflection.
+
+Ambient output types:
+
+- context update
+- suggestion
+- workflow candidate
+- skill candidate
+- app/widget idea
+- coding task candidate
+- memory repair
+- incident
+- digest item
+
+## Autonomous Task Classes
+
+### Memory steward tasks
+
+Examples:
+
+- Replay failed captures.
+- Run memory doctor.
+- Consolidate session into project summary.
+- Detect stale or duplicate memory.
+- Create wiki export.
+- Verify rendered vault note exists.
+- Create memory quality report.
+
+Autonomy: Tier 4 by default for non-destructive local work.
+
+### Workflow engineer tasks
+
+Examples:
+
+- Convert repeated Zendesk response drafting into a template workflow.
+- Create a CLI helper for repeated repo status checks.
+- Build a browser automation dry run for a recurring admin UI task.
+- Create a cron job for daily summary.
+
+Autonomy: Tier 3 to draft, Tier 4 to dry-run, Tier 5 to enable in approved scopes.
+
+### Skill engineer tasks
+
+Examples:
+
+- Create a new skill from repeated successful procedures.
+- Patch a stale skill after a failure.
+- Add examples and pitfalls.
+- Add tests/evals to a skill.
+
+Autonomy: Tier 3 to draft, Tier 4 to patch non-sensitive skills in approved skill dirs, approval for broad behavior-changing skills unless policy allows.
+
+### Coding worker tasks
+
+Examples:
+
+- Continue a planned implementation.
+- Fix failing tests.
+- Refactor a module under file/LOC constraints.
+- Add docs/tests for recently changed code.
+- Run code review on open diff.
+
+Autonomy: Tier 4 in allowed repos for branch/local edits and tests; Tier 5 for Night Shift scoped project work; approval for merges, releases, deploys, dependencies, or protected changes.
+
+### App/widget builder tasks
+
+Examples:
+
+- Build a Command Center widget.
+- Build a local dashboard for a recurring job metric.
+- Build a quick browser-based tool for a repeated workflow.
+- Add a TUI panel for a recurring command.
+
+Autonomy: Tier 3 draft, Tier 4 preview and test, Tier 5 enable only in approved local surfaces.
+
+### Diagnostics and repair tasks
+
+Examples:
+
+- Restart failed local gateway subsystem when safe.
+- Replay queue after backend recovery.
+- Repair stale config with known fix.
+- Produce incident bundle.
+
+Autonomy: Tier 4 for read-only diagnostics and safe replay; approval or pre-authorized playbook for restarts/config edits.
+
+## Privacy, Security, and Safety
+
+### Capture policy
+
+SageOS must support per-source controls:
+
+- enabled
+- sampling interval
+- sensitivity default
+- retention
+- raw capture allowed
+- derived capture allowed
+- local-only flag
+- Telegram summary allowed
+- deny apps
+- deny window title patterns
+- deny URLs/domains
+- deny file patterns
+- secret detectors
+
+Default deny categories:
+
+- password managers
+- banking/finance
+- health/medical
+- legal/HR
+- private/incognito browsing
+- credential dialogs
+- 2FA codes
+- key/secret file patterns
+- environment files with secrets
+
+### Prompt injection hardening
+
+- Observed content is data, not instruction.
+- Web pages, emails, docs, screenshots, OCR, terminal output, file names, and chat messages cannot change policy.
+- Tool policy lives outside LLM context and is enforced in code.
+- Worker agents receive scoped instructions and tool profiles.
+- External content should be summarized with source labels.
+- Suspicious instructions in observed content create an incident.
+
+### Audit and rollback
+
+Every autonomous action must be auditable.
+
+For file/code changes:
+
+- Capture pre-state summary.
+- Capture diff.
+- Capture tests/checks.
+- Capture rollback instruction.
+
+For workflow/app/skill changes:
+
+- Store previous version.
+- Store provenance.
+- Store tests/evals.
+- Store enable/disable state.
+
+For external effects:
+
+- Store request, approval/policy basis, result, and verification.
+
+## Configuration
+
+Add a `sageos` config namespace.
+
+Suggested shape:
+
+```yaml
+sageos:
+  enabled: true
+  mode: execute_scoped
+  supervisor:
+    intervalSeconds: 30
+    idleAfterSeconds: 300
+    maxConcurrentTasks: 3
+    maxNightlyTasks: 5
+  sources:
+    sageSessions: true
+    toolUsage: true
+    browser: false
+    appFocus: true
+    screen: false
+    audio: false
+    clipboard: false
+    filesystem: false
+  privacy:
+    storeRawScreenshots: false
+    telegramPrivateContent: false
+    denyApps: ["1Password", "Bitwarden"]
+    denyWindowTitlePatterns: ["password", "2FA", "bank"]
+    secretRedaction: true
+  memory:
+    autoCapture: true
+    replayQueues: true
+    consolidate: true
+    exportWiki: true
+  learning:
+    enabled: true
+    skillAutoApply: draft-only
+    workflowAutoEnable: false
+  coding:
+    enabled: true
+    allowedRepos:
+      - "C:\\Users\\jason\\Desktop\\sage"
+    requireCleanGit: false
+    allowDependencyChanges: false
+    allowRelease: false
+  notifications:
+    telegram:
+      enabled: true
+      target: "telegram"
+      digestSchedule: "0 8 * * *"
+      urgentOnlyDuringFocus: true
+  policy:
+    defaultTier: 4
+    requireApprovalForExternalWrites: true
+    requireApprovalForProduction: true
+    requireApprovalForCredentials: true
+    requireApprovalForPolicyChanges: true
+```
+
+## Implementation Plan
+
+### Phase 0: Spec and first-brick alignment
+
+Goal: make the repo converge on this always-on SageOS direction without losing the Command Center-first grounding.
+
+Tasks:
+
+1. Keep this file as canonical private MVP design.
+2. Add a short implementation tracker under `docs/superpowers/specs/` or `.hermes/plans/` if desired.
+3. Use the Command Center status contract as the first implementation brick.
+4. Avoid new memory backends, direct vault writes, or MCP-first rewrites.
+
+Acceptance:
+
+- Spec clearly represents always-on autonomous SageOS.
+- The first brick remains concrete and repo-compatible.
+
+### Phase 1: Shared contracts and config
+
+Goal: define typed SageOS state before UI or agents depend on it.
+
+Files:
+
+- Create `src/sageos/types.ts`.
+- Create `src/sageos/config.ts` or `src/config/types.sageos.ts`.
+- Modify `src/config/types.ts`.
+- Modify `src/config/zod-schema.ts`.
+- Modify `src/gateway/config-reload.ts`.
+
+Tasks:
+
+1. Add `SageOsStatusSnapshot`, `SageOsTask`, `SageOsIncident`, `SageOsWorkflow`, `SageOsSkillRecord`, `SageOsObservation`, and policy types.
+2. Add `sageos` config schema with defaults.
+3. Add config reload classification for SageOS supervisor hot restart.
+4. Add unit tests for config parsing and defaults.
+
+Verification:
+
+- `pnpm test src/config/*sageos*`
+- `pnpm build`
+
+### Phase 2: Supervisor skeleton
+
+Goal: start a gateway-resident always-on SageOS loop.
+
+Files:
+
+- Create `src/sageos/supervisor.ts`.
+- Create `src/sageos/state-store.ts`.
+- Create `src/sageos/event-log.ts`.
+- Modify `src/gateway/server-startup.ts` or appropriate gateway lifecycle file.
+- Modify `src/gateway/server-close.ts`.
+
+Tasks:
+
+1. Implement start/stop/pause/resume.
+2. Persist supervisor state and append-only event log under the Sage state dir.
+3. Track loop ticks, errors, active tasks, and incidents.
+4. Expose in-memory status collector.
+5. Add tests for start, stop, pause, resume, and event persistence.
+
+Verification:
+
+- Unit tests for supervisor lifecycle.
+- Gateway starts and stops without orphan timers.
+
+### Phase 3: Command Center CLI and JSON status
+
+Goal: make SageOS visible immediately.
+
+Files:
+
+- Create `src/sageos/status/collect.ts`.
+- Create `src/sageos/status/render.ts`.
+- Create `src/cli/sageos-cli.ts` or integrate into existing CLI program registration.
+- Add tests beside the new modules.
+
+Commands:
+
+```bash
+sage os status
+sage os status --json
+sage os pause
+sage os resume
+sage os tasks
+sage os doctor
+```
+
+Tasks:
+
+1. Aggregate gateway, sessions, memory, learning, queues, approvals, cron, notifications, and supervisor status.
+2. Render compact human status.
+3. Render stable JSON.
+4. Include incidents and top repair actions.
+5. Add tests for healthy, degraded, paused, and memory-down states.
+
+Verification:
+
+- `sage os status --json` prints parseable JSON.
+- Broken memory state still renders useful status.
+
+### Phase 4: Observation MVP
+
+Goal: collect approved local context safely.
+
+Files:
+
+- Create `src/sageos/observations/manager.ts`.
+- Create adapters for sessions, tool usage, app focus, browser, queues, and coding workspace state.
+- Reuse `src/learning/app-focus.ts`, `src/learning/browser-source.ts`, and `src/learning/session-source.ts`.
+
+Tasks:
+
+1. Implement source registry.
+2. Implement source-level config and deny rules.
+3. Normalize observations into SageOS events and learning events.
+4. Add redaction and secret-skipping.
+5. Add tests for denylisted app/window/source.
+
+Verification:
+
+- App focus events appear only when enabled.
+- Denylisted sources create redacted skip events.
+
+### Phase 5: Memory and learning steward
+
+Goal: make SageOS improve memory and wiki quality autonomously.
+
+Files:
+
+- Create `src/sageos/memory/steward.ts`.
+- Create `src/sageos/learning/steward.ts`.
+- Reuse memory and learning queue modules.
+
+Tasks:
+
+1. Replay capture and learning queues when healthy.
+2. Run memory doctor on schedule.
+3. Capture SageOS events/outcomes to Sage Memory.
+4. Generate memory quality incidents.
+5. Export wiki on schedule if configured.
+6. Create consolidation tasks for sessions/projects.
+
+Verification:
+
+- Queue replay updates status.
+- Memory-down state queues work and creates incident.
+- Export proof appears in status.
+
+### Phase 6: Autonomous task queue and workers
+
+Goal: let SageOS start and manage scoped background work.
+
+Files:
+
+- Create `src/sageos/tasks/queue.ts`.
+- Create `src/sageos/tasks/orchestrator.ts`.
+- Create `src/sageos/workers/*.ts`.
+- Integrate with `sessions_spawn` or gateway agent methods.
+
+Tasks:
+
+1. Implement durable task queue.
+2. Implement task budgets and concurrency limits.
+3. Spawn worker sessions with scoped prompts and tool profiles.
+4. Capture worker output, logs, result, verification, and reflection.
+5. Add cancellation and pause behavior.
+6. Add tests for queue state transitions.
+
+Verification:
+
+- A fake worker can run, complete, fail, and be cancelled.
+- Budget exhaustion stops task and creates incident.
+
+### Phase 7: Policy and approval integration
+
+Goal: enforce delegated autonomy tiers in code.
+
+Files:
+
+- Create `src/sageos/policy.ts`.
+- Integrate with `src/security/confirmation.ts` and `src/agents/tool-policy.ts`.
+- Add gateway methods for SageOS approvals if needed.
+
+Tasks:
+
+1. Implement risk classification.
+2. Implement autonomy tier checks.
+3. Implement pre-authorized scopes.
+4. Block self-policy changes without approval.
+5. Add tests for external write, production, credential, destructive, and policy-change cases.
+
+Verification:
+
+- Disallowed tool calls are blocked before execution.
+- Approved scoped actions run without repeated prompts.
+
+### Phase 8: Telegram notifications and controls
+
+Goal: let Jason monitor and control SageOS remotely.
+
+Files:
+
+- Create `src/sageos/notifications/telegram.ts` or channel-generic notifier.
+- Integrate with `src/telegram/send.ts` and channel registry.
+- Add command handlers for status/pause/resume/tasks/approve/deny.
+
+Tasks:
+
+1. Send startup, shutdown, task, incident, approval, and digest messages.
+2. Implement batching and quiet hours.
+3. Add inline actions where channel supports them.
+4. Ensure private content redaction by target sensitivity policy.
+5. Add tests for notification formatting and redaction.
+
+Verification:
+
+- Telegram receives a redacted task completion report.
+- Pause/resume command updates supervisor state.
+
+### Phase 9: Workflow and skill compiler
+
+Goal: turn repeated work into durable automations and skills.
+
+Files:
+
+- Create `src/sageos/workflows/detector.ts`.
+- Create `src/sageos/workflows/compiler.ts`.
+- Create `src/sageos/skills/steward.ts`.
+- Reuse `src/learning/skill-manager.ts`.
+
+Tasks:
+
+1. Cluster repeated observations.
+2. Generate workflow candidates with evidence.
+3. Draft skill/workflow artifacts.
+4. Run dry-runs/evals where possible.
+5. Promote or hold based on policy.
+6. Capture provenance and rollback.
+
+Verification:
+
+- Repeated fake events produce one workflow candidate.
+- Candidate can become a draft skill with provenance.
+
+### Phase 10: Night Shift coding
+
+Goal: autonomously continue coding work in approved repos.
+
+Files:
+
+- Create `src/sageos/coding/night-shift.ts`.
+- Create `src/sageos/coding/repo-state.ts`.
+- Create `src/sageos/coding/report.ts`.
+
+Tasks:
+
+1. Detect allowed repos and project tasks.
+2. Check git status and branch rules.
+3. Spawn coding worker sessions with project context.
+4. Run tests/checks.
+5. Produce diff/test/blocker report.
+6. Notify Telegram.
+
+Verification:
+
+- In a fixture repo, Night Shift can make a safe local edit, run test, report diff, and stop.
+- Dirty repo policy protects unrelated changes.
+
+### Phase 11: App and widget builder
+
+Goal: build local tools from observed needs.
+
+Files:
+
+- Create `src/sageos/apps/candidates.ts`.
+- Create `src/sageos/apps/builder.ts`.
+- Integrate with canvas/control UI where appropriate.
+
+Tasks:
+
+1. Detect widget/app opportunities.
+2. Draft app spec.
+3. Generate local artifact.
+4. Run preview/test.
+5. Add Command Center card for review/enable.
+
+Verification:
+
+- Fake recurring need creates an app candidate.
+- Generated artifact has preview and rollback path.
+
+### Phase 12: Control UI and TUI
+
+Goal: make daily monitoring pleasant.
+
+Files:
+
+- Modify TUI command registry and screens.
+- Modify gateway control UI.
+- Add SageOS RPC methods.
+
+Tasks:
+
+1. Add Overview, Tasks, Memory, Learning, Workflows, Skills, Coding, Apps, Policy, Audit, Incidents tabs.
+2. Add pause/resume/stop controls.
+3. Add task drill-down.
+4. Add incident repair actions.
+5. Add approval/action controls.
+
+Verification:
+
+- UI renders same JSON status contract as CLI.
 
 ## Acceptance Criteria
 
-The MVP is accepted when the following are true:
+The MVP is accepted when:
 
-- Command Center shows gateway, sessions, memory, learning, queues, and pending approvals through one shared status contract rendered in at least one local surface.
-- The memory section can prove the current backend, last capture, capture queue, and doctor status.
-- The learning section can show queued activity, recent reviews, learned skills, and auto-apply policy.
-- Sage can answer "what was I working on?" using captured session memory rather than stale local assumptions.
-- Sage can inspect current approved context and propose at least one useful next action with evidence.
-- Accepted and rejected suggestions are captured as outcomes.
-- Capture failures are visible, durable, and replayable.
-- Destructive or external actions remain approval-gated.
-- A live proof captures a real session, searches it, expands it, exports it, and verifies the rendered vault note exists.
-- Focused tests, type checking, lint, touched-file formatting, and `git diff --check` pass for the implementation slices.
+- SageOS runs as an always-on gateway service with pause/resume/stop.
+- SageOS can install/run in the Windows user environment without losing interactive observation capability.
+- Command Center shows supervisor, observations, memory, learning, tasks, workflows, skills, coding, apps, notifications, policy, incidents, and audit.
+- `sage os status --json` exposes the shared contract.
+- Approved observation sources create redacted, source-labeled events.
+- SageOS improves memory by capturing sessions/events, replaying queues, running doctor, and exporting wiki review output.
+- SageOS can create a skill candidate from observed repeated work with provenance.
+- SageOS can create a workflow candidate and dry-run it against captured examples.
+- SageOS can run a scoped autonomous coding task in an allowed repo and report diff plus tests.
+- SageOS can draft an app/widget candidate from an observed need.
+- Telegram receives startup, digest, task, incident, and completion updates.
+- Jason can pause, resume, stop, and inspect tasks from CLI and Telegram.
+- External writes, production effects, credential changes, and policy changes are not silently self-authorized.
+- Every autonomous action has audit, evidence, verification, and rollback or explicit non-rollback note.
+- Secret/private content is redacted according to target and source policy.
+- Memory-down, queue-backlog, notification-failure, worker-failure, and policy-blocked states surface as incidents with repair actions.
+- Tests, typecheck, lint, and `git diff --check` pass for implementation slices.
 
 ## Testing Strategy
 
-Unit tests should cover:
+Unit tests:
 
-- Command Center status aggregation from memory, learning, sessions, queues, gateway, and approvals.
-- Disabled or unhealthy memory backend states.
-- Learning queue and skill provenance summaries.
-- Suggestion creation from current context plus retrieved memory.
-- Approval-level classification for read, local write, destructive, and external actions.
-- Outcome capture after suggestion accept/reject/complete.
+- Config parsing and defaults.
+- Supervisor lifecycle.
+- Event log append/read/redaction.
+- Observation source allow/deny behavior.
+- Policy tier decisions.
+- Task queue transitions.
+- Incident generation.
+- Notification formatting and redaction.
+- Memory/learning steward state.
+- Workflow candidate clustering.
+- Skill draft provenance.
+- Coding repo policy.
 
-Integration tests should cover:
+Integration tests:
 
-- CLI/TUI and app/web surfaces rendering the same status contract.
-- Capture queue replay updating Command Center state.
-- Memory doctor output appearing in Command Center.
-- Ambient suggestions suppressing themselves when evidence is missing or stale.
+- Gateway starts SageOS supervisor.
+- `sage os status --json` returns valid status.
+- Queue replay changes status.
+- Memory-down creates incident and queues work.
+- Fake Telegram target receives redacted digest.
+- Fake worker task completes and emits audit events.
+- Policy blocks external write without scope.
+- Coding fixture produces diff/test report.
 
-Live proof should cover:
+Live proof:
 
-- Start or verify the local Sage Memory service.
-- Run `sage doctor memory`.
-- Capture a real Sage session transcript.
-- Search for the captured session through Sage.
-- Expand the result through `memory_get`.
-- Export the wiki.
-- Verify the Obsidian-rendered note exists on disk.
-
-## Implementation Order
-
-1. Define shared SageOS status contracts for memory, learning, sessions, queues, approvals, gateway health, and ambient sources.
-2. Add a Command Center read path in CLI/TUI first, because it is easiest to verify deterministically.
-3. Render the same status model in the local app/web surface.
-4. Add ambient context cards using existing browser, session, heartbeat, memory, and learning event sources.
-5. Add suggestion generation with evidence and approval classification.
-6. Capture suggestion outcomes into Sage Memory and the learning queue.
-7. Run live proof and close gaps until daily use is boringly reliable.
+1. Start gateway with SageOS enabled.
+2. Verify `sage os status --json`.
+3. Observe app focus or Sage session event.
+4. Capture session to Sage Memory.
+5. Replay a queued learning event.
+6. Run memory doctor and export proof.
+7. Generate a workflow or skill candidate from repeated events.
+8. Run a scoped coding task in a fixture or allowed repo.
+9. Send Telegram digest.
+10. Pause and resume SageOS.
+11. Verify audit trail contains every step.
 
 ## Open Decisions
 
-- Which existing local surface should become the primary visual Command Center: macOS app window, local web UI, TUI, or a layered combination.
-- Whether ambient suggestions should first appear as Command Center cards, macOS notifications, chat messages, or all three.
-- How much active-app context is allowed in MVP versus relying first on Sage-observed browser/session events.
-- Whether learned skills auto-apply during MVP or remain review-only until the loop has more live mileage.
+- Exact default autonomy tier for Jason's private environment.
+- Whether Telegram should receive full private summaries or only redacted summaries.
+- Where to store the event log and how long to retain each data class.
+- Whether Night Shift coding should use branches in the existing repo, separate clones, or an approved worktree policy.
+- Whether generated apps/widgets should live in `extensions/`, `apps/`, `docs/superpowers/artifacts/`, or a separate local workspace.
+- How much Windows desktop observation should ship before a dedicated native observer exists.
+- Whether screen/OCR/audio capture should be in MVP or explicitly post-MVP.
+- Which job/work apps get first deterministic workflow builders.
+- Which self-improvement changes can be auto-promoted without review.
 
-## Follow-On Work
+## Recommended First Brick
 
-After the MVP is proven privately:
+Despite the broader autonomous vision, the first coding task should still be narrow:
 
-- Add a public-beta onboarding path.
-- Package the Command Center as a coherent product surface.
-- Decide whether an MCP adapter adds value over the native CLI and HTTP contracts.
-- Add richer app context and OS-level triggers.
-- Add long-running proactive automations with stricter approval and audit controls.
+Implement the SageOS shared status contract, config namespace, supervisor skeleton, and `sage os status --json`.
+
+This creates the spine for everything else:
+
+- Always-on service state.
+- Command Center visibility.
+- Policy and autonomy mode visibility.
+- Memory/learning/queue health.
+- Task and notification slots.
+- Incidents and audit hooks.
+
+After that, build observation, memory steward, Telegram notifications, and autonomous task queue in that order.
+
+## Research Source List
+
+- ReAct: https://arxiv.org/abs/2210.03629
+- Toolformer: https://arxiv.org/abs/2302.04761
+- Reflexion: https://arxiv.org/abs/2303.11366
+- Voyager: https://arxiv.org/abs/2305.16291
+- Generative Agents: https://arxiv.org/abs/2304.03442
+- MemGPT: https://arxiv.org/abs/2310.08560
+- Long-term memory for LMs: https://arxiv.org/abs/2306.07174
+- WebArena: https://arxiv.org/abs/2307.13854
+- OSWorld: https://arxiv.org/abs/2404.07972
+- SWE-agent: https://arxiv.org/abs/2405.15793
+- AutoGen: https://arxiv.org/abs/2308.08155
+- MetaGPT: https://arxiv.org/abs/2308.00352
+- NIST AI RMF: https://www.nist.gov/itl/ai-risk-management-framework
+- OWASP LLM Top 10: https://owasp.org/www-project-top-10-for-large-language-model-applications/
+- Anthropic computer use: https://www.anthropic.com/news/3-5-models-and-computer-use
+- OpenAI Operator: https://openai.com/index/introducing-operator/
+- Microsoft Recall: https://support.microsoft.com/en-us/windows/retrace-your-steps-with-recall-aa03f8a0-a78b-4b3e-b0a1-2eb8ac48701c
+- Microsoft Recall admin: https://learn.microsoft.com/en-us/windows/client-management/manage-recall
+- Apple Intelligence: https://www.apple.com/apple-intelligence/
+- Apple Private Cloud Compute: https://security.apple.com/blog/private-cloud-compute/
+- Limitless: https://www.limitless.ai/
+- Lindy: https://www.lindy.ai/
+- Zapier Agents: https://zapier.com/agents
+- Adept ACT-1: https://www.adept.ai/blog/act-1
+- MultiOn: https://www.multion.ai/

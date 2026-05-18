@@ -6,6 +6,11 @@ const BASE_METHODS = [
   "channels.status",
   "channels.logout",
   "status",
+  "sageos.status",
+  "sageos.agents.list",
+  "sageos.tasks.list",
+  "sageos.runs.list",
+  "sageos.control",
   "usage.status",
   "usage.cost",
   "tts.status",
@@ -111,4 +116,5 @@ export const GATEWAY_EVENTS = [
   "voicewake.changed",
   "exec.approval.requested",
   "exec.approval.resolved",
+  "sageos",
 ];

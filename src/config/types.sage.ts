@@ -1,3 +1,4 @@
+import type { SageOsConfig } from "../sageos/types.js";
 import type { AgentBinding, AgentsConfig } from "./types.agents.js";
 import type { ApprovalsConfig } from "./types.approvals.js";
 import type { AuthConfig } from "./types.auth.js";
@@ -99,6 +100,7 @@ export type SageConfig = {
   talk?: TalkConfig;
   gateway?: GatewayConfig;
   memory?: MemoryConfig;
+  sageos?: SageOsConfig;
 };
 
 export type ConfigValidationIssue = {

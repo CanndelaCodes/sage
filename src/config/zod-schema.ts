@@ -154,6 +154,99 @@ const LearningSchema = z
   .strict()
   .optional();
 
+const SageOsModeSchema = z.enum([
+  "off",
+  "observe",
+  "suggest",
+  "prepare",
+  "execute_scoped",
+  "execute_delegated",
+  "full_operator",
+]);
+
+const SageOsSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    mode: SageOsModeSchema.optional(),
+    supervisor: z
+      .object({
+        intervalSeconds: z.number().int().positive().optional(),
+        maxConcurrentTasks: z.number().int().positive().optional(),
+        idleAfterSeconds: z.number().int().nonnegative().optional(),
+        nightShiftEnabled: z.boolean().optional(),
+        nightShiftWindow: z.string().optional(),
+      })
+      .strict()
+      .optional(),
+    commandCenter: z
+      .object({
+        enabled: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
+    sources: z.record(z.string(), z.boolean()).optional(),
+    privacy: z
+      .object({
+        localOnlyDefault: z.boolean().optional(),
+        storeRawScreenshots: z.boolean().optional(),
+        storeRawAudio: z.boolean().optional(),
+        telegramPrivateContent: z.boolean().optional(),
+        secretRedaction: z.boolean().optional(),
+        denyApps: z.array(z.string()).optional(),
+        denyWindowTitlePatterns: z.array(z.string()).optional(),
+        denyFilePatterns: z.array(z.string()).optional(),
+      })
+      .strict()
+      .optional(),
+    policy: z
+      .object({
+        defaultTier: SageOsModeSchema.optional(),
+        requireApprovalForDestructive: z.boolean().optional(),
+        requireApprovalForExternalWrites: z.boolean().optional(),
+        requireApprovalForProduction: z.boolean().optional(),
+        requireApprovalForCredentials: z.boolean().optional(),
+        requireApprovalForPolicyChanges: z.boolean().optional(),
+        requireApprovalForPrivateDataExport: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
+    memory: z
+      .object({
+        autoCapture: z.boolean().optional(),
+        replayQueues: z.boolean().optional(),
+        consolidate: z.boolean().optional(),
+        exportWiki: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
+    coding: z
+      .object({
+        enabled: z.boolean().optional(),
+        allowedRepos: z.array(z.string()).optional(),
+        allowDependencyChanges: z.boolean().optional(),
+        allowRelease: z.boolean().optional(),
+        allowDeploy: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
+    notifications: z
+      .object({
+        telegram: z
+          .object({
+            enabled: z.boolean().optional(),
+            target: z.string().optional(),
+            digestSchedule: z.string().optional(),
+            urgentOnlyDuringFocus: z.boolean().optional(),
+          })
+          .strict()
+          .optional(),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict()
+  .optional();
+
 export const SageSchema = z
   .object({
     meta: z
@@ -577,6 +670,7 @@ export const SageSchema = z
       .strict()
       .optional(),
     memory: MemorySchema,
+    sageos: SageOsSchema,
     skills: z
       .object({
         allowBundled: z.array(z.string()).optional(),
