@@ -33,6 +33,7 @@ const {
   mockSendTelegramDigestOnce,
   mockSendTaskNotificationOnce,
   mockSendLifecycleNotificationOnce,
+  mockSendApprovalNotificationOnce,
   mockSendIncidentNotificationOnce,
   mockSendCompletionNotificationOnce,
   mockDiscoverWorkflowCandidates,
@@ -49,6 +50,7 @@ const {
   mockSendTelegramDigestOnce: vi.fn(),
   mockSendTaskNotificationOnce: vi.fn(),
   mockSendLifecycleNotificationOnce: vi.fn(),
+  mockSendApprovalNotificationOnce: vi.fn(),
   mockSendIncidentNotificationOnce: vi.fn(),
   mockSendCompletionNotificationOnce: vi.fn(),
   mockDiscoverWorkflowCandidates: vi.fn(),
@@ -75,6 +77,7 @@ vi.mock("../../sageos/notifications.js", () => ({
   sendSageOsTelegramDigestOnce: mockSendTelegramDigestOnce,
   sendSageOsTaskNotificationOnce: mockSendTaskNotificationOnce,
   sendSageOsLifecycleNotificationOnce: mockSendLifecycleNotificationOnce,
+  sendSageOsApprovalNotificationOnce: mockSendApprovalNotificationOnce,
   sendSageOsIncidentNotificationOnce: mockSendIncidentNotificationOnce,
   sendSageOsCompletionNotificationOnce: mockSendCompletionNotificationOnce,
 }));
@@ -125,6 +128,7 @@ describe("SageOS gateway methods", () => {
     mockSendTelegramDigestOnce.mockReset();
     mockSendTaskNotificationOnce.mockReset();
     mockSendLifecycleNotificationOnce.mockReset();
+    mockSendApprovalNotificationOnce.mockReset();
     mockSendIncidentNotificationOnce.mockReset();
     mockSendCompletionNotificationOnce.mockReset();
     mockDiscoverWorkflowCandidates.mockReset();
@@ -176,6 +180,7 @@ describe("SageOS gateway methods", () => {
     expect(listGatewayMethods()).toContain("sageos.memory.doctor");
     expect(listGatewayMethods()).toContain("sageos.notifications.digest");
     expect(listGatewayMethods()).toContain("sageos.notifications.startup");
+    expect(listGatewayMethods()).toContain("sageos.notifications.approval");
     expect(listGatewayMethods()).toContain("sageos.notifications.incident");
     expect(listGatewayMethods()).toContain("sageos.notifications.completion");
     expect(listGatewayMethods()).toContain("sageos.control");
@@ -1154,6 +1159,18 @@ describe("SageOS gateway methods", () => {
       },
       status: createSageOsStatusSnapshot(),
     });
+    mockSendApprovalNotificationOnce.mockResolvedValue({
+      outcome: "sent",
+      target: "telegram:123",
+      notification: {
+        kind: "approval",
+        title: "SageOS: Approval required",
+        text: "SageOS: Approval required",
+        target: "telegram:123",
+        redactedObservationCount: 0,
+      },
+      status: createSageOsStatusSnapshot(),
+    });
     mockSendIncidentNotificationOnce.mockResolvedValue({
       outcome: "sent",
       target: "telegram:123",
@@ -1186,6 +1203,20 @@ describe("SageOS gateway methods", () => {
     });
     expect(mockSendLifecycleNotificationOnce).toHaveBeenCalledWith({
       kind: "startup",
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+      target: undefined,
+    });
+
+    const approval = await invoke("sageos.notifications.approval", {
+      approvalId: "approval_task_external",
+      send: true,
+    });
+    expect(approval.response?.ok).toBe(true);
+    expect(approval.response?.payload).toMatchObject({
+      result: { outcome: "sent", target: "telegram:123" },
+    });
+    expect(mockSendApprovalNotificationOnce).toHaveBeenCalledWith({
+      approvalId: "approval_task_external",
       cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
       target: undefined,
     });

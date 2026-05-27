@@ -5,10 +5,12 @@ import { describe, expect, it, vi } from "vitest";
 import { createSageOsEventLog } from "./event-log.js";
 import {
   buildSageOsDigestNotification,
+  buildSageOsApprovalNotification,
   buildSageOsCompletionNotification,
   buildSageOsIncidentNotification,
   buildSageOsLifecycleNotification,
   buildSageOsTaskNotification,
+  sendSageOsApprovalNotificationOnce,
   sendSageOsCompletionNotificationOnce,
   sendSageOsIncidentNotificationOnce,
   sendSageOsLifecycleNotificationOnce,
@@ -300,6 +302,81 @@ describe("SageOS notifications", () => {
       "telegram:123",
       expect.stringContaining("SageOS: Startup"),
       expect.objectContaining({ plainText: expect.stringContaining("Supervisor: running") }),
+    );
+    await expect(
+      readFile(createSageOsEventLog({ stateDir: root }).path, "utf8"),
+    ).resolves.toContain("notification_sent");
+  });
+
+  it("builds and sends approval prompt notifications with rollback scope", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-approval-notification-"));
+    const now = "2026-05-28T00:01:00.000Z";
+    await writeSageOsState(
+      createSageOsStateStore({ stateDir: root }),
+      createSageOsStatusSnapshot(),
+    );
+    await upsertSageOsApproval(createSageOsStateStore({ stateDir: root }), {
+      id: "approval_task_external",
+      state: "pending",
+      riskClass: "external_write",
+      title: "Send Telegram task completion",
+      proposedAction: "Send a redacted task completion message to Telegram.",
+      evidence: ["task_external", "run_external_1"],
+      preview: "Task completed with tests passing. No private content included.",
+      rollbackPlan: "Delete the Telegram message if incorrect.",
+      scope: "task",
+      taskId: "task_external",
+      requestedBy: "sageos.task_runner",
+      requestedAt: now,
+      expiresAt: "2026-05-28T01:01:00.000Z",
+      createdAt: now,
+      updatedAt: now,
+    });
+    const status = await collectSageOsStatus({ stateDir: root });
+    const approval = (await readSageOsState(createSageOsStateStore({ stateDir: root })))
+      .approvals[0];
+    if (!approval) {
+      throw new Error("approval fixture missing");
+    }
+
+    const notification = buildSageOsApprovalNotification({
+      approval,
+      status,
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+    });
+
+    expect(notification).toMatchObject({
+      kind: "approval",
+      title: "SageOS: Approval required",
+      target: "telegram:123",
+    });
+    expect(notification.text).toContain("Risk: external_write");
+    expect(notification.text).toContain("Scope: task");
+    expect(notification.text).toContain("Action: Send a redacted task completion message");
+    expect(notification.text).toContain("Preview: Task completed with tests passing.");
+    expect(notification.text).toContain("Rollback: Delete the Telegram message if incorrect.");
+    expect(notification.text).toContain("Expires: 2026-05-28T01:01:00.000Z");
+    expect(notification.text).toContain(
+      "Actions: Approve approval_task_external | Deny approval_task_external | Open Command Center",
+    );
+
+    const sender = vi.fn(async () => ({ messageId: "14", chatId: "123" }));
+    const sent = await sendSageOsApprovalNotificationOnce({
+      approvalId: "approval_task_external",
+      stateDir: root,
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+      sender,
+    });
+
+    expect(sent).toMatchObject({
+      outcome: "sent",
+      target: "telegram:123",
+      notification: { kind: "approval" },
+    });
+    expect(sender).toHaveBeenCalledWith(
+      "telegram:123",
+      expect.stringContaining("SageOS: Approval required"),
+      expect.objectContaining({ plainText: expect.stringContaining("approval_task_external") }),
     );
     await expect(
       readFile(createSageOsEventLog({ stateDir: root }).path, "utf8"),

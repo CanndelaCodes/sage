@@ -850,6 +850,7 @@ describe("sage os CLI", () => {
 
   it("sends Telegram lifecycle, incident, and completion notifications through CLI controls", async () => {
     const lifecycleCalls: unknown[] = [];
+    const approvalCalls: unknown[] = [];
     const incidentCalls: unknown[] = [];
     const completionCalls: unknown[] = [];
     const deps = {
@@ -865,6 +866,21 @@ describe("sage os CLI", () => {
             kind: "startup" as const,
             title: "SageOS: Startup",
             text: "SageOS: Startup",
+            target: "telegram:123",
+            redactedObservationCount: 0,
+          },
+          status: createSageOsStatusSnapshot(),
+        };
+      },
+      sendApprovalNotificationOnce: async (params: unknown) => {
+        approvalCalls.push(params);
+        return {
+          outcome: "sent" as const,
+          target: "telegram:123",
+          notification: {
+            kind: "approval" as const,
+            title: "SageOS: Approval required",
+            text: "SageOS: Approval required",
             target: "telegram:123",
             redactedObservationCount: 0,
           },
@@ -910,6 +926,16 @@ describe("sage os CLI", () => {
     expect(lastJson()).toMatchObject({ result: { outcome: "sent", target: "telegram:123" } });
     expect(lifecycleCalls[0]).toMatchObject({
       kind: "startup",
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+    });
+
+    await program.parseAsync(
+      ["os", "notifications", "approval", "approval_task_external", "--send", "--json"],
+      { from: "user" },
+    );
+    expect(lastJson()).toMatchObject({ result: { outcome: "sent", target: "telegram:123" } });
+    expect(approvalCalls[0]).toMatchObject({
+      approvalId: "approval_task_external",
       cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
     });
 

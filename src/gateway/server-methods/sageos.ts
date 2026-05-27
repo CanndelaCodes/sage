@@ -18,10 +18,12 @@ import {
   runSageOsMemoryStewardOnce,
 } from "../../sageos/memory-steward.js";
 import {
+  buildSageOsApprovalNotification,
   buildSageOsCompletionNotification,
   buildSageOsDigestNotification,
   buildSageOsIncidentNotification,
   buildSageOsLifecycleNotification,
+  sendSageOsApprovalNotificationOnce,
   sendSageOsCompletionNotificationOnce,
   sendSageOsIncidentNotificationOnce,
   sendSageOsLifecycleNotificationOnce,
@@ -624,6 +626,47 @@ export const sageOsHandlers: GatewayRequestHandlers = {
       cfg,
       target,
     });
+    respond(true, { notification, state }, undefined);
+  },
+  "sageos.notifications.approval": async ({ params, respond, context }) => {
+    const approvalId = typeof params.approvalId === "string" ? params.approvalId.trim() : "";
+    if (!approvalId) {
+      respond(
+        false,
+        undefined,
+        errorShape(
+          ErrorCodes.INVALID_REQUEST,
+          "invalid sageos.notifications.approval params: approvalId",
+        ),
+      );
+      return;
+    }
+    const cfg = loadConfig().sageos;
+    const target =
+      typeof params.target === "string" && params.target.trim() ? params.target.trim() : undefined;
+    const stateStore = createSageOsStateStore();
+    if (params.send === true) {
+      const result = await sendSageOsApprovalNotificationOnce({ approvalId, cfg, target });
+      await writeSageOsState(stateStore, result.status);
+      const state = await readSageOsState(stateStore);
+      context.broadcast("sageos", state, { dropIfSlow: true });
+      respond(true, { result, state }, undefined);
+      return;
+    }
+
+    const status = await collectSageOsStatus({ cfg });
+    await writeSageOsState(stateStore, status);
+    const state = await readSageOsState(stateStore);
+    const approval = state.approvals.find((entry) => entry.id === approvalId);
+    if (!approval) {
+      respond(
+        false,
+        undefined,
+        errorShape(ErrorCodes.INVALID_REQUEST, "SageOS approval not found"),
+      );
+      return;
+    }
+    const notification = buildSageOsApprovalNotification({ approval, status, cfg, target });
     respond(true, { notification, state }, undefined);
   },
   "sageos.notifications.incident": async ({ params, respond, context }) => {

@@ -17,10 +17,12 @@ import {
 import { appendSageOsEvent, createSageOsEventLog, readSageOsEvents } from "../sageos/event-log.js";
 import { runSageOsMemoryDoctorOnce, runSageOsMemoryStewardOnce } from "../sageos/memory-steward.js";
 import {
+  buildSageOsApprovalNotification,
   buildSageOsCompletionNotification,
   buildSageOsDigestNotification,
   buildSageOsIncidentNotification,
   buildSageOsLifecycleNotification,
+  sendSageOsApprovalNotificationOnce,
   sendSageOsCompletionNotificationOnce,
   sendSageOsIncidentNotificationOnce,
   sendSageOsLifecycleNotificationOnce,
@@ -73,6 +75,7 @@ export type SageOsCliDeps = {
   discoverAppCandidates?: typeof discoverSageOsAppCandidates;
   runNightShiftTask?: typeof runSageOsNightShiftTask;
   sendLifecycleNotificationOnce?: typeof sendSageOsLifecycleNotificationOnce;
+  sendApprovalNotificationOnce?: typeof sendSageOsApprovalNotificationOnce;
   sendIncidentNotificationOnce?: typeof sendSageOsIncidentNotificationOnce;
   sendCompletionNotificationOnce?: typeof sendSageOsCompletionNotificationOnce;
   loadConfig?: typeof loadConfig;
@@ -308,6 +311,8 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
   const runNightShiftTask = deps.runNightShiftTask ?? runSageOsNightShiftTask;
   const sendLifecycleNotification =
     deps.sendLifecycleNotificationOnce ?? sendSageOsLifecycleNotificationOnce;
+  const sendApprovalNotification =
+    deps.sendApprovalNotificationOnce ?? sendSageOsApprovalNotificationOnce;
   const sendIncidentNotification =
     deps.sendIncidentNotificationOnce ?? sendSageOsIncidentNotificationOnce;
   const sendCompletionNotification =
@@ -972,6 +977,45 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
       });
       outputJsonOrText(cliOpts, { notification, status }, () => notification.text);
     });
+
+  notifications
+    .command("approval <approvalId>")
+    .description("Preview or send a SageOS Telegram approval prompt")
+    .option("--send", "Send the notification to Telegram", false)
+    .option("--target <target>", "Telegram target override")
+    .option("--json", "Output JSON", false)
+    .action(
+      async (
+        approvalIdInput: string,
+        opts: { send?: boolean; target?: string; json?: boolean },
+        command?: Command,
+      ) => {
+        const cliOpts = commandOptions(command ?? opts);
+        const approvalId = approvalIdInput.trim();
+        if (!approvalId) {
+          fail("Approval id required.");
+        }
+        const cfg = loadSageConfig().sageos;
+        const target = cliOpts.target?.trim() || undefined;
+        if (cliOpts.send) {
+          const result = await sendApprovalNotification({ approvalId, cfg, target });
+          outputJsonOrText(cliOpts, { result }, () =>
+            result.outcome === "sent"
+              ? `Sent Telegram approval notification: ${result.target}`
+              : `${result.outcome}: ${"reason" in result ? result.reason : result.target}`,
+          );
+          return;
+        }
+        const status = await collectSageOsStatus({ cfg });
+        const state = await readSageOsState(createSageOsStateStore());
+        const approval = state.approvals.find((entry) => entry.id === approvalId);
+        if (!approval) {
+          fail(`SageOS approval not found: ${approvalId}`);
+        }
+        const notification = buildSageOsApprovalNotification({ approval, status, cfg, target });
+        outputJsonOrText(cliOpts, { notification, status }, () => notification.text);
+      },
+    );
 
   notifications
     .command("incident <incidentId>")

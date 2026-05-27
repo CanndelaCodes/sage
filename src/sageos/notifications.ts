@@ -1,5 +1,6 @@
 import type {
   SageOsConfig,
+  SageOsApproval,
   SageOsCodingReport,
   SageOsIncident,
   SageOsObservation,
@@ -22,6 +23,7 @@ export type SageOsNotificationKind =
   | "task"
   | "startup"
   | "shutdown"
+  | "approval"
   | "incident"
   | "completion";
 
@@ -260,6 +262,46 @@ export function buildSageOsLifecycleNotification(params: {
   };
 }
 
+export function buildSageOsApprovalNotification(params: {
+  approval: SageOsApproval;
+  status: SageOsStatusSnapshot;
+  cfg?: SageOsConfig;
+  target?: string;
+}): SageOsNotificationMessage {
+  const target = params.target ?? telegramTarget(params.cfg);
+  const lines = [
+    "SageOS: Approval required",
+    `Approval: ${params.approval.id} - ${params.approval.title}`,
+    `Risk: ${params.approval.riskClass}`,
+    `Scope: ${params.approval.scope}`,
+    `Requested by: ${params.approval.requestedBy}`,
+    `Action: ${params.approval.proposedAction}`,
+  ];
+  if (params.approval.taskId) {
+    lines.push(`Task: ${params.approval.taskId}`);
+  }
+  if (params.approval.preview) {
+    lines.push(`Preview: ${params.approval.preview}`);
+  }
+  if (params.approval.rollbackPlan) {
+    lines.push(`Rollback: ${params.approval.rollbackPlan}`);
+  }
+  if (params.approval.expiresAt) {
+    lines.push(`Expires: ${params.approval.expiresAt}`);
+  }
+  lines.push(
+    nextAction(params.status),
+    `Actions: Approve ${params.approval.id} | Deny ${params.approval.id} | Open Command Center`,
+  );
+  return {
+    kind: "approval",
+    title: "SageOS: Approval required",
+    text: lines.join("\n"),
+    target,
+    redactedObservationCount: 0,
+  };
+}
+
 export function buildSageOsIncidentNotification(params: {
   incident: SageOsIncident;
   status: SageOsStatusSnapshot;
@@ -450,6 +492,37 @@ export async function sendSageOsIncidentNotificationOnce(params: {
     status,
     sender: params.sender,
     auditLabel: `SageOS incident ${incident.id}`,
+  });
+}
+
+export async function sendSageOsApprovalNotificationOnce(params: {
+  approvalId: string;
+  stateDir?: string;
+  cfg?: SageOsConfig;
+  target?: string;
+  sender?: SageOsTelegramSender;
+}): Promise<SageOsTelegramStatusNotificationResult> {
+  const status = await collectSageOsStatus({ stateDir: params.stateDir, cfg: params.cfg });
+  const store = createSageOsStateStore({ stateDir: params.stateDir });
+  await writeSageOsState(store, status);
+  const state = await readSageOsState(store);
+  const approval = state.approvals.find((entry) => entry.id === params.approvalId);
+  if (!approval) {
+    throw new Error(`SageOS approval not found: ${params.approvalId}`);
+  }
+  const notification = buildSageOsApprovalNotification({
+    approval,
+    status,
+    cfg: params.cfg,
+    target: params.target,
+  });
+  return sendStatusNotification({
+    stateDir: params.stateDir,
+    cfg: params.cfg,
+    notification,
+    status,
+    sender: params.sender,
+    auditLabel: `SageOS approval ${approval.id}`,
   });
 }
 
