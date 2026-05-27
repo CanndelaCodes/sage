@@ -8,6 +8,7 @@ const args = process.argv.slice(2);
 const env = { ...process.env };
 const cwd = process.cwd();
 const compiler = "tsdown";
+const jsonOutput = args.includes("--json");
 
 const distRoot = path.join(cwd, "dist");
 const distEntry = path.join(distRoot, "/entry.js");
@@ -142,8 +143,13 @@ if (!shouldBuild()) {
   const build = spawn(buildCmd, buildArgs, {
     cwd,
     env,
-    stdio: "inherit",
+    stdio: jsonOutput ? ["inherit", "pipe", "inherit"] : "inherit",
   });
+  if (jsonOutput) {
+    build.stdout?.on("data", (chunk) => {
+      process.stderr.write(chunk);
+    });
+  }
 
   build.on("exit", (code, signal) => {
     if (signal) {

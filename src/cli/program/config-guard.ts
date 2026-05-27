@@ -27,12 +27,14 @@ function formatConfigIssues(issues: Array<{ path: string; message: string }>): s
 export async function ensureConfigReady(params: {
   runtime: RuntimeEnv;
   commandPath?: string[];
+  quiet?: boolean;
 }): Promise<void> {
   if (!didRunDoctorConfigFlow) {
     didRunDoctorConfigFlow = true;
     await loadAndMaybeMigrateDoctorConfig({
       options: { nonInteractive: true },
       confirm: async () => false,
+      quiet: params.quiet,
     });
   }
 
@@ -73,9 +75,7 @@ export async function ensureConfigReady(params: {
     params.runtime.error(legacyIssues.map((issue) => `  ${error(issue)}`).join("\n"));
   }
   params.runtime.error("");
-  params.runtime.error(
-    `${muted("Run:")} ${commandText(formatCliCommand("sage doctor --fix"))}`,
-  );
+  params.runtime.error(`${muted("Run:")} ${commandText(formatCliCommand("sage doctor --fix"))}`);
   if (!allowInvalid) {
     params.runtime.exit(1);
   }

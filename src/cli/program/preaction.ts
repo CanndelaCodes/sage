@@ -2,7 +2,7 @@ import type { Command } from "commander";
 import { setVerbose } from "../../globals.js";
 import { isTruthyEnvValue } from "../../infra/env.js";
 import { defaultRuntime } from "../../runtime.js";
-import { getCommandPath, getVerboseFlag, hasHelpOrVersion } from "../argv.js";
+import { getCommandPath, getVerboseFlag, hasFlag, hasHelpOrVersion } from "../argv.js";
 import { emitCliBanner } from "../banner.js";
 import { resolveCliName } from "../cli-name.js";
 import { ensurePluginRegistryLoaded } from "../plugin-registry.js";
@@ -32,8 +32,10 @@ export function registerPreActionHooks(program: Command, programVersion: string)
       return;
     }
     const commandPath = getCommandPath(argv, 2);
+    const jsonOutput = hasFlag(argv, "--json");
     const hideBanner =
       isTruthyEnvValue(process.env.SAGE_HIDE_BANNER) ||
+      jsonOutput ||
       commandPath[0] === "update" ||
       commandPath[0] === "completion" ||
       (commandPath[0] === "plugins" && commandPath[1] === "update");
@@ -48,7 +50,7 @@ export function registerPreActionHooks(program: Command, programVersion: string)
     if (commandPath[0] === "doctor" || commandPath[0] === "completion") {
       return;
     }
-    await ensureConfigReady({ runtime: defaultRuntime, commandPath });
+    await ensureConfigReady({ runtime: defaultRuntime, commandPath, quiet: jsonOutput });
     // Load plugins for commands that need channel access
     if (PLUGIN_REQUIRED_COMMANDS.has(commandPath[0])) {
       ensurePluginRegistryLoaded();

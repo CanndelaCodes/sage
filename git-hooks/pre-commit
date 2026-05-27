@@ -3,7 +3,7 @@
  * Cross-platform pre-commit hook.
  * Formats staged files and re-stages them.
  */
-const { execSync } = require("node:child_process");
+import { execSync } from "node:child_process";
 
 const files = execSync("git diff --cached --name-only --diff-filter=ACMR", { encoding: "utf8" })
   .trim();

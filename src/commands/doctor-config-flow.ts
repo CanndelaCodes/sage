@@ -109,7 +109,10 @@ function stripUnknownConfigKeys(config: SageConfig): {
   return { config: next, removed };
 }
 
-function noteOpencodeProviderOverrides(cfg: SageConfig) {
+function noteOpencodeProviderOverrides(cfg: SageConfig, quiet = false) {
+  if (quiet) {
+    return;
+  }
   const providers = cfg.models?.providers;
   if (!providers) {
     return;
@@ -196,19 +199,25 @@ async function maybeMigrateLegacyConfig(): Promise<string[]> {
 export async function loadAndMaybeMigrateDoctorConfig(params: {
   options: DoctorOptions;
   confirm: (p: { message: string; initialValue: boolean }) => Promise<boolean>;
+  quiet?: boolean;
 }) {
+  const emitNote = (message: string, title: string) => {
+    if (!params.quiet) {
+      note(message, title);
+    }
+  };
   const shouldRepair = params.options.repair === true || params.options.yes === true;
   const stateDirResult = await autoMigrateLegacyStateDir({ env: process.env });
   if (stateDirResult.changes.length > 0) {
-    note(stateDirResult.changes.map((entry) => `- ${entry}`).join("\n"), "Doctor changes");
+    emitNote(stateDirResult.changes.map((entry) => `- ${entry}`).join("\n"), "Doctor changes");
   }
   if (stateDirResult.warnings.length > 0) {
-    note(stateDirResult.warnings.map((entry) => `- ${entry}`).join("\n"), "Doctor warnings");
+    emitNote(stateDirResult.warnings.map((entry) => `- ${entry}`).join("\n"), "Doctor warnings");
   }
 
   const legacyConfigChanges = await maybeMigrateLegacyConfig();
   if (legacyConfigChanges.length > 0) {
-    note(legacyConfigChanges.map((entry) => `- ${entry}`).join("\n"), "Doctor changes");
+    emitNote(legacyConfigChanges.map((entry) => `- ${entry}`).join("\n"), "Doctor changes");
   }
 
   let snapshot = await readConfigFileSnapshot();
@@ -219,22 +228,22 @@ export async function loadAndMaybeMigrateDoctorConfig(params: {
   let shouldWriteConfig = false;
   const fixHints: string[] = [];
   if (snapshot.exists && !snapshot.valid && snapshot.legacyIssues.length === 0) {
-    note("Config invalid; doctor will run with best-effort config.", "Config");
+    emitNote("Config invalid; doctor will run with best-effort config.", "Config");
   }
   const warnings = snapshot.warnings ?? [];
   if (warnings.length > 0) {
     const lines = warnings.map((issue) => `- ${issue.path}: ${issue.message}`).join("\n");
-    note(lines, "Config warnings");
+    emitNote(lines, "Config warnings");
   }
 
   if (snapshot.legacyIssues.length > 0) {
-    note(
+    emitNote(
       snapshot.legacyIssues.map((issue) => `- ${issue.path}: ${issue.message}`).join("\n"),
       "Legacy config keys detected",
     );
     const { config: migrated, changes } = migrateLegacyConfig(snapshot.parsed);
     if (changes.length > 0) {
-      note(changes.join("\n"), "Doctor changes");
+      emitNote(changes.join("\n"), "Doctor changes");
     }
     if (migrated) {
       candidate = migrated;
@@ -246,15 +255,13 @@ export async function loadAndMaybeMigrateDoctorConfig(params: {
         cfg = migrated;
       }
     } else {
-      fixHints.push(
-        `Run "${formatCliCommand("sage doctor --fix")}" to apply legacy migrations.`,
-      );
+      fixHints.push(`Run "${formatCliCommand("sage doctor --fix")}" to apply legacy migrations.`);
     }
   }
 
   const normalized = normalizeLegacyConfigValues(candidate);
   if (normalized.changes.length > 0) {
-    note(normalized.changes.join("\n"), "Doctor changes");
+    emitNote(normalized.changes.join("\n"), "Doctor changes");
     candidate = normalized.config;
     pendingChanges = true;
     if (shouldRepair) {
@@ -266,7 +273,7 @@ export async function loadAndMaybeMigrateDoctorConfig(params: {
 
   const autoEnable = applyPluginAutoEnable({ config: candidate, env: process.env });
   if (autoEnable.changes.length > 0) {
-    note(autoEnable.changes.join("\n"), "Doctor changes");
+    emitNote(autoEnable.changes.join("\n"), "Doctor changes");
     candidate = autoEnable.config;
     pendingChanges = true;
     if (shouldRepair) {
@@ -283,9 +290,9 @@ export async function loadAndMaybeMigrateDoctorConfig(params: {
     pendingChanges = true;
     if (shouldRepair) {
       cfg = unknown.config;
-      note(lines, "Doctor changes");
+      emitNote(lines, "Doctor changes");
     } else {
-      note(lines, "Unknown config keys");
+      emitNote(lines, "Unknown config keys");
       fixHints.push('Run "sage doctor --fix" to remove these keys.');
     }
   }
@@ -299,11 +306,11 @@ export async function loadAndMaybeMigrateDoctorConfig(params: {
       cfg = candidate;
       shouldWriteConfig = true;
     } else if (fixHints.length > 0) {
-      note(fixHints.join("\n"), "Doctor");
+      emitNote(fixHints.join("\n"), "Doctor");
     }
   }
 
-  noteOpencodeProviderOverrides(cfg);
+  noteOpencodeProviderOverrides(cfg, params.quiet);
 
   return { cfg, path: snapshot.path ?? CONFIG_PATH, shouldWriteConfig };
 }

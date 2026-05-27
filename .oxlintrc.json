@@ -20,6 +20,14 @@
     "unicorn/consistent-function-scoping": "off",
     "unicorn/require-post-message-target-origin": "off"
   },
+  "overrides": [
+    {
+      "files": ["extensions/**/*.ts"],
+      "rules": {
+        "typescript/no-redundant-type-constituents": "off"
+      }
+    }
+  ],
   "ignorePatterns": [
     "assets/",
     "dist/",
