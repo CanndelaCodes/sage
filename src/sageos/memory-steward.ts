@@ -1,6 +1,6 @@
 import type { SageConfig } from "../config/config.js";
 import type { LearningEvent, SageMemoryActivityEventsIngestResult } from "../learning/types.js";
-import type { SageOsStatusSnapshot } from "./types.js";
+import type { SageOsMemoryDoctorSummary, SageOsStatusSnapshot } from "./types.js";
 import {
   replayLearningEventQueue,
   resolveLearningEventQueuePath,
@@ -12,14 +12,20 @@ import {
   resolveSageMemoryCaptureQueuePath,
   type SageMemoryCaptureQueueReplayResult,
 } from "../memory/sage-memory-capture-queue.js";
+import { runSageMemoryDoctor, type SageMemoryDoctorReport } from "../memory/sage-memory-doctor.js";
 import { SageMemoryManager } from "../memory/sage-memory-manager.js";
 import { appendSageOsEvent, createSageOsEventLog } from "./event-log.js";
 import { createSageOsStateStore, writeSageOsState } from "./state-store.js";
-import { collectSageOsStatus } from "./status.js";
+import { applySageOsMemoryDoctorSummary, collectSageOsStatus } from "./status.js";
 
 export type SageOsMemoryStewardResult = {
   memory: SageMemoryCaptureQueueReplayResult;
   learning: LearningEventQueueReplayResult;
+  status: SageOsStatusSnapshot;
+};
+
+export type SageOsMemoryDoctorResult = {
+  doctor: SageMemoryDoctorReport;
   status: SageOsStatusSnapshot;
 };
 
@@ -29,6 +35,10 @@ export type SageOsMemoryStewardDeps = {
     events: LearningEvent[],
     namespace?: string,
   ) => Promise<SageMemoryActivityEventsIngestResult>;
+};
+
+export type SageOsMemoryDoctorDeps = {
+  runMemoryDoctor?: typeof runSageMemoryDoctor;
 };
 
 export async function runSageOsMemoryStewardOnce(
@@ -85,6 +95,68 @@ export async function runSageOsMemoryStewardOnce(
   });
   await writeSageOsState(createSageOsStateStore({ stateDir: params.stateDir }), status);
   return { memory, learning, status };
+}
+
+export async function runSageOsMemoryDoctorOnce(
+  params: {
+    cfg: SageConfig;
+    agentId?: string;
+    namespace?: string;
+    stateDir?: string;
+    memoryCaptureQueuePath?: string;
+    learningActivityQueuePath?: string;
+    now?: () => Date;
+  } & SageOsMemoryDoctorDeps,
+): Promise<SageOsMemoryDoctorResult> {
+  const agentId = params.agentId ?? "main";
+  const checkedAt = params.now?.() ?? new Date();
+  const env = params.stateDir ? { ...process.env, SAGE_STATE_DIR: params.stateDir } : undefined;
+  const memoryCaptureQueuePath =
+    params.memoryCaptureQueuePath ?? resolveSageMemoryCaptureQueuePath({ agentId, env });
+  const runDoctor = params.runMemoryDoctor ?? runSageMemoryDoctor;
+  const doctor = await runDoctor({
+    cfg: params.cfg,
+    agentId,
+    namespace: params.namespace,
+    queuePath: memoryCaptureQueuePath,
+    now: () => checkedAt,
+  });
+  const summary = summarizeSageOsMemoryDoctorReport(doctor, checkedAt);
+  await appendSageOsEvent(createSageOsEventLog({ stateDir: params.stateDir }), {
+    type: doctor.ok ? "memory_doctor_passed" : "memory_doctor_failed",
+    actor: "sageos.memory_steward",
+    summary: `Memory doctor ${doctor.ok ? "passed" : "failed"}: ${summary.checks} checks, ${summary.failures} failure(s), ${summary.warnings} warning(s), ${summary.exportedFiles.length} wiki export file(s).`,
+    sensitivity: "normal",
+  });
+
+  const collected = await collectSageOsStatus({
+    stateDir: params.stateDir,
+    agentId,
+    memoryCaptureQueuePath,
+    learningActivityQueuePath: params.learningActivityQueuePath,
+  });
+  const status = applySageOsMemoryDoctorSummary(collected, summary);
+  await writeSageOsState(createSageOsStateStore({ stateDir: params.stateDir }), status);
+  return { doctor, status };
+}
+
+function summarizeSageOsMemoryDoctorReport(
+  report: SageMemoryDoctorReport,
+  checkedAt: Date,
+): SageOsMemoryDoctorSummary {
+  return {
+    ok: report.ok,
+    checkedAt: checkedAt.toISOString(),
+    checks: report.checks.length,
+    warnings: report.warnings.length,
+    failures: report.failures.length,
+    exportedFiles: [...report.exportedFiles],
+    ...(report.namespace ? { namespace: report.namespace } : {}),
+    ...(report.diagnosticNamespace ? { diagnosticNamespace: report.diagnosticNamespace } : {}),
+    ...(report.marker ? { marker: report.marker } : {}),
+    ...(report.nodeId ? { nodeId: report.nodeId } : {}),
+    ...(report.sessionNodePath ? { sessionNodePath: report.sessionNodePath } : {}),
+  };
 }
 
 function resolveLearningNamespace(cfg: SageConfig, agentId: string): string | undefined {

@@ -28,6 +28,7 @@ const { mockReadActiveAppFocus } = vi.hoisted(() => ({
 const {
   mockLoadConfig,
   mockRunMemoryStewardOnce,
+  mockRunMemoryDoctorOnce,
   mockRunAmbientCopilotOnce,
   mockSendTelegramDigestOnce,
   mockSendTaskNotificationOnce,
@@ -42,6 +43,7 @@ const {
 } = vi.hoisted(() => ({
   mockLoadConfig: vi.fn(),
   mockRunMemoryStewardOnce: vi.fn(),
+  mockRunMemoryDoctorOnce: vi.fn(),
   mockRunAmbientCopilotOnce: vi.fn(),
   mockSendTelegramDigestOnce: vi.fn(),
   mockSendTaskNotificationOnce: vi.fn(),
@@ -62,6 +64,7 @@ vi.mock("../../learning/app-focus.js", async (importOriginal) => {
 vi.mock("../../config/config.js", () => ({ loadConfig: mockLoadConfig }));
 vi.mock("../../sageos/memory-steward.js", () => ({
   runSageOsMemoryStewardOnce: mockRunMemoryStewardOnce,
+  runSageOsMemoryDoctorOnce: mockRunMemoryDoctorOnce,
 }));
 vi.mock("../../sageos/ambient-copilot.js", () => ({
   runSageOsAmbientCopilotOnce: mockRunAmbientCopilotOnce,
@@ -112,6 +115,7 @@ describe("SageOS gateway methods", () => {
     mockLoadConfig.mockReset();
     mockLoadConfig.mockReturnValue({ sageos: { memory: { replayQueues: true } } });
     mockRunMemoryStewardOnce.mockReset();
+    mockRunMemoryDoctorOnce.mockReset();
     mockRunAmbientCopilotOnce.mockReset();
     mockSendTelegramDigestOnce.mockReset();
     mockSendTaskNotificationOnce.mockReset();
@@ -157,6 +161,7 @@ describe("SageOS gateway methods", () => {
     expect(listGatewayMethods()).toContain("sageos.observe");
     expect(listGatewayMethods()).toContain("sageos.copilot.suggest");
     expect(listGatewayMethods()).toContain("sageos.memory.replay");
+    expect(listGatewayMethods()).toContain("sageos.memory.doctor");
     expect(listGatewayMethods()).toContain("sageos.notifications.digest");
     expect(listGatewayMethods()).toContain("sageos.notifications.startup");
     expect(listGatewayMethods()).toContain("sageos.notifications.incident");
@@ -742,6 +747,75 @@ describe("SageOS gateway methods", () => {
         status: expect.objectContaining({
           memory: expect.objectContaining({ status: "ok" }),
           learning: expect.objectContaining({ status: "ok" }),
+        }),
+      }),
+      { dropIfSlow: true },
+    );
+  });
+
+  it("runs memory doctor through gateway", async () => {
+    mockRunMemoryDoctorOnce.mockResolvedValue({
+      doctor: {
+        ok: true,
+        agentId: "main",
+        baseUrl: "http://127.0.0.1:18790",
+        namespace: "sage.sessions",
+        diagnosticNamespace: "sage.sessions.diagnostics",
+        marker: "sage-memory-doctor-fixed",
+        nodeId: "node_doctor",
+        sessionNodePath: "sage-memory/node_doctor",
+        exportedFiles: ["C:/Users/jason/SecondBrain/vault/Sage Memory Doctor.md"],
+        checks: [{ name: "export", status: "pass", message: "Diagnostic namespace exported" }],
+        warnings: [],
+        failures: [],
+        suggestions: [],
+      },
+      status: createSageOsStatusSnapshot({
+        memory: {
+          status: "ok",
+          backend: "sage-memory",
+          canonical: "sage-memory",
+          captureQueue: { total: 0, pending: 0, failed: 0 },
+          doctor: {
+            ok: true,
+            checkedAt: "2026-05-27T17:30:00.000Z",
+            checks: 1,
+            warnings: 0,
+            failures: 0,
+            exportedFiles: ["C:/Users/jason/SecondBrain/vault/Sage Memory Doctor.md"],
+            diagnosticNamespace: "sage.sessions.diagnostics",
+            sessionNodePath: "sage-memory/node_doctor",
+          },
+        },
+      }),
+    });
+
+    const { response, broadcast } = await invoke("sageos.memory.doctor", {
+      agentId: "main",
+      namespace: "sage.sessions.diagnostics",
+    });
+
+    expect(response?.ok).toBe(true);
+    expect(response?.payload).toMatchObject({
+      result: {
+        doctor: {
+          ok: true,
+          exportedFiles: ["C:/Users/jason/SecondBrain/vault/Sage Memory Doctor.md"],
+        },
+      },
+    });
+    expect(mockRunMemoryDoctorOnce).toHaveBeenCalledWith({
+      cfg: { sageos: { memory: { replayQueues: true } } },
+      agentId: "main",
+      namespace: "sage.sessions.diagnostics",
+    });
+    expect(broadcast).toHaveBeenCalledWith(
+      "sageos",
+      expect.objectContaining({
+        status: expect.objectContaining({
+          memory: expect.objectContaining({
+            doctor: expect.objectContaining({ ok: true }),
+          }),
         }),
       }),
       { dropIfSlow: true },

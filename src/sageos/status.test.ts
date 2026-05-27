@@ -336,4 +336,62 @@ describe("SageOS status collector", () => {
       ]),
     );
   });
+
+  it("preserves memory doctor export proof and raises failed doctor incidents", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "sageos-status-memory-doctor-"));
+    const store = createSageOsStateStore({ stateDir: root });
+    const memoryQueuePath = path.join(root, "agents", "main", "sage-memory", "capture-queue.json");
+    const learningQueuePath = path.join(root, "agents", "main", "learning", "activity-queue.json");
+
+    await writeSageOsState(
+      store,
+      createSageOsStatusSnapshot({
+        memory: {
+          status: "ok",
+          backend: "sage-memory",
+          canonical: "sage-memory",
+          captureQueue: { total: 0, pending: 0, failed: 0 },
+          doctor: {
+            ok: false,
+            checkedAt: "2026-05-27T17:30:00.000Z",
+            checks: 8,
+            warnings: 1,
+            failures: 1,
+            exportedFiles: ["C:/Users/jason/SecondBrain/vault/Sage Memory Doctor.md"],
+            diagnosticNamespace: "sage.sessions.diagnostics",
+            sessionNodePath: "sage-memory/node_doctor",
+          },
+        },
+      }),
+    );
+
+    const snapshot = await collectSageOsStatus({
+      stateDir: root,
+      agentId: "main",
+      memoryCaptureQueuePath: memoryQueuePath,
+      learningActivityQueuePath: learningQueuePath,
+    });
+
+    expect(snapshot.memory.status).toBe("degraded");
+    expect(snapshot.memory.doctor).toMatchObject({
+      ok: false,
+      checkedAt: "2026-05-27T17:30:00.000Z",
+      failures: 1,
+      warnings: 1,
+      exportedFiles: ["C:/Users/jason/SecondBrain/vault/Sage Memory Doctor.md"],
+      diagnosticNamespace: "sage.sessions.diagnostics",
+    });
+    expect(snapshot.incidents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "incident_memory_doctor_failed",
+          category: "memory",
+          repairAction: expect.objectContaining({
+            command: "sage os memory doctor --json",
+            gatewayMethod: "sageos.memory.doctor",
+          }),
+        }),
+      ]),
+    );
+  });
 });

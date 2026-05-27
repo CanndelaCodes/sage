@@ -1,5 +1,6 @@
 import type { Command } from "commander";
 import { loadConfig } from "../config/config.js";
+import { formatDoctorReport } from "../memory/sage-memory-doctor-format.js";
 import { defaultRuntime } from "../runtime.js";
 import { runSageOsAmbientCopilotOnce } from "../sageos/ambient-copilot.js";
 import { discoverSageOsAppCandidates } from "../sageos/app-candidates.js";
@@ -9,7 +10,7 @@ import {
   listSageOsEmployeeTemplates,
 } from "../sageos/employee-templates.js";
 import { appendSageOsEvent, createSageOsEventLog, readSageOsEvents } from "../sageos/event-log.js";
-import { runSageOsMemoryStewardOnce } from "../sageos/memory-steward.js";
+import { runSageOsMemoryDoctorOnce, runSageOsMemoryStewardOnce } from "../sageos/memory-steward.js";
 import {
   buildSageOsCompletionNotification,
   buildSageOsDigestNotification,
@@ -54,6 +55,7 @@ import { dryRunSageOsWorkflow } from "../sageos/workflow-runner.js";
 export type SageOsCliDeps = {
   observeAppFocusOnce?: typeof observeAppFocusOnce;
   runMemoryStewardOnce?: typeof runSageOsMemoryStewardOnce;
+  runMemoryDoctorOnce?: typeof runSageOsMemoryDoctorOnce;
   runAmbientCopilotOnce?: typeof runSageOsAmbientCopilotOnce;
   runNextTaskOnce?: typeof runNextSageOsTaskOnce;
   sendTelegramDigestOnce?: typeof sendSageOsTelegramDigestOnce;
@@ -273,6 +275,7 @@ async function resolveApprovalFromCli(
 export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
   const observeAppFocus = deps.observeAppFocusOnce ?? observeAppFocusOnce;
   const runMemorySteward = deps.runMemoryStewardOnce ?? runSageOsMemoryStewardOnce;
+  const runMemoryDoctor = deps.runMemoryDoctorOnce ?? runSageOsMemoryDoctorOnce;
   const runAmbientCopilot = deps.runAmbientCopilotOnce ?? runSageOsAmbientCopilotOnce;
   const runNextTask = deps.runNextTaskOnce ?? runNextSageOsTaskOnce;
   const sendTelegramDigest = deps.sendTelegramDigestOnce ?? sendSageOsTelegramDigestOnce;
@@ -738,6 +741,27 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
         [
           `Memory replay: ${result.memory.captured}/${result.memory.attempted} captured, ${result.memory.failed} failed`,
           `Learning replay: ${result.learning.accepted}/${result.learning.attempted} accepted, ${result.learning.failed} failed`,
+        ].join("\n"),
+      );
+    });
+
+  memory
+    .command("doctor")
+    .description("Run Sage Memory doctor and record SageOS wiki export proof")
+    .option("--agent <id>", "Agent id", "main")
+    .option("--namespace <namespace>", "Diagnostic namespace override")
+    .option("--json", "Output JSON", false)
+    .action(async (opts: { agent?: string; namespace?: string; json?: boolean }) => {
+      const cliOpts = commandOptions(opts);
+      const result = await runMemoryDoctor({
+        cfg: loadSageConfig(),
+        agentId: cliOpts.agent?.trim() || "main",
+        namespace: cliOpts.namespace?.trim() || undefined,
+      });
+      outputJsonOrText(cliOpts, { result }, () =>
+        [
+          formatDoctorReport(result.doctor),
+          `SageOS memory status: ${result.status.memory.status}`,
         ].join("\n"),
       );
     });

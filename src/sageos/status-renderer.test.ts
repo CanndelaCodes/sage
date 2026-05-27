@@ -19,6 +19,16 @@ describe("SageOS status renderer", () => {
         backend: "sage-memory",
         canonical: "sage-memory",
         captureQueue: { total: 1, pending: 0, failed: 1, path: "capture-queue.json" },
+        doctor: {
+          ok: false,
+          checkedAt: "2026-05-27T17:30:00.000Z",
+          checks: 8,
+          warnings: 1,
+          failures: 1,
+          exportedFiles: ["C:/Users/jason/SecondBrain/vault/Sage Memory Doctor.md"],
+          diagnosticNamespace: "sage.sessions.diagnostics",
+          sessionNodePath: "sage-memory/node_doctor",
+        },
       },
       learning: {
         status: "ok",
@@ -52,7 +62,7 @@ describe("SageOS status renderer", () => {
     expect(output).toContain("Apps: 1 active, 1 draft, 0 blocked, 2 total");
     expect(output).toContain("Observations: 3 recent, 1 redacted, 1 failed, 5 total");
     expect(output).toContain(
-      "Memory: degraded, backend sage-memory, capture queue 0 pending / 1 failed",
+      "Memory: degraded, backend sage-memory, capture queue 0 pending / 1 failed, doctor fail, wiki exports 1",
     );
     expect(output).toContain("Learning: ok, activity queue 0 pending / 0 failed");
     expect(output).toContain("Policy: execute_scoped, approvals destructive, external_writes");

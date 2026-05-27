@@ -2,9 +2,11 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import type { SageMemoryDoctorReport } from "../memory/sage-memory-doctor.js";
 import { enqueueLearningEvents, listLearningEventQueue } from "../learning/activity-queue.js";
 import { normalizeLearningEvent } from "../learning/events.js";
-import { runSageOsMemoryStewardOnce } from "./memory-steward.js";
+import { runSageOsMemoryDoctorOnce, runSageOsMemoryStewardOnce } from "./memory-steward.js";
+import { createSageOsStateStore, readSageOsState } from "./state-store.js";
 
 const cfg = {
   memory: {
@@ -135,4 +137,106 @@ describe("SageOS memory steward", () => {
     const events = await readFile(path.join(root, "sageos", "events.jsonl"), "utf8");
     expect(events).toContain("memory_steward_replay_failed");
   });
+
+  it("runs the Sage Memory doctor and persists wiki export proof", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-memory-doctor-ok-"));
+    const calls: unknown[] = [];
+
+    const result = await runSageOsMemoryDoctorOnce({
+      cfg,
+      stateDir: root,
+      agentId: "main",
+      namespace: "sage.sessions.diagnostics",
+      runMemoryDoctor: async (params) => {
+        calls.push(params);
+        return doctorReport();
+      },
+      now: () => new Date("2026-05-27T17:30:00.000Z"),
+    });
+
+    expect(result.doctor.ok).toBe(true);
+    expect(result.status.memory).toMatchObject({
+      status: "ok",
+      doctor: {
+        ok: true,
+        checkedAt: "2026-05-27T17:30:00.000Z",
+        checks: 2,
+        failures: 0,
+        warnings: 0,
+        exportedFiles: ["C:/Users/jason/SecondBrain/vault/Sage Memory Doctor.md"],
+        diagnosticNamespace: "sage.sessions.diagnostics",
+        sessionNodePath: "sage-memory/node_doctor",
+      },
+    });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      cfg,
+      agentId: "main",
+      namespace: "sage.sessions.diagnostics",
+      queuePath: path.join(root, "agents", "main", "sage-memory", "capture-queue.json"),
+    });
+
+    const persisted = await readSageOsState(createSageOsStateStore({ stateDir: root }));
+    expect(persisted.status.memory.doctor).toMatchObject({
+      ok: true,
+      exportedFiles: ["C:/Users/jason/SecondBrain/vault/Sage Memory Doctor.md"],
+    });
+    const events = await readFile(path.join(root, "sageos", "events.jsonl"), "utf8");
+    expect(events).toContain("memory_doctor_passed");
+  });
+
+  it("degrades memory status and audits failed doctor reports", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-memory-doctor-fail-"));
+
+    const result = await runSageOsMemoryDoctorOnce({
+      cfg,
+      stateDir: root,
+      agentId: "main",
+      runMemoryDoctor: async () =>
+        doctorReport({
+          ok: false,
+          checks: [{ name: "health", status: "fail", message: "/health failed: offline" }],
+          warnings: ["Capture queue has 1 pending item"],
+          failures: ["/health failed: offline"],
+          exportedFiles: [],
+        }),
+      now: () => new Date("2026-05-27T17:31:00.000Z"),
+    });
+
+    expect(result.status.memory.status).toBe("degraded");
+    expect(result.status.memory.doctor).toMatchObject({
+      ok: false,
+      checkedAt: "2026-05-27T17:31:00.000Z",
+      failures: 1,
+      warnings: 1,
+      exportedFiles: [],
+    });
+    expect(result.status.incidents.map((incident) => incident.id)).toContain(
+      "incident_memory_doctor_failed",
+    );
+    const events = await readFile(path.join(root, "sageos", "events.jsonl"), "utf8");
+    expect(events).toContain("memory_doctor_failed");
+  });
 });
+
+function doctorReport(overrides: Partial<SageMemoryDoctorReport> = {}): SageMemoryDoctorReport {
+  return {
+    ok: true,
+    agentId: "main",
+    baseUrl: "http://127.0.0.1:18790",
+    namespace: "sage.sessions",
+    diagnosticNamespace: "sage.sessions.diagnostics",
+    marker: "sage-memory-doctor-2026-05-27T17-30-00-000Z-fixed",
+    nodeId: "node_doctor",
+    sessionNodePath: "sage-memory/node_doctor",
+    exportedFiles: ["C:/Users/jason/SecondBrain/vault/Sage Memory Doctor.md"],
+    checks: [
+      { name: "ingest", status: "pass", message: "Diagnostic LLM session ingested" },
+      { name: "export", status: "pass", message: "Diagnostic namespace exported" },
+    ],
+    warnings: [],
+    failures: [],
+    suggestions: [],
+    ...overrides,
+  };
+}

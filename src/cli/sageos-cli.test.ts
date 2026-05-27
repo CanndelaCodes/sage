@@ -505,6 +505,88 @@ describe("sage os CLI", () => {
     });
   });
 
+  it("runs the memory doctor command", async () => {
+    const runCalls: unknown[] = [];
+    const program = makeProgram({
+      loadConfig: () => ({ sageos: { memory: { exportWiki: true } } }),
+      runMemoryDoctorOnce: async (params) => {
+        runCalls.push(params);
+        return {
+          doctor: {
+            ok: true,
+            agentId: "main",
+            baseUrl: "http://127.0.0.1:18790",
+            namespace: "sage.sessions",
+            diagnosticNamespace: "sage.sessions.diagnostics",
+            marker: "sage-memory-doctor-fixed",
+            nodeId: "node_doctor",
+            sessionNodePath: "sage-memory/node_doctor",
+            exportedFiles: ["C:/Users/jason/SecondBrain/vault/Sage Memory Doctor.md"],
+            checks: [{ name: "export", status: "pass", message: "Diagnostic namespace exported" }],
+            warnings: [],
+            failures: [],
+            suggestions: [],
+          },
+          status: createSageOsStatusSnapshot({
+            memory: {
+              status: "ok",
+              backend: "sage-memory",
+              canonical: "sage-memory",
+              captureQueue: { total: 0, pending: 0, failed: 0 },
+              doctor: {
+                ok: true,
+                checkedAt: "2026-05-27T17:30:00.000Z",
+                checks: 1,
+                warnings: 0,
+                failures: 0,
+                exportedFiles: ["C:/Users/jason/SecondBrain/vault/Sage Memory Doctor.md"],
+                diagnosticNamespace: "sage.sessions.diagnostics",
+                sessionNodePath: "sage-memory/node_doctor",
+              },
+            },
+          }),
+        };
+      },
+    });
+
+    await program.parseAsync(
+      [
+        "os",
+        "memory",
+        "doctor",
+        "--agent",
+        "main",
+        "--namespace",
+        "sage.sessions.diagnostics",
+        "--json",
+      ],
+      { from: "user" },
+    );
+
+    expect(lastJson()).toMatchObject({
+      result: {
+        doctor: {
+          ok: true,
+          exportedFiles: ["C:/Users/jason/SecondBrain/vault/Sage Memory Doctor.md"],
+        },
+        status: {
+          memory: {
+            doctor: {
+              ok: true,
+              diagnosticNamespace: "sage.sessions.diagnostics",
+            },
+          },
+        },
+      },
+    });
+    expect(runCalls).toHaveLength(1);
+    expect(runCalls[0]).toMatchObject({
+      cfg: { sageos: { memory: { exportWiki: true } } },
+      agentId: "main",
+      namespace: "sage.sessions.diagnostics",
+    });
+  });
+
   it("runs the ambient copilot suggestion command", async () => {
     const runCalls: unknown[] = [];
     const deps = {

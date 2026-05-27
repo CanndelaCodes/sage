@@ -93,6 +93,20 @@ export type SageOsQueueSummary = {
   path?: string;
 };
 
+export type SageOsMemoryDoctorSummary = {
+  ok: boolean;
+  checkedAt: string;
+  checks: number;
+  warnings: number;
+  failures: number;
+  exportedFiles: string[];
+  namespace?: string;
+  diagnosticNamespace?: string;
+  marker?: string;
+  nodeId?: string;
+  sessionNodePath?: string;
+};
+
 export type SageOsHealthState = "ok" | "degraded" | "disabled" | "unknown";
 
 export type SageOsIncidentRepairAction = {
@@ -133,6 +147,7 @@ export type SageOsStatusSnapshot = {
     backend: "sage-memory" | "qmd" | "builtin" | "unknown";
     canonical: "sage-memory" | "builtin" | "unknown";
     captureQueue: SageOsQueueSummary;
+    doctor?: SageOsMemoryDoctorSummary;
   };
   learning: {
     status: SageOsHealthState;

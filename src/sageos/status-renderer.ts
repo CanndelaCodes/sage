@@ -13,7 +13,7 @@ export function renderSageOsStatus(snapshot: SageOsStatusSnapshot): string {
     `Apps: ${snapshot.apps.active} active, ${snapshot.apps.queued} draft, ${snapshot.apps.blocked} blocked, ${snapshot.apps.total} total`,
     `Approvals: ${snapshot.approvals.pending} pending`,
     `Observations: ${snapshot.observations.recent} recent, ${snapshot.observations.redacted} redacted, ${snapshot.observations.failed} failed, ${snapshot.observations.total} total`,
-    `Memory: ${snapshot.memory.status}, backend ${snapshot.memory.backend}, capture queue ${snapshot.memory.captureQueue.pending} pending / ${snapshot.memory.captureQueue.failed} failed`,
+    renderMemoryLine(snapshot),
     `Learning: ${snapshot.learning.status}, activity queue ${snapshot.learning.activityQueue.pending} pending / ${snapshot.learning.activityQueue.failed} failed`,
     `Policy: ${snapshot.policy.mode}, approvals ${listOrNone(snapshot.policy.approvalsRequired)}`,
     `Sources: ${snapshot.sources.enabled.length} enabled, ${snapshot.sources.disabled.length} disabled, ${snapshot.sources.failing.length} failing`,
@@ -35,6 +35,21 @@ export function renderSageOsStatus(snapshot: SageOsStatusSnapshot): string {
     lines.push(`Audit: ${snapshot.audit.recentEvents} recent events`);
   }
   return lines.join("\n");
+}
+
+function renderMemoryLine(snapshot: SageOsStatusSnapshot): string {
+  const parts = [
+    `Memory: ${snapshot.memory.status}`,
+    `backend ${snapshot.memory.backend}`,
+    `capture queue ${snapshot.memory.captureQueue.pending} pending / ${snapshot.memory.captureQueue.failed} failed`,
+  ];
+  if (snapshot.memory.doctor) {
+    parts.push(
+      `doctor ${snapshot.memory.doctor.ok ? "ok" : "fail"}`,
+      `wiki exports ${snapshot.memory.doctor.exportedFiles.length}`,
+    );
+  }
+  return parts.join(", ");
 }
 
 function listOrNone(values: string[]): string {

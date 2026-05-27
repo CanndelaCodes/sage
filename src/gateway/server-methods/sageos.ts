@@ -8,7 +8,10 @@ import {
   listSageOsEmployeeTemplates,
 } from "../../sageos/employee-templates.js";
 import { appendSageOsEvent, createSageOsEventLog } from "../../sageos/event-log.js";
-import { runSageOsMemoryStewardOnce } from "../../sageos/memory-steward.js";
+import {
+  runSageOsMemoryDoctorOnce,
+  runSageOsMemoryStewardOnce,
+} from "../../sageos/memory-steward.js";
 import {
   buildSageOsCompletionNotification,
   buildSageOsDigestNotification,
@@ -368,6 +371,20 @@ export const sageOsHandlers: GatewayRequestHandlers = {
     const agentId =
       typeof params.agentId === "string" && params.agentId.trim() ? params.agentId.trim() : "main";
     const result = await runSageOsMemoryStewardOnce({ cfg: loadConfig(), agentId });
+    const stateStore = createSageOsStateStore();
+    await writeSageOsState(stateStore, result.status);
+    const state = await readSageOsState(stateStore);
+    context.broadcast("sageos", state, { dropIfSlow: true });
+    respond(true, { result, state }, undefined);
+  },
+  "sageos.memory.doctor": async ({ params, respond, context }) => {
+    const agentId =
+      typeof params.agentId === "string" && params.agentId.trim() ? params.agentId.trim() : "main";
+    const namespace =
+      typeof params.namespace === "string" && params.namespace.trim()
+        ? params.namespace.trim()
+        : undefined;
+    const result = await runSageOsMemoryDoctorOnce({ cfg: loadConfig(), agentId, namespace });
     const stateStore = createSageOsStateStore();
     await writeSageOsState(stateStore, result.status);
     const state = await readSageOsState(stateStore);

@@ -113,6 +113,7 @@ const WRITE_METHODS = new Set([
   "sageos.observe",
   "sageos.copilot.suggest",
   "sageos.memory.replay",
+  "sageos.memory.doctor",
   "sageos.notifications.digest",
   "sageos.notifications.startup",
   "sageos.notifications.incident",

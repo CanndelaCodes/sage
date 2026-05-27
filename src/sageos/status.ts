@@ -17,6 +17,7 @@ import {
   type SageOsAppCandidate,
   type SageOsCodingReport,
   type SageOsIncident,
+  type SageOsMemoryDoctorSummary,
   type SageOsObservation,
   type SageOsQueueSummary,
   type SageOsRun,
@@ -64,10 +65,11 @@ export async function collectSageOsStatus(
   ]);
   const memoryCaptureQueue = queueSummary(memoryQueue);
   const learningActivityQueue = queueSummary(learningQueue);
+  const memoryDoctor = state.status.memory.doctor;
   const pendingApprovals = state.approvals.filter((approval) => approval.state === "pending");
   const policyBlockedTasks = state.tasks.filter((task) => task.state === "waiting_for_policy");
   const incidents = [
-    ...state.status.incidents,
+    ...state.status.incidents.filter((incident) => incident.id !== "incident_memory_doctor_failed"),
     ...queueIncidents({
       now: state.status.generatedAt,
       category: "memory",
@@ -93,7 +95,7 @@ export async function collectSageOsStatus(
     }),
   ];
 
-  return createSageOsStatusSnapshot({
+  const snapshot = createSageOsStatusSnapshot({
     ...state.status,
     generatedAt: new Date().toISOString(),
     employees: summarizeAgents(state.agents),
@@ -126,6 +128,25 @@ export async function collectSageOsStatus(
       recentEvents,
       eventLogPath: eventLog.path,
     },
+  });
+  return memoryDoctor ? applySageOsMemoryDoctorSummary(snapshot, memoryDoctor) : snapshot;
+}
+
+export function applySageOsMemoryDoctorSummary(
+  snapshot: SageOsStatusSnapshot,
+  doctor: SageOsMemoryDoctorSummary,
+): SageOsStatusSnapshot {
+  return createSageOsStatusSnapshot({
+    ...snapshot,
+    memory: {
+      ...snapshot.memory,
+      status: snapshot.memory.status === "degraded" || !doctor.ok ? "degraded" : "ok",
+      doctor,
+    },
+    incidents: [
+      ...snapshot.incidents.filter((incident) => incident.id !== "incident_memory_doctor_failed"),
+      ...memoryDoctorIncidents({ now: snapshot.generatedAt, doctor }),
+    ],
   });
 }
 
@@ -259,6 +280,35 @@ function queueRepairAction(category: "memory" | "learning"): SageOsIncident["rep
     risk: "low",
     approvalRequired: false,
   };
+}
+
+function memoryDoctorIncidents(params: {
+  now: string;
+  doctor?: SageOsMemoryDoctorSummary;
+}): SageOsIncident[] {
+  if (!params.doctor || params.doctor.ok) {
+    return [];
+  }
+  return [
+    {
+      id: "incident_memory_doctor_failed",
+      severity: params.doctor.failures > 0 ? "error" : "warning",
+      category: "memory",
+      title: "Sage Memory doctor reported failures",
+      summary: `Sage Memory doctor reported ${params.doctor.failures} failure(s), ${params.doctor.warnings} warning(s), and ${params.doctor.exportedFiles.length} wiki export file(s).`,
+      firstSeenAt: params.doctor.checkedAt,
+      lastSeenAt: params.now,
+      autoRepairSafe: true,
+      repairAction: {
+        id: "repair_memory_doctor",
+        label: "Run memory doctor",
+        command: "sage os memory doctor --json",
+        gatewayMethod: "sageos.memory.doctor",
+        risk: "low",
+        approvalRequired: false,
+      },
+    },
+  ];
 }
 
 function policyIncidents(params: {
