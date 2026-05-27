@@ -2,7 +2,7 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { appendSageOsEvent, createSageOsEventLog } from "./event-log.js";
+import { appendSageOsEvent, createSageOsEventLog, readSageOsEvents } from "./event-log.js";
 import {
   createSageOsControlStore,
   createSageOsStateStore,
@@ -17,6 +17,23 @@ import { createSageOsSupervisor } from "./supervisor.js";
 import { createSageOsStatusSnapshot } from "./types.js";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const waitForSupervisorState = async (
+  supervisor: ReturnType<typeof createSageOsSupervisor>,
+  state: ReturnType<typeof createSageOsSupervisor>["getStatus"] extends () => infer Status
+    ? Status extends { state: infer State }
+      ? State
+      : never
+    : never,
+) => {
+  const deadline = Date.now() + 500;
+  while (Date.now() < deadline) {
+    if (supervisor.getStatus().state === state) {
+      return;
+    }
+    await wait(5);
+  }
+  expect(supervisor.getStatus().state).toBe(state);
+};
 
 describe("SageOS supervisor skeleton", () => {
   it("starts, pauses, resumes, stops, and records lifecycle events", async () => {
@@ -64,16 +81,13 @@ describe("SageOS supervisor skeleton", () => {
 
     await supervisor.start();
     await writeSageOsControl(controlStore, { state: "paused" });
-    await wait(20);
-    expect(supervisor.getStatus().state).toBe("paused");
+    await waitForSupervisorState(supervisor, "paused");
 
     await writeSageOsControl(controlStore, { state: "running" });
-    await wait(20);
-    expect(supervisor.getStatus().state).toBe("running");
+    await waitForSupervisorState(supervisor, "running");
 
     await writeSageOsControl(controlStore, { state: "stopped" });
-    await wait(20);
-    expect(supervisor.getStatus().state).toBe("stopped");
+    await waitForSupervisorState(supervisor, "stopped");
   });
 
   it("preserves task and run resources across concurrent status writes", async () => {
@@ -206,5 +220,25 @@ describe("SageOS event log", () => {
       type: "task_queued",
       actor: "test",
     });
+  });
+
+  it("reads back newest audit events with an optional limit", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-event-log-read-"));
+    const log = createSageOsEventLog({ stateDir: root });
+
+    await appendSageOsEvent(log, {
+      type: "first_event",
+      actor: "test",
+      summary: "first",
+    });
+    const second = await appendSageOsEvent(log, {
+      type: "second_event",
+      actor: "test",
+      summary: "second",
+    });
+
+    await expect(readSageOsEvents(log, { limit: 1 })).resolves.toEqual([
+      expect.objectContaining({ id: second.id, type: "second_event" }),
+    ]);
   });
 });

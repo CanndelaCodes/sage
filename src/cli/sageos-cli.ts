@@ -1,16 +1,23 @@
 import type { Command } from "commander";
 import { defaultRuntime } from "../runtime.js";
-import { createSageOsEventLog, appendSageOsEvent } from "../sageos/event-log.js";
+import { appendSageOsEvent, createSageOsEventLog, readSageOsEvents } from "../sageos/event-log.js";
 import {
   createSageOsControlStore,
   readSageOsState,
+  upsertSageOsAgent,
+  upsertSageOsTask,
   writeSageOsControl,
   writeSageOsState,
   createSageOsStateStore,
 } from "../sageos/state-store.js";
 import { renderSageOsStatus } from "../sageos/status-renderer.js";
 import { collectSageOsStatus } from "../sageos/status.js";
-import { createSageOsStatusSnapshot } from "../sageos/types.js";
+import {
+  createSageOsStatusSnapshot,
+  normalizeSageOsMode,
+  type SageOsAgentSpec,
+  type SageOsTaskSpec,
+} from "../sageos/types.js";
 
 async function loadSnapshot() {
   return await collectSageOsStatus();
@@ -57,6 +64,63 @@ async function updateSupervisorState(
   await writeSageOsState(store, status);
   await writeSageOsControl(controlStore, { state, reason: opts.reason, emergency: opts.emergency });
   return status;
+}
+
+function outputJsonOrText(opts: { json?: boolean }, payload: unknown, render: () => string) {
+  defaultRuntime.log(opts.json ? JSON.stringify(payload, null, 2) : render());
+}
+
+function commandOptions<T extends Record<string, unknown>>(input: T | { opts: () => T }): T {
+  return typeof (input as { opts?: unknown }).opts === "function"
+    ? (input as { opts: () => T }).opts()
+    : (input as T);
+}
+
+function fail(message: string): never {
+  defaultRuntime.error(message);
+  defaultRuntime.exit(1);
+  throw new Error(message);
+}
+
+function slugify(value: string): string {
+  const slug = value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return slug || "employee";
+}
+
+function inferEmployeeName(description: string): string {
+  const words = description.trim().split(/\s+/).filter(Boolean).slice(0, 3);
+  if (words.length === 0) {
+    return "Draft Employee";
+  }
+  return words.map((word) => word.slice(0, 1).toUpperCase() + word.slice(1)).join(" ");
+}
+
+function renderEmployees(agents: SageOsAgentSpec[]): string {
+  if (agents.length === 0) {
+    return "No SageOS employees.";
+  }
+  return agents
+    .map((agent) => `${agent.id}\t${agent.status}\t${agent.name}\t${agent.role}`)
+    .join("\n");
+}
+
+function renderTasks(tasks: SageOsTaskSpec[]): string {
+  if (tasks.length === 0) {
+    return "No SageOS tasks.";
+  }
+  return tasks.map((task) => `${task.id}\t${task.state}\t${task.title}`).join("\n");
+}
+
+function renderJsonResource(value: unknown): string {
+  return JSON.stringify(value, null, 2);
+}
+
+function parseLimit(value: string | undefined, fallback: number): number {
+  const parsed = Number.parseInt(value ?? "", 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
 export function registerSageOsCli(program: Command) {
@@ -110,6 +174,158 @@ export function registerSageOsCli(program: Command) {
       });
       defaultRuntime.log(
         opts.json ? JSON.stringify(snapshot, null, 2) : "SageOS emergency stop engaged",
+      );
+    });
+
+  const employees = os.command("employees").description("List SageOS employees");
+  employees.option("--json", "Output JSON", false).action(async (opts: { json?: boolean }) => {
+    const state = await readSageOsState(createSageOsStateStore());
+    outputJsonOrText(opts, { employees: state.agents }, () => renderEmployees(state.agents));
+  });
+
+  employees
+    .command("inspect <id>")
+    .description("Inspect a SageOS employee")
+    .option("--json", "Output JSON", false)
+    .action(async (id: string, opts: { json?: boolean }) => {
+      const cliOpts = commandOptions(opts);
+      const state = await readSageOsState(createSageOsStateStore());
+      const employee = state.agents.find((agent) => agent.id === id);
+      if (!employee) {
+        fail(`SageOS employee not found: ${id}`);
+      }
+      outputJsonOrText(cliOpts, { employee }, () => renderJsonResource({ employee }));
+    });
+
+  employees
+    .command("create <description>")
+    .description("Create a draft SageOS employee from plain language")
+    .option("--name <name>", "Employee display name")
+    .option("--role <role>", "Employee role")
+    .option("--tier <mode>", "Autonomy tier")
+    .option("--json", "Output JSON", false)
+    .action(
+      async (
+        descriptionInput: string,
+        opts: { name?: string; role?: string; tier?: string; json?: boolean },
+      ) => {
+        const cliOpts = commandOptions(opts);
+        const description = descriptionInput.trim();
+        if (!description) {
+          fail("Employee description required.");
+        }
+        const now = new Date().toISOString();
+        const name = cliOpts.name?.trim() || inferEmployeeName(description);
+        const employee: SageOsAgentSpec = {
+          id: `employee_${slugify(name)}`,
+          name,
+          role: cliOpts.role?.trim() || "generalist",
+          mission: description,
+          status: "draft",
+          autonomyTier: normalizeSageOsMode(cliOpts.tier ?? "suggest"),
+          responsibilities: [description],
+          allowedScopes: [],
+          deniedScopes: [],
+          createdAt: now,
+          updatedAt: now,
+        };
+        const store = createSageOsStateStore();
+        await upsertSageOsAgent(store, employee);
+        await appendSageOsEvent(createSageOsEventLog(), {
+          type: "employee_drafted",
+          actor: "sageos.cli",
+          summary: `Drafted SageOS employee ${employee.name}`,
+          sensitivity: "normal",
+        });
+        outputJsonOrText(cliOpts, { employee }, () => renderJsonResource({ employee }));
+      },
+    );
+
+  const tasks = os.command("tasks").description("List SageOS tasks");
+  tasks.option("--json", "Output JSON", false).action(async (opts: { json?: boolean }) => {
+    const state = await readSageOsState(createSageOsStateStore());
+    outputJsonOrText(opts, { tasks: state.tasks }, () => renderTasks(state.tasks));
+  });
+
+  tasks
+    .command("inspect <id>")
+    .description("Inspect a SageOS task")
+    .option("--json", "Output JSON", false)
+    .action(async (id: string, opts: { json?: boolean }) => {
+      const cliOpts = commandOptions(opts);
+      const state = await readSageOsState(createSageOsStateStore());
+      const task = state.tasks.find((entry) => entry.id === id);
+      if (!task) {
+        fail(`SageOS task not found: ${id}`);
+      }
+      outputJsonOrText(cliOpts, { task }, () => renderJsonResource({ task }));
+    });
+
+  tasks
+    .command("cancel <id>")
+    .description("Cancel a SageOS task")
+    .option("--reason <reason>", "Reason for audit log")
+    .option("--json", "Output JSON", false)
+    .action(async (id: string, opts: { reason?: string; json?: boolean }) => {
+      const cliOpts = commandOptions(opts);
+      const store = createSageOsStateStore();
+      const state = await readSageOsState(store);
+      const task = state.tasks.find((entry) => entry.id === id);
+      if (!task) {
+        fail(`SageOS task not found: ${id}`);
+      }
+      const nextTask: SageOsTaskSpec = {
+        ...task,
+        state: "cancelled",
+        updatedAt: new Date().toISOString(),
+      };
+      await upsertSageOsTask(store, nextTask);
+      await appendSageOsEvent(createSageOsEventLog(), {
+        type: "task_cancelled",
+        actor: "sageos.cli",
+        summary: `Cancelled SageOS task ${id}: ${cliOpts.reason ?? "manual"}`,
+        taskId: id,
+      });
+      outputJsonOrText(cliOpts, { task: nextTask }, () => renderJsonResource({ task: nextTask }));
+    });
+
+  os.command("incidents")
+    .description("List SageOS incidents")
+    .option("--json", "Output JSON", false)
+    .action(async (opts: { json?: boolean }) => {
+      const status = await collectSageOsStatus();
+      outputJsonOrText(opts, { incidents: status.incidents }, () =>
+        status.incidents.length === 0
+          ? "No SageOS incidents."
+          : status.incidents
+              .map((incident) => `${incident.severity}\t${incident.category}\t${incident.title}`)
+              .join("\n"),
+      );
+    });
+
+  os.command("audit")
+    .description("Show SageOS audit events")
+    .option("--limit <count>", "Maximum events to show", "20")
+    .option("--json", "Output JSON", false)
+    .action(async (opts: { limit?: string; json?: boolean }) => {
+      const events = await readSageOsEvents(createSageOsEventLog(), {
+        limit: parseLimit(opts.limit, 20),
+      });
+      outputJsonOrText(opts, { events }, () =>
+        events.length === 0
+          ? "No SageOS audit events."
+          : events.map((event) => `${event.ts}\t${event.type}\t${event.summary}`).join("\n"),
+      );
+    });
+
+  os.command("doctor")
+    .description("Check SageOS health")
+    .option("--json", "Output JSON", false)
+    .action(async (opts: { json?: boolean }) => {
+      const status = await collectSageOsStatus();
+      const ok = status.incidents.length === 0 && status.supervisor.state !== "degraded";
+      outputJsonOrText(opts, { ok, status }, () =>
+        ok ? "SageOS doctor: ok" : `SageOS doctor: ${status.incidents.length} incident(s)`,
       );
     });
 }

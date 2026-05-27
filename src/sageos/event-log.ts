@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, appendFile } from "node:fs/promises";
+import { appendFile, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import type { SageOsSensitivity } from "./types.js";
 import { resolveStateDir } from "../config/paths.js";
@@ -66,4 +66,30 @@ export async function appendSageOsEvent(
   await mkdir(path.dirname(log.path), { recursive: true });
   await appendFile(log.path, `${JSON.stringify(event)}\n`, "utf8");
   return event;
+}
+
+export async function readSageOsEvents(
+  log: SageOsEventLog,
+  opts: { limit?: number } = {},
+): Promise<SageOsEvent[]> {
+  try {
+    const raw = await readFile(log.path, "utf8");
+    const events = raw
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as SageOsEvent);
+    const limit =
+      typeof opts.limit === "number" && Number.isFinite(opts.limit)
+        ? Math.max(0, Math.floor(opts.limit))
+        : undefined;
+    return limit === undefined || limit >= events.length ? events : events.slice(-limit);
+  } catch (err) {
+    const code =
+      typeof err === "object" && err && "code" in err ? (err as { code?: string }).code : undefined;
+    if (code === "ENOENT") {
+      return [];
+    }
+    throw err;
+  }
 }
