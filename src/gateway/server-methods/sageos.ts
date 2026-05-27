@@ -33,6 +33,7 @@ import {
   writeSageOsState,
 } from "../../sageos/state-store.js";
 import { collectSageOsStatus } from "../../sageos/status.js";
+import { observeSystemStatusOnce } from "../../sageos/system-observer.js";
 import { queueSageOsTask } from "../../sageos/task-queue.js";
 import { runNextSageOsTaskOnce } from "../../sageos/task-runner.js";
 import {
@@ -339,7 +340,7 @@ export const sageOsHandlers: GatewayRequestHandlers = {
     respond(true, { approval, state }, undefined);
   },
   "sageos.observe": async ({ params, respond, context }) => {
-    if (params.source !== "app_focus") {
+    if (params.source !== "app_focus" && params.source !== "system") {
       respond(
         false,
         undefined,
@@ -348,7 +349,10 @@ export const sageOsHandlers: GatewayRequestHandlers = {
       return;
     }
 
-    const result = await observeAppFocusOnce({ cfg: { sources: { appFocus: true } } });
+    const result =
+      params.source === "app_focus"
+        ? await observeAppFocusOnce({ cfg: { sources: { appFocus: true } } })
+        : await observeSystemStatusOnce({ cfg: { sources: { system: true } } });
     const stateStore = createSageOsStateStore();
     const status = await collectSageOsStatus();
     await writeSageOsState(stateStore, status);

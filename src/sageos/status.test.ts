@@ -311,6 +311,7 @@ describe("SageOS status collector", () => {
       redacted: 1,
       failed: 1,
     });
+    expect(snapshot.sources.failing).toContain("system");
     expect(snapshot.memory.captureQueue.failed).toBe(1);
     expect(snapshot.learning.activityQueue.failed).toBe(1);
     expect(snapshot.audit).toMatchObject({ recentEvents: 1, eventLogPath: log.path });
@@ -319,6 +320,14 @@ describe("SageOS status collector", () => {
     );
     expect(snapshot.incidents).toEqual(
       expect.arrayContaining([
+        expect.objectContaining({
+          id: "incident_source_failed",
+          category: "observations",
+          repairAction: expect.objectContaining({
+            command: "sage os observations --json",
+            gatewayMethod: "sageos.observations.list",
+          }),
+        }),
         expect.objectContaining({
           id: "incident_memory_queue_failed",
           repairAction: expect.objectContaining({
@@ -334,6 +343,50 @@ describe("SageOS status collector", () => {
           }),
         }),
       ]),
+    );
+  });
+
+  it("clears source failure state after a newer successful observation", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "sageos-status-source-recovered-"));
+    const store = createSageOsStateStore({ stateDir: root });
+
+    await upsertSageOsObservation(store, {
+      id: "obs_system_failed",
+      source: "system",
+      state: "failed",
+      title: "System source failed",
+      text: "System observation failed.",
+      sensitivity: "normal",
+      observedAt: "2026-05-27T13:00:00.000Z",
+      payload: { error: "probe failed" },
+      provenance: { adapter: "system" },
+      reason: "probe_failed",
+      createdAt: "2026-05-27T13:00:00.000Z",
+      updatedAt: "2026-05-27T13:00:00.000Z",
+    });
+    await upsertSageOsObservation(store, {
+      id: "obs_system_recovered",
+      source: "system",
+      state: "captured",
+      title: "System status",
+      text: "System observation recovered.",
+      sensitivity: "private",
+      observedAt: "2026-05-27T13:05:00.000Z",
+      payload: { platform: "win32" },
+      provenance: { adapter: "system" },
+      createdAt: "2026-05-27T13:05:00.000Z",
+      updatedAt: "2026-05-27T13:05:00.000Z",
+    });
+
+    const snapshot = await collectSageOsStatus({
+      stateDir: root,
+      memoryCaptureQueuePath: path.join(root, "memory-queue.json"),
+      learningActivityQueuePath: path.join(root, "learning-queue.json"),
+    });
+
+    expect(snapshot.sources.failing).not.toContain("system");
+    expect(snapshot.incidents.map((incident) => incident.id)).not.toContain(
+      "incident_source_failed",
     );
   });
 

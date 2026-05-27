@@ -425,6 +425,7 @@ describe("sage os CLI", () => {
     });
 
     const observeCalls: unknown[] = [];
+    const observeSystemCalls: unknown[] = [];
     const program = makeProgram({
       observeAppFocusOnce: async (params) => {
         observeCalls.push(params);
@@ -447,6 +448,25 @@ describe("sage os CLI", () => {
           learning: { created: 1, skipped: 0 },
         };
       },
+      observeSystemStatusOnce: async (params) => {
+        observeSystemCalls.push(params);
+        return {
+          status: "recorded",
+          observation: {
+            id: "obs_system",
+            source: "system",
+            state: "captured",
+            title: "System status",
+            text: "System status: 2 check(s), 0 warning(s), 0 failure(s).",
+            sensitivity: "private",
+            observedAt: now,
+            payload: { platform: "win32", checks: [{ id: "defender", status: "ok" }] },
+            provenance: { adapter: "system" },
+            createdAt: now,
+            updatedAt: now,
+          },
+        };
+      },
     });
 
     await program.parseAsync(["os", "observations", "--json"], { from: "user" });
@@ -463,6 +483,16 @@ describe("sage os CLI", () => {
     });
     expect(observeCalls).toHaveLength(1);
     expect(observeCalls[0]).toMatchObject({ cfg: { sources: { appFocus: true } } });
+
+    await program.parseAsync(["os", "observe", "system", "--json"], { from: "user" });
+    expect(lastJson()).toMatchObject({
+      result: {
+        status: "recorded",
+        observation: { id: "obs_system", source: "system", state: "captured" },
+      },
+    });
+    expect(observeSystemCalls).toHaveLength(1);
+    expect(observeSystemCalls[0]).toMatchObject({ cfg: { sources: { system: true } } });
   });
 
   it("runs the memory steward replay command", async () => {

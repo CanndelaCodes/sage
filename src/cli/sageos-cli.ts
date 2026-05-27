@@ -35,6 +35,7 @@ import {
 } from "../sageos/state-store.js";
 import { renderSageOsStatus } from "../sageos/status-renderer.js";
 import { collectSageOsStatus } from "../sageos/status.js";
+import { observeSystemStatusOnce } from "../sageos/system-observer.js";
 import { queueSageOsTask } from "../sageos/task-queue.js";
 import { runNextSageOsTaskOnce } from "../sageos/task-runner.js";
 import {
@@ -54,6 +55,7 @@ import { dryRunSageOsWorkflow } from "../sageos/workflow-runner.js";
 
 export type SageOsCliDeps = {
   observeAppFocusOnce?: typeof observeAppFocusOnce;
+  observeSystemStatusOnce?: typeof observeSystemStatusOnce;
   runMemoryStewardOnce?: typeof runSageOsMemoryStewardOnce;
   runMemoryDoctorOnce?: typeof runSageOsMemoryDoctorOnce;
   runAmbientCopilotOnce?: typeof runSageOsAmbientCopilotOnce;
@@ -274,6 +276,7 @@ async function resolveApprovalFromCli(
 
 export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
   const observeAppFocus = deps.observeAppFocusOnce ?? observeAppFocusOnce;
+  const observeSystemStatus = deps.observeSystemStatusOnce ?? observeSystemStatusOnce;
   const runMemorySteward = deps.runMemoryStewardOnce ?? runSageOsMemoryStewardOnce;
   const runMemoryDoctor = deps.runMemoryDoctorOnce ?? runSageOsMemoryDoctorOnce;
   const runAmbientCopilot = deps.runAmbientCopilotOnce ?? runSageOsAmbientCopilotOnce;
@@ -722,6 +725,15 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
     .action(async (opts: { json?: boolean }) => {
       const cliOpts = commandOptions(opts);
       const result = await observeAppFocus({ cfg: { sources: { appFocus: true } } });
+      outputJsonOrText(cliOpts, { result }, () => renderJsonResource({ result }));
+    });
+  observe
+    .command("system")
+    .description("Record one approved read-only system observation")
+    .option("--json", "Output JSON", false)
+    .action(async (opts: { json?: boolean }) => {
+      const cliOpts = commandOptions(opts);
+      const result = await observeSystemStatus({ cfg: { sources: { system: true } } });
       outputJsonOrText(cliOpts, { result }, () => renderJsonResource({ result }));
     });
 

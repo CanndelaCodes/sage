@@ -40,6 +40,7 @@ const {
   mockDiscoverAppCandidates,
   mockDryRunWorkflow,
   mockRunNightShiftTask,
+  mockObserveSystemStatusOnce,
 } = vi.hoisted(() => ({
   mockLoadConfig: vi.fn(),
   mockRunMemoryStewardOnce: vi.fn(),
@@ -55,6 +56,7 @@ const {
   mockDiscoverAppCandidates: vi.fn(),
   mockDryRunWorkflow: vi.fn(),
   mockRunNightShiftTask: vi.fn(),
+  mockObserveSystemStatusOnce: vi.fn(),
 }));
 
 vi.mock("../../learning/app-focus.js", async (importOriginal) => {
@@ -90,6 +92,9 @@ vi.mock("../../sageos/workflow-runner.js", () => ({
 }));
 vi.mock("../../sageos/coding/night-shift.js", () => ({
   runSageOsNightShiftTask: mockRunNightShiftTask,
+}));
+vi.mock("../../sageos/system-observer.js", () => ({
+  observeSystemStatusOnce: mockObserveSystemStatusOnce,
 }));
 
 const oldStateDir = process.env.SAGE_STATE_DIR;
@@ -127,6 +132,7 @@ describe("SageOS gateway methods", () => {
     mockDiscoverAppCandidates.mockReset();
     mockDryRunWorkflow.mockReset();
     mockRunNightShiftTask.mockReset();
+    mockObserveSystemStatusOnce.mockReset();
   });
 
   afterEach(() => {
@@ -701,6 +707,35 @@ describe("SageOS gateway methods", () => {
         { id: "obs_existing", source: "app_focus" },
         { source: "app_focus", state: "captured", learningEventId: "learning_gateway_focus" },
       ],
+    });
+
+    mockObserveSystemStatusOnce.mockResolvedValue({
+      status: "recorded",
+      observation: {
+        id: "obs_system",
+        source: "system",
+        state: "captured",
+        title: "System status",
+        text: "System status: 2 check(s), 0 warning(s), 0 failure(s).",
+        sensitivity: "private",
+        observedAt: now,
+        payload: { platform: "win32", checks: [{ id: "defender", status: "ok" }] },
+        provenance: { adapter: "system" },
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+
+    const systemObserved = await invoke("sageos.observe", { source: "system" });
+    expect(systemObserved.response?.ok).toBe(true);
+    expect(systemObserved.response?.payload).toMatchObject({
+      result: {
+        status: "recorded",
+        observation: { id: "obs_system", source: "system", state: "captured" },
+      },
+    });
+    expect(mockObserveSystemStatusOnce).toHaveBeenCalledWith({
+      cfg: { sources: { system: true } },
     });
   });
 

@@ -93,6 +93,10 @@ export async function collectSageOsStatus(
       pendingApprovals: pendingApprovals.length,
       waitingTasks: policyBlockedTasks.length,
     }),
+    ...sourceFailureIncidents({
+      now: state.status.generatedAt,
+      observations: state.observations,
+    }),
   ];
 
   const snapshot = createSageOsStatusSnapshot({
@@ -118,7 +122,7 @@ export async function collectSageOsStatus(
       status: learningActivityQueue.failed > 0 ? "degraded" : "ok",
       activityQueue: learningActivityQueue,
     },
-    sources: summarizeSources(opts.cfg),
+    sources: summarizeSources(opts.cfg, state.observations),
     policy: summarizePolicy(opts.cfg, state.status.mode),
     coding: summarizeCoding(opts.cfg, state.codingReports),
     notifications: summarizeNotifications(opts.cfg, incidents),
@@ -341,13 +345,70 @@ function policyIncidents(params: {
   ];
 }
 
-function summarizeSources(cfg: SageOsConfig | undefined): SageOsStatusSnapshot["sources"] {
+function sourceFailureIncidents(params: {
+  now: string;
+  observations: SageOsObservation[];
+}): SageOsIncident[] {
+  const failedSources = activeFailedObservationSources(params.observations);
+  if (failedSources.length === 0) {
+    return [];
+  }
+  return [
+    {
+      id: "incident_source_failed",
+      severity: "warning",
+      category: "observations",
+      title: "SageOS observation source failed",
+      summary: `SageOS observation source failure(s): ${failedSources.join(", ")}.`,
+      firstSeenAt: params.now,
+      lastSeenAt: params.now,
+      autoRepairSafe: true,
+      repairAction: {
+        id: "repair_observation_sources",
+        label: "Review SageOS observations",
+        command: "sage os observations --json",
+        gatewayMethod: "sageos.observations.list",
+        risk: "low",
+        approvalRequired: false,
+      },
+    },
+  ];
+}
+
+function summarizeSources(
+  cfg: SageOsConfig | undefined,
+  observations: SageOsObservation[],
+): SageOsStatusSnapshot["sources"] {
   const entries = Object.entries(cfg?.sources ?? {});
+  const failing = activeFailedObservationSources(observations);
   return {
     enabled: entries.filter(([, enabled]) => enabled).map(([source]) => source),
     disabled: entries.filter(([, enabled]) => !enabled).map(([source]) => source),
-    failing: [],
+    failing,
   };
+}
+
+function activeFailedObservationSources(observations: SageOsObservation[]): string[] {
+  const latestBySource = new Map<string, SageOsObservation>();
+  for (const observation of observations) {
+    const existing = latestBySource.get(observation.source);
+    if (!existing || observationSortTime(observation) >= observationSortTime(existing)) {
+      latestBySource.set(observation.source, observation);
+    }
+  }
+  return [...latestBySource.values()]
+    .filter((observation) => observation.state === "failed")
+    .map((observation) => observation.source);
+}
+
+function observationSortTime(observation: SageOsObservation): number {
+  for (const timestamp of [observation.observedAt, observation.updatedAt, observation.createdAt]) {
+    const millis = Date.parse(timestamp);
+    if (Number.isFinite(millis)) {
+      return millis;
+    }
+  }
+  return 0;
 }
 
 function summarizePolicy(
