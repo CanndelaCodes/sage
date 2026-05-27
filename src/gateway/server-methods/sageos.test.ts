@@ -12,6 +12,7 @@ import {
   upsertSageOsObservation,
   upsertSageOsRun,
   upsertSageOsAgent,
+  upsertSageOsSkill,
   upsertSageOsTask,
   upsertSageOsWorkflow,
 } from "../../sageos/state-store.js";
@@ -29,6 +30,7 @@ const {
   mockSendTelegramDigestOnce,
   mockSendTaskNotificationOnce,
   mockDiscoverWorkflowCandidates,
+  mockDraftSkillFromWorkflow,
 } = vi.hoisted(() => ({
   mockLoadConfig: vi.fn(),
   mockRunMemoryStewardOnce: vi.fn(),
@@ -36,6 +38,7 @@ const {
   mockSendTelegramDigestOnce: vi.fn(),
   mockSendTaskNotificationOnce: vi.fn(),
   mockDiscoverWorkflowCandidates: vi.fn(),
+  mockDraftSkillFromWorkflow: vi.fn(),
 }));
 
 vi.mock("../../learning/app-focus.js", async (importOriginal) => {
@@ -55,6 +58,9 @@ vi.mock("../../sageos/notifications.js", () => ({
 }));
 vi.mock("../../sageos/workflow-compiler.js", () => ({
   discoverSageOsWorkflowCandidates: mockDiscoverWorkflowCandidates,
+}));
+vi.mock("../../sageos/skill-steward.js", () => ({
+  draftSageOsSkillFromWorkflow: mockDraftSkillFromWorkflow,
 }));
 
 const oldStateDir = process.env.SAGE_STATE_DIR;
@@ -84,6 +90,7 @@ describe("SageOS gateway methods", () => {
     mockSendTelegramDigestOnce.mockReset();
     mockSendTaskNotificationOnce.mockReset();
     mockDiscoverWorkflowCandidates.mockReset();
+    mockDraftSkillFromWorkflow.mockReset();
   });
 
   afterEach(() => {
@@ -104,6 +111,8 @@ describe("SageOS gateway methods", () => {
     expect(listGatewayMethods()).toContain("sageos.tasks.runNext");
     expect(listGatewayMethods()).toContain("sageos.workflows.list");
     expect(listGatewayMethods()).toContain("sageos.workflows.discover");
+    expect(listGatewayMethods()).toContain("sageos.skills.list");
+    expect(listGatewayMethods()).toContain("sageos.skills.draft");
     expect(listGatewayMethods()).toContain("sageos.runs.list");
     expect(listGatewayMethods()).toContain("sageos.approvals.list");
     expect(listGatewayMethods()).toContain("sageos.approvals.resolve");
@@ -163,7 +172,7 @@ describe("SageOS gateway methods", () => {
     });
   });
 
-  it("lists command-center agent, task, and run resources", async () => {
+  it("lists command-center agent, task, run, workflow, and skill resources", async () => {
     const store = createSageOsStateStore();
     const now = new Date().toISOString();
     await upsertSageOsAgent(store, {
@@ -213,6 +222,18 @@ describe("SageOS gateway methods", () => {
       createdAt: now,
       updatedAt: now,
     });
+    await upsertSageOsSkill(store, {
+      id: "skill_build",
+      name: "Skill: Build workflow",
+      state: "draft",
+      workflowId: "workflow_build",
+      provenance: ["workflow_build", "obs_1", "obs_2"],
+      triggerConditions: ["Repeated Code focus"],
+      tests: ["obs_1", "obs_2"],
+      allowedScopes: [{ kind: "app", allow: ["Code"], risk: "low" }],
+      createdAt: now,
+      updatedAt: now,
+    });
 
     await expect(invoke("sageos.agents.list")).resolves.toMatchObject({
       response: { ok: true, payload: { agents: [{ id: "agent_builder" }] } },
@@ -225,6 +246,9 @@ describe("SageOS gateway methods", () => {
     });
     await expect(invoke("sageos.workflows.list")).resolves.toMatchObject({
       response: { ok: true, payload: { workflows: [{ id: "workflow_build" }] } },
+    });
+    await expect(invoke("sageos.skills.list")).resolves.toMatchObject({
+      response: { ok: true, payload: { skills: [{ id: "skill_build" }] } },
     });
   });
 
@@ -693,6 +717,51 @@ describe("SageOS gateway methods", () => {
       }),
       { dropIfSlow: true },
     );
+  });
+
+  it("drafts skills from workflow candidates through gateway controls", async () => {
+    mockDraftSkillFromWorkflow.mockResolvedValue({
+      outcome: "drafted",
+      skill: {
+        id: "skill_new",
+        name: "Skill: New workflow",
+        state: "draft",
+        workflowId: "workflow_new",
+        provenance: ["workflow_new", "obs_1", "obs_2"],
+        triggerConditions: ["Repeated Terminal focus"],
+        tests: ["obs_1", "obs_2"],
+        allowedScopes: [{ kind: "app", allow: ["Terminal"], risk: "low" }],
+        createdAt: "2026-05-27T21:50:00.000Z",
+        updatedAt: "2026-05-27T21:50:00.000Z",
+      },
+      status: createSageOsStatusSnapshot({
+        skills: { total: 1, active: 0, queued: 1, blocked: 0 },
+      }),
+    });
+
+    const { response, broadcast } = await invoke("sageos.skills.draft", {
+      workflowId: "workflow_new",
+    });
+
+    expect(response?.ok).toBe(true);
+    expect(response?.payload).toMatchObject({
+      result: { outcome: "drafted", skill: { id: "skill_new", workflowId: "workflow_new" } },
+      state: { status: { skills: { total: 1, queued: 1 } } },
+    });
+    expect(mockDraftSkillFromWorkflow).toHaveBeenCalledWith({ workflowId: "workflow_new" });
+    expect(broadcast).toHaveBeenCalledWith(
+      "sageos",
+      expect.objectContaining({
+        status: expect.objectContaining({ skills: expect.objectContaining({ total: 1 }) }),
+      }),
+      { dropIfSlow: true },
+    );
+  });
+
+  it("rejects skill drafting without a workflow id", async () => {
+    const { response } = await invoke("sageos.skills.draft", {});
+    expect(response?.ok).toBe(false);
+    expect(response?.error).toMatchObject({ code: "INVALID_REQUEST" });
   });
 
   it("writes supervisor control, state, and audit event", async () => {

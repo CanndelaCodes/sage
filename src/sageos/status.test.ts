@@ -11,10 +11,12 @@ import {
 import { appendSageOsEvent, createSageOsEventLog } from "./event-log.js";
 import {
   createSageOsStateStore,
+  readSageOsState,
   upsertSageOsApproval,
   upsertSageOsAgent,
   upsertSageOsObservation,
   upsertSageOsRun,
+  upsertSageOsSkill,
   upsertSageOsTask,
   upsertSageOsWorkflow,
   writeSageOsState,
@@ -85,6 +87,19 @@ describe("SageOS status collector", () => {
       policyScopes: [{ kind: "app", allow: ["Code"], risk: "low" }],
       implementationRefs: [],
       evalRefs: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+    await upsertSageOsSkill(store, {
+      id: "skill_focus_code",
+      name: "Skill: Review repeated Code focus",
+      state: "draft",
+      workflowId: "workflow_focus_code",
+      provenance: ["workflow_focus_code", "obs_recent", "obs_redacted"],
+      triggerConditions: ["Repeated Code focus observations"],
+      tests: ["obs_recent", "obs_redacted"],
+      allowedScopes: [{ kind: "app", allow: ["Code"], risk: "low" }],
+      rollbackRef: "workflow_focus_code@candidate",
       createdAt: now,
       updatedAt: now,
     });
@@ -220,11 +235,19 @@ describe("SageOS status collector", () => {
       memoryCaptureQueuePath: memoryQueuePath,
       learningActivityQueuePath: learningQueuePath,
     });
+    const persisted = await readSageOsState(store);
 
     expect(snapshot.employees).toMatchObject({ total: 1, active: 1 });
     expect(snapshot.tasks).toMatchObject({ total: 3, active: 1, queued: 1, blocked: 1 });
     expect(snapshot.runs).toMatchObject({ total: 1, active: 1, failed: 0 });
     expect(snapshot.workflows).toMatchObject({ total: 1, active: 0, queued: 1, blocked: 0 });
+    expect(snapshot.skills).toMatchObject({ total: 1, active: 0, queued: 1, blocked: 0 });
+    expect(persisted.skills).toMatchObject([
+      {
+        id: "skill_focus_code",
+        workflowId: "workflow_focus_code",
+      },
+    ]);
     expect(snapshot.approvals.pending).toBe(1);
     expect(snapshot.observations).toMatchObject({
       total: 3,

@@ -9,6 +9,7 @@ import {
   type SageOsAgentSpec,
   type SageOsObservation,
   type SageOsRun,
+  type SageOsSkillRecord,
   type SageOsStatusSnapshot,
   type SageOsTaskSpec,
   type SageOsWorkflow,
@@ -25,6 +26,7 @@ export type SageOsPersistedState = {
   tasks: SageOsTaskSpec[];
   runs: SageOsRun[];
   workflows: SageOsWorkflow[];
+  skills: SageOsSkillRecord[];
   approvals: SageOsApproval[];
   observations: SageOsObservation[];
   updatedAt: string;
@@ -152,6 +154,10 @@ export async function readSageOsState(store: SageOsStateStore): Promise<SageOsPe
     siblingStore(store, "workflows.json").path,
     base.workflows ?? [],
   );
+  const skills = await readJsonFile<SageOsSkillRecord[]>(
+    siblingStore(store, "skills.json").path,
+    base.skills ?? [],
+  );
   const approvals = await readJsonFile<SageOsApproval[]>(
     siblingStore(store, "approvals.json").path,
     base.approvals ?? [],
@@ -169,6 +175,7 @@ export async function readSageOsState(store: SageOsStateStore): Promise<SageOsPe
       tasks,
       runs,
       workflows,
+      skills,
       approvals,
       observations,
       updatedAt: base.updatedAt ?? base.status.generatedAt,
@@ -182,6 +189,7 @@ export async function readSageOsState(store: SageOsStateStore): Promise<SageOsPe
     tasks,
     runs,
     workflows,
+    skills,
     approvals,
     observations,
     updatedAt: fallbackStatus.generatedAt,
@@ -205,6 +213,7 @@ export async function writeSageOsState(
     tasks: current.tasks,
     runs: current.runs,
     workflows: current.workflows,
+    skills: current.skills,
     approvals: current.approvals,
     observations: current.observations,
   };
@@ -256,6 +265,18 @@ export async function upsertSageOsWorkflow(
   );
   const current = await readSageOsState(store);
   return { ...current, workflows, updatedAt: new Date().toISOString() };
+}
+
+export async function upsertSageOsSkill(
+  store: SageOsStateStore,
+  skill: SageOsSkillRecord,
+): Promise<SageOsPersistedState> {
+  const skillsFile = siblingStore(store, "skills.json").path;
+  const skills = await updateJsonFile<SageOsSkillRecord[]>(skillsFile, [], (current) =>
+    current.filter((item) => item.id !== skill.id).concat(skill),
+  );
+  const current = await readSageOsState(store);
+  return { ...current, skills, updatedAt: new Date().toISOString() };
 }
 
 export async function upsertSageOsApproval(

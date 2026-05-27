@@ -19,6 +19,7 @@ import {
   type SageOsQueueSummary,
   type SageOsRun,
   type SageOsRunSummary,
+  type SageOsSkillRecord,
   type SageOsStatusSnapshot,
   type SageOsSummary,
   type SageOsTaskSpec,
@@ -90,6 +91,7 @@ export async function collectSageOsStatus(
     tasks: summarizeTasks(state.tasks),
     runs: summarizeRuns(state.runs),
     workflows: summarizeWorkflows(state.workflows),
+    skills: summarizeSkills(state.skills),
     approvals: {
       pending: state.approvals.filter((approval) => approval.state === "pending").length,
     },
@@ -179,6 +181,16 @@ function summarizeWorkflows(workflows: SageOsWorkflow[]): SageOsSummary {
     blocked: workflows.filter((workflow) =>
       ["failed", "paused", "retired"].includes(workflow.state),
     ).length,
+  };
+}
+
+function summarizeSkills(skills: SageOsSkillRecord[]): SageOsSummary {
+  return {
+    total: skills.length,
+    active: skills.filter((skill) => skill.state === "active").length,
+    queued: skills.filter((skill) => skill.state === "draft").length,
+    blocked: skills.filter((skill) => skill.state === "deprecated" || skill.state === "retired")
+      .length,
   };
 }
 

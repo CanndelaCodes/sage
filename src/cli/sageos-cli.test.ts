@@ -10,6 +10,7 @@ import {
   upsertSageOsApproval,
   upsertSageOsAgent,
   upsertSageOsObservation,
+  upsertSageOsSkill,
   upsertSageOsTask,
   upsertSageOsWorkflow,
   writeSageOsState,
@@ -662,6 +663,60 @@ describe("sage os CLI", () => {
     });
     expect(discoverCalls).toHaveLength(1);
     expect(discoverCalls[0]).toMatchObject({ minOccurrences: 2 });
+  });
+
+  it("lists and drafts skills through CLI controls", async () => {
+    const store = createSageOsStateStore();
+    const now = "2026-05-27T21:45:00.000Z";
+    await upsertSageOsSkill(store, {
+      id: "skill_existing",
+      name: "Existing skill",
+      state: "draft",
+      workflowId: "workflow_existing",
+      provenance: ["workflow_existing"],
+      triggerConditions: ["Existing trigger"],
+      tests: ["eval_existing"],
+      allowedScopes: [{ kind: "app", allow: ["Code"], risk: "low" }],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const draftCalls: unknown[] = [];
+    const program = makeProgram({
+      draftSkillFromWorkflow: async (params: unknown) => {
+        draftCalls.push(params);
+        return {
+          outcome: "drafted" as const,
+          skill: {
+            id: "skill_new",
+            name: "Skill: New workflow",
+            state: "draft" as const,
+            workflowId: "workflow_new",
+            provenance: ["workflow_new", "obs_1", "obs_2"],
+            triggerConditions: ["Repeated app focus"],
+            tests: ["obs_1", "obs_2"],
+            allowedScopes: [{ kind: "app" as const, allow: ["Terminal"], risk: "low" as const }],
+            createdAt: now,
+            updatedAt: now,
+          },
+          status: createSageOsStatusSnapshot({
+            skills: { total: 2, active: 0, queued: 2, blocked: 0 },
+          }),
+        };
+      },
+    } as SageOsCliDeps);
+
+    await program.parseAsync(["os", "skills", "--json"], { from: "user" });
+    expect(lastJson()).toMatchObject({ skills: [{ id: "skill_existing" }] });
+
+    await program.parseAsync(["os", "skills", "draft", "workflow_new", "--json"], {
+      from: "user",
+    });
+    expect(lastJson()).toMatchObject({
+      result: { outcome: "drafted", skill: { id: "skill_new", workflowId: "workflow_new" } },
+    });
+    expect(draftCalls).toHaveLength(1);
+    expect(draftCalls[0]).toMatchObject({ workflowId: "workflow_new" });
   });
 
   it("shows incidents, audit events, and doctor status", async () => {

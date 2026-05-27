@@ -15,6 +15,8 @@ const BASE_METHODS = [
   "sageos.tasks.runNext",
   "sageos.workflows.list",
   "sageos.workflows.discover",
+  "sageos.skills.list",
+  "sageos.skills.draft",
   "sageos.runs.list",
   "sageos.approvals.list",
   "sageos.approvals.resolve",

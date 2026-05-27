@@ -114,6 +114,7 @@ export type SageOsStatusSnapshot = {
   tasks: SageOsSummary;
   runs: SageOsRunSummary;
   workflows: SageOsSummary;
+  skills: SageOsSummary;
   approvals: { pending: number };
   observations: { total: number; recent: number; redacted: number; failed: number };
   memory: {
@@ -173,6 +174,7 @@ export function createSageOsStatusSnapshot(
     tasks: overrides.tasks ?? emptySummary(),
     runs: overrides.runs ?? emptyRunSummary(),
     workflows: overrides.workflows ?? emptySummary(),
+    skills: overrides.skills ?? emptySummary(),
     approvals: overrides.approvals ?? { pending: 0 },
     observations: overrides.observations ?? { total: 0, recent: 0, redacted: 0, failed: 0 },
     memory: overrides.memory ?? {
@@ -280,6 +282,24 @@ export type SageOsWorkflow = {
   policyScopes: SageOsPolicyScope[];
   implementationRefs: string[];
   evalRefs: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export const SAGEOS_SKILL_STATES = ["draft", "active", "deprecated", "retired"] as const;
+
+export type SageOsSkillState = (typeof SAGEOS_SKILL_STATES)[number];
+
+export type SageOsSkillRecord = {
+  id: string;
+  name: string;
+  state: SageOsSkillState;
+  workflowId?: string;
+  provenance: string[];
+  triggerConditions: string[];
+  tests: string[];
+  allowedScopes: SageOsPolicyScope[];
+  rollbackRef?: string;
   createdAt: string;
   updatedAt: string;
 };

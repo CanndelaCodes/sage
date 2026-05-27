@@ -13,15 +13,16 @@ import {
   sendSageOsTelegramDigestOnce,
 } from "../sageos/notifications.js";
 import { observeAppFocusOnce } from "../sageos/observations.js";
+import { draftSageOsSkillFromWorkflow } from "../sageos/skill-steward.js";
 import {
   createSageOsControlStore,
+  createSageOsStateStore,
   readSageOsState,
   upsertSageOsApproval,
   upsertSageOsAgent,
   upsertSageOsTask,
   writeSageOsControl,
   writeSageOsState,
-  createSageOsStateStore,
 } from "../sageos/state-store.js";
 import { renderSageOsStatus } from "../sageos/status-renderer.js";
 import { collectSageOsStatus } from "../sageos/status.js";
@@ -33,6 +34,7 @@ import {
   type SageOsApproval,
   type SageOsAgentSpec,
   type SageOsObservation,
+  type SageOsSkillRecord,
   type SageOsTaskSpec,
   type SageOsWorkflow,
 } from "../sageos/types.js";
@@ -45,6 +47,7 @@ export type SageOsCliDeps = {
   runNextTaskOnce?: typeof runNextSageOsTaskOnce;
   sendTelegramDigestOnce?: typeof sendSageOsTelegramDigestOnce;
   discoverWorkflowCandidates?: typeof discoverSageOsWorkflowCandidates;
+  draftSkillFromWorkflow?: typeof draftSageOsSkillFromWorkflow;
   loadConfig?: typeof loadConfig;
 };
 
@@ -160,6 +163,13 @@ function renderWorkflows(workflows: SageOsWorkflow[]): string {
     .join("\n");
 }
 
+function renderSkills(skills: SageOsSkillRecord[]): string {
+  if (skills.length === 0) {
+    return "No SageOS skills.";
+  }
+  return skills.map((skill) => `${skill.id}\t${skill.state}\t${skill.name}`).join("\n");
+}
+
 function renderApprovals(approvals: SageOsApproval[]): string {
   if (approvals.length === 0) {
     return "No SageOS approvals.";
@@ -235,6 +245,7 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
   const sendTelegramDigest = deps.sendTelegramDigestOnce ?? sendSageOsTelegramDigestOnce;
   const discoverWorkflowCandidates =
     deps.discoverWorkflowCandidates ?? discoverSageOsWorkflowCandidates;
+  const draftSkillFromWorkflow = deps.draftSkillFromWorkflow ?? draftSageOsSkillFromWorkflow;
   const loadSageConfig = deps.loadConfig ?? loadConfig;
   const os = program.command("os").description("SageOS command center controls");
 
@@ -483,6 +494,30 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
           `Workflow candidates: ${result.created}/${result.observed} created, ${result.skipped} skipped`,
           ...result.candidates.map((workflow) => `${workflow.id}\t${workflow.name}`),
         ].join("\n"),
+      );
+    });
+
+  const skills = os.command("skills").description("List SageOS draft skills");
+  skills.option("--json", "Output JSON", false).action(async (opts: { json?: boolean }) => {
+    const state = await readSageOsState(createSageOsStateStore());
+    outputJsonOrText(opts, { skills: state.skills }, () => renderSkills(state.skills));
+  });
+
+  skills
+    .command("draft <workflowId>")
+    .description("Create a draft skill from a SageOS workflow candidate")
+    .option("--json", "Output JSON", false)
+    .action(async (workflowIdInput: string, opts: { json?: boolean }, command?: Command) => {
+      const cliOpts = commandOptions(command ?? opts);
+      const workflowId = workflowIdInput.trim();
+      if (!workflowId) {
+        fail("Workflow id required.");
+      }
+      const result = await draftSkillFromWorkflow({ workflowId });
+      outputJsonOrText(cliOpts, { result }, () =>
+        result.skill
+          ? `${result.outcome}: ${result.skill.id}\t${result.skill.name}`
+          : `${result.outcome}: ${workflowId}`,
       );
     });
 
