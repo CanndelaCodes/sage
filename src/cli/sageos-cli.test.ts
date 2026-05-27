@@ -603,6 +603,92 @@ describe("sage os CLI", () => {
     });
   });
 
+  it("sends Telegram lifecycle, incident, and completion notifications through CLI controls", async () => {
+    const lifecycleCalls: unknown[] = [];
+    const incidentCalls: unknown[] = [];
+    const completionCalls: unknown[] = [];
+    const deps = {
+      loadConfig: () => ({
+        sageos: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+      }),
+      sendLifecycleNotificationOnce: async (params: unknown) => {
+        lifecycleCalls.push(params);
+        return {
+          outcome: "sent" as const,
+          target: "telegram:123",
+          notification: {
+            kind: "startup" as const,
+            title: "SageOS: Startup",
+            text: "SageOS: Startup",
+            target: "telegram:123",
+            redactedObservationCount: 0,
+          },
+          status: createSageOsStatusSnapshot(),
+        };
+      },
+      sendIncidentNotificationOnce: async (params: unknown) => {
+        incidentCalls.push(params);
+        return {
+          outcome: "sent" as const,
+          target: "telegram:123",
+          notification: {
+            kind: "incident" as const,
+            title: "SageOS: Incident",
+            text: "SageOS: Incident",
+            target: "telegram:123",
+            redactedObservationCount: 0,
+          },
+          status: createSageOsStatusSnapshot(),
+        };
+      },
+      sendCompletionNotificationOnce: async (params: unknown) => {
+        completionCalls.push(params);
+        return {
+          outcome: "sent" as const,
+          target: "telegram:123",
+          notification: {
+            kind: "completion" as const,
+            title: "SageOS: Night Shift completed",
+            text: "SageOS: Night Shift completed",
+            target: "telegram:123",
+            redactedObservationCount: 0,
+          },
+          status: createSageOsStatusSnapshot(),
+        };
+      },
+    } as unknown as SageOsCliDeps;
+    const program = makeProgram(deps);
+
+    await program.parseAsync(["os", "notifications", "startup", "--send", "--json"], {
+      from: "user",
+    });
+    expect(lastJson()).toMatchObject({ result: { outcome: "sent", target: "telegram:123" } });
+    expect(lifecycleCalls[0]).toMatchObject({
+      kind: "startup",
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+    });
+
+    await program.parseAsync(
+      ["os", "notifications", "incident", "incident_memory_queue_failed", "--send", "--json"],
+      { from: "user" },
+    );
+    expect(lastJson()).toMatchObject({ result: { outcome: "sent", target: "telegram:123" } });
+    expect(incidentCalls[0]).toMatchObject({
+      incidentId: "incident_memory_queue_failed",
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+    });
+
+    await program.parseAsync(
+      ["os", "notifications", "completion", "coding_report_task_fix_1", "--send", "--json"],
+      { from: "user" },
+    );
+    expect(lastJson()).toMatchObject({ result: { outcome: "sent", target: "telegram:123" } });
+    expect(completionCalls[0]).toMatchObject({
+      reportId: "coding_report_task_fix_1",
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+    });
+  });
+
   it("lists and discovers workflow candidates through CLI controls", async () => {
     const store = createSageOsStateStore();
     const now = "2026-05-27T20:45:00.000Z";

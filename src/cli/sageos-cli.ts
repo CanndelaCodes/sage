@@ -11,7 +11,13 @@ import {
 import { appendSageOsEvent, createSageOsEventLog, readSageOsEvents } from "../sageos/event-log.js";
 import { runSageOsMemoryStewardOnce } from "../sageos/memory-steward.js";
 import {
+  buildSageOsCompletionNotification,
   buildSageOsDigestNotification,
+  buildSageOsIncidentNotification,
+  buildSageOsLifecycleNotification,
+  sendSageOsCompletionNotificationOnce,
+  sendSageOsIncidentNotificationOnce,
+  sendSageOsLifecycleNotificationOnce,
   sendSageOsTelegramDigestOnce,
 } from "../sageos/notifications.js";
 import { observeAppFocusOnce } from "../sageos/observations.js";
@@ -56,6 +62,9 @@ export type SageOsCliDeps = {
   draftSkillFromWorkflow?: typeof draftSageOsSkillFromWorkflow;
   discoverAppCandidates?: typeof discoverSageOsAppCandidates;
   runNightShiftTask?: typeof runSageOsNightShiftTask;
+  sendLifecycleNotificationOnce?: typeof sendSageOsLifecycleNotificationOnce;
+  sendIncidentNotificationOnce?: typeof sendSageOsIncidentNotificationOnce;
+  sendCompletionNotificationOnce?: typeof sendSageOsCompletionNotificationOnce;
   loadConfig?: typeof loadConfig;
 };
 
@@ -273,6 +282,12 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
   const draftSkillFromWorkflow = deps.draftSkillFromWorkflow ?? draftSageOsSkillFromWorkflow;
   const discoverAppCandidates = deps.discoverAppCandidates ?? discoverSageOsAppCandidates;
   const runNightShiftTask = deps.runNightShiftTask ?? runSageOsNightShiftTask;
+  const sendLifecycleNotification =
+    deps.sendLifecycleNotificationOnce ?? sendSageOsLifecycleNotificationOnce;
+  const sendIncidentNotification =
+    deps.sendIncidentNotificationOnce ?? sendSageOsIncidentNotificationOnce;
+  const sendCompletionNotification =
+    deps.sendCompletionNotificationOnce ?? sendSageOsCompletionNotificationOnce;
   const loadSageConfig = deps.loadConfig ?? loadConfig;
   const os = program.command("os").description("SageOS command center controls");
 
@@ -780,6 +795,112 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
       });
       outputJsonOrText(cliOpts, { notification, status }, () => notification.text);
     });
+
+  notifications
+    .command("startup")
+    .description("Preview or send a SageOS Telegram startup notification")
+    .option("--send", "Send the notification to Telegram", false)
+    .option("--target <target>", "Telegram target override")
+    .option("--json", "Output JSON", false)
+    .action(async (opts: { send?: boolean; target?: string; json?: boolean }) => {
+      const cliOpts = commandOptions(opts);
+      const cfg = loadSageConfig().sageos;
+      const target = cliOpts.target?.trim() || undefined;
+      if (cliOpts.send) {
+        const result = await sendLifecycleNotification({ kind: "startup", cfg, target });
+        outputJsonOrText(cliOpts, { result }, () =>
+          result.outcome === "sent"
+            ? `Sent Telegram startup notification: ${result.target}`
+            : `${result.outcome}: ${"reason" in result ? result.reason : result.target}`,
+        );
+        return;
+      }
+      const status = await collectSageOsStatus({ cfg });
+      const notification = buildSageOsLifecycleNotification({
+        kind: "startup",
+        status,
+        cfg,
+        target,
+      });
+      outputJsonOrText(cliOpts, { notification, status }, () => notification.text);
+    });
+
+  notifications
+    .command("incident <incidentId>")
+    .description("Preview or send a SageOS Telegram incident notification")
+    .option("--send", "Send the notification to Telegram", false)
+    .option("--target <target>", "Telegram target override")
+    .option("--json", "Output JSON", false)
+    .action(
+      async (
+        incidentIdInput: string,
+        opts: { send?: boolean; target?: string; json?: boolean },
+        command?: Command,
+      ) => {
+        const cliOpts = commandOptions(command ?? opts);
+        const incidentId = incidentIdInput.trim();
+        if (!incidentId) {
+          fail("Incident id required.");
+        }
+        const cfg = loadSageConfig().sageos;
+        const target = cliOpts.target?.trim() || undefined;
+        if (cliOpts.send) {
+          const result = await sendIncidentNotification({ incidentId, cfg, target });
+          outputJsonOrText(cliOpts, { result }, () =>
+            result.outcome === "sent"
+              ? `Sent Telegram incident notification: ${result.target}`
+              : `${result.outcome}: ${"reason" in result ? result.reason : result.target}`,
+          );
+          return;
+        }
+        const status = await collectSageOsStatus({ cfg });
+        const incident = status.incidents.find((entry) => entry.id === incidentId);
+        if (!incident) {
+          fail(`SageOS incident not found: ${incidentId}`);
+        }
+        const notification = buildSageOsIncidentNotification({ incident, status, cfg, target });
+        outputJsonOrText(cliOpts, { notification, status }, () => notification.text);
+      },
+    );
+
+  notifications
+    .command("completion <reportId>")
+    .description("Preview or send a SageOS Telegram Night Shift completion notification")
+    .option("--send", "Send the notification to Telegram", false)
+    .option("--target <target>", "Telegram target override")
+    .option("--json", "Output JSON", false)
+    .action(
+      async (
+        reportIdInput: string,
+        opts: { send?: boolean; target?: string; json?: boolean },
+        command?: Command,
+      ) => {
+        const cliOpts = commandOptions(command ?? opts);
+        const reportId = reportIdInput.trim();
+        if (!reportId) {
+          fail("Coding report id required.");
+        }
+        const cfg = loadSageConfig().sageos;
+        const target = cliOpts.target?.trim() || undefined;
+        if (cliOpts.send) {
+          const result = await sendCompletionNotification({ reportId, cfg, target });
+          outputJsonOrText(cliOpts, { result }, () =>
+            result.outcome === "sent"
+              ? `Sent Telegram completion notification: ${result.target}`
+              : `${result.outcome}: ${"reason" in result ? result.reason : result.target}`,
+          );
+          return;
+        }
+        const state = await readSageOsState(createSageOsStateStore());
+        const report = state.codingReports.find((entry) => entry.id === reportId);
+        if (!report) {
+          fail(`SageOS coding report not found: ${reportId}`);
+        }
+        const status = await collectSageOsStatus({ cfg });
+        const notification = buildSageOsCompletionNotification({ report, status, cfg, target });
+        outputJsonOrText(cliOpts, { notification, status }, () => notification.text);
+      },
+    );
 
   os.command("incidents")
     .description("List SageOS incidents")

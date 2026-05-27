@@ -1,5 +1,7 @@
 import type {
   SageOsConfig,
+  SageOsCodingReport,
+  SageOsIncident,
   SageOsObservation,
   SageOsRun,
   SageOsStatusSnapshot,
@@ -15,7 +17,13 @@ import {
 } from "./state-store.js";
 import { collectSageOsStatus } from "./status.js";
 
-export type SageOsNotificationKind = "digest" | "task";
+export type SageOsNotificationKind =
+  | "digest"
+  | "task"
+  | "startup"
+  | "shutdown"
+  | "incident"
+  | "completion";
 
 export type SageOsNotificationMessage = {
   kind: SageOsNotificationKind;
@@ -68,6 +76,29 @@ export type SageOsTelegramTaskResult =
       target: string;
       notification: SageOsNotificationMessage;
       error: string;
+    };
+
+export type SageOsTelegramStatusNotificationResult =
+  | {
+      outcome: "sent";
+      target: string;
+      notification: SageOsNotificationMessage;
+      messageId?: string;
+      chatId?: string;
+      status: SageOsStatusSnapshot;
+    }
+  | {
+      outcome: "skipped";
+      reason: "telegram_disabled" | "missing_target";
+      notification?: SageOsNotificationMessage;
+      status: SageOsStatusSnapshot;
+    }
+  | {
+      outcome: "failed";
+      target: string;
+      notification: SageOsNotificationMessage;
+      error: string;
+      status: SageOsStatusSnapshot;
     };
 
 export function buildSageOsDigestNotification(params: {
@@ -201,6 +232,105 @@ export function buildSageOsTaskNotification(params: {
   };
 }
 
+export function buildSageOsLifecycleNotification(params: {
+  kind: "startup" | "shutdown";
+  status: SageOsStatusSnapshot;
+  cfg?: SageOsConfig;
+  target?: string;
+}): SageOsNotificationMessage {
+  const target = params.target ?? telegramTarget(params.cfg);
+  const title = params.kind === "startup" ? "SageOS: Startup" : "SageOS: Shutdown";
+  const lines = [
+    title,
+    `Mode: ${params.status.mode}`,
+    `Supervisor: ${params.status.supervisor.state}`,
+    `Tasks: ${params.status.tasks.active} active, ${params.status.tasks.queued} queued, ${params.status.tasks.blocked} blocked`,
+    `Incidents: ${params.status.incidents.length}`,
+    nextAction(params.status),
+    params.kind === "startup"
+      ? "Actions: Open Command Center | Pause SageOS"
+      : "Actions: Open Command Center | Resume SageOS",
+  ];
+  return {
+    kind: params.kind,
+    title,
+    text: lines.join("\n"),
+    target,
+    redactedObservationCount: 0,
+  };
+}
+
+export function buildSageOsIncidentNotification(params: {
+  incident: SageOsIncident;
+  status: SageOsStatusSnapshot;
+  cfg?: SageOsConfig;
+  target?: string;
+}): SageOsNotificationMessage {
+  const target = params.target ?? telegramTarget(params.cfg);
+  const repair = params.incident.repairAction;
+  const lines = [
+    "SageOS: Incident",
+    `Severity: ${params.incident.severity}`,
+    `Category: ${params.incident.category}`,
+    `Title: ${params.incident.title}`,
+    `Summary: ${params.incident.summary}`,
+    repair ? `Repair: ${repair.label}` : "Repair: manual review required",
+  ];
+  if (repair?.command) {
+    lines.push(`Command: ${repair.command}`);
+  }
+  if (repair?.gatewayMethod) {
+    lines.push(`Gateway: ${repair.gatewayMethod}`);
+  }
+  lines.push(nextAction(params.status), "Actions: Open Command Center | Pause SageOS");
+  return {
+    kind: "incident",
+    title: "SageOS: Incident",
+    text: lines.join("\n"),
+    target,
+    redactedObservationCount: 0,
+  };
+}
+
+export function buildSageOsCompletionNotification(params: {
+  report: SageOsCodingReport;
+  status: SageOsStatusSnapshot;
+  cfg?: SageOsConfig;
+  target?: string;
+}): SageOsNotificationMessage {
+  const target = params.target ?? telegramTarget(params.cfg);
+  const passed = params.report.tests.filter((test) => test.exitCode === 0).length;
+  const failed = params.report.tests.length - passed;
+  const changed = params.report.diff.changedFiles.length;
+  const title =
+    params.report.outcome === "succeeded"
+      ? "SageOS: Night Shift completed"
+      : params.report.outcome === "blocked"
+        ? "SageOS: Night Shift blocked"
+        : "SageOS: Night Shift failed";
+  const lines = [
+    title,
+    `Result: ${params.report.outcome}`,
+    `Task: ${params.report.taskId}`,
+    `Run: ${params.report.runId}`,
+    `Repo: ${params.report.repoPath}`,
+    `Diff: ${changed} file${changed === 1 ? "" : "s"} changed`,
+    `Tests: ${passed} passed / ${failed} failed`,
+    `Report: ${params.report.id}`,
+  ];
+  if (params.report.blockers.length > 0) {
+    lines.push(`Blockers: ${params.report.blockers.length}`);
+  }
+  lines.push(nextAction(params.status), "Actions: Open Command Center | Pause SageOS");
+  return {
+    kind: "completion",
+    title,
+    text: lines.join("\n"),
+    target,
+    redactedObservationCount: 0,
+  };
+}
+
 export async function sendSageOsTaskNotificationOnce(params: {
   stateDir?: string;
   cfg?: SageOsConfig;
@@ -266,6 +396,157 @@ export async function sendSageOsTaskNotificationOnce(params: {
       runId: params.run.id,
     });
     return { outcome: "failed", target, notification, error };
+  }
+}
+
+export async function sendSageOsLifecycleNotificationOnce(params: {
+  kind: "startup" | "shutdown";
+  stateDir?: string;
+  cfg?: SageOsConfig;
+  target?: string;
+  sender?: SageOsTelegramSender;
+}): Promise<SageOsTelegramStatusNotificationResult> {
+  const status = await collectSageOsStatus({ stateDir: params.stateDir, cfg: params.cfg });
+  await writeSageOsState(createSageOsStateStore({ stateDir: params.stateDir }), status);
+  const notification = buildSageOsLifecycleNotification({
+    kind: params.kind,
+    status,
+    cfg: params.cfg,
+    target: params.target,
+  });
+  return sendStatusNotification({
+    stateDir: params.stateDir,
+    cfg: params.cfg,
+    notification,
+    status,
+    sender: params.sender,
+    auditLabel: `SageOS ${params.kind}`,
+  });
+}
+
+export async function sendSageOsIncidentNotificationOnce(params: {
+  incidentId: string;
+  stateDir?: string;
+  cfg?: SageOsConfig;
+  target?: string;
+  sender?: SageOsTelegramSender;
+}): Promise<SageOsTelegramStatusNotificationResult> {
+  const status = await collectSageOsStatus({ stateDir: params.stateDir, cfg: params.cfg });
+  await writeSageOsState(createSageOsStateStore({ stateDir: params.stateDir }), status);
+  const incident = status.incidents.find((entry) => entry.id === params.incidentId);
+  if (!incident) {
+    throw new Error(`SageOS incident not found: ${params.incidentId}`);
+  }
+  const notification = buildSageOsIncidentNotification({
+    incident,
+    status,
+    cfg: params.cfg,
+    target: params.target,
+  });
+  return sendStatusNotification({
+    stateDir: params.stateDir,
+    cfg: params.cfg,
+    notification,
+    status,
+    sender: params.sender,
+    auditLabel: `SageOS incident ${incident.id}`,
+  });
+}
+
+export async function sendSageOsCompletionNotificationOnce(params: {
+  reportId: string;
+  stateDir?: string;
+  cfg?: SageOsConfig;
+  target?: string;
+  sender?: SageOsTelegramSender;
+}): Promise<SageOsTelegramStatusNotificationResult> {
+  const status = await collectSageOsStatus({ stateDir: params.stateDir, cfg: params.cfg });
+  const store = createSageOsStateStore({ stateDir: params.stateDir });
+  await writeSageOsState(store, status);
+  const state = await readSageOsState(store);
+  const report = state.codingReports.find((entry) => entry.id === params.reportId);
+  if (!report) {
+    throw new Error(`SageOS coding report not found: ${params.reportId}`);
+  }
+  const notification = buildSageOsCompletionNotification({
+    report,
+    status,
+    cfg: params.cfg,
+    target: params.target,
+  });
+  return sendStatusNotification({
+    stateDir: params.stateDir,
+    cfg: params.cfg,
+    notification,
+    status,
+    sender: params.sender,
+    auditLabel: `SageOS completion ${report.id}`,
+  });
+}
+
+async function sendStatusNotification(params: {
+  stateDir?: string;
+  cfg?: SageOsConfig;
+  notification: SageOsNotificationMessage;
+  status: SageOsStatusSnapshot;
+  sender?: SageOsTelegramSender;
+  auditLabel: string;
+}): Promise<SageOsTelegramStatusNotificationResult> {
+  const eventLog = createSageOsEventLog({ stateDir: params.stateDir });
+  if (!params.cfg?.notifications?.telegram?.enabled) {
+    await appendSageOsEvent(eventLog, {
+      type: "notification_skipped",
+      actor: "sageos.notification_manager",
+      summary: `Skipped ${params.auditLabel} notification because Telegram notifications are disabled.`,
+    });
+    return { outcome: "skipped", reason: "telegram_disabled", status: params.status };
+  }
+  if (!params.notification.target) {
+    await appendSageOsEvent(eventLog, {
+      type: "notification_skipped",
+      actor: "sageos.notification_manager",
+      summary: `Skipped ${params.auditLabel} notification because no target is configured.`,
+    });
+    return {
+      outcome: "skipped",
+      reason: "missing_target",
+      notification: params.notification,
+      status: params.status,
+    };
+  }
+
+  const sender = params.sender ?? sendMessageTelegram;
+  try {
+    const result = await sender(params.notification.target, params.notification.text, {
+      plainText: params.notification.text,
+    });
+    await appendSageOsEvent(eventLog, {
+      type: "notification_sent",
+      actor: "sageos.notification_manager",
+      summary: `Sent ${params.auditLabel} notification to ${params.notification.target}.`,
+    });
+    return {
+      outcome: "sent",
+      target: params.notification.target,
+      notification: params.notification,
+      messageId: result.messageId,
+      chatId: result.chatId,
+      status: params.status,
+    };
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    await appendSageOsEvent(eventLog, {
+      type: "notification_failed",
+      actor: "sageos.notification_manager",
+      summary: `Failed to send ${params.auditLabel} notification to ${params.notification.target}: ${error}`,
+    });
+    return {
+      outcome: "failed",
+      target: params.notification.target,
+      notification: params.notification,
+      error,
+      status: params.status,
+    };
   }
 }
 

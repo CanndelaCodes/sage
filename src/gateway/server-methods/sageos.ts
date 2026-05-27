@@ -10,7 +10,13 @@ import {
 import { appendSageOsEvent, createSageOsEventLog } from "../../sageos/event-log.js";
 import { runSageOsMemoryStewardOnce } from "../../sageos/memory-steward.js";
 import {
+  buildSageOsCompletionNotification,
   buildSageOsDigestNotification,
+  buildSageOsIncidentNotification,
+  buildSageOsLifecycleNotification,
+  sendSageOsCompletionNotificationOnce,
+  sendSageOsIncidentNotificationOnce,
+  sendSageOsLifecycleNotificationOnce,
   sendSageOsTelegramDigestOnce,
 } from "../../sageos/notifications.js";
 import { observeAppFocusOnce } from "../../sageos/observations.js";
@@ -386,6 +392,117 @@ export const sageOsHandlers: GatewayRequestHandlers = {
     await writeSageOsState(stateStore, status);
     const state = await readSageOsState(stateStore);
     const notification = buildSageOsDigestNotification({ state, status, cfg, target });
+    respond(true, { notification, state }, undefined);
+  },
+  "sageos.notifications.startup": async ({ params, respond, context }) => {
+    const cfg = loadConfig().sageos;
+    const target =
+      typeof params.target === "string" && params.target.trim() ? params.target.trim() : undefined;
+    const stateStore = createSageOsStateStore();
+    if (params.send === true) {
+      const result = await sendSageOsLifecycleNotificationOnce({
+        kind: "startup",
+        cfg,
+        target,
+      });
+      await writeSageOsState(stateStore, result.status);
+      const state = await readSageOsState(stateStore);
+      context.broadcast("sageos", state, { dropIfSlow: true });
+      respond(true, { result, state }, undefined);
+      return;
+    }
+
+    const status = await collectSageOsStatus({ cfg });
+    await writeSageOsState(stateStore, status);
+    const state = await readSageOsState(stateStore);
+    const notification = buildSageOsLifecycleNotification({
+      kind: "startup",
+      status,
+      cfg,
+      target,
+    });
+    respond(true, { notification, state }, undefined);
+  },
+  "sageos.notifications.incident": async ({ params, respond, context }) => {
+    const incidentId = typeof params.incidentId === "string" ? params.incidentId.trim() : "";
+    if (!incidentId) {
+      respond(
+        false,
+        undefined,
+        errorShape(
+          ErrorCodes.INVALID_REQUEST,
+          "invalid sageos.notifications.incident params: incidentId",
+        ),
+      );
+      return;
+    }
+    const cfg = loadConfig().sageos;
+    const target =
+      typeof params.target === "string" && params.target.trim() ? params.target.trim() : undefined;
+    const stateStore = createSageOsStateStore();
+    if (params.send === true) {
+      const result = await sendSageOsIncidentNotificationOnce({ incidentId, cfg, target });
+      await writeSageOsState(stateStore, result.status);
+      const state = await readSageOsState(stateStore);
+      context.broadcast("sageos", state, { dropIfSlow: true });
+      respond(true, { result, state }, undefined);
+      return;
+    }
+
+    const status = await collectSageOsStatus({ cfg });
+    await writeSageOsState(stateStore, status);
+    const state = await readSageOsState(stateStore);
+    const incident = status.incidents.find((entry) => entry.id === incidentId);
+    if (!incident) {
+      respond(
+        false,
+        undefined,
+        errorShape(ErrorCodes.INVALID_REQUEST, "SageOS incident not found"),
+      );
+      return;
+    }
+    const notification = buildSageOsIncidentNotification({ incident, status, cfg, target });
+    respond(true, { notification, state }, undefined);
+  },
+  "sageos.notifications.completion": async ({ params, respond, context }) => {
+    const reportId = typeof params.reportId === "string" ? params.reportId.trim() : "";
+    if (!reportId) {
+      respond(
+        false,
+        undefined,
+        errorShape(
+          ErrorCodes.INVALID_REQUEST,
+          "invalid sageos.notifications.completion params: reportId",
+        ),
+      );
+      return;
+    }
+    const cfg = loadConfig().sageos;
+    const target =
+      typeof params.target === "string" && params.target.trim() ? params.target.trim() : undefined;
+    const stateStore = createSageOsStateStore();
+    if (params.send === true) {
+      const result = await sendSageOsCompletionNotificationOnce({ reportId, cfg, target });
+      await writeSageOsState(stateStore, result.status);
+      const state = await readSageOsState(stateStore);
+      context.broadcast("sageos", state, { dropIfSlow: true });
+      respond(true, { result, state }, undefined);
+      return;
+    }
+
+    const status = await collectSageOsStatus({ cfg });
+    await writeSageOsState(stateStore, status);
+    const state = await readSageOsState(stateStore);
+    const report = state.codingReports.find((entry) => entry.id === reportId);
+    if (!report) {
+      respond(
+        false,
+        undefined,
+        errorShape(ErrorCodes.INVALID_REQUEST, "SageOS coding report not found"),
+      );
+      return;
+    }
+    const notification = buildSageOsCompletionNotification({ report, status, cfg, target });
     respond(true, { notification, state }, undefined);
   },
   "sageos.control": async ({ params, respond, context }) => {

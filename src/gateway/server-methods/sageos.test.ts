@@ -31,6 +31,9 @@ const {
   mockRunAmbientCopilotOnce,
   mockSendTelegramDigestOnce,
   mockSendTaskNotificationOnce,
+  mockSendLifecycleNotificationOnce,
+  mockSendIncidentNotificationOnce,
+  mockSendCompletionNotificationOnce,
   mockDiscoverWorkflowCandidates,
   mockDraftSkillFromWorkflow,
   mockDiscoverAppCandidates,
@@ -42,6 +45,9 @@ const {
   mockRunAmbientCopilotOnce: vi.fn(),
   mockSendTelegramDigestOnce: vi.fn(),
   mockSendTaskNotificationOnce: vi.fn(),
+  mockSendLifecycleNotificationOnce: vi.fn(),
+  mockSendIncidentNotificationOnce: vi.fn(),
+  mockSendCompletionNotificationOnce: vi.fn(),
   mockDiscoverWorkflowCandidates: vi.fn(),
   mockDraftSkillFromWorkflow: vi.fn(),
   mockDiscoverAppCandidates: vi.fn(),
@@ -63,6 +69,9 @@ vi.mock("../../sageos/ambient-copilot.js", () => ({
 vi.mock("../../sageos/notifications.js", () => ({
   sendSageOsTelegramDigestOnce: mockSendTelegramDigestOnce,
   sendSageOsTaskNotificationOnce: mockSendTaskNotificationOnce,
+  sendSageOsLifecycleNotificationOnce: mockSendLifecycleNotificationOnce,
+  sendSageOsIncidentNotificationOnce: mockSendIncidentNotificationOnce,
+  sendSageOsCompletionNotificationOnce: mockSendCompletionNotificationOnce,
 }));
 vi.mock("../../sageos/workflow-compiler.js", () => ({
   discoverSageOsWorkflowCandidates: mockDiscoverWorkflowCandidates,
@@ -106,6 +115,9 @@ describe("SageOS gateway methods", () => {
     mockRunAmbientCopilotOnce.mockReset();
     mockSendTelegramDigestOnce.mockReset();
     mockSendTaskNotificationOnce.mockReset();
+    mockSendLifecycleNotificationOnce.mockReset();
+    mockSendIncidentNotificationOnce.mockReset();
+    mockSendCompletionNotificationOnce.mockReset();
     mockDiscoverWorkflowCandidates.mockReset();
     mockDraftSkillFromWorkflow.mockReset();
     mockDiscoverAppCandidates.mockReset();
@@ -146,6 +158,9 @@ describe("SageOS gateway methods", () => {
     expect(listGatewayMethods()).toContain("sageos.copilot.suggest");
     expect(listGatewayMethods()).toContain("sageos.memory.replay");
     expect(listGatewayMethods()).toContain("sageos.notifications.digest");
+    expect(listGatewayMethods()).toContain("sageos.notifications.startup");
+    expect(listGatewayMethods()).toContain("sageos.notifications.incident");
+    expect(listGatewayMethods()).toContain("sageos.notifications.completion");
     expect(listGatewayMethods()).toContain("sageos.control");
     expect(GATEWAY_EVENTS).toContain("sageos");
   });
@@ -828,6 +843,87 @@ describe("SageOS gateway methods", () => {
       }),
       { dropIfSlow: true },
     );
+  });
+
+  it("sends Telegram lifecycle, incident, and completion notifications through gateway controls", async () => {
+    mockLoadConfig.mockReturnValue({
+      sageos: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+    });
+    mockSendLifecycleNotificationOnce.mockResolvedValue({
+      outcome: "sent",
+      target: "telegram:123",
+      notification: {
+        kind: "startup",
+        title: "SageOS: Startup",
+        text: "SageOS: Startup",
+        target: "telegram:123",
+        redactedObservationCount: 0,
+      },
+      status: createSageOsStatusSnapshot(),
+    });
+    mockSendIncidentNotificationOnce.mockResolvedValue({
+      outcome: "sent",
+      target: "telegram:123",
+      notification: {
+        kind: "incident",
+        title: "SageOS: Incident",
+        text: "SageOS: Incident",
+        target: "telegram:123",
+        redactedObservationCount: 0,
+      },
+      status: createSageOsStatusSnapshot(),
+    });
+    mockSendCompletionNotificationOnce.mockResolvedValue({
+      outcome: "sent",
+      target: "telegram:123",
+      notification: {
+        kind: "completion",
+        title: "SageOS: Night Shift completed",
+        text: "SageOS: Night Shift completed",
+        target: "telegram:123",
+        redactedObservationCount: 0,
+      },
+      status: createSageOsStatusSnapshot(),
+    });
+
+    const startup = await invoke("sageos.notifications.startup", { send: true });
+    expect(startup.response?.ok).toBe(true);
+    expect(startup.response?.payload).toMatchObject({
+      result: { outcome: "sent", target: "telegram:123" },
+    });
+    expect(mockSendLifecycleNotificationOnce).toHaveBeenCalledWith({
+      kind: "startup",
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+      target: undefined,
+    });
+
+    const incident = await invoke("sageos.notifications.incident", {
+      incidentId: "incident_memory_queue_failed",
+      send: true,
+    });
+    expect(incident.response?.ok).toBe(true);
+    expect(incident.response?.payload).toMatchObject({
+      result: { outcome: "sent", target: "telegram:123" },
+    });
+    expect(mockSendIncidentNotificationOnce).toHaveBeenCalledWith({
+      incidentId: "incident_memory_queue_failed",
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+      target: undefined,
+    });
+
+    const completion = await invoke("sageos.notifications.completion", {
+      reportId: "coding_report_task_fix_1",
+      send: true,
+    });
+    expect(completion.response?.ok).toBe(true);
+    expect(completion.response?.payload).toMatchObject({
+      result: { outcome: "sent", target: "telegram:123" },
+    });
+    expect(mockSendCompletionNotificationOnce).toHaveBeenCalledWith({
+      reportId: "coding_report_task_fix_1",
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+      target: undefined,
+    });
   });
 
   it("discovers workflow candidates through gateway controls", async () => {

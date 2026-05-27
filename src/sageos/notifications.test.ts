@@ -5,7 +5,13 @@ import { describe, expect, it, vi } from "vitest";
 import { createSageOsEventLog } from "./event-log.js";
 import {
   buildSageOsDigestNotification,
+  buildSageOsCompletionNotification,
+  buildSageOsIncidentNotification,
+  buildSageOsLifecycleNotification,
   buildSageOsTaskNotification,
+  sendSageOsCompletionNotificationOnce,
+  sendSageOsIncidentNotificationOnce,
+  sendSageOsLifecycleNotificationOnce,
   sendSageOsTaskNotificationOnce,
   sendSageOsTelegramDigestOnce,
 } from "./notifications.js";
@@ -13,6 +19,7 @@ import {
   createSageOsStateStore,
   readSageOsState,
   upsertSageOsApproval,
+  upsertSageOsCodingReport,
   upsertSageOsObservation,
   upsertSageOsTask,
   writeSageOsState,
@@ -135,7 +142,7 @@ describe("SageOS notifications", () => {
     });
     expect(notification.text).toContain("Tasks: 0 active, 1 queued, 1 blocked");
     expect(notification.text).toContain("Approvals: 1 pending");
-    expect(notification.text).toContain("Incidents: 1 warning");
+    expect(notification.text).toContain("Incidents: 2 warnings");
     expect(notification.text).toContain("Observation: System health sampled");
     expect(notification.text).toContain("Private observations redacted: 2");
     expect(notification.text).toContain("Actions: Open Command Center | Pause SageOS");
@@ -254,5 +261,181 @@ describe("SageOS notifications", () => {
 
     expect(skipped).toMatchObject({ outcome: "skipped", reason: "telegram_disabled" });
     expect(sender).not.toHaveBeenCalled();
+  });
+
+  it("builds and sends startup lifecycle notifications with audit evidence", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-lifecycle-notification-"));
+    const status = createSageOsStatusSnapshot({
+      supervisor: { enabled: true, paused: false, state: "running" },
+      tasks: { total: 2, active: 1, queued: 1, blocked: 0 },
+      incidents: [],
+    });
+    await writeSageOsState(createSageOsStateStore({ stateDir: root }), status);
+
+    const notification = buildSageOsLifecycleNotification({
+      kind: "startup",
+      status,
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+    });
+
+    expect(notification).toMatchObject({
+      kind: "startup",
+      title: "SageOS: Startup",
+      target: "telegram:123",
+    });
+    expect(notification.text).toContain("Supervisor: running");
+    expect(notification.text).toContain("Tasks: 1 active, 1 queued, 0 blocked");
+    expect(notification.text).toContain("Actions: Open Command Center | Pause SageOS");
+
+    const sender = vi.fn(async () => ({ messageId: "11", chatId: "123" }));
+    const sent = await sendSageOsLifecycleNotificationOnce({
+      kind: "startup",
+      stateDir: root,
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+      sender,
+    });
+
+    expect(sent).toMatchObject({ outcome: "sent", target: "telegram:123" });
+    expect(sender).toHaveBeenCalledWith(
+      "telegram:123",
+      expect.stringContaining("SageOS: Startup"),
+      expect.objectContaining({ plainText: expect.stringContaining("Supervisor: running") }),
+    );
+    await expect(
+      readFile(createSageOsEventLog({ stateDir: root }).path, "utf8"),
+    ).resolves.toContain("notification_sent");
+  });
+
+  it("builds and sends urgent incident notifications with repair actions", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-incident-notification-"));
+    const now = "2026-05-27T23:59:00.000Z";
+    const status = createSageOsStatusSnapshot({
+      incidents: [
+        {
+          id: "incident_memory_queue_failed",
+          severity: "warning",
+          category: "memory",
+          title: "Sage Memory capture queue has failed entries",
+          summary: "1 Sage Memory capture entry is failed and needs replay or repair.",
+          firstSeenAt: now,
+          lastSeenAt: now,
+          autoRepairSafe: true,
+          repairAction: {
+            id: "repair_memory_queue_replay",
+            label: "Replay memory queues",
+            command: "sage os memory replay --json",
+            gatewayMethod: "sageos.memory.replay",
+            risk: "low",
+            approvalRequired: false,
+          },
+        },
+      ],
+    });
+    await writeSageOsState(createSageOsStateStore({ stateDir: root }), status);
+
+    const incident = status.incidents[0];
+    if (!incident) {
+      throw new Error("incident fixture missing");
+    }
+    const notification = buildSageOsIncidentNotification({
+      incident,
+      status,
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+    });
+
+    expect(notification).toMatchObject({
+      kind: "incident",
+      title: "SageOS: Incident",
+      target: "telegram:123",
+    });
+    expect(notification.text).toContain("Severity: warning");
+    expect(notification.text).toContain("Sage Memory capture queue has failed entries");
+    expect(notification.text).toContain("Repair: Replay memory queues");
+    expect(notification.text).toContain("Command: sage os memory replay --json");
+
+    const sender = vi.fn(async () => ({ messageId: "12", chatId: "123" }));
+    const sent = await sendSageOsIncidentNotificationOnce({
+      incidentId: "incident_memory_queue_failed",
+      stateDir: root,
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+      sender,
+    });
+
+    expect(sent).toMatchObject({
+      outcome: "sent",
+      target: "telegram:123",
+      notification: { kind: "incident" },
+    });
+    expect(sender).toHaveBeenCalledWith(
+      "telegram:123",
+      expect.stringContaining("SageOS: Incident"),
+      expect.objectContaining({ plainText: expect.stringContaining("Replay memory queues") }),
+    );
+  });
+
+  it("builds and sends Night Shift completion notifications from coding reports", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-completion-notification-"));
+    const now = "2026-05-28T00:05:00.000Z";
+    const report = {
+      id: "coding_report_task_fix_1",
+      taskId: "task_fix",
+      runId: "run_task_fix_1",
+      repoPath: "C:\\repo",
+      objective: "Fix the fixture test.",
+      outcome: "succeeded" as const,
+      startedAt: now,
+      finishedAt: now,
+      preState: { branch: "main", dirty: false, changedFiles: [] },
+      postState: { branch: "main", dirty: true, changedFiles: ["README.md"] },
+      diff: { stat: "README.md | 1 +", preview: "+done", changedFiles: ["README.md"] },
+      tests: [{ command: "node test.js", exitCode: 0, stdoutPreview: "ok", stderrPreview: "" }],
+      blockers: [],
+      verificationRefs: ["test:node test.js"],
+      rollback: "Review git diff and revert changed files if needed.",
+      createdAt: now,
+      updatedAt: now,
+    };
+    await writeSageOsState(
+      createSageOsStateStore({ stateDir: root }),
+      createSageOsStatusSnapshot(),
+    );
+    await upsertSageOsCodingReport(createSageOsStateStore({ stateDir: root }), report);
+    const status = await collectSageOsStatus({ stateDir: root });
+
+    const notification = buildSageOsCompletionNotification({
+      report,
+      status,
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+    });
+
+    expect(notification).toMatchObject({
+      kind: "completion",
+      title: "SageOS: Night Shift completed",
+      target: "telegram:123",
+    });
+    expect(notification.text).toContain("Result: succeeded");
+    expect(notification.text).toContain("Diff: 1 file changed");
+    expect(notification.text).toContain("Tests: 1 passed / 0 failed");
+    expect(notification.text).toContain("Report: coding_report_task_fix_1");
+    expect(notification.text).not.toContain("+done");
+
+    const sender = vi.fn(async () => ({ messageId: "13", chatId: "123" }));
+    const sent = await sendSageOsCompletionNotificationOnce({
+      reportId: "coding_report_task_fix_1",
+      stateDir: root,
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+      sender,
+    });
+
+    expect(sent).toMatchObject({
+      outcome: "sent",
+      target: "telegram:123",
+      notification: { kind: "completion" },
+    });
+    expect(sender).toHaveBeenCalledWith(
+      "telegram:123",
+      expect.stringContaining("SageOS: Night Shift completed"),
+      expect.objectContaining({ plainText: expect.stringContaining("Tests: 1 passed / 0 failed") }),
+    );
   });
 });
