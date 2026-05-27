@@ -84,6 +84,9 @@ export async function collectSageOsStatus(
     employees: summarizeAgents(state.agents),
     tasks: summarizeTasks(state.tasks),
     runs: summarizeRuns(state.runs),
+    approvals: {
+      pending: state.approvals.filter((approval) => approval.state === "pending").length,
+    },
     memory: {
       status: memoryCaptureQueue.failed > 0 ? "degraded" : "ok",
       backend: "sage-memory",

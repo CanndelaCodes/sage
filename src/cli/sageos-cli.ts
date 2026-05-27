@@ -8,6 +8,7 @@ import { appendSageOsEvent, createSageOsEventLog, readSageOsEvents } from "../sa
 import {
   createSageOsControlStore,
   readSageOsState,
+  upsertSageOsApproval,
   upsertSageOsAgent,
   upsertSageOsTask,
   writeSageOsControl,
@@ -19,6 +20,7 @@ import { collectSageOsStatus } from "../sageos/status.js";
 import {
   createSageOsStatusSnapshot,
   normalizeSageOsMode,
+  type SageOsApproval,
   type SageOsAgentSpec,
   type SageOsTaskSpec,
 } from "../sageos/types.js";
@@ -118,6 +120,17 @@ function renderTasks(tasks: SageOsTaskSpec[]): string {
   return tasks.map((task) => `${task.id}\t${task.state}\t${task.title}`).join("\n");
 }
 
+function renderApprovals(approvals: SageOsApproval[]): string {
+  if (approvals.length === 0) {
+    return "No SageOS approvals.";
+  }
+  return approvals
+    .map(
+      (approval) => `${approval.id}\t${approval.state}\t${approval.riskClass}\t${approval.title}`,
+    )
+    .join("\n");
+}
+
 function renderJsonResource(value: unknown): string {
   return JSON.stringify(value, null, 2);
 }
@@ -125,6 +138,41 @@ function renderJsonResource(value: unknown): string {
 function parseLimit(value: string | undefined, fallback: number): number {
   const parsed = Number.parseInt(value ?? "", 10);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+async function resolveApprovalFromCli(
+  id: string,
+  decision: "approved" | "denied",
+  opts: { reason?: string },
+): Promise<SageOsApproval> {
+  const store = createSageOsStateStore();
+  const state = await readSageOsState(store);
+  const approval = state.approvals.find((entry) => entry.id === id);
+  if (!approval) {
+    fail(`SageOS approval not found: ${id}`);
+  }
+  if (approval.state !== "pending") {
+    fail(`SageOS approval is not pending: ${id}`);
+  }
+
+  const now = new Date().toISOString();
+  const nextApproval: SageOsApproval = {
+    ...approval,
+    state: decision,
+    resolvedAt: now,
+    resolvedBy: "sageos.cli",
+    resolutionReason: opts.reason?.trim() || "manual",
+    updatedAt: now,
+  };
+  await upsertSageOsApproval(store, nextApproval);
+  await appendSageOsEvent(createSageOsEventLog(), {
+    type: "approval_resolved",
+    actor: "sageos.cli",
+    summary: `Resolved SageOS approval ${id} as ${decision}: ${nextApproval.resolutionReason}`,
+    taskId: nextApproval.taskId,
+    runId: nextApproval.runId,
+  });
+  return nextApproval;
 }
 
 export function registerSageOsCli(program: Command) {
@@ -314,6 +362,34 @@ export function registerSageOsCli(program: Command) {
         taskId: id,
       });
       outputJsonOrText(cliOpts, { task: nextTask }, () => renderJsonResource({ task: nextTask }));
+    });
+
+  const approvals = os.command("approvals").description("List SageOS approvals");
+  approvals.option("--json", "Output JSON", false).action(async (opts: { json?: boolean }) => {
+    const state = await readSageOsState(createSageOsStateStore());
+    outputJsonOrText(opts, { approvals: state.approvals }, () => renderApprovals(state.approvals));
+  });
+
+  approvals
+    .command("approve <id>")
+    .description("Approve a pending SageOS approval")
+    .option("--reason <reason>", "Reason for audit log")
+    .option("--json", "Output JSON", false)
+    .action(async (id: string, opts: { reason?: string; json?: boolean }) => {
+      const cliOpts = commandOptions(opts);
+      const approval = await resolveApprovalFromCli(id, "approved", { reason: cliOpts.reason });
+      outputJsonOrText(cliOpts, { approval }, () => renderJsonResource({ approval }));
+    });
+
+  approvals
+    .command("deny <id>")
+    .description("Deny a pending SageOS approval")
+    .option("--reason <reason>", "Reason for audit log")
+    .option("--json", "Output JSON", false)
+    .action(async (id: string, opts: { reason?: string; json?: boolean }) => {
+      const cliOpts = commandOptions(opts);
+      const approval = await resolveApprovalFromCli(id, "denied", { reason: cliOpts.reason });
+      outputJsonOrText(cliOpts, { approval }, () => renderJsonResource({ approval }));
     });
 
   os.command("incidents")

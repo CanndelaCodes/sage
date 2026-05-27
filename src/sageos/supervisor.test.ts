@@ -7,6 +7,7 @@ import {
   createSageOsControlStore,
   createSageOsStateStore,
   readSageOsState,
+  upsertSageOsApproval,
   upsertSageOsAgent,
   upsertSageOsRun,
   upsertSageOsTask,
@@ -195,6 +196,53 @@ describe("SageOS state store", () => {
     expect(state.status.supervisor.state).toBe("stopped");
     expect(state.tasks).toHaveLength(1);
     expect(state.runs).toEqual([expect.objectContaining({ taskId: "task_1" })]);
+  });
+
+  it("persists durable approval resources without losing other resources", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-approval-store-"));
+    const store = createSageOsStateStore({ stateDir: root });
+    const now = "2026-05-27T14:00:00.000Z";
+
+    await upsertSageOsTask(store, {
+      id: "task_external",
+      title: "Send update",
+      objective: "Send a status update externally.",
+      state: "waiting_for_policy",
+      requestedBy: "jason",
+      autonomyTier: "execute_scoped",
+      policyScopes: [{ kind: "channel", allow: ["telegram"], risk: "high" }],
+      createdAt: now,
+      updatedAt: now,
+    });
+    await upsertSageOsApproval(store, {
+      id: "approval_external",
+      state: "pending",
+      riskClass: "external_write",
+      title: "Send Telegram update",
+      proposedAction: "Send a redacted task completion summary to Telegram.",
+      evidence: ["task_external", "artifact_summary"],
+      preview: "Task complete. No private details included.",
+      rollbackPlan: "Delete the Telegram message if it is incorrect.",
+      scope: "task",
+      taskId: "task_external",
+      requestedBy: "coding_worker",
+      requestedAt: now,
+      expiresAt: "2026-05-28T14:00:00.000Z",
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const state = await readSageOsState(store);
+    expect(state.tasks).toEqual([expect.objectContaining({ id: "task_external" })]);
+    expect(state.approvals).toEqual([
+      expect.objectContaining({
+        id: "approval_external",
+        state: "pending",
+        riskClass: "external_write",
+        scope: "task",
+        rollbackPlan: "Delete the Telegram message if it is incorrect.",
+      }),
+    ]);
   });
 });
 

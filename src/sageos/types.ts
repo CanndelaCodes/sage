@@ -251,6 +251,50 @@ export type SageOsRun = {
   error?: string;
 };
 
+export const SAGEOS_APPROVAL_STATES = ["pending", "approved", "denied", "expired"] as const;
+
+export type SageOsApprovalState = (typeof SAGEOS_APPROVAL_STATES)[number];
+
+export const SAGEOS_APPROVAL_RISK_CLASSES = [
+  "destructive",
+  "security_remediation",
+  "windows_setting",
+  "external_write",
+  "production",
+  "credentials",
+  "policy_change",
+  "private_data_export",
+] as const;
+
+export type SageOsApprovalRiskClass = (typeof SAGEOS_APPROVAL_RISK_CLASSES)[number];
+
+export type SageOsApprovalScope = "one_time" | "task" | "workflow" | "employee" | "domain";
+
+export type SageOsApproval = {
+  id: string;
+  state: SageOsApprovalState;
+  riskClass: SageOsApprovalRiskClass;
+  title: string;
+  proposedAction: string;
+  evidence: string[];
+  preview?: string;
+  rollbackPlan?: string;
+  scope: SageOsApprovalScope;
+  taskId?: string;
+  runId?: string;
+  employeeId?: string;
+  workflowId?: string;
+  domain?: string;
+  requestedBy: string;
+  requestedAt: string;
+  expiresAt?: string;
+  resolvedAt?: string;
+  resolvedBy?: string;
+  resolutionReason?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type SageOsConfig = {
   enabled?: boolean;
   mode?: SageOsAutonomyMode;

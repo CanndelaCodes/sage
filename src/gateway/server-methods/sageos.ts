@@ -8,20 +8,33 @@ import {
   createSageOsControlStore,
   createSageOsStateStore,
   readSageOsState,
+  upsertSageOsApproval,
   writeSageOsControl,
   writeSageOsState,
 } from "../../sageos/state-store.js";
 import { collectSageOsStatus } from "../../sageos/status.js";
-import { createSageOsStatusSnapshot, type SageOsSupervisorStatus } from "../../sageos/types.js";
+import {
+  createSageOsStatusSnapshot,
+  type SageOsApproval,
+  type SageOsSupervisorStatus,
+} from "../../sageos/types.js";
 import { ErrorCodes, errorShape } from "../protocol/index.js";
 
 const CONTROL_STATES = new Set(["paused", "running", "stopped"]);
+const APPROVAL_DECISIONS = new Set(["approved", "denied"]);
 
 type SageOsControlState = "paused" | "running" | "stopped";
+type SageOsApprovalDecision = "approved" | "denied";
 
 function parseControlState(value: unknown): SageOsControlState | undefined {
   return typeof value === "string" && CONTROL_STATES.has(value)
     ? (value as SageOsControlState)
+    : undefined;
+}
+
+function parseApprovalDecision(value: unknown): SageOsApprovalDecision | undefined {
+  return typeof value === "string" && APPROVAL_DECISIONS.has(value)
+    ? (value as SageOsApprovalDecision)
     : undefined;
 }
 
@@ -40,6 +53,38 @@ function supervisorStatusForControl(
     stoppedAt: isStopped ? now.toISOString() : undefined,
     lastError: opts.reason,
   };
+}
+
+async function resolveApprovalFromGateway(
+  id: string,
+  decision: SageOsApprovalDecision,
+  opts: { reason?: string },
+): Promise<SageOsApproval | undefined> {
+  const stateStore = createSageOsStateStore();
+  const state = await readSageOsState(stateStore);
+  const approval = state.approvals.find((entry) => entry.id === id);
+  if (!approval || approval.state !== "pending") {
+    return undefined;
+  }
+
+  const now = new Date().toISOString();
+  const nextApproval: SageOsApproval = {
+    ...approval,
+    state: decision,
+    resolvedAt: now,
+    resolvedBy: "sageos.gateway",
+    resolutionReason: opts.reason?.trim() || "gateway",
+    updatedAt: now,
+  };
+  await upsertSageOsApproval(stateStore, nextApproval);
+  await appendSageOsEvent(createSageOsEventLog(), {
+    type: "approval_resolved",
+    actor: "sageos.gateway",
+    summary: `Resolved SageOS approval ${id} as ${decision}: ${nextApproval.resolutionReason}`,
+    taskId: nextApproval.taskId,
+    runId: nextApproval.runId,
+  });
+  return nextApproval;
 }
 
 export const sageOsHandlers: GatewayRequestHandlers = {
@@ -76,6 +121,44 @@ export const sageOsHandlers: GatewayRequestHandlers = {
   "sageos.runs.list": async ({ respond }) => {
     const state = await readSageOsState(createSageOsStateStore());
     respond(true, { runs: state.runs }, undefined);
+  },
+  "sageos.approvals.list": async ({ respond }) => {
+    const state = await readSageOsState(createSageOsStateStore());
+    respond(true, { approvals: state.approvals }, undefined);
+  },
+  "sageos.approvals.resolve": async ({ params, respond, context }) => {
+    const id = typeof params.id === "string" ? params.id.trim() : "";
+    const decision = parseApprovalDecision(params.decision);
+    if (!id || !decision) {
+      respond(
+        false,
+        undefined,
+        errorShape(
+          ErrorCodes.INVALID_REQUEST,
+          "invalid sageos.approvals.resolve params: id and decision required",
+        ),
+      );
+      return;
+    }
+
+    const approval = await resolveApprovalFromGateway(id, decision, {
+      reason: typeof params.reason === "string" ? params.reason : undefined,
+    });
+    if (!approval) {
+      respond(
+        false,
+        undefined,
+        errorShape(ErrorCodes.INVALID_REQUEST, "SageOS approval not found or not pending"),
+      );
+      return;
+    }
+
+    const stateStore = createSageOsStateStore();
+    const status = await collectSageOsStatus();
+    await writeSageOsState(stateStore, status);
+    const state = await readSageOsState(stateStore);
+    context.broadcast("sageos", state, { dropIfSlow: true });
+    respond(true, { approval, state }, undefined);
   },
   "sageos.control": async ({ params, respond, context }) => {
     const controlState = parseControlState(params.state);

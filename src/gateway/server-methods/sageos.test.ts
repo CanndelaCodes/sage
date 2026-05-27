@@ -5,7 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createSageOsControlStore,
   createSageOsStateStore,
+  readSageOsState,
   readSageOsControl,
+  upsertSageOsApproval,
   upsertSageOsRun,
   upsertSageOsAgent,
   upsertSageOsTask,
@@ -15,7 +17,7 @@ import { sageOsHandlers } from "./sageos.js";
 
 const oldStateDir = process.env.SAGE_STATE_DIR;
 
-async function invoke(method: keyof typeof sageOsHandlers, params: Record<string, unknown> = {}) {
+async function invoke(method: string, params: Record<string, unknown> = {}) {
   const responses: Array<{ ok: boolean; payload?: unknown; error?: unknown }> = [];
   const broadcast = vi.fn();
   await sageOsHandlers[method]({
@@ -49,6 +51,8 @@ describe("SageOS gateway methods", () => {
     expect(listGatewayMethods()).toContain("sageos.agentTemplates.inspect");
     expect(listGatewayMethods()).toContain("sageos.tasks.list");
     expect(listGatewayMethods()).toContain("sageos.runs.list");
+    expect(listGatewayMethods()).toContain("sageos.approvals.list");
+    expect(listGatewayMethods()).toContain("sageos.approvals.resolve");
     expect(listGatewayMethods()).toContain("sageos.control");
     expect(GATEWAY_EVENTS).toContain("sageos");
   });
@@ -145,6 +149,110 @@ describe("SageOS gateway methods", () => {
     await expect(invoke("sageos.runs.list")).resolves.toMatchObject({
       response: { ok: true, payload: { runs: [{ id: "run_build" }] } },
     });
+  });
+
+  it("lists and resolves durable approvals with audit evidence", async () => {
+    const store = createSageOsStateStore();
+    const now = "2026-05-27T15:00:00.000Z";
+    await upsertSageOsApproval(store, {
+      id: "approval_external",
+      state: "pending",
+      riskClass: "external_write",
+      title: "Send Telegram update",
+      proposedAction: "Send a redacted task completion summary.",
+      evidence: ["task_1"],
+      preview: "Task done.",
+      rollbackPlan: "Delete message.",
+      scope: "task",
+      taskId: "task_1",
+      requestedBy: "coding_worker",
+      requestedAt: now,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await upsertSageOsApproval(store, {
+      id: "approval_policy",
+      state: "pending",
+      riskClass: "policy_change",
+      title: "Change autonomy policy",
+      proposedAction: "Raise coding worker policy.",
+      evidence: ["policy_diff"],
+      scope: "domain",
+      domain: "sageos.policy",
+      requestedBy: "operator",
+      requestedAt: now,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const list = await invoke("sageos.approvals.list");
+    expect(list.response?.ok).toBe(true);
+    expect(list.response?.payload).toMatchObject({
+      approvals: [
+        { id: "approval_external", state: "pending" },
+        { id: "approval_policy", state: "pending" },
+      ],
+    });
+
+    const approved = await invoke("sageos.approvals.resolve", {
+      id: "approval_external",
+      decision: "approved",
+      reason: "reviewed",
+    });
+    expect(approved.response?.ok).toBe(true);
+    expect(approved.response?.payload).toMatchObject({
+      approval: {
+        id: "approval_external",
+        state: "approved",
+        resolvedBy: "sageos.gateway",
+        resolutionReason: "reviewed",
+      },
+    });
+    expect(approved.broadcast).toHaveBeenCalledWith(
+      "sageos",
+      expect.objectContaining({
+        approvals: expect.arrayContaining([
+          expect.objectContaining({ id: "approval_external", state: "approved" }),
+        ]),
+      }),
+      { dropIfSlow: true },
+    );
+
+    const denied = await invoke("sageos.approvals.resolve", {
+      id: "approval_policy",
+      decision: "denied",
+      reason: "unsafe",
+    });
+    expect(denied.response?.ok).toBe(true);
+    expect(denied.response?.payload).toMatchObject({
+      approval: {
+        id: "approval_policy",
+        state: "denied",
+        resolvedBy: "sageos.gateway",
+        resolutionReason: "unsafe",
+      },
+    });
+    await expect(readSageOsState(store)).resolves.toMatchObject({
+      approvals: [
+        { id: "approval_external", state: "approved" },
+        { id: "approval_policy", state: "denied" },
+      ],
+    });
+
+    const log = await readFile(
+      path.join(process.env.SAGE_STATE_DIR!, "sageos", "events.jsonl"),
+      "utf8",
+    );
+    expect(log.match(/approval_resolved/g)).toHaveLength(2);
+  });
+
+  it("rejects invalid approval resolution params", async () => {
+    const { response } = await invoke("sageos.approvals.resolve", {
+      id: "approval_external",
+      decision: "maybe",
+    });
+    expect(response?.ok).toBe(false);
+    expect(response?.error).toMatchObject({ code: "INVALID_REQUEST" });
   });
 
   it("writes supervisor control, state, and audit event", async () => {

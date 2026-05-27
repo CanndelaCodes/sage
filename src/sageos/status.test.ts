@@ -11,6 +11,7 @@ import {
 import { appendSageOsEvent, createSageOsEventLog } from "./event-log.js";
 import {
   createSageOsStateStore,
+  upsertSageOsApproval,
   upsertSageOsAgent,
   upsertSageOsRun,
   upsertSageOsTask,
@@ -69,6 +70,38 @@ describe("SageOS status collector", () => {
       state: "running",
       traceId: "trace_active",
       startedAt: now,
+    });
+    await upsertSageOsApproval(store, {
+      id: "approval_external",
+      state: "pending",
+      riskClass: "external_write",
+      title: "Send external update",
+      proposedAction: "Send a redacted task completion message.",
+      evidence: ["task_running"],
+      preview: "Task completed.",
+      rollbackPlan: "Delete the message if incorrect.",
+      scope: "task",
+      taskId: "task_running",
+      requestedBy: "coding_worker",
+      requestedAt: now,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await upsertSageOsApproval(store, {
+      id: "approval_old",
+      state: "approved",
+      riskClass: "policy_change",
+      title: "Change policy",
+      proposedAction: "Update autonomy policy.",
+      evidence: ["policy_diff"],
+      scope: "domain",
+      domain: "sageos.policy",
+      requestedBy: "operator",
+      requestedAt: now,
+      resolvedAt: now,
+      resolvedBy: "jason",
+      createdAt: now,
+      updatedAt: now,
     });
 
     const log = createSageOsEventLog({ stateDir: root });
@@ -133,6 +166,7 @@ describe("SageOS status collector", () => {
     expect(snapshot.employees).toMatchObject({ total: 1, active: 1 });
     expect(snapshot.tasks).toMatchObject({ total: 3, active: 1, queued: 1, blocked: 1 });
     expect(snapshot.runs).toMatchObject({ total: 1, active: 1, failed: 0 });
+    expect(snapshot.approvals.pending).toBe(1);
     expect(snapshot.memory.captureQueue.failed).toBe(1);
     expect(snapshot.learning.activityQueue.failed).toBe(1);
     expect(snapshot.audit).toMatchObject({ recentEvents: 1, eventLogPath: log.path });

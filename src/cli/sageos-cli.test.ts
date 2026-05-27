@@ -7,6 +7,7 @@ import { appendSageOsEvent, createSageOsEventLog } from "../sageos/event-log.js"
 import {
   createSageOsStateStore,
   readSageOsState,
+  upsertSageOsApproval,
   upsertSageOsAgent,
   upsertSageOsTask,
   writeSageOsState,
@@ -204,6 +205,85 @@ describe("sage os CLI", () => {
     });
     const rawEvents = await readFile(path.join(stateDir, "sageos", "events.jsonl"), "utf8");
     expect(rawEvents).toContain("task_cancelled");
+  });
+
+  it("lists and resolves approvals with audit evidence", async () => {
+    const stateDir = process.env.SAGE_STATE_DIR!;
+    const store = createSageOsStateStore();
+    const now = "2026-05-27T14:20:00.000Z";
+    await upsertSageOsApproval(store, {
+      id: "approval_external",
+      state: "pending",
+      riskClass: "external_write",
+      title: "Send Telegram update",
+      proposedAction: "Send a redacted task completion summary.",
+      evidence: ["task_1"],
+      preview: "Task done.",
+      rollbackPlan: "Delete message.",
+      scope: "task",
+      taskId: "task_1",
+      requestedBy: "coding_worker",
+      requestedAt: now,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await upsertSageOsApproval(store, {
+      id: "approval_policy",
+      state: "pending",
+      riskClass: "policy_change",
+      title: "Change autonomy policy",
+      proposedAction: "Raise coding worker policy.",
+      evidence: ["policy_diff"],
+      scope: "domain",
+      domain: "sageos.policy",
+      requestedBy: "operator",
+      requestedAt: now,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const program = makeProgram();
+    await program.parseAsync(["os", "approvals", "--json"], { from: "user" });
+    expect(lastJson()).toMatchObject({
+      approvals: [
+        { id: "approval_external", state: "pending" },
+        { id: "approval_policy", state: "pending" },
+      ],
+    });
+
+    await program.parseAsync(
+      ["os", "approvals", "approve", "approval_external", "--reason", "reviewed", "--json"],
+      { from: "user" },
+    );
+    expect(lastJson()).toMatchObject({
+      approval: {
+        id: "approval_external",
+        state: "approved",
+        resolvedBy: "sageos.cli",
+        resolutionReason: "reviewed",
+      },
+    });
+
+    await program.parseAsync(
+      ["os", "approvals", "deny", "approval_policy", "--reason", "unsafe", "--json"],
+      { from: "user" },
+    );
+    expect(lastJson()).toMatchObject({
+      approval: {
+        id: "approval_policy",
+        state: "denied",
+        resolvedBy: "sageos.cli",
+        resolutionReason: "unsafe",
+      },
+    });
+    await expect(readSageOsState(store)).resolves.toMatchObject({
+      approvals: [
+        { id: "approval_external", state: "approved" },
+        { id: "approval_policy", state: "denied" },
+      ],
+    });
+    const rawEvents = await readFile(path.join(stateDir, "sageos", "events.jsonl"), "utf8");
+    expect(rawEvents.match(/approval_resolved/g)).toHaveLength(2);
   });
 
   it("shows incidents, audit events, and doctor status", async () => {
