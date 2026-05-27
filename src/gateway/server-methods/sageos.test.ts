@@ -811,6 +811,28 @@ describe("SageOS gateway methods", () => {
   it("lists and resolves durable approvals with audit evidence", async () => {
     const store = createSageOsStateStore();
     const now = "2026-05-27T15:00:00.000Z";
+    await upsertSageOsTask(store, {
+      id: "task_1",
+      title: "Send Telegram update",
+      objective: "Send a redacted task completion summary.",
+      state: "waiting_for_policy",
+      requestedBy: "coding_worker",
+      autonomyTier: "prepare",
+      policyScopes: [{ kind: "channel", allow: ["telegram:123"], risk: "medium" }],
+      createdAt: now,
+      updatedAt: now,
+    });
+    await upsertSageOsTask(store, {
+      id: "task_2",
+      title: "Change autonomy policy",
+      objective: "Raise coding worker policy.",
+      state: "waiting_for_policy",
+      requestedBy: "operator",
+      autonomyTier: "prepare",
+      policyScopes: [{ kind: "system", allow: ["sageos.policy"], risk: "medium" }],
+      createdAt: now,
+      updatedAt: now,
+    });
     await upsertSageOsApproval(store, {
       id: "approval_external",
       state: "pending",
@@ -833,9 +855,9 @@ describe("SageOS gateway methods", () => {
       riskClass: "policy_change",
       title: "Change autonomy policy",
       proposedAction: "Raise coding worker policy.",
-      evidence: ["policy_diff"],
-      scope: "domain",
-      domain: "sageos.policy",
+      evidence: ["task_2"],
+      scope: "task",
+      taskId: "task_2",
       requestedBy: "operator",
       requestedAt: now,
       createdAt: now,
@@ -893,6 +915,10 @@ describe("SageOS gateway methods", () => {
       approvals: [
         { id: "approval_external", state: "approved" },
         { id: "approval_policy", state: "denied" },
+      ],
+      tasks: [
+        { id: "task_1", state: "queued" },
+        { id: "task_2", state: "blocked" },
       ],
     });
 

@@ -390,6 +390,46 @@ describe("SageOS status collector", () => {
     );
   });
 
+  it("does not duplicate generated incidents across persisted status refreshes", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "sageos-status-incidents-"));
+    const store = createSageOsStateStore({ stateDir: root });
+    const now = "2026-05-27T19:30:00.000Z";
+    await writeSageOsState(store, createSageOsStatusSnapshot());
+    await upsertSageOsTask(store, {
+      id: "task_external",
+      title: "Send external update",
+      objective: "Wait for external-write approval.",
+      state: "waiting_for_policy",
+      requestedBy: "smoke",
+      autonomyTier: "prepare",
+      policyScopes: [{ kind: "channel", allow: ["telegram:smoke"], risk: "medium" }],
+      createdAt: now,
+      updatedAt: now,
+    });
+    await upsertSageOsApproval(store, {
+      id: "approval_task_external",
+      state: "pending",
+      riskClass: "external_write",
+      title: "Send external update",
+      proposedAction: "Send a redacted update.",
+      evidence: ["task_external"],
+      scope: "task",
+      taskId: "task_external",
+      requestedBy: "smoke",
+      requestedAt: now,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const first = await collectSageOsStatus({ stateDir: root });
+    await writeSageOsState(store, first);
+    const second = await collectSageOsStatus({ stateDir: root });
+
+    expect(
+      second.incidents.filter((incident) => incident.id === "incident_policy_blocked"),
+    ).toHaveLength(1);
+  });
+
   it("preserves memory doctor export proof and raises failed doctor incidents", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "sageos-status-memory-doctor-"));
     const store = createSageOsStateStore({ stateDir: root });

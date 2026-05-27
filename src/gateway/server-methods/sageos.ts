@@ -2,6 +2,7 @@ import type { GatewayRequestHandlers } from "./types.js";
 import { loadConfig } from "../../config/config.js";
 import { runSageOsAmbientCopilotOnce } from "../../sageos/ambient-copilot.js";
 import { discoverSageOsAppCandidates } from "../../sageos/app-candidates.js";
+import { resolveSageOsApproval, type SageOsApprovalDecision } from "../../sageos/approvals.js";
 import { runSageOsNightShiftTask } from "../../sageos/coding/night-shift.js";
 import { createSageOsTaskHandoff, requestSageOsReview } from "../../sageos/collaboration.js";
 import {
@@ -35,7 +36,6 @@ import {
   createSageOsControlStore,
   createSageOsStateStore,
   readSageOsState,
-  upsertSageOsApproval,
   upsertSageOsTask,
   writeSageOsControl,
   writeSageOsState,
@@ -44,11 +44,7 @@ import { collectSageOsStatus } from "../../sageos/status.js";
 import { observeSystemStatusOnce } from "../../sageos/system-observer.js";
 import { queueSageOsTask } from "../../sageos/task-queue.js";
 import { runNextSageOsTaskOnce } from "../../sageos/task-runner.js";
-import {
-  createSageOsStatusSnapshot,
-  type SageOsApproval,
-  type SageOsSupervisorStatus,
-} from "../../sageos/types.js";
+import { createSageOsStatusSnapshot, type SageOsSupervisorStatus } from "../../sageos/types.js";
 import { discoverSageOsWorkflowCandidates } from "../../sageos/workflow-compiler.js";
 import { dryRunSageOsWorkflow } from "../../sageos/workflow-runner.js";
 import { ErrorCodes, errorShape } from "../protocol/index.js";
@@ -57,7 +53,10 @@ const CONTROL_STATES = new Set(["paused", "running", "stopped"]);
 const APPROVAL_DECISIONS = new Set(["approved", "denied"]);
 
 type SageOsControlState = "paused" | "running" | "stopped";
-type SageOsApprovalDecision = "approved" | "denied";
+type ResolvedSageOsApproval = Extract<
+  Awaited<ReturnType<typeof resolveSageOsApproval>>,
+  { outcome: "resolved" }
+>;
 
 function parseControlState(value: unknown): SageOsControlState | undefined {
   return typeof value === "string" && CONTROL_STATES.has(value)
@@ -116,32 +115,14 @@ async function resolveApprovalFromGateway(
   id: string,
   decision: SageOsApprovalDecision,
   opts: { reason?: string },
-): Promise<SageOsApproval | undefined> {
-  const stateStore = createSageOsStateStore();
-  const state = await readSageOsState(stateStore);
-  const approval = state.approvals.find((entry) => entry.id === id);
-  if (!approval || approval.state !== "pending") {
-    return undefined;
-  }
-
-  const now = new Date().toISOString();
-  const nextApproval: SageOsApproval = {
-    ...approval,
-    state: decision,
-    resolvedAt: now,
-    resolvedBy: "sageos.gateway",
-    resolutionReason: opts.reason?.trim() || "gateway",
-    updatedAt: now,
-  };
-  await upsertSageOsApproval(stateStore, nextApproval);
-  await appendSageOsEvent(createSageOsEventLog(), {
-    type: "approval_resolved",
+): Promise<ResolvedSageOsApproval | undefined> {
+  const result = await resolveSageOsApproval({
+    id,
+    decision,
     actor: "sageos.gateway",
-    summary: `Resolved SageOS approval ${id} as ${decision}: ${nextApproval.resolutionReason}`,
-    taskId: nextApproval.taskId,
-    runId: nextApproval.runId,
+    reason: opts.reason?.trim() || "gateway",
   });
-  return nextApproval;
+  return result.outcome === "resolved" ? result : undefined;
 }
 
 export const sageOsHandlers: GatewayRequestHandlers = {
@@ -504,10 +485,10 @@ export const sageOsHandlers: GatewayRequestHandlers = {
       return;
     }
 
-    const approval = await resolveApprovalFromGateway(id, decision, {
+    const result = await resolveApprovalFromGateway(id, decision, {
       reason: typeof params.reason === "string" ? params.reason : undefined,
     });
-    if (!approval) {
+    if (!result) {
       respond(
         false,
         undefined,
@@ -521,7 +502,7 @@ export const sageOsHandlers: GatewayRequestHandlers = {
     await writeSageOsState(stateStore, status);
     const state = await readSageOsState(stateStore);
     context.broadcast("sageos", state, { dropIfSlow: true });
-    respond(true, { approval, state }, undefined);
+    respond(true, { approval: result.approval, task: result.task, state }, undefined);
   },
   "sageos.observe": async ({ params, respond, context }) => {
     if (params.source !== "app_focus" && params.source !== "system") {

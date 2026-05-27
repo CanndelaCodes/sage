@@ -69,7 +69,7 @@ export async function collectSageOsStatus(
   const pendingApprovals = state.approvals.filter((approval) => approval.state === "pending");
   const policyBlockedTasks = state.tasks.filter((task) => task.state === "waiting_for_policy");
   const incidents = [
-    ...state.status.incidents.filter((incident) => incident.id !== "incident_memory_doctor_failed"),
+    ...state.status.incidents.filter((incident) => !isGeneratedIncidentId(incident.id)),
     ...queueIncidents({
       now: state.status.generatedAt,
       category: "memory",
@@ -134,6 +134,18 @@ export async function collectSageOsStatus(
     },
   });
   return memoryDoctor ? applySageOsMemoryDoctorSummary(snapshot, memoryDoctor) : snapshot;
+}
+
+const GENERATED_INCIDENT_IDS = new Set([
+  "incident_memory_queue_failed",
+  "incident_learning_queue_failed",
+  "incident_policy_blocked",
+  "incident_source_failed",
+  "incident_memory_doctor_failed",
+]);
+
+function isGeneratedIncidentId(id: string): boolean {
+  return GENERATED_INCIDENT_IDS.has(id);
 }
 
 export function applySageOsMemoryDoctorSummary(

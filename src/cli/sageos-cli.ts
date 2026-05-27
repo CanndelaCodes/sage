@@ -4,6 +4,7 @@ import { formatDoctorReport } from "../memory/sage-memory-doctor-format.js";
 import { defaultRuntime } from "../runtime.js";
 import { runSageOsAmbientCopilotOnce } from "../sageos/ambient-copilot.js";
 import { discoverSageOsAppCandidates } from "../sageos/app-candidates.js";
+import { resolveSageOsApproval } from "../sageos/approvals.js";
 import { runSageOsNightShiftTask } from "../sageos/coding/night-shift.js";
 import { createSageOsTaskHandoff, requestSageOsReview } from "../sageos/collaboration.js";
 import {
@@ -34,7 +35,6 @@ import {
   createSageOsControlStore,
   createSageOsStateStore,
   readSageOsState,
-  upsertSageOsApproval,
   upsertSageOsAgent,
   upsertSageOsTask,
   writeSageOsControl,
@@ -80,10 +80,6 @@ export type SageOsCliDeps = {
   sendCompletionNotificationOnce?: typeof sendSageOsCompletionNotificationOnce;
   loadConfig?: typeof loadConfig;
 };
-
-async function loadSnapshot() {
-  return await collectSageOsStatus();
-}
 
 async function updateSupervisorState(
   state: "paused" | "running" | "stopped",
@@ -264,35 +260,20 @@ async function resolveApprovalFromCli(
   id: string,
   decision: "approved" | "denied",
   opts: { reason?: string },
-): Promise<SageOsApproval> {
-  const store = createSageOsStateStore();
-  const state = await readSageOsState(store);
-  const approval = state.approvals.find((entry) => entry.id === id);
-  if (!approval) {
+): Promise<{ approval: SageOsApproval; task?: SageOsTaskSpec }> {
+  const result = await resolveSageOsApproval({
+    id,
+    decision,
+    actor: "sageos.cli",
+    reason: opts.reason,
+  });
+  if (result.outcome === "not_found") {
     fail(`SageOS approval not found: ${id}`);
   }
-  if (approval.state !== "pending") {
+  if (result.outcome === "not_pending") {
     fail(`SageOS approval is not pending: ${id}`);
   }
-
-  const now = new Date().toISOString();
-  const nextApproval: SageOsApproval = {
-    ...approval,
-    state: decision,
-    resolvedAt: now,
-    resolvedBy: "sageos.cli",
-    resolutionReason: opts.reason?.trim() || "manual",
-    updatedAt: now,
-  };
-  await upsertSageOsApproval(store, nextApproval);
-  await appendSageOsEvent(createSageOsEventLog(), {
-    type: "approval_resolved",
-    actor: "sageos.cli",
-    summary: `Resolved SageOS approval ${id} as ${decision}: ${nextApproval.resolutionReason}`,
-    taskId: nextApproval.taskId,
-    runId: nextApproval.runId,
-  });
-  return nextApproval;
+  return { approval: result.approval, ...(result.task ? { task: result.task } : {}) };
 }
 
 export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
@@ -324,7 +305,7 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
     .description("Show SageOS Command Center status")
     .option("--json", "Output JSON", false)
     .action(async (opts: { json?: boolean }) => {
-      const snapshot = await loadSnapshot();
+      const snapshot = await collectSageOsStatus({ cfg: loadSageConfig().sageos });
       defaultRuntime.log(
         opts.json ? JSON.stringify(snapshot, null, 2) : renderSageOsStatus(snapshot),
       );
@@ -829,8 +810,8 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
     .option("--json", "Output JSON", false)
     .action(async (id: string, opts: { reason?: string; json?: boolean }) => {
       const cliOpts = commandOptions(opts);
-      const approval = await resolveApprovalFromCli(id, "approved", { reason: cliOpts.reason });
-      outputJsonOrText(cliOpts, { approval }, () => renderJsonResource({ approval }));
+      const result = await resolveApprovalFromCli(id, "approved", { reason: cliOpts.reason });
+      outputJsonOrText(cliOpts, result, () => renderJsonResource(result));
     });
 
   approvals
@@ -840,8 +821,8 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
     .option("--json", "Output JSON", false)
     .action(async (id: string, opts: { reason?: string; json?: boolean }) => {
       const cliOpts = commandOptions(opts);
-      const approval = await resolveApprovalFromCli(id, "denied", { reason: cliOpts.reason });
-      outputJsonOrText(cliOpts, { approval }, () => renderJsonResource({ approval }));
+      const result = await resolveApprovalFromCli(id, "denied", { reason: cliOpts.reason });
+      outputJsonOrText(cliOpts, result, () => renderJsonResource(result));
     });
 
   const observations = os.command("observations").description("List SageOS observations");

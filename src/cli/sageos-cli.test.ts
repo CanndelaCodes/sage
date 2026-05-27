@@ -66,7 +66,15 @@ describe("sage os CLI", () => {
   });
 
   it("prints parseable status JSON", async () => {
-    const program = makeProgram();
+    const program = makeProgram({
+      loadConfig: () => ({
+        sageos: {
+          sources: { appFocus: true },
+          coding: { enabled: true, allowedRepos: ["C:\\repo"] },
+          notifications: { telegram: { enabled: true, target: "telegram:smoke" } },
+        },
+      }),
+    } as SageOsCliDeps);
     await program.parseAsync(["os", "status", "--json"], { from: "user" });
 
     const parsed = JSON.parse(runtimeLogs.at(-1) ?? "{}");
@@ -78,6 +86,12 @@ describe("sage os CLI", () => {
       captureQueue: { total: 0 },
     });
     expect(parsed.learning).toMatchObject({ activityQueue: { total: 0 } });
+    expect(parsed.sources.enabled).toContain("appFocus");
+    expect(parsed.coding).toMatchObject({ enabled: true, allowedRepos: ["C:\\repo"] });
+    expect(parsed.notifications.telegram).toMatchObject({
+      enabled: true,
+      target: "telegram:smoke",
+    });
     expect(parsed.audit.eventLogPath).toContain("events.jsonl");
   });
 
@@ -465,6 +479,28 @@ describe("sage os CLI", () => {
     const stateDir = process.env.SAGE_STATE_DIR!;
     const store = createSageOsStateStore();
     const now = "2026-05-27T14:20:00.000Z";
+    await upsertSageOsTask(store, {
+      id: "task_1",
+      title: "Send Telegram update",
+      objective: "Send a redacted task completion summary.",
+      state: "waiting_for_policy",
+      requestedBy: "coding_worker",
+      autonomyTier: "prepare",
+      policyScopes: [{ kind: "channel", allow: ["telegram:123"], risk: "medium" }],
+      createdAt: now,
+      updatedAt: now,
+    });
+    await upsertSageOsTask(store, {
+      id: "task_2",
+      title: "Change autonomy policy",
+      objective: "Raise coding worker policy.",
+      state: "waiting_for_policy",
+      requestedBy: "operator",
+      autonomyTier: "prepare",
+      policyScopes: [{ kind: "system", allow: ["sageos.policy"], risk: "medium" }],
+      createdAt: now,
+      updatedAt: now,
+    });
     await upsertSageOsApproval(store, {
       id: "approval_external",
       state: "pending",
@@ -487,9 +523,9 @@ describe("sage os CLI", () => {
       riskClass: "policy_change",
       title: "Change autonomy policy",
       proposedAction: "Raise coding worker policy.",
-      evidence: ["policy_diff"],
-      scope: "domain",
-      domain: "sageos.policy",
+      evidence: ["task_2"],
+      scope: "task",
+      taskId: "task_2",
       requestedBy: "operator",
       requestedAt: now,
       createdAt: now,
@@ -534,6 +570,10 @@ describe("sage os CLI", () => {
       approvals: [
         { id: "approval_external", state: "approved" },
         { id: "approval_policy", state: "denied" },
+      ],
+      tasks: [
+        { id: "task_1", state: "queued" },
+        { id: "task_2", state: "blocked" },
       ],
     });
     const rawEvents = await readFile(path.join(stateDir, "sageos", "events.jsonl"), "utf8");
