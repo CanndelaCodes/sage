@@ -45,10 +45,27 @@ describe("SageOS gateway methods", () => {
   it("registers methods and events for command-center clients", () => {
     expect(listGatewayMethods()).toContain("sageos.status");
     expect(listGatewayMethods()).toContain("sageos.agents.list");
+    expect(listGatewayMethods()).toContain("sageos.agentTemplates.list");
+    expect(listGatewayMethods()).toContain("sageos.agentTemplates.inspect");
     expect(listGatewayMethods()).toContain("sageos.tasks.list");
     expect(listGatewayMethods()).toContain("sageos.runs.list");
     expect(listGatewayMethods()).toContain("sageos.control");
     expect(GATEWAY_EVENTS).toContain("sageos");
+  });
+
+  it("returns default SageOS employee templates", async () => {
+    const list = await invoke("sageos.agentTemplates.list");
+    expect(list.response?.ok).toBe(true);
+    const payload = list.response?.payload as { templates: Array<{ id: string }> };
+    expect(payload.templates.map((template) => template.id)).toEqual(
+      expect.arrayContaining(["security_sentinel", "pc_steward", "memory_steward", "reviewer"]),
+    );
+
+    const inspect = await invoke("sageos.agentTemplates.inspect", { id: "memory_steward" });
+    expect(inspect.response?.ok).toBe(true);
+    expect(inspect.response?.payload).toMatchObject({
+      template: { id: "memory_steward", name: "Memory Steward", role: "memory" },
+    });
   });
 
   it("returns durable SageOS status", async () => {

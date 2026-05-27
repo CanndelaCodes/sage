@@ -1,4 +1,8 @@
 import type { GatewayRequestHandlers } from "./types.js";
+import {
+  getSageOsEmployeeTemplate,
+  listSageOsEmployeeTemplates,
+} from "../../sageos/employee-templates.js";
 import { appendSageOsEvent, createSageOsEventLog } from "../../sageos/event-log.js";
 import {
   createSageOsControlStore,
@@ -48,6 +52,22 @@ export const sageOsHandlers: GatewayRequestHandlers = {
   "sageos.agents.list": async ({ respond }) => {
     const state = await readSageOsState(createSageOsStateStore());
     respond(true, { agents: state.agents }, undefined);
+  },
+  "sageos.agentTemplates.list": async ({ respond }) => {
+    respond(true, { templates: listSageOsEmployeeTemplates() }, undefined);
+  },
+  "sageos.agentTemplates.inspect": async ({ params, respond }) => {
+    const id = typeof params.id === "string" ? params.id : "";
+    const template = getSageOsEmployeeTemplate(id);
+    if (!template) {
+      respond(
+        false,
+        undefined,
+        errorShape(ErrorCodes.INVALID_REQUEST, "invalid sageos.agentTemplates.inspect params: id"),
+      );
+      return;
+    }
+    respond(true, { template }, undefined);
   },
   "sageos.tasks.list": async ({ respond }) => {
     const state = await readSageOsState(createSageOsStateStore());

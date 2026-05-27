@@ -1,5 +1,9 @@
 import type { Command } from "commander";
 import { defaultRuntime } from "../runtime.js";
+import {
+  getSageOsEmployeeTemplate,
+  listSageOsEmployeeTemplates,
+} from "../sageos/employee-templates.js";
 import { appendSageOsEvent, createSageOsEventLog, readSageOsEvents } from "../sageos/event-log.js";
 import {
   createSageOsControlStore,
@@ -182,6 +186,29 @@ export function registerSageOsCli(program: Command) {
     const state = await readSageOsState(createSageOsStateStore());
     outputJsonOrText(opts, { employees: state.agents }, () => renderEmployees(state.agents));
   });
+
+  const employeeTemplates = employees
+    .command("templates")
+    .description("List default SageOS employee templates");
+  employeeTemplates
+    .option("--json", "Output JSON", false)
+    .action(async (opts: { json?: boolean }) => {
+      const templates = listSageOsEmployeeTemplates();
+      outputJsonOrText(opts, { templates }, () => renderJsonResource({ templates }));
+    });
+
+  employeeTemplates
+    .command("inspect <id>")
+    .description("Inspect a SageOS employee template")
+    .option("--json", "Output JSON", false)
+    .action(async (id: string, opts: { json?: boolean }) => {
+      const cliOpts = commandOptions(opts);
+      const template = getSageOsEmployeeTemplate(id);
+      if (!template) {
+        fail(`SageOS employee template not found: ${id}`);
+      }
+      outputJsonOrText(cliOpts, { template }, () => renderJsonResource({ template }));
+    });
 
   employees
     .command("inspect <id>")

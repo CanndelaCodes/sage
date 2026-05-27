@@ -123,6 +123,19 @@ describe("sage os CLI", () => {
     await program.parseAsync(["os", "employees", "--json"], { from: "user" });
     expect(lastJson()).toMatchObject({ employees: [{ id: "employee_reviewer" }] });
 
+    await program.parseAsync(["os", "employees", "templates", "--json"], { from: "user" });
+    expect(lastJson().templates.map((template: { id: string }) => template.id)).toContain(
+      "memory_steward",
+    );
+
+    await program.parseAsync(
+      ["os", "employees", "templates", "inspect", "memory_steward", "--json"],
+      { from: "user" },
+    );
+    expect(lastJson()).toMatchObject({
+      template: { id: "memory_steward", name: "Memory Steward", role: "memory" },
+    });
+
     await program.parseAsync(["os", "employees", "inspect", "employee_reviewer", "--json"], {
       from: "user",
     });

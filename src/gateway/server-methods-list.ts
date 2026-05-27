@@ -8,6 +8,8 @@ const BASE_METHODS = [
   "status",
   "sageos.status",
   "sageos.agents.list",
+  "sageos.agentTemplates.list",
+  "sageos.agentTemplates.inspect",
   "sageos.tasks.list",
   "sageos.runs.list",
   "sageos.control",
