@@ -9,11 +9,12 @@ import {
   readSageOsState,
   upsertSageOsApproval,
   upsertSageOsAgent,
+  upsertSageOsObservation,
   upsertSageOsTask,
   writeSageOsState,
 } from "../sageos/state-store.js";
 import { createSageOsStatusSnapshot } from "../sageos/types.js";
-import { registerSageOsCli } from "./sageos-cli.js";
+import { registerSageOsCli, type SageOsCliDeps } from "./sageos-cli.js";
 
 const { runtimeLogs, defaultRuntime } = vi.hoisted(() => {
   const logs: string[] = [];
@@ -31,14 +32,14 @@ const { runtimeLogs, defaultRuntime } = vi.hoisted(() => {
 
 vi.mock("../runtime.js", () => ({ defaultRuntime }));
 
-const makeProgram = () => {
+const makeProgram = (deps: SageOsCliDeps = {}) => {
   const program = new Command();
   program.exitOverride();
   program.configureOutput({
     writeOut: (str) => runtimeLogs.push(str),
     writeErr: (str) => runtimeLogs.push(str),
   });
-  registerSageOsCli(program);
+  registerSageOsCli(program, deps);
   return program;
 };
 
@@ -284,6 +285,64 @@ describe("sage os CLI", () => {
     });
     const rawEvents = await readFile(path.join(stateDir, "sageos", "events.jsonl"), "utf8");
     expect(rawEvents.match(/approval_resolved/g)).toHaveLength(2);
+  });
+
+  it("lists and triggers app-focus observations", async () => {
+    const store = createSageOsStateStore();
+    const now = "2026-05-27T16:30:00.000Z";
+    await upsertSageOsObservation(store, {
+      id: "obs_existing",
+      source: "app_focus",
+      state: "captured",
+      title: "Code: SageOS",
+      text: "Active app focus: Code - SageOS",
+      sensitivity: "private",
+      observedAt: now,
+      payload: { processName: "Code", windowTitle: "SageOS" },
+      provenance: { adapter: "app_focus" },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const observeCalls: unknown[] = [];
+    const program = makeProgram({
+      observeAppFocusOnce: async (params) => {
+        observeCalls.push(params);
+        return {
+          status: "recorded",
+          observation: {
+            id: "obs_new",
+            source: "app_focus",
+            state: "captured",
+            title: "Terminal: Sage",
+            text: "Active app focus: Terminal - Sage",
+            sensitivity: "private",
+            observedAt: now,
+            payload: { processName: "Terminal", windowTitle: "Sage" },
+            provenance: { adapter: "app_focus" },
+            learningEventId: "learning_terminal",
+            createdAt: now,
+            updatedAt: now,
+          },
+          learning: { created: 1, skipped: 0 },
+        };
+      },
+    });
+
+    await program.parseAsync(["os", "observations", "--json"], { from: "user" });
+    expect(lastJson()).toMatchObject({
+      observations: [{ id: "obs_existing", source: "app_focus", state: "captured" }],
+    });
+
+    await program.parseAsync(["os", "observe", "app-focus", "--json"], { from: "user" });
+    expect(lastJson()).toMatchObject({
+      result: {
+        status: "recorded",
+        observation: { id: "obs_new", source: "app_focus", state: "captured" },
+      },
+    });
+    expect(observeCalls).toHaveLength(1);
+    expect(observeCalls[0]).toMatchObject({ cfg: { sources: { appFocus: true } } });
   });
 
   it("shows incidents, audit events, and doctor status", async () => {

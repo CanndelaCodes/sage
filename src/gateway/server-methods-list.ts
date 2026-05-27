@@ -14,6 +14,8 @@ const BASE_METHODS = [
   "sageos.runs.list",
   "sageos.approvals.list",
   "sageos.approvals.resolve",
+  "sageos.observations.list",
+  "sageos.observe",
   "sageos.control",
   "usage.status",
   "usage.cost",

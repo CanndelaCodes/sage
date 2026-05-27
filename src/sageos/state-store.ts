@@ -7,6 +7,7 @@ import {
   createSageOsStatusSnapshot,
   type SageOsApproval,
   type SageOsAgentSpec,
+  type SageOsObservation,
   type SageOsRun,
   type SageOsStatusSnapshot,
   type SageOsTaskSpec,
@@ -23,6 +24,7 @@ export type SageOsPersistedState = {
   tasks: SageOsTaskSpec[];
   runs: SageOsRun[];
   approvals: SageOsApproval[];
+  observations: SageOsObservation[];
   updatedAt: string;
 };
 
@@ -148,6 +150,10 @@ export async function readSageOsState(store: SageOsStateStore): Promise<SageOsPe
     siblingStore(store, "approvals.json").path,
     base.approvals ?? [],
   );
+  const observations = await readJsonFile<SageOsObservation[]>(
+    siblingStore(store, "observations.json").path,
+    base.observations ?? [],
+  );
 
   if (base.version === 1 && base.status) {
     return {
@@ -157,6 +163,7 @@ export async function readSageOsState(store: SageOsStateStore): Promise<SageOsPe
       tasks,
       runs,
       approvals,
+      observations,
       updatedAt: base.updatedAt ?? base.status.generatedAt,
     };
   }
@@ -168,6 +175,7 @@ export async function readSageOsState(store: SageOsStateStore): Promise<SageOsPe
     tasks,
     runs,
     approvals,
+    observations,
     updatedAt: fallbackStatus.generatedAt,
   };
 }
@@ -189,6 +197,7 @@ export async function writeSageOsState(
     tasks: current.tasks,
     runs: current.runs,
     approvals: current.approvals,
+    observations: current.observations,
   };
 }
 
@@ -238,6 +247,18 @@ export async function upsertSageOsApproval(
   );
   const current = await readSageOsState(store);
   return { ...current, approvals, updatedAt: new Date().toISOString() };
+}
+
+export async function upsertSageOsObservation(
+  store: SageOsStateStore,
+  observation: SageOsObservation,
+): Promise<SageOsPersistedState> {
+  const observationsFile = siblingStore(store, "observations.json").path;
+  const observations = await updateJsonFile<SageOsObservation[]>(observationsFile, [], (current) =>
+    current.filter((item) => item.id !== observation.id).concat(observation),
+  );
+  const current = await readSageOsState(store);
+  return { ...current, observations, updatedAt: new Date().toISOString() };
 }
 
 export async function readSageOsControl(

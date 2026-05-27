@@ -61,6 +61,7 @@ const READ_METHODS = new Set([
   "sageos.tasks.list",
   "sageos.runs.list",
   "sageos.approvals.list",
+  "sageos.observations.list",
   "usage.status",
   "usage.cost",
   "tts.status",
@@ -98,6 +99,7 @@ const WRITE_METHODS = new Set([
   "browser.request",
   "sageos.control",
   "sageos.approvals.resolve",
+  "sageos.observe",
 ]);
 
 function authorizeGatewayMethod(method: string, client: GatewayRequestOptions["client"]) {

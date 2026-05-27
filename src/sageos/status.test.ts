@@ -13,6 +13,7 @@ import {
   createSageOsStateStore,
   upsertSageOsApproval,
   upsertSageOsAgent,
+  upsertSageOsObservation,
   upsertSageOsRun,
   upsertSageOsTask,
   writeSageOsState,
@@ -103,6 +104,47 @@ describe("SageOS status collector", () => {
       createdAt: now,
       updatedAt: now,
     });
+    await upsertSageOsObservation(store, {
+      id: "obs_recent",
+      source: "app_focus",
+      state: "captured",
+      title: "Code: SageOS",
+      text: "Active app focus: Code - SageOS",
+      sensitivity: "private",
+      observedAt: now,
+      payload: { processName: "Code", windowTitle: "SageOS" },
+      provenance: { adapter: "app_focus" },
+      createdAt: now,
+      updatedAt: now,
+    });
+    await upsertSageOsObservation(store, {
+      id: "obs_redacted",
+      source: "app_focus",
+      state: "redacted",
+      title: "App focus redacted",
+      text: "Active app focus redacted by SageOS privacy policy.",
+      sensitivity: "private",
+      observedAt: now,
+      payload: { redacted: true, reason: "deny_app" },
+      provenance: { adapter: "app_focus" },
+      reason: "deny_app",
+      createdAt: now,
+      updatedAt: now,
+    });
+    await upsertSageOsObservation(store, {
+      id: "obs_failed",
+      source: "system",
+      state: "failed",
+      title: "System source failed",
+      text: "System observation failed.",
+      sensitivity: "normal",
+      observedAt: "2026-05-25T13:00:00.000Z",
+      payload: { error: "probe failed" },
+      provenance: { adapter: "system" },
+      reason: "probe_failed",
+      createdAt: "2026-05-25T13:00:00.000Z",
+      updatedAt: "2026-05-25T13:00:00.000Z",
+    });
 
     const log = createSageOsEventLog({ stateDir: root });
     await appendSageOsEvent(log, {
@@ -167,6 +209,12 @@ describe("SageOS status collector", () => {
     expect(snapshot.tasks).toMatchObject({ total: 3, active: 1, queued: 1, blocked: 1 });
     expect(snapshot.runs).toMatchObject({ total: 1, active: 1, failed: 0 });
     expect(snapshot.approvals.pending).toBe(1);
+    expect(snapshot.observations).toMatchObject({
+      total: 3,
+      recent: 2,
+      redacted: 1,
+      failed: 1,
+    });
     expect(snapshot.memory.captureQueue.failed).toBe(1);
     expect(snapshot.learning.activityQueue.failed).toBe(1);
     expect(snapshot.audit).toMatchObject({ recentEvents: 1, eventLogPath: log.path });

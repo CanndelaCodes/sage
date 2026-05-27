@@ -114,6 +114,7 @@ export type SageOsStatusSnapshot = {
   tasks: SageOsSummary;
   runs: SageOsRunSummary;
   approvals: { pending: number };
+  observations: { total: number; recent: number; redacted: number; failed: number };
   memory: {
     status: SageOsHealthState;
     backend: "sage-memory" | "qmd" | "builtin" | "unknown";
@@ -171,6 +172,7 @@ export function createSageOsStatusSnapshot(
     tasks: overrides.tasks ?? emptySummary(),
     runs: overrides.runs ?? emptyRunSummary(),
     approvals: overrides.approvals ?? { pending: 0 },
+    observations: overrides.observations ?? { total: 0, recent: 0, redacted: 0, failed: 0 },
     memory: overrides.memory ?? {
       status: "unknown",
       backend: "unknown",
@@ -291,6 +293,39 @@ export type SageOsApproval = {
   resolvedAt?: string;
   resolvedBy?: string;
   resolutionReason?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export const SAGEOS_OBSERVATION_SOURCES = [
+  "sage_session",
+  "browser",
+  "app_focus",
+  "tool_usage",
+  "queue",
+  "coding_workspace",
+  "system",
+] as const;
+
+export type SageOsObservationSource = (typeof SAGEOS_OBSERVATION_SOURCES)[number];
+
+export const SAGEOS_OBSERVATION_STATES = ["captured", "redacted", "skipped", "failed"] as const;
+
+export type SageOsObservationState = (typeof SAGEOS_OBSERVATION_STATES)[number];
+
+export type SageOsObservation = {
+  id: string;
+  source: SageOsObservationSource;
+  state: SageOsObservationState;
+  title: string;
+  text: string;
+  sensitivity: SageOsSensitivity;
+  observedAt: string;
+  payload: Record<string, unknown>;
+  provenance: Record<string, unknown>;
+  reason?: string;
+  eventId?: string;
+  learningEventId?: string;
   createdAt: string;
   updatedAt: string;
 };

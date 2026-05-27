@@ -9,6 +9,7 @@ export function renderSageOsStatus(snapshot: SageOsStatusSnapshot): string {
     `Tasks: ${snapshot.tasks.active} active, ${snapshot.tasks.queued} queued, ${snapshot.tasks.blocked} blocked, ${snapshot.tasks.total} total`,
     `Runs: ${snapshot.runs.active} active, ${snapshot.runs.queued} queued, ${snapshot.runs.failed} failed, ${snapshot.runs.total} total`,
     `Approvals: ${snapshot.approvals.pending} pending`,
+    `Observations: ${snapshot.observations.recent} recent, ${snapshot.observations.redacted} redacted, ${snapshot.observations.failed} failed, ${snapshot.observations.total} total`,
     `Memory: ${snapshot.memory.status}, backend ${snapshot.memory.backend}, capture queue ${snapshot.memory.captureQueue.pending} pending / ${snapshot.memory.captureQueue.failed} failed`,
     `Learning: ${snapshot.learning.status}, activity queue ${snapshot.learning.activityQueue.pending} pending / ${snapshot.learning.activityQueue.failed} failed`,
     `Policy: ${snapshot.policy.mode}, approvals ${listOrNone(snapshot.policy.approvalsRequired)}`,

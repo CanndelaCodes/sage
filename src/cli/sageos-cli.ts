@@ -5,6 +5,7 @@ import {
   listSageOsEmployeeTemplates,
 } from "../sageos/employee-templates.js";
 import { appendSageOsEvent, createSageOsEventLog, readSageOsEvents } from "../sageos/event-log.js";
+import { observeAppFocusOnce } from "../sageos/observations.js";
 import {
   createSageOsControlStore,
   readSageOsState,
@@ -22,8 +23,13 @@ import {
   normalizeSageOsMode,
   type SageOsApproval,
   type SageOsAgentSpec,
+  type SageOsObservation,
   type SageOsTaskSpec,
 } from "../sageos/types.js";
+
+export type SageOsCliDeps = {
+  observeAppFocusOnce?: typeof observeAppFocusOnce;
+};
 
 async function loadSnapshot() {
   return await collectSageOsStatus();
@@ -131,6 +137,18 @@ function renderApprovals(approvals: SageOsApproval[]): string {
     .join("\n");
 }
 
+function renderObservations(observations: SageOsObservation[]): string {
+  if (observations.length === 0) {
+    return "No SageOS observations.";
+  }
+  return observations
+    .map(
+      (observation) =>
+        `${observation.observedAt}\t${observation.source}\t${observation.state}\t${observation.title}`,
+    )
+    .join("\n");
+}
+
 function renderJsonResource(value: unknown): string {
   return JSON.stringify(value, null, 2);
 }
@@ -175,7 +193,8 @@ async function resolveApprovalFromCli(
   return nextApproval;
 }
 
-export function registerSageOsCli(program: Command) {
+export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
+  const observeAppFocus = deps.observeAppFocusOnce ?? observeAppFocusOnce;
   const os = program.command("os").description("SageOS command center controls");
 
   os.command("status")
@@ -390,6 +409,25 @@ export function registerSageOsCli(program: Command) {
       const cliOpts = commandOptions(opts);
       const approval = await resolveApprovalFromCli(id, "denied", { reason: cliOpts.reason });
       outputJsonOrText(cliOpts, { approval }, () => renderJsonResource({ approval }));
+    });
+
+  const observations = os.command("observations").description("List SageOS observations");
+  observations.option("--json", "Output JSON", false).action(async (opts: { json?: boolean }) => {
+    const state = await readSageOsState(createSageOsStateStore());
+    outputJsonOrText(opts, { observations: state.observations }, () =>
+      renderObservations(state.observations),
+    );
+  });
+
+  const observe = os.command("observe").description("Record one approved SageOS observation");
+  observe
+    .command("app-focus")
+    .description("Record one approved app-focus observation")
+    .option("--json", "Output JSON", false)
+    .action(async (opts: { json?: boolean }) => {
+      const cliOpts = commandOptions(opts);
+      const result = await observeAppFocus({ cfg: { sources: { appFocus: true } } });
+      outputJsonOrText(cliOpts, { result }, () => renderJsonResource({ result }));
     });
 
   os.command("incidents")

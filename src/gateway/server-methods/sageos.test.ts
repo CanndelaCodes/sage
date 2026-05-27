@@ -2,18 +2,29 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { normalizeLearningEvent } from "../../learning/events.js";
 import {
   createSageOsControlStore,
   createSageOsStateStore,
   readSageOsState,
   readSageOsControl,
   upsertSageOsApproval,
+  upsertSageOsObservation,
   upsertSageOsRun,
   upsertSageOsAgent,
   upsertSageOsTask,
 } from "../../sageos/state-store.js";
 import { listGatewayMethods, GATEWAY_EVENTS } from "../server-methods-list.js";
 import { sageOsHandlers } from "./sageos.js";
+
+const { mockReadActiveAppFocus } = vi.hoisted(() => ({
+  mockReadActiveAppFocus: vi.fn(),
+}));
+
+vi.mock("../../learning/app-focus.js", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("../../learning/app-focus.js")>();
+  return { ...mod, readActiveAppFocus: mockReadActiveAppFocus };
+});
 
 const oldStateDir = process.env.SAGE_STATE_DIR;
 
@@ -34,6 +45,7 @@ async function invoke(method: string, params: Record<string, unknown> = {}) {
 describe("SageOS gateway methods", () => {
   beforeEach(async () => {
     process.env.SAGE_STATE_DIR = await mkdtemp(path.join(tmpdir(), "sageos-gateway-"));
+    mockReadActiveAppFocus.mockReset();
   });
 
   afterEach(() => {
@@ -53,6 +65,8 @@ describe("SageOS gateway methods", () => {
     expect(listGatewayMethods()).toContain("sageos.runs.list");
     expect(listGatewayMethods()).toContain("sageos.approvals.list");
     expect(listGatewayMethods()).toContain("sageos.approvals.resolve");
+    expect(listGatewayMethods()).toContain("sageos.observations.list");
+    expect(listGatewayMethods()).toContain("sageos.observe");
     expect(listGatewayMethods()).toContain("sageos.control");
     expect(GATEWAY_EVENTS).toContain("sageos");
   });
@@ -251,6 +265,77 @@ describe("SageOS gateway methods", () => {
       id: "approval_external",
       decision: "maybe",
     });
+    expect(response?.ok).toBe(false);
+    expect(response?.error).toMatchObject({ code: "INVALID_REQUEST" });
+  });
+
+  it("lists and records app-focus observations through gateway", async () => {
+    const store = createSageOsStateStore();
+    const now = "2026-05-27T16:40:00.000Z";
+    await upsertSageOsObservation(store, {
+      id: "obs_existing",
+      source: "app_focus",
+      state: "captured",
+      title: "Code: SageOS",
+      text: "Active app focus: Code - SageOS",
+      sensitivity: "private",
+      observedAt: now,
+      payload: { processName: "Code", windowTitle: "SageOS" },
+      provenance: { adapter: "app_focus" },
+      createdAt: now,
+      updatedAt: now,
+    });
+    mockReadActiveAppFocus.mockResolvedValue({
+      supported: true,
+      event: normalizeLearningEvent(
+        {
+          source: "app_focus",
+          actor: "local-user",
+          title: "Terminal: Sage",
+          text: "Active app focus: Terminal - Sage",
+          payload: { processName: "Terminal", pid: 789, windowTitle: "Sage" },
+        },
+        { now: () => new Date(now), idFactory: () => "learning_gateway_focus" },
+      ),
+    });
+
+    const list = await invoke("sageos.observations.list");
+    expect(list.response?.ok).toBe(true);
+    expect(list.response?.payload).toMatchObject({
+      observations: [{ id: "obs_existing", source: "app_focus", state: "captured" }],
+    });
+
+    const observed = await invoke("sageos.observe", { source: "app_focus" });
+    expect(observed.response?.ok).toBe(true);
+    expect(observed.response?.payload).toMatchObject({
+      result: {
+        status: "recorded",
+        observation: {
+          source: "app_focus",
+          state: "captured",
+          learningEventId: "learning_gateway_focus",
+        },
+      },
+    });
+    expect(observed.broadcast).toHaveBeenCalledWith(
+      "sageos",
+      expect.objectContaining({
+        observations: expect.arrayContaining([
+          expect.objectContaining({ source: "app_focus", state: "captured" }),
+        ]),
+      }),
+      { dropIfSlow: true },
+    );
+    await expect(readSageOsState(store)).resolves.toMatchObject({
+      observations: [
+        { id: "obs_existing", source: "app_focus" },
+        { source: "app_focus", state: "captured", learningEventId: "learning_gateway_focus" },
+      ],
+    });
+  });
+
+  it("rejects unsupported observation sources", async () => {
+    const { response } = await invoke("sageos.observe", { source: "screen" });
     expect(response?.ok).toBe(false);
     expect(response?.error).toMatchObject({ code: "INVALID_REQUEST" });
   });

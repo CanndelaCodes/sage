@@ -4,6 +4,7 @@ import {
   listSageOsEmployeeTemplates,
 } from "../../sageos/employee-templates.js";
 import { appendSageOsEvent, createSageOsEventLog } from "../../sageos/event-log.js";
+import { observeAppFocusOnce } from "../../sageos/observations.js";
 import {
   createSageOsControlStore,
   createSageOsStateStore,
@@ -126,6 +127,10 @@ export const sageOsHandlers: GatewayRequestHandlers = {
     const state = await readSageOsState(createSageOsStateStore());
     respond(true, { approvals: state.approvals }, undefined);
   },
+  "sageos.observations.list": async ({ respond }) => {
+    const state = await readSageOsState(createSageOsStateStore());
+    respond(true, { observations: state.observations }, undefined);
+  },
   "sageos.approvals.resolve": async ({ params, respond, context }) => {
     const id = typeof params.id === "string" ? params.id.trim() : "";
     const decision = parseApprovalDecision(params.decision);
@@ -159,6 +164,24 @@ export const sageOsHandlers: GatewayRequestHandlers = {
     const state = await readSageOsState(stateStore);
     context.broadcast("sageos", state, { dropIfSlow: true });
     respond(true, { approval, state }, undefined);
+  },
+  "sageos.observe": async ({ params, respond, context }) => {
+    if (params.source !== "app_focus") {
+      respond(
+        false,
+        undefined,
+        errorShape(ErrorCodes.INVALID_REQUEST, "invalid sageos.observe params: source"),
+      );
+      return;
+    }
+
+    const result = await observeAppFocusOnce({ cfg: { sources: { appFocus: true } } });
+    const stateStore = createSageOsStateStore();
+    const status = await collectSageOsStatus();
+    await writeSageOsState(stateStore, status);
+    const state = await readSageOsState(stateStore);
+    context.broadcast("sageos", state, { dropIfSlow: true });
+    respond(true, { result, state }, undefined);
   },
   "sageos.control": async ({ params, respond, context }) => {
     const controlState = parseControlState(params.state);

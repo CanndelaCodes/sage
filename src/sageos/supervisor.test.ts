@@ -9,6 +9,7 @@ import {
   readSageOsState,
   upsertSageOsApproval,
   upsertSageOsAgent,
+  upsertSageOsObservation,
   upsertSageOsRun,
   upsertSageOsTask,
   writeSageOsControl,
@@ -241,6 +242,65 @@ describe("SageOS state store", () => {
         riskClass: "external_write",
         scope: "task",
         rollbackPlan: "Delete the Telegram message if it is incorrect.",
+      }),
+    ]);
+  });
+
+  it("persists durable observation resources without losing other resources", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-observation-store-"));
+    const store = createSageOsStateStore({ stateDir: root });
+    const now = "2026-05-27T16:00:00.000Z";
+
+    await upsertSageOsTask(store, {
+      id: "task_observe",
+      title: "Observe work context",
+      objective: "Record approved local app focus metadata.",
+      state: "running",
+      requestedBy: "jason",
+      autonomyTier: "observe",
+      policyScopes: [{ kind: "system", allow: ["app_focus"], risk: "low" }],
+      createdAt: now,
+      updatedAt: now,
+    });
+    await upsertSageOsApproval(store, {
+      id: "approval_observe",
+      state: "approved",
+      riskClass: "windows_setting",
+      title: "Enable app focus source",
+      proposedAction: "Allow app focus metadata observation.",
+      evidence: ["source_policy"],
+      scope: "domain",
+      domain: "sageos.sources.appFocus",
+      requestedBy: "operator",
+      requestedAt: now,
+      resolvedAt: now,
+      resolvedBy: "jason",
+      createdAt: now,
+      updatedAt: now,
+    });
+    await upsertSageOsObservation(store, {
+      id: "obs_app_focus",
+      source: "app_focus",
+      state: "captured",
+      title: "Code: SageOS",
+      text: "Active app focus: Code - SageOS",
+      sensitivity: "private",
+      observedAt: now,
+      payload: { processName: "Code", windowTitle: "SageOS" },
+      provenance: { adapter: "app_focus" },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const state = await readSageOsState(store);
+    expect(state.tasks).toEqual([expect.objectContaining({ id: "task_observe" })]);
+    expect(state.approvals).toEqual([expect.objectContaining({ id: "approval_observe" })]);
+    expect(state.observations).toEqual([
+      expect.objectContaining({
+        id: "obs_app_focus",
+        source: "app_focus",
+        state: "captured",
+        payload: { processName: "Code", windowTitle: "SageOS" },
       }),
     ]);
   });

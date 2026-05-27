@@ -13,6 +13,7 @@ import {
   createSageOsStatusSnapshot,
   type SageOsAgentSpec,
   type SageOsIncident,
+  type SageOsObservation,
   type SageOsQueueSummary,
   type SageOsRun,
   type SageOsRunSummary,
@@ -87,6 +88,7 @@ export async function collectSageOsStatus(
     approvals: {
       pending: state.approvals.filter((approval) => approval.state === "pending").length,
     },
+    observations: summarizeObservations(state.observations),
     memory: {
       status: memoryCaptureQueue.failed > 0 ? "degraded" : "ok",
       backend: "sage-memory",
@@ -104,6 +106,22 @@ export async function collectSageOsStatus(
       eventLogPath: eventLog.path,
     },
   });
+}
+
+function summarizeObservations(
+  observations: SageOsObservation[],
+): SageOsStatusSnapshot["observations"] {
+  const now = Date.now();
+  const recentWindowMs = 24 * 60 * 60 * 1000;
+  return {
+    total: observations.length,
+    recent: observations.filter((observation) => {
+      const observedAt = Date.parse(observation.observedAt);
+      return Number.isFinite(observedAt) && Math.abs(now - observedAt) <= recentWindowMs;
+    }).length,
+    redacted: observations.filter((observation) => observation.state === "redacted").length,
+    failed: observations.filter((observation) => observation.state === "failed").length,
+  };
 }
 
 function envForStateDir(stateDir: string | undefined): NodeJS.ProcessEnv | undefined {
