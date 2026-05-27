@@ -122,7 +122,7 @@ async function updateSupervisorState(
   });
   await writeSageOsState(store, status);
   await writeSageOsControl(controlStore, { state, reason: opts.reason, emergency: opts.emergency });
-  return status;
+  return await collectSageOsStatus();
 }
 
 function outputJsonOrText(opts: { json?: boolean }, payload: unknown, render: () => string) {

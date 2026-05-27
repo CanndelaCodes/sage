@@ -88,16 +88,20 @@ describe("sage os CLI", () => {
     const paused = JSON.parse(runtimeLogs.at(-1) ?? "{}");
     expect(paused.supervisor.state).toBe("paused");
     expect(paused.supervisor.enabled).toBe(true);
+    expect(paused.audit.recentEvents).toBe(1);
+    expect(paused.memory.canonical).toBe("sage-memory");
 
     await program.parseAsync(["os", "resume", "--json"], { from: "user" });
     const running = JSON.parse(runtimeLogs.at(-1) ?? "{}");
     expect(running.supervisor.state).toBe("running");
     expect(running.supervisor.enabled).toBe(true);
+    expect(running.audit.recentEvents).toBe(2);
 
     await program.parseAsync(["os", "emergency-stop", "--json"], { from: "user" });
     const stopped = JSON.parse(runtimeLogs.at(-1) ?? "{}");
     expect(stopped.supervisor.state).toBe("stopped");
     expect(stopped.supervisor.enabled).toBe(false);
+    expect(stopped.audit.recentEvents).toBe(3);
 
     const rawEvents = await readFile(path.join(stateDir, "sageos", "events.jsonl"), "utf8");
     const eventTypes = rawEvents
