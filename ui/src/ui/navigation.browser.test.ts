@@ -151,33 +151,30 @@ describe("control UI routing", () => {
     expect(container.scrollTop).toBe(maxScroll);
   });
 
-  it("hydrates token from URL params and strips it", async () => {
+  it("strips token URL params without hydrating credentials", async () => {
     const app = mountApp("/ui/overview?token=abc123");
     await app.updateComplete;
 
-    expect(app.settings.token).toBe("abc123");
+    expect(app.settings.token).toBe("");
     expect(window.location.pathname).toBe("/ui/overview");
     expect(window.location.search).toBe("");
   });
 
-  it("hydrates password from URL params and strips it", async () => {
+  it("strips password URL params without hydrating credentials", async () => {
     const app = mountApp("/ui/overview?password=sekret");
     await app.updateComplete;
 
-    expect(app.password).toBe("sekret");
+    expect(app.password).toBe("");
     expect(window.location.pathname).toBe("/ui/overview");
     expect(window.location.search).toBe("");
   });
 
-  it("hydrates token from URL params even when settings already set", async () => {
-    localStorage.setItem(
-      "sage.control.settings.v1",
-      JSON.stringify({ token: "existing-token" }),
-    );
+  it("keeps stored token when stripping token URL params", async () => {
+    localStorage.setItem("sage.control.settings.v1", JSON.stringify({ token: "existing-token" }));
     const app = mountApp("/ui/overview?token=abc123");
     await app.updateComplete;
 
-    expect(app.settings.token).toBe("abc123");
+    expect(app.settings.token).toBe("existing-token");
     expect(window.location.pathname).toBe("/ui/overview");
     expect(window.location.search).toBe("");
   });
