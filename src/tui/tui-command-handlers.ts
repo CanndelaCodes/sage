@@ -22,6 +22,13 @@ import {
   createSearchableSelectList,
   createSettingsList,
 } from "./components/selectors.js";
+import {
+  formatSageOsApprovalsForTui,
+  formatSageOsCommandCenterForTui,
+  formatSageOsIncidentsForTui,
+  formatSageOsTaskDetailForTui,
+  formatSageOsTasksForTui,
+} from "./tui-sageos-command-center.js";
 import { formatStatusSummary } from "./tui-status-summary.js";
 
 type CommandHandlerContext = {
@@ -235,6 +242,77 @@ export function createCommandHandlers(context: CommandHandlerContext) {
     tui.requestRender();
   };
 
+  const addSystemLines = (lines: string[]) => {
+    for (const line of lines) {
+      chatLog.addSystem(line);
+    }
+  };
+
+  const handleSageOsCommand = async (args: string) => {
+    const [actionRaw = "status", ...rest] = args.trim().split(/\s+/).filter(Boolean);
+    const action = actionRaw.toLowerCase();
+    const restText = rest.join(" ").trim();
+    try {
+      switch (action) {
+        case "status":
+        case "overview":
+        case "":
+          addSystemLines(formatSageOsCommandCenterForTui(await client.getSageOsState()));
+          break;
+        case "pause":
+        case "resume":
+        case "stop": {
+          const state = action === "pause" ? "paused" : action === "resume" ? "running" : "stopped";
+          const next = await client.controlSageOs({
+            state,
+            reason: restText || "tui",
+          });
+          chatLog.addSystem(
+            action === "pause"
+              ? "SageOS paused"
+              : action === "resume"
+                ? "SageOS resumed"
+                : "SageOS stopped",
+          );
+          addSystemLines(formatSageOsCommandCenterForTui(next));
+          break;
+        }
+        case "emergency-stop": {
+          const next = await client.controlSageOs({
+            state: "stopped",
+            reason: restText || "tui emergency stop",
+            emergency: true,
+          });
+          chatLog.addSystem("SageOS emergency stop engaged");
+          addSystemLines(formatSageOsCommandCenterForTui(next));
+          break;
+        }
+        case "tasks":
+          addSystemLines(formatSageOsTasksForTui(await client.getSageOsState()));
+          break;
+        case "task":
+          if (!restText) {
+            chatLog.addSystem("usage: /sageos task <id>");
+            break;
+          }
+          addSystemLines(formatSageOsTaskDetailForTui(await client.getSageOsState(), restText));
+          break;
+        case "incidents":
+          addSystemLines(formatSageOsIncidentsForTui(await client.getSageOsState()));
+          break;
+        case "approvals":
+          addSystemLines(formatSageOsApprovalsForTui(await client.getSageOsState()));
+          break;
+        default:
+          chatLog.addSystem(
+            "usage: /sageos <status|pause|resume|stop|emergency-stop|tasks|task <id>|incidents|approvals>",
+          );
+      }
+    } catch (err) {
+      chatLog.addSystem(`sageos failed: ${String(err)}`);
+    }
+  };
+
   const handleCommand = async (raw: string) => {
     const { name, args } = parseCommand(raw);
     if (!name) {
@@ -267,6 +345,9 @@ export function createCommandHandlers(context: CommandHandlerContext) {
         } catch (err) {
           chatLog.addSystem(`status failed: ${String(err)}`);
         }
+        break;
+      case "sageos":
+        await handleSageOsCommand(args);
         break;
       case "agent":
         if (!args) {

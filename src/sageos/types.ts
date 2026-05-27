@@ -275,6 +275,7 @@ export type SageOsTaskSpec = {
   requestedBy: string;
   autonomyTier: SageOsAutonomyMode;
   policyScopes: SageOsPolicyScope[];
+  rollback?: string;
   createdAt: string;
   updatedAt: string;
   expiresAt?: string;

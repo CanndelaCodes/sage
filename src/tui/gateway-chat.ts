@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { SageOsPersistedState } from "../sageos/state-store.js";
 import { loadConfig, resolveGatewayPort } from "../config/config.js";
 import { ensureExplicitGatewayAuth, resolveExplicitGatewayAuth } from "../gateway/call.js";
 import { GatewayClient } from "../gateway/client.js";
@@ -89,6 +90,12 @@ export type GatewayModelChoice = {
   provider: string;
   contextWindow?: number;
   reasoning?: boolean;
+};
+
+export type SageOsControlOptions = {
+  state: "paused" | "running" | "stopped";
+  reason?: string;
+  emergency?: boolean;
 };
 
 export class GatewayChatClient {
@@ -210,6 +217,14 @@ export class GatewayChatClient {
 
   async getStatus() {
     return await this.client.request("status");
+  }
+
+  async getSageOsState(): Promise<SageOsPersistedState> {
+    return await this.client.request<SageOsPersistedState>("sageos.status");
+  }
+
+  async controlSageOs(opts: SageOsControlOptions): Promise<SageOsPersistedState> {
+    return await this.client.request<SageOsPersistedState>("sageos.control", opts);
   }
 
   async listModels(): Promise<GatewayModelChoice[]> {

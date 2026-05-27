@@ -8,6 +8,17 @@ const REASONING_LEVELS = ["on", "off"];
 const ELEVATED_LEVELS = ["on", "off", "ask", "full"];
 const ACTIVATION_LEVELS = ["mention", "always"];
 const USAGE_FOOTER_LEVELS = ["off", "tokens", "full"];
+const SAGEOS_ACTIONS = [
+  "status",
+  "pause",
+  "resume",
+  "stop",
+  "emergency-stop",
+  "tasks",
+  "task",
+  "incidents",
+  "approvals",
+];
 
 export type ParsedCommand = {
   name: string;
@@ -42,6 +53,15 @@ export function getSlashCommands(options: SlashCommandOptions = {}): SlashComman
   const commands: SlashCommand[] = [
     { name: "help", description: "Show slash command help" },
     { name: "status", description: "Show gateway status summary" },
+    {
+      name: "sageos",
+      description: "Open SageOS Command Center",
+      getArgumentCompletions: (prefix) =>
+        SAGEOS_ACTIONS.filter((value) => value.startsWith(prefix.toLowerCase())).map((value) => ({
+          value,
+          label: value,
+        })),
+    },
     { name: "agent", description: "Switch agent (or open picker)" },
     { name: "agents", description: "Open agent picker" },
     { name: "session", description: "Switch session (or open picker)" },
@@ -145,6 +165,7 @@ export function helpText(options: SlashCommandOptions = {}): string {
     "/help",
     "/commands",
     "/status",
+    "/sageos <status|pause|resume|stop|tasks|incidents|approvals>",
     "/agent <id> (or /agents)",
     "/session <key> (or /sessions)",
     "/model <provider/model> (or /models)",
