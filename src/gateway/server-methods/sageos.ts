@@ -4,6 +4,10 @@ import { runSageOsAmbientCopilotOnce } from "../../sageos/ambient-copilot.js";
 import { discoverSageOsAppCandidates } from "../../sageos/app-candidates.js";
 import { runSageOsNightShiftTask } from "../../sageos/coding/night-shift.js";
 import {
+  activateSageOsEmployee,
+  buildSageOsEmployeeActivationPreview,
+} from "../../sageos/employee-activation.js";
+import {
   getSageOsEmployeeTemplate,
   listSageOsEmployeeTemplates,
 } from "../../sageos/employee-templates.js";
@@ -132,6 +136,72 @@ export const sageOsHandlers: GatewayRequestHandlers = {
   "sageos.agents.list": async ({ respond }) => {
     const state = await readSageOsState(createSageOsStateStore());
     respond(true, { agents: state.agents }, undefined);
+  },
+  "sageos.agents.activationPreview": async ({ params, respond }) => {
+    const id = typeof params.id === "string" ? params.id.trim() : "";
+    if (!id) {
+      respond(
+        false,
+        undefined,
+        errorShape(
+          ErrorCodes.INVALID_REQUEST,
+          "invalid sageos.agents.activationPreview params: id",
+        ),
+      );
+      return;
+    }
+    const state = await readSageOsState(createSageOsStateStore());
+    const employee = state.agents.find((agent) => agent.id === id);
+    if (!employee) {
+      respond(
+        false,
+        undefined,
+        errorShape(ErrorCodes.INVALID_REQUEST, "SageOS employee not found"),
+      );
+      return;
+    }
+    respond(true, { preview: buildSageOsEmployeeActivationPreview(employee) }, undefined);
+  },
+  "sageos.agents.activate": async ({ params, respond, context }) => {
+    const id = typeof params.id === "string" ? params.id.trim() : "";
+    if (!id) {
+      respond(
+        false,
+        undefined,
+        errorShape(ErrorCodes.INVALID_REQUEST, "invalid sageos.agents.activate params: id"),
+      );
+      return;
+    }
+    const result = await activateSageOsEmployee({
+      employeeId: id,
+      requestedBy: "sageos.gateway",
+      reason: typeof params.reason === "string" ? params.reason : undefined,
+    });
+    if (result.outcome === "not_found") {
+      respond(
+        false,
+        undefined,
+        errorShape(ErrorCodes.INVALID_REQUEST, "SageOS employee not found"),
+      );
+      return;
+    }
+    if (result.outcome === "not_activatable") {
+      respond(
+        false,
+        undefined,
+        errorShape(
+          ErrorCodes.INVALID_REQUEST,
+          `SageOS employee cannot be activated: ${result.reason}`,
+        ),
+      );
+      return;
+    }
+    const stateStore = createSageOsStateStore();
+    const status = await collectSageOsStatus();
+    await writeSageOsState(stateStore, status);
+    const state = await readSageOsState(stateStore);
+    context.broadcast("sageos", state, { dropIfSlow: true });
+    respond(true, { result, state }, undefined);
   },
   "sageos.agentTemplates.list": async ({ respond }) => {
     respond(true, { templates: listSageOsEmployeeTemplates() }, undefined);

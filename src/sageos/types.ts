@@ -262,6 +262,11 @@ export type SageOsAgentSpec = {
   responsibilities: string[];
   allowedScopes: SageOsPolicyScope[];
   deniedScopes: SageOsPolicyScope[];
+  tools?: string[];
+  memoryScopes?: string[];
+  schedules?: string[];
+  risks?: string[];
+  activatedAt?: string;
   createdAt: string;
   updatedAt: string;
 };

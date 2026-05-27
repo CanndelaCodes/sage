@@ -146,6 +146,8 @@ describe("SageOS gateway methods", () => {
   it("registers methods and events for command-center clients", () => {
     expect(listGatewayMethods()).toContain("sageos.status");
     expect(listGatewayMethods()).toContain("sageos.agents.list");
+    expect(listGatewayMethods()).toContain("sageos.agents.activationPreview");
+    expect(listGatewayMethods()).toContain("sageos.agents.activate");
     expect(listGatewayMethods()).toContain("sageos.agentTemplates.list");
     expect(listGatewayMethods()).toContain("sageos.agentTemplates.inspect");
     expect(listGatewayMethods()).toContain("sageos.tasks.list");
@@ -188,6 +190,71 @@ describe("SageOS gateway methods", () => {
     expect(inspect.response?.ok).toBe(true);
     expect(inspect.response?.payload).toMatchObject({
       template: { id: "memory_steward", name: "Memory Steward", role: "memory" },
+    });
+  });
+
+  it("previews and activates employees through gateway controls", async () => {
+    const store = createSageOsStateStore();
+    const now = "2026-05-27T18:55:00.000Z";
+    await upsertSageOsAgent(store, {
+      id: "employee_memory",
+      name: "Memory Steward",
+      role: "memory",
+      mission: "Keep Sage Memory capture healthy.",
+      status: "draft",
+      autonomyTier: "execute_scoped",
+      responsibilities: ["replay queues"],
+      allowedScopes: [
+        { kind: "tool", allow: ["sage-memory"], risk: "medium" },
+        { kind: "memory", allow: ["capture_queue"], risk: "medium" },
+      ],
+      deniedScopes: [{ kind: "memory", deny: ["private_data_export"], risk: "critical" }],
+      tools: ["sage-memory"],
+      memoryScopes: ["capture_queue"],
+      schedules: ["gateway tick"],
+      risks: ["incorrect replay"],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const preview = await invoke("sageos.agents.activationPreview", { id: "employee_memory" });
+    expect(preview.response?.ok).toBe(true);
+    expect(preview.response?.payload).toMatchObject({
+      preview: {
+        employeeId: "employee_memory",
+        tools: ["sage-memory"],
+        memoryAccess: ["capture_queue"],
+        schedules: ["gateway tick"],
+        risks: ["incorrect replay"],
+        approvalRequired: false,
+      },
+    });
+
+    const activated = await invoke("sageos.agents.activate", {
+      id: "employee_memory",
+      reason: "reviewed",
+    });
+    expect(activated.response?.ok).toBe(true);
+    expect(activated.response?.payload).toMatchObject({
+      result: {
+        outcome: "activated",
+        employee: { id: "employee_memory", status: "active" },
+      },
+      state: {
+        agents: [{ id: "employee_memory", status: "active" }],
+      },
+    });
+    expect(activated.broadcast).toHaveBeenCalledWith(
+      "sageos",
+      expect.objectContaining({
+        agents: expect.arrayContaining([
+          expect.objectContaining({ id: "employee_memory", status: "active" }),
+        ]),
+      }),
+      { dropIfSlow: true },
+    );
+    await expect(readSageOsState(store)).resolves.toMatchObject({
+      agents: [{ id: "employee_memory", status: "active" }],
     });
   });
 

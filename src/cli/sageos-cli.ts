@@ -6,6 +6,10 @@ import { runSageOsAmbientCopilotOnce } from "../sageos/ambient-copilot.js";
 import { discoverSageOsAppCandidates } from "../sageos/app-candidates.js";
 import { runSageOsNightShiftTask } from "../sageos/coding/night-shift.js";
 import {
+  activateSageOsEmployee,
+  buildSageOsEmployeeActivationPreview,
+} from "../sageos/employee-activation.js";
+import {
   getSageOsEmployeeTemplate,
   listSageOsEmployeeTemplates,
 } from "../sageos/employee-templates.js";
@@ -389,6 +393,42 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
         fail(`SageOS employee not found: ${id}`);
       }
       outputJsonOrText(cliOpts, { employee }, () => renderJsonResource({ employee }));
+    });
+
+  employees
+    .command("preview <id>")
+    .description("Preview SageOS employee activation")
+    .option("--json", "Output JSON", false)
+    .action(async (id: string, opts: { json?: boolean }) => {
+      const cliOpts = commandOptions(opts);
+      const state = await readSageOsState(createSageOsStateStore());
+      const employee = state.agents.find((agent) => agent.id === id);
+      if (!employee) {
+        fail(`SageOS employee not found: ${id}`);
+      }
+      const preview = buildSageOsEmployeeActivationPreview(employee);
+      outputJsonOrText(cliOpts, { preview }, () => renderJsonResource({ preview }));
+    });
+
+  employees
+    .command("activate <id>")
+    .description("Activate a draft SageOS employee after preview")
+    .option("--reason <reason>", "Activation review note")
+    .option("--json", "Output JSON", false)
+    .action(async (id: string, opts: { reason?: string; json?: boolean }) => {
+      const cliOpts = commandOptions(opts);
+      const result = await activateSageOsEmployee({
+        employeeId: id,
+        requestedBy: "sageos.cli",
+        reason: cliOpts.reason,
+      });
+      if (result.outcome === "not_found") {
+        fail(`SageOS employee not found: ${id}`);
+      }
+      if (result.outcome === "not_activatable") {
+        fail(`SageOS employee cannot be activated: ${result.reason}`);
+      }
+      outputJsonOrText(cliOpts, { result }, () => renderJsonResource({ result }));
     });
 
   employees

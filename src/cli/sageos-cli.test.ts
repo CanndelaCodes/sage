@@ -124,10 +124,32 @@ describe("sage os CLI", () => {
       createdAt: now,
       updatedAt: now,
     });
+    await upsertSageOsAgent(store, {
+      id: "employee_memory",
+      name: "Memory Steward",
+      role: "memory",
+      mission: "Keep Sage Memory capture healthy.",
+      status: "draft",
+      autonomyTier: "execute_scoped",
+      responsibilities: ["replay queues"],
+      allowedScopes: [
+        { kind: "tool", allow: ["sage-memory"], risk: "medium" },
+        { kind: "memory", allow: ["capture_queue"], risk: "medium" },
+      ],
+      deniedScopes: [{ kind: "memory", deny: ["private_data_export"], risk: "critical" }],
+      tools: ["sage-memory"],
+      memoryScopes: ["capture_queue"],
+      schedules: ["gateway tick"],
+      risks: ["incorrect replay"],
+      createdAt: now,
+      updatedAt: now,
+    });
 
     const program = makeProgram();
     await program.parseAsync(["os", "employees", "--json"], { from: "user" });
-    expect(lastJson()).toMatchObject({ employees: [{ id: "employee_reviewer" }] });
+    expect(lastJson().employees).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: "employee_reviewer" })]),
+    );
 
     await program.parseAsync(["os", "employees", "templates", "--json"], { from: "user" });
     expect(lastJson().templates.map((template: { id: string }) => template.id)).toContain(
@@ -146,6 +168,30 @@ describe("sage os CLI", () => {
       from: "user",
     });
     expect(lastJson()).toMatchObject({ employee: { id: "employee_reviewer", name: "Reviewer" } });
+
+    await program.parseAsync(["os", "employees", "preview", "employee_memory", "--json"], {
+      from: "user",
+    });
+    expect(lastJson()).toMatchObject({
+      preview: {
+        employeeId: "employee_memory",
+        tools: ["sage-memory"],
+        memoryAccess: ["capture_queue"],
+        schedules: ["gateway tick"],
+        risks: ["incorrect replay"],
+        approvalRequired: false,
+      },
+    });
+
+    await program.parseAsync(["os", "employees", "activate", "employee_memory", "--json"], {
+      from: "user",
+    });
+    expect(lastJson()).toMatchObject({
+      result: {
+        outcome: "activated",
+        employee: { id: "employee_memory", status: "active" },
+      },
+    });
 
     await program.parseAsync(
       [
@@ -169,10 +215,15 @@ describe("sage os CLI", () => {
       },
     });
     await expect(readSageOsState(store)).resolves.toMatchObject({
-      agents: [{ id: "employee_reviewer" }, { id: "employee_memory_steward" }],
+      agents: [
+        { id: "employee_reviewer" },
+        { id: "employee_memory", status: "active" },
+        { id: "employee_memory_steward" },
+      ],
     });
     const rawEvents = await readFile(path.join(stateDir, "sageos", "events.jsonl"), "utf8");
     expect(rawEvents).toContain("employee_drafted");
+    expect(rawEvents).toContain("employee_activated");
   });
 
   it("lists, inspects, and cancels tasks", async () => {
