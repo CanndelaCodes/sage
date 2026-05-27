@@ -173,6 +173,28 @@ function buildChatCommands(): ChatCommandDefinition[] {
       category: "status",
     }),
     defineChatCommand({
+      key: "sageos",
+      nativeName: "sageos",
+      description: "Control SageOS.",
+      textAlias: "/sageos",
+      category: "management",
+      args: [
+        {
+          name: "action",
+          description: "SageOS action",
+          type: "string",
+          choices: ["status", "pause", "resume", "stop", "emergency-stop", "tasks", "task"],
+        },
+        {
+          name: "target",
+          description: "Task id or reason",
+          type: "string",
+          captureRemaining: true,
+        },
+      ],
+      argsMenu: "auto",
+    }),
+    defineChatCommand({
       key: "allowlist",
       description: "List/add/remove allowlist entries.",
       textAlias: "/allowlist",

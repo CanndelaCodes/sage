@@ -2406,6 +2406,57 @@ describe("createTelegramBot", () => {
     ).toBe(false);
   });
 
+  it("registers and routes SageOS native commands", async () => {
+    onSpy.mockReset();
+    sendMessageSpy.mockReset();
+    commandSpy.mockReset();
+    const replySpy = replyModule.__replySpy as unknown as ReturnType<typeof vi.fn>;
+    replySpy.mockReset();
+    replySpy.mockResolvedValue({ text: "SageOS paused" });
+
+    loadConfig.mockReturnValue({
+      commands: { native: true },
+      channels: {
+        telegram: {
+          dmPolicy: "open",
+          allowFrom: ["*"],
+        },
+      },
+    });
+
+    createTelegramBot({ token: "tok" });
+    const registered = setMyCommandsSpy.mock.calls[0]?.[0] as Array<{
+      command: string;
+      description: string;
+    }>;
+    expect(registered).toContainEqual({
+      command: "sageos",
+      description: "Control SageOS.",
+    });
+    const sageOsHandler = commandSpy.mock.calls.find((call) => call[0] === "sageos")?.[1] as
+      | ((ctx: Record<string, unknown>) => Promise<void>)
+      | undefined;
+    if (!sageOsHandler) {
+      throw new Error("sageos command handler missing");
+    }
+
+    await sageOsHandler({
+      message: {
+        chat: { id: 12345, type: "private" },
+        from: { id: 12345, username: "testuser" },
+        text: "/sageos pause telegram",
+        date: 1736380800,
+        message_id: 42,
+      },
+      match: "pause telegram",
+    });
+
+    expect(replySpy).toHaveBeenCalledTimes(1);
+    const payload = replySpy.mock.calls[0][0];
+    expect(payload.CommandBody).toBe("/sageos pause telegram");
+    expect(payload.CommandSource).toBe("native");
+  });
+
   it("blocks native DM commands for unpaired users", async () => {
     onSpy.mockReset();
     sendMessageSpy.mockReset();

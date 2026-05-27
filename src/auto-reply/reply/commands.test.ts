@@ -10,6 +10,13 @@ import {
 } from "../../agents/subagent-registry.js";
 import * as internalHooks from "../../hooks/internal-hooks.js";
 import { clearPluginCommands, registerPluginCommand } from "../../plugins/commands.js";
+import {
+  createSageOsControlStore,
+  createSageOsStateStore,
+  readSageOsControl,
+  upsertSageOsRun,
+  upsertSageOsTask,
+} from "../../sageos/state-store.js";
 import { resetBashChatCommandForTests } from "./bash-command.js";
 import { buildCommandContext, handleCommands } from "./commands.js";
 import { parseInlineDirectives } from "./directive-handling.js";
@@ -75,6 +82,21 @@ function buildParams(commandBody: string, cfg: SageConfig, ctxOverrides?: Partia
     contextTokens: 0,
     isGroup: false,
   };
+}
+
+async function withSageOsStateDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
+  const previous = process.env.SAGE_STATE_DIR;
+  const dir = await fs.mkdtemp(path.join(testWorkspaceDir, "sageos-state-"));
+  process.env.SAGE_STATE_DIR = dir;
+  try {
+    return await fn(dir);
+  } finally {
+    if (typeof previous === "string") {
+      process.env.SAGE_STATE_DIR = previous;
+    } else {
+      delete process.env.SAGE_STATE_DIR;
+    }
+  }
 }
 
 describe("handleCommands gating", () => {
@@ -416,6 +438,85 @@ describe("handleCommands subagents", () => {
     expect(result.reply?.text).toContain("Subagent info");
     expect(result.reply?.text).toContain("Run: run-1");
     expect(result.reply?.text).toContain("Status: done");
+  });
+});
+
+describe("handleCommands SageOS", () => {
+  it("returns status and controls SageOS supervisor state", async () => {
+    await withSageOsStateDir(async () => {
+      const cfg = {
+        commands: { text: true },
+        channels: { whatsapp: { allowFrom: ["*"] } },
+      } as SageConfig;
+
+      const status = await handleCommands(buildParams("/sageos status", cfg));
+      expect(status.shouldContinue).toBe(false);
+      expect(status.reply?.text).toContain("Supervisor:");
+
+      const pause = await handleCommands(buildParams("/sageos pause telegram", cfg));
+      expect(pause.shouldContinue).toBe(false);
+      expect(pause.reply?.text).toContain("SageOS paused");
+      expect((await readSageOsControl(createSageOsControlStore()))?.state).toBe("paused");
+
+      const resume = await handleCommands(buildParams("/sageos resume telegram", cfg));
+      expect(resume.shouldContinue).toBe(false);
+      expect(resume.reply?.text).toContain("SageOS resumed");
+      expect((await readSageOsControl(createSageOsControlStore()))?.state).toBe("running");
+
+      const stop = await handleCommands(buildParams("/sageos stop telegram", cfg));
+      expect(stop.shouldContinue).toBe(false);
+      expect(stop.reply?.text).toContain("SageOS stopped");
+      expect((await readSageOsControl(createSageOsControlStore()))?.state).toBe("stopped");
+
+      const emergency = await handleCommands(buildParams("/sageos emergency-stop telegram", cfg));
+      expect(emergency.shouldContinue).toBe(false);
+      expect(emergency.reply?.text).toContain("SageOS emergency stop engaged");
+      const control = await readSageOsControl(createSageOsControlStore());
+      expect(control).toMatchObject({ state: "stopped", emergency: true });
+    });
+  });
+
+  it("lists and inspects SageOS tasks", async () => {
+    await withSageOsStateDir(async () => {
+      const store = createSageOsStateStore();
+      const now = new Date("2026-05-27T12:00:00Z").toISOString();
+      await upsertSageOsTask(store, {
+        id: "task_1",
+        title: "Review nightly report",
+        objective: "Summarize the latest Night Shift coding report.",
+        state: "queued",
+        requestedBy: "telegram",
+        autonomyTier: "execute_scoped",
+        policyScopes: [{ kind: "repo", allow: ["C:/repo"], risk: "low" }],
+        createdAt: now,
+        updatedAt: now,
+      });
+      await upsertSageOsRun(store, {
+        id: "run_task_1_1",
+        taskId: "task_1",
+        attempt: 1,
+        state: "succeeded",
+        traceId: "trace-task-1",
+        startedAt: now,
+        finishedAt: now,
+      });
+      const cfg = {
+        commands: { text: true },
+        channels: { whatsapp: { allowFrom: ["*"] } },
+      } as SageConfig;
+
+      const list = await handleCommands(buildParams("/sageos tasks", cfg));
+      expect(list.shouldContinue).toBe(false);
+      expect(list.reply?.text).toContain("SageOS tasks");
+      expect(list.reply?.text).toContain("task_1");
+      expect(list.reply?.text).toContain("Review nightly report");
+
+      const detail = await handleCommands(buildParams("/sageos task task_1", cfg));
+      expect(detail.shouldContinue).toBe(false);
+      expect(detail.reply?.text).toContain("SageOS task task_1");
+      expect(detail.reply?.text).toContain("Summarize the latest Night Shift coding report.");
+      expect(detail.reply?.text).toContain("run_task_1_1");
+    });
   });
 });
 

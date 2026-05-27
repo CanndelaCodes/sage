@@ -37,6 +37,7 @@ describe("commands registry", () => {
     const specs = listNativeCommandSpecs();
     expect(specs.find((spec) => spec.name === "help")).toBeTruthy();
     expect(specs.find((spec) => spec.name === "stop")).toBeTruthy();
+    expect(specs.find((spec) => spec.name === "sageos")).toBeTruthy();
     expect(specs.find((spec) => spec.name === "skill")).toBeTruthy();
     expect(specs.find((spec) => spec.name === "whoami")).toBeTruthy();
     expect(specs.find((spec) => spec.name === "compact")).toBeFalsy();
@@ -93,6 +94,7 @@ describe("commands registry", () => {
     expect(native.find((spec) => spec.name === "voice")).toBeTruthy();
     expect(findCommandByNativeName("voice", "discord")?.key).toBe("tts");
     expect(findCommandByNativeName("tts", "discord")).toBeUndefined();
+    expect(findCommandByNativeName("sageos", "telegram")?.key).toBe("sageos");
   });
 
   it("detects known text commands", () => {
@@ -160,13 +162,15 @@ describe("commands registry", () => {
   });
 
   it("keeps telegram-style command mentions for other bots", () => {
-    expect(normalizeCommandBody("/help@otherbot", { botUsername: "sage" })).toBe(
-      "/help@otherbot",
-    );
+    expect(normalizeCommandBody("/help@otherbot", { botUsername: "sage" })).toBe("/help@otherbot");
   });
 
   it("normalizes dock command aliases", () => {
     expect(normalizeCommandBody("/dock_telegram")).toBe("/dock-telegram");
+  });
+
+  it("normalizes SageOS commands with arguments", () => {
+    expect(normalizeCommandBody("/SAGEOS pause telegram")).toBe("/sageos pause telegram");
   });
 });
 
