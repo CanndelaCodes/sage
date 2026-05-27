@@ -33,6 +33,7 @@ const {
   mockDiscoverWorkflowCandidates,
   mockDraftSkillFromWorkflow,
   mockDiscoverAppCandidates,
+  mockDryRunWorkflow,
 } = vi.hoisted(() => ({
   mockLoadConfig: vi.fn(),
   mockRunMemoryStewardOnce: vi.fn(),
@@ -42,6 +43,7 @@ const {
   mockDiscoverWorkflowCandidates: vi.fn(),
   mockDraftSkillFromWorkflow: vi.fn(),
   mockDiscoverAppCandidates: vi.fn(),
+  mockDryRunWorkflow: vi.fn(),
 }));
 
 vi.mock("../../learning/app-focus.js", async (importOriginal) => {
@@ -67,6 +69,9 @@ vi.mock("../../sageos/skill-steward.js", () => ({
 }));
 vi.mock("../../sageos/app-candidates.js", () => ({
   discoverSageOsAppCandidates: mockDiscoverAppCandidates,
+}));
+vi.mock("../../sageos/workflow-runner.js", () => ({
+  dryRunSageOsWorkflow: mockDryRunWorkflow,
 }));
 
 const oldStateDir = process.env.SAGE_STATE_DIR;
@@ -98,6 +103,7 @@ describe("SageOS gateway methods", () => {
     mockDiscoverWorkflowCandidates.mockReset();
     mockDraftSkillFromWorkflow.mockReset();
     mockDiscoverAppCandidates.mockReset();
+    mockDryRunWorkflow.mockReset();
   });
 
   afterEach(() => {
@@ -118,6 +124,7 @@ describe("SageOS gateway methods", () => {
     expect(listGatewayMethods()).toContain("sageos.tasks.runNext");
     expect(listGatewayMethods()).toContain("sageos.workflows.list");
     expect(listGatewayMethods()).toContain("sageos.workflows.discover");
+    expect(listGatewayMethods()).toContain("sageos.workflows.dryRun");
     expect(listGatewayMethods()).toContain("sageos.skills.list");
     expect(listGatewayMethods()).toContain("sageos.skills.draft");
     expect(listGatewayMethods()).toContain("sageos.apps.list");
@@ -747,6 +754,67 @@ describe("SageOS gateway methods", () => {
       }),
       { dropIfSlow: true },
     );
+  });
+
+  it("dry-runs workflow candidates through gateway controls", async () => {
+    mockDryRunWorkflow.mockResolvedValue({
+      outcome: "passed",
+      workflow: {
+        id: "workflow_new",
+        name: "New workflow",
+        state: "dry_run_passed",
+        observedPattern: "app_focus:terminal",
+        sourceObservationIds: ["obs_1", "obs_2"],
+        trigger: "Repeated Terminal focus",
+        inputs: ["app focus"],
+        outputs: ["candidate"],
+        policyScopes: [{ kind: "app", allow: ["Terminal"], risk: "low" }],
+        implementationRefs: [],
+        evalRefs: ["eval_workflow_new_20260527T210000000Z"],
+        createdAt: "2026-05-27T21:00:00.000Z",
+        updatedAt: "2026-05-27T21:00:00.000Z",
+      },
+      report: {
+        id: "eval_workflow_new_20260527T210000000Z",
+        workflowId: "workflow_new",
+        passed: true,
+        checkedObservationIds: ["obs_1", "obs_2"],
+        missingObservationIds: [],
+        secretObservationIds: [],
+        summary: "Workflow workflow_new dry-run passed.",
+        createdAt: "2026-05-27T21:00:00.000Z",
+      },
+      status: createSageOsStatusSnapshot({
+        workflows: { total: 1, active: 1, queued: 0, blocked: 0 },
+      }),
+    });
+
+    const { response, broadcast } = await invoke("sageos.workflows.dryRun", {
+      workflowId: "workflow_new",
+    });
+
+    expect(response?.ok).toBe(true);
+    expect(response?.payload).toMatchObject({
+      result: {
+        outcome: "passed",
+        workflow: { id: "workflow_new", state: "dry_run_passed" },
+      },
+      state: { status: { workflows: { total: 1, active: 1 } } },
+    });
+    expect(mockDryRunWorkflow).toHaveBeenCalledWith({ workflowId: "workflow_new" });
+    expect(broadcast).toHaveBeenCalledWith(
+      "sageos",
+      expect.objectContaining({
+        status: expect.objectContaining({ workflows: expect.objectContaining({ active: 1 }) }),
+      }),
+      { dropIfSlow: true },
+    );
+  });
+
+  it("rejects workflow dry-run without a workflow id", async () => {
+    const { response } = await invoke("sageos.workflows.dryRun", {});
+    expect(response?.ok).toBe(false);
+    expect(response?.error).toMatchObject({ code: "INVALID_REQUEST" });
   });
 
   it("drafts skills from workflow candidates through gateway controls", async () => {

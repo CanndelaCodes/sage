@@ -622,6 +622,7 @@ describe("sage os CLI", () => {
     });
 
     const discoverCalls: unknown[] = [];
+    const dryRunCalls: unknown[] = [];
     const program = makeProgram({
       discoverWorkflowCandidates: async (params: unknown) => {
         discoverCalls.push(params);
@@ -651,6 +652,40 @@ describe("sage os CLI", () => {
           }),
         };
       },
+      dryRunWorkflow: async (params: unknown) => {
+        dryRunCalls.push(params);
+        return {
+          outcome: "passed" as const,
+          workflow: {
+            id: "workflow_existing",
+            name: "Existing workflow",
+            state: "dry_run_passed" as const,
+            observedPattern: "app_focus:code",
+            sourceObservationIds: ["obs_1", "obs_2"],
+            trigger: "Repeated Code focus",
+            inputs: ["app focus"],
+            outputs: ["candidate"],
+            policyScopes: [{ kind: "app" as const, allow: ["Code"], risk: "low" as const }],
+            implementationRefs: [],
+            evalRefs: ["eval_workflow_existing_20260527T204500000Z"],
+            createdAt: now,
+            updatedAt: now,
+          },
+          report: {
+            id: "eval_workflow_existing_20260527T204500000Z",
+            workflowId: "workflow_existing",
+            passed: true,
+            checkedObservationIds: ["obs_1", "obs_2"],
+            missingObservationIds: [],
+            secretObservationIds: [],
+            summary: "Workflow workflow_existing dry-run passed.",
+            createdAt: now,
+          },
+          status: createSageOsStatusSnapshot({
+            workflows: { total: 1, active: 1, queued: 0, blocked: 0 },
+          }),
+        };
+      },
     } as unknown as SageOsCliDeps);
 
     await program.parseAsync(["os", "workflows", "--json"], { from: "user" });
@@ -664,6 +699,19 @@ describe("sage os CLI", () => {
     });
     expect(discoverCalls).toHaveLength(1);
     expect(discoverCalls[0]).toMatchObject({ minOccurrences: 2 });
+
+    await program.parseAsync(["os", "workflows", "dry-run", "workflow_existing", "--json"], {
+      from: "user",
+    });
+    expect(lastJson()).toMatchObject({
+      result: {
+        outcome: "passed",
+        workflow: { id: "workflow_existing", state: "dry_run_passed" },
+        report: { id: "eval_workflow_existing_20260527T204500000Z", passed: true },
+      },
+    });
+    expect(dryRunCalls).toHaveLength(1);
+    expect(dryRunCalls[0]).toMatchObject({ workflowId: "workflow_existing" });
   });
 
   it("lists and drafts skills through CLI controls", async () => {

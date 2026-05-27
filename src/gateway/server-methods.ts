@@ -104,6 +104,7 @@ const WRITE_METHODS = new Set([
   "sageos.tasks.queue",
   "sageos.tasks.runNext",
   "sageos.workflows.discover",
+  "sageos.workflows.dryRun",
   "sageos.skills.draft",
   "sageos.apps.discover",
   "sageos.approvals.resolve",

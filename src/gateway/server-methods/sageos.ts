@@ -31,6 +31,7 @@ import {
   type SageOsSupervisorStatus,
 } from "../../sageos/types.js";
 import { discoverSageOsWorkflowCandidates } from "../../sageos/workflow-compiler.js";
+import { dryRunSageOsWorkflow } from "../../sageos/workflow-runner.js";
 import { ErrorCodes, errorShape } from "../protocol/index.js";
 
 const CONTROL_STATES = new Set(["paused", "running", "stopped"]);
@@ -183,6 +184,26 @@ export const sageOsHandlers: GatewayRequestHandlers = {
     const result = await discoverSageOsWorkflowCandidates({
       minOccurrences: parseLimit(params.min, 2),
     });
+    const stateStore = createSageOsStateStore();
+    await writeSageOsState(stateStore, result.status);
+    const state = await readSageOsState(stateStore);
+    context.broadcast("sageos", state, { dropIfSlow: true });
+    respond(true, { result, state }, undefined);
+  },
+  "sageos.workflows.dryRun": async ({ params, respond, context }) => {
+    const workflowId = typeof params.workflowId === "string" ? params.workflowId.trim() : "";
+    if (!workflowId) {
+      respond(
+        false,
+        undefined,
+        errorShape(
+          ErrorCodes.INVALID_REQUEST,
+          "invalid sageos.workflows.dryRun params: workflowId",
+        ),
+      );
+      return;
+    }
+    const result = await dryRunSageOsWorkflow({ workflowId });
     const stateStore = createSageOsStateStore();
     await writeSageOsState(stateStore, result.status);
     const state = await readSageOsState(stateStore);

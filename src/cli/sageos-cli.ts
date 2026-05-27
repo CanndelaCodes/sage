@@ -41,6 +41,7 @@ import {
   type SageOsWorkflow,
 } from "../sageos/types.js";
 import { discoverSageOsWorkflowCandidates } from "../sageos/workflow-compiler.js";
+import { dryRunSageOsWorkflow } from "../sageos/workflow-runner.js";
 
 export type SageOsCliDeps = {
   observeAppFocusOnce?: typeof observeAppFocusOnce;
@@ -49,6 +50,7 @@ export type SageOsCliDeps = {
   runNextTaskOnce?: typeof runNextSageOsTaskOnce;
   sendTelegramDigestOnce?: typeof sendSageOsTelegramDigestOnce;
   discoverWorkflowCandidates?: typeof discoverSageOsWorkflowCandidates;
+  dryRunWorkflow?: typeof dryRunSageOsWorkflow;
   draftSkillFromWorkflow?: typeof draftSageOsSkillFromWorkflow;
   discoverAppCandidates?: typeof discoverSageOsAppCandidates;
   loadConfig?: typeof loadConfig;
@@ -255,6 +257,7 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
   const sendTelegramDigest = deps.sendTelegramDigestOnce ?? sendSageOsTelegramDigestOnce;
   const discoverWorkflowCandidates =
     deps.discoverWorkflowCandidates ?? discoverSageOsWorkflowCandidates;
+  const dryRunWorkflow = deps.dryRunWorkflow ?? dryRunSageOsWorkflow;
   const draftSkillFromWorkflow = deps.draftSkillFromWorkflow ?? draftSageOsSkillFromWorkflow;
   const discoverAppCandidates = deps.discoverAppCandidates ?? discoverSageOsAppCandidates;
   const loadSageConfig = deps.loadConfig ?? loadConfig;
@@ -505,6 +508,24 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
           `Workflow candidates: ${result.created}/${result.observed} created, ${result.skipped} skipped`,
           ...result.candidates.map((workflow) => `${workflow.id}\t${workflow.name}`),
         ].join("\n"),
+      );
+    });
+
+  workflows
+    .command("dry-run <workflowId>")
+    .description("Dry-run a SageOS workflow candidate against captured examples")
+    .option("--json", "Output JSON", false)
+    .action(async (workflowIdInput: string, opts: { json?: boolean }, command?: Command) => {
+      const cliOpts = commandOptions(command ?? opts);
+      const workflowId = workflowIdInput.trim();
+      if (!workflowId) {
+        fail("Workflow id required.");
+      }
+      const result = await dryRunWorkflow({ workflowId });
+      outputJsonOrText(cliOpts, { result }, () =>
+        result.workflow
+          ? `${result.outcome}: ${result.workflow.id}\t${result.workflow.state}`
+          : `${result.outcome}: ${workflowId}`,
       );
     });
 
