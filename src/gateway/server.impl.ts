@@ -63,6 +63,7 @@ import { loadGatewayPlugins } from "./server-plugins.js";
 import { createGatewayReloadHandlers } from "./server-reload-handlers.js";
 import { resolveGatewayRuntimeConfig } from "./server-runtime-config.js";
 import { createGatewayRuntimeState } from "./server-runtime-state.js";
+import { startGatewaySageOsSupervisor } from "./server-sageos.js";
 import { resolveSessionKeyForRun } from "./server-session-key.js";
 import { logGatewayStartup } from "./server-startup-log.js";
 import { startGatewaySidecars } from "./server-startup.js";
@@ -94,6 +95,7 @@ const logReload = log.child("reload");
 const logHooks = log.child("hooks");
 const logPlugins = log.child("plugins");
 const logWsControl = log.child("ws");
+const logSageOs = log.child("sageos");
 const gatewayRuntime = runtimeForLogger(log);
 const canvasRuntime = runtimeForLogger(logCanvas);
 
@@ -557,6 +559,13 @@ export async function startGatewayServer(
     logChannels,
     logBrowser,
   }));
+  const sageOsSupervisor = await startGatewaySageOsSupervisor({
+    cfg: cfgAtStart,
+    log: {
+      info: (msg) => logSageOs.info(msg),
+      error: (msg) => logSageOs.error(msg),
+    },
+  });
 
   const { applyHotReload, requestGatewayRestart } = createGatewayReloadHandlers({
     deps,
@@ -617,6 +626,7 @@ export async function startGatewayServer(
     clients,
     configReloader,
     browserControl,
+    sageOsSupervisor,
     wss,
     httpServer,
     httpServers,
