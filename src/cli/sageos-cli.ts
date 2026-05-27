@@ -711,6 +711,24 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
   });
 
   apps
+    .command("preview <id>")
+    .description("Preview a SageOS app candidate")
+    .option("--json", "Output JSON", false)
+    .action(async (idInput: string, opts: { json?: boolean }, command?: Command) => {
+      const cliOpts = commandOptions(command ?? opts);
+      const id = idInput.trim();
+      if (!id) {
+        fail("App candidate id required.");
+      }
+      const state = await readSageOsState(createSageOsStateStore());
+      const app = state.apps.find((entry) => entry.id === id);
+      if (!app) {
+        fail(`SageOS app candidate not found: ${id}`);
+      }
+      outputJsonOrText(cliOpts, { app }, () => renderJsonResource({ app }));
+    });
+
+  apps
     .command("discover")
     .description("Discover app/widget candidates from repeated observations")
     .option("--min <count>", "Minimum repeated observations", "2")

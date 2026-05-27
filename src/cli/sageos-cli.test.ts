@@ -1186,6 +1186,16 @@ describe("sage os CLI", () => {
     await program.parseAsync(["os", "apps", "--json"], { from: "user" });
     expect(lastJson()).toMatchObject({ apps: [{ id: "app_existing" }] });
 
+    await program.parseAsync(["os", "apps", "preview", "app_existing", "--json"], {
+      from: "user",
+    });
+    expect(lastJson()).toMatchObject({
+      app: {
+        id: "app_existing",
+        previewCommand: "sage os apps preview app_existing",
+      },
+    });
+
     await program.parseAsync(["os", "apps", "discover", "--min", "2", "--json"], {
       from: "user",
     });
