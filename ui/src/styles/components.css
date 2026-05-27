@@ -2170,6 +2170,87 @@
 }
 
 /* ---------------------------------------------------------------------------
+ * SageOS Command Center
+ * --------------------------------------------------------------------------- */
+
+.sageos-dashboard {
+  display: grid;
+  gap: 16px;
+}
+
+.sageos-header,
+.sageos-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.sageos-action-row,
+.sageos-row-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.sageos-kpi-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.sageos-kpi .stat-value {
+  font-size: 20px;
+  overflow-wrap: anywhere;
+}
+
+.sageos-section-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  align-items: start;
+}
+
+.sageos-section {
+  display: grid;
+  gap: 14px;
+}
+
+.sageos-list {
+  gap: 10px;
+}
+
+.sageos-list-item {
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 210px);
+}
+
+.sageos-list-item .list-title,
+.sageos-list-item .list-sub {
+  overflow-wrap: anywhere;
+}
+
+.sageos-list-item .list-meta {
+  min-width: 150px;
+}
+
+@media (max-width: 720px) {
+  .sageos-action-row,
+  .sageos-row-actions {
+    justify-content: flex-start;
+  }
+
+  .sageos-section-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sageos-list-item {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------------------------------------------------------------------------
  * Guardrails
  * --------------------------------------------------------------------------- */
 

@@ -1,3 +1,4 @@
+import type { SageOsPersistedState } from "../../../src/sageos/state-store.js";
 import type { EventLogEntry } from "./app-events.ts";
 import type { SageApp } from "./app.ts";
 import type { ExecApprovalRequest } from "./controllers/exec-approval.ts";
@@ -54,6 +55,8 @@ type GatewayHost = {
   refreshSessionsAfterChat: Set<string>;
   execApprovalQueue: ExecApprovalRequest[];
   execApprovalError: string | null;
+  sageOsState: SageOsPersistedState | null;
+  sageOsError: string | null;
 };
 
 type SessionDefaultsSnapshot = {
@@ -224,6 +227,12 @@ function handleGatewayEventUnsafe(host: GatewayHost, evt: GatewayEventFrame) {
       host.presenceError = null;
       host.presenceStatus = null;
     }
+    return;
+  }
+
+  if (evt.event === "sageos") {
+    host.sageOsState = evt.payload as SageOsPersistedState;
+    host.sageOsError = null;
     return;
   }
 

@@ -18,6 +18,7 @@ const BASE_METHODS = [
   "sageos.tasks.list",
   "sageos.tasks.queue",
   "sageos.tasks.runNext",
+  "sageos.tasks.cancel",
   "sageos.workflows.list",
   "sageos.workflows.discover",
   "sageos.workflows.dryRun",

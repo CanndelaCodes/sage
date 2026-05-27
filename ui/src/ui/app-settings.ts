@@ -19,6 +19,7 @@ import { loadExecApprovals } from "./controllers/exec-approvals.ts";
 import { loadLogs } from "./controllers/logs.ts";
 import { loadNodes } from "./controllers/nodes.ts";
 import { loadPresence } from "./controllers/presence.ts";
+import { loadSageOs } from "./controllers/sageos.ts";
 import { loadSessions } from "./controllers/sessions.ts";
 import { loadSkills } from "./controllers/skills.ts";
 import {
@@ -187,6 +188,9 @@ export async function refreshActiveTab(host: SettingsHost) {
   }
   if (host.tab === "cron") {
     await loadCron(host);
+  }
+  if (host.tab === "sageos") {
+    await loadSageOs(host as unknown as Parameters<typeof loadSageOs>[0]);
   }
   if (host.tab === "skills") {
     await loadSkills(host as unknown as SageApp);

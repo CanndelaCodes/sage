@@ -1,5 +1,6 @@
 import { LitElement } from "lit";
 import { customElement, state } from "lit/decorators.js";
+import type { SageOsPersistedState } from "../../../src/sageos/state-store.js";
 import type { EventLogEntry } from "./app-events.ts";
 import type { AppViewState } from "./app-view-state.ts";
 import type { DevicePairingList } from "./controllers/devices.ts";
@@ -29,11 +30,6 @@ import type {
   NostrProfile,
 } from "./types.ts";
 import type { NostrProfileFormState } from "./views/channels.nostr-profile-form.ts";
-import {
-  defaultConfirmationDialogState,
-  type ConfirmationDialogState,
-} from "./views/confirmation-dialog.ts";
-import { defaultGuardrailsViewState, type GuardrailsViewState } from "./views/guardrails.ts";
 import {
   handleChannelConfigReload as handleChannelConfigReloadInternal,
   handleChannelConfigSave as handleChannelConfigSaveInternal,
@@ -84,6 +80,11 @@ import { resolveInjectedAssistantIdentity } from "./assistant-identity.ts";
 import { loadAssistantIdentity as loadAssistantIdentityInternal } from "./controllers/assistant-identity.ts";
 import { loadSettings, type UiSettings } from "./storage.ts";
 import { type ChatAttachment, type ChatQueueItem, type CronFormState } from "./ui-types.ts";
+import {
+  defaultConfirmationDialogState,
+  type ConfirmationDialogState,
+} from "./views/confirmation-dialog.ts";
+import { defaultGuardrailsViewState, type GuardrailsViewState } from "./views/guardrails.ts";
 
 declare global {
   interface Window {
@@ -247,6 +248,11 @@ export class SageApp extends LitElement {
   @state() skillEdits: Record<string, string> = {};
   @state() skillsBusyKey: string | null = null;
   @state() skillMessages: Record<string, SkillMessage> = {};
+
+  @state() sageOsLoading = false;
+  @state() sageOsBusy: string | null = null;
+  @state() sageOsError: string | null = null;
+  @state() sageOsState: SageOsPersistedState | null = null;
 
   @state() debugLoading = false;
   @state() debugStatus: StatusSummary | null = null;

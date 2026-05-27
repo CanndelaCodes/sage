@@ -43,6 +43,14 @@ import {
 import { loadLogs, LogsState } from "./controllers/logs.ts";
 import { loadNodes } from "./controllers/nodes.ts";
 import { loadPresence } from "./controllers/presence.ts";
+import {
+  cancelSageOsTask,
+  loadSageOs,
+  queueSageOsTask,
+  resolveSageOsApproval,
+  runNextSageOsTask,
+  setSageOsControl,
+} from "./controllers/sageos.ts";
 import { deleteSession, loadSessions, patchSession } from "./controllers/sessions.ts";
 import {
   installSkill,
@@ -68,6 +76,7 @@ import { renderInstances } from "./views/instances.ts";
 import { renderLogs } from "./views/logs.ts";
 import { renderNodes } from "./views/nodes.ts";
 import { renderOverview } from "./views/overview.ts";
+import { renderSageOs } from "./views/sageos.ts";
 import { renderSessions } from "./views/sessions.ts";
 import { renderSkills } from "./views/skills.ts";
 
@@ -251,6 +260,25 @@ export function renderApp(state: AppViewState) {
                 },
                 onConnect: () => state.connect(),
                 onRefresh: () => state.loadOverview(),
+              })
+            : nothing
+        }
+
+        ${
+          state.tab === "sageos"
+            ? renderSageOs({
+                connected: state.connected,
+                loading: state.sageOsLoading,
+                busy: state.sageOsBusy,
+                error: state.sageOsError,
+                state: state.sageOsState,
+                onRefresh: () => void loadSageOs(state),
+                onControl: (action) => void setSageOsControl(state, action),
+                onResolveApproval: (id, decision) =>
+                  void resolveSageOsApproval(state, id, decision),
+                onQueueTask: (id) => void queueSageOsTask(state, id),
+                onRunNextTask: () => void runNextSageOsTask(state),
+                onCancelTask: (id) => void cancelSageOsTask(state, id),
               })
             : nothing
         }

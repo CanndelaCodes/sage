@@ -34,6 +34,7 @@ import {
   createSageOsStateStore,
   readSageOsState,
   upsertSageOsApproval,
+  upsertSageOsTask,
   writeSageOsControl,
   writeSageOsState,
 } from "../../sageos/state-store.js";
@@ -333,6 +334,36 @@ export const sageOsHandlers: GatewayRequestHandlers = {
     const state = await readSageOsState(createSageOsStateStore());
     context.broadcast("sageos", state, { dropIfSlow: true });
     respond(true, { result, state }, undefined);
+  },
+  "sageos.tasks.cancel": async ({ params, respond, context }) => {
+    const id = stringParam(params, "id");
+    if (!id) {
+      respond(
+        false,
+        undefined,
+        errorShape(ErrorCodes.INVALID_REQUEST, "invalid sageos.tasks.cancel params: id required"),
+      );
+      return;
+    }
+    const stateStore = createSageOsStateStore();
+    const state = await readSageOsState(stateStore);
+    const task = state.tasks.find((entry) => entry.id === id);
+    if (!task) {
+      respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "SageOS task not found"));
+      return;
+    }
+    const nextTask = { ...task, state: "cancelled" as const, updatedAt: new Date().toISOString() };
+    await upsertSageOsTask(stateStore, nextTask);
+    await appendSageOsEvent(createSageOsEventLog(), {
+      type: "task_cancelled",
+      actor: "sageos.gateway",
+      summary: `Cancelled SageOS task ${id}: ${stringParam(params, "reason") || "manual"}`,
+      taskId: id,
+      sensitivity: "normal",
+    });
+    const nextState = await readSageOsState(stateStore);
+    context.broadcast("sageos", nextState, { dropIfSlow: true });
+    respond(true, { task: nextTask, state: nextState }, undefined);
   },
   "sageos.runs.list": async ({ respond }) => {
     const state = await readSageOsState(createSageOsStateStore());

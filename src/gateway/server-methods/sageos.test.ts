@@ -156,6 +156,7 @@ describe("SageOS gateway methods", () => {
     expect(listGatewayMethods()).toContain("sageos.tasks.list");
     expect(listGatewayMethods()).toContain("sageos.tasks.queue");
     expect(listGatewayMethods()).toContain("sageos.tasks.runNext");
+    expect(listGatewayMethods()).toContain("sageos.tasks.cancel");
     expect(listGatewayMethods()).toContain("sageos.workflows.list");
     expect(listGatewayMethods()).toContain("sageos.workflows.discover");
     expect(listGatewayMethods()).toContain("sageos.workflows.dryRun");
@@ -644,6 +645,50 @@ describe("SageOS gateway methods", () => {
       }),
       { dropIfSlow: true },
     );
+  });
+
+  it("cancels tasks through gateway controls with audit evidence", async () => {
+    const store = createSageOsStateStore();
+    const now = "2026-05-27T22:10:00.000Z";
+    await upsertSageOsTask(store, {
+      id: "task_cancel",
+      title: "Cancel queued task",
+      objective: "Exercise browser task cancellation.",
+      state: "queued",
+      requestedBy: "sageos.cli",
+      autonomyTier: "execute_scoped",
+      policyScopes: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const { response, broadcast } = await invoke("sageos.tasks.cancel", {
+      id: "task_cancel",
+      reason: "browser cancelled",
+    });
+
+    expect(response?.ok).toBe(true);
+    expect(response?.payload).toMatchObject({
+      task: { id: "task_cancel", state: "cancelled" },
+    });
+    expect(broadcast).toHaveBeenCalledWith(
+      "sageos",
+      expect.objectContaining({
+        tasks: expect.arrayContaining([
+          expect.objectContaining({ id: "task_cancel", state: "cancelled" }),
+        ]),
+      }),
+      { dropIfSlow: true },
+    );
+    await expect(readSageOsState(store)).resolves.toMatchObject({
+      tasks: [expect.objectContaining({ id: "task_cancel", state: "cancelled" })],
+    });
+    const eventLog = await readFile(
+      path.join(process.env.SAGE_STATE_DIR ?? "", "sageos", "events.jsonl"),
+      "utf8",
+    );
+    expect(eventLog).toContain("task_cancelled");
+    expect(eventLog).toContain("browser cancelled");
   });
 
   it("runs the next queued task with task notification through gateway controls", async () => {
