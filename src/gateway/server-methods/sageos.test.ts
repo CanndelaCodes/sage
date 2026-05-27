@@ -191,27 +191,78 @@ describe("SageOS gateway methods", () => {
     expect(GATEWAY_EVENTS).toContain("sageos");
   });
 
-  it("authorizes approval notification sends for operator write clients", async () => {
-    const responses: Array<{ ok: boolean; payload?: unknown; error?: { message?: string } }> = [];
-    const handler = vi.fn(({ respond }) => respond(true, { accepted: true }, undefined));
+  it("authorizes SageOS command-center methods at read and write scopes", async () => {
+    const readMethods = [
+      "sageos.status",
+      "sageos.agents.list",
+      "sageos.agents.activationPreview",
+      "sageos.agentTemplates.list",
+      "sageos.agentTemplates.inspect",
+      "sageos.collaboration.list",
+      "sageos.tasks.list",
+      "sageos.runs.list",
+      "sageos.workflows.list",
+      "sageos.skills.list",
+      "sageos.apps.list",
+      "sageos.coding.list",
+      "sageos.approvals.list",
+      "sageos.observations.list",
+    ];
+    const writeMethods = [
+      "sageos.agents.activate",
+      "sageos.collaboration.handoff",
+      "sageos.collaboration.requestReview",
+      "sageos.tasks.queue",
+      "sageos.tasks.runNext",
+      "sageos.tasks.cancel",
+      "sageos.workflows.discover",
+      "sageos.workflows.dryRun",
+      "sageos.skills.draft",
+      "sageos.apps.discover",
+      "sageos.coding.run",
+      "sageos.approvals.resolve",
+      "sageos.observe",
+      "sageos.copilot.suggest",
+      "sageos.memory.replay",
+      "sageos.memory.doctor",
+      "sageos.notifications.digest",
+      "sageos.notifications.startup",
+      "sageos.notifications.approval",
+      "sageos.notifications.incident",
+      "sageos.notifications.completion",
+      "sageos.control",
+    ];
 
-    await handleGatewayRequest({
-      req: { id: 1, method: "sageos.notifications.approval", params: {} },
-      client: {
-        connect: {
-          role: "operator",
-          scopes: ["operator.write"],
-          client: { id: "command-center", displayName: "Command Center" },
-        },
-      },
-      isWebchatConnect: () => false,
-      respond: (ok, payload, error) => responses.push({ ok, payload, error }),
-      context: { broadcast: vi.fn() } as never,
-      extraHandlers: { "sageos.notifications.approval": handler },
-    });
+    for (const [scope, methods] of [
+      ["operator.read", readMethods],
+      ["operator.write", writeMethods],
+    ] as const) {
+      for (const method of methods) {
+        const responses: Array<{ ok: boolean; payload?: unknown; error?: { message?: string } }> =
+          [];
+        const handler = vi.fn(({ respond }) => respond(true, { accepted: method }, undefined));
 
-    expect(responses).toEqual([{ ok: true, payload: { accepted: true }, error: undefined }]);
-    expect(handler).toHaveBeenCalledTimes(1);
+        await handleGatewayRequest({
+          req: { id: 1, method, params: {} },
+          client: {
+            connect: {
+              role: "operator",
+              scopes: [scope],
+              client: { id: "command-center", displayName: "Command Center" },
+            },
+          },
+          isWebchatConnect: () => false,
+          respond: (ok, payload, error) => responses.push({ ok, payload, error }),
+          context: { broadcast: vi.fn() } as never,
+          extraHandlers: { [method]: handler },
+        });
+
+        expect(responses, method).toEqual([
+          { ok: true, payload: { accepted: method }, error: undefined },
+        ]);
+        expect(handler, method).toHaveBeenCalledTimes(1);
+      }
+    }
   });
 
   it("returns default SageOS employee templates", async () => {
