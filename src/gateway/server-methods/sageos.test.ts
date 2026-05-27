@@ -20,6 +20,7 @@ import {
 } from "../../sageos/state-store.js";
 import { createSageOsStatusSnapshot } from "../../sageos/types.js";
 import { listGatewayMethods, GATEWAY_EVENTS } from "../server-methods-list.js";
+import { handleGatewayRequest } from "../server-methods.js";
 import { sageOsHandlers } from "./sageos.js";
 
 const { mockReadActiveAppFocus } = vi.hoisted(() => ({
@@ -65,7 +66,10 @@ vi.mock("../../learning/app-focus.js", async (importOriginal) => {
   const mod = await importOriginal<typeof import("../../learning/app-focus.js")>();
   return { ...mod, readActiveAppFocus: mockReadActiveAppFocus };
 });
-vi.mock("../../config/config.js", () => ({ loadConfig: mockLoadConfig }));
+vi.mock("../../config/config.js", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("../../config/config.js")>();
+  return { ...mod, loadConfig: mockLoadConfig };
+});
 vi.mock("../../sageos/memory-steward.js", () => ({
   runSageOsMemoryStewardOnce: mockRunMemoryStewardOnce,
   runSageOsMemoryDoctorOnce: mockRunMemoryDoctorOnce,
@@ -185,6 +189,29 @@ describe("SageOS gateway methods", () => {
     expect(listGatewayMethods()).toContain("sageos.notifications.completion");
     expect(listGatewayMethods()).toContain("sageos.control");
     expect(GATEWAY_EVENTS).toContain("sageos");
+  });
+
+  it("authorizes approval notification sends for operator write clients", async () => {
+    const responses: Array<{ ok: boolean; payload?: unknown; error?: { message?: string } }> = [];
+    const handler = vi.fn(({ respond }) => respond(true, { accepted: true }, undefined));
+
+    await handleGatewayRequest({
+      req: { id: 1, method: "sageos.notifications.approval", params: {} },
+      client: {
+        connect: {
+          role: "operator",
+          scopes: ["operator.write"],
+          client: { id: "command-center", displayName: "Command Center" },
+        },
+      },
+      isWebchatConnect: () => false,
+      respond: (ok, payload, error) => responses.push({ ok, payload, error }),
+      context: { broadcast: vi.fn() } as never,
+      extraHandlers: { "sageos.notifications.approval": handler },
+    });
+
+    expect(responses).toEqual([{ ok: true, payload: { accepted: true }, error: undefined }]);
+    expect(handler).toHaveBeenCalledTimes(1);
   });
 
   it("returns default SageOS employee templates", async () => {
