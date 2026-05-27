@@ -1,9 +1,11 @@
 import type { GatewayRequestHandlers } from "./types.js";
+import { loadConfig } from "../../config/config.js";
 import {
   getSageOsEmployeeTemplate,
   listSageOsEmployeeTemplates,
 } from "../../sageos/employee-templates.js";
 import { appendSageOsEvent, createSageOsEventLog } from "../../sageos/event-log.js";
+import { runSageOsMemoryStewardOnce } from "../../sageos/memory-steward.js";
 import { observeAppFocusOnce } from "../../sageos/observations.js";
 import {
   createSageOsControlStore,
@@ -179,6 +181,16 @@ export const sageOsHandlers: GatewayRequestHandlers = {
     const stateStore = createSageOsStateStore();
     const status = await collectSageOsStatus();
     await writeSageOsState(stateStore, status);
+    const state = await readSageOsState(stateStore);
+    context.broadcast("sageos", state, { dropIfSlow: true });
+    respond(true, { result, state }, undefined);
+  },
+  "sageos.memory.replay": async ({ params, respond, context }) => {
+    const agentId =
+      typeof params.agentId === "string" && params.agentId.trim() ? params.agentId.trim() : "main";
+    const result = await runSageOsMemoryStewardOnce({ cfg: loadConfig(), agentId });
+    const stateStore = createSageOsStateStore();
+    await writeSageOsState(stateStore, result.status);
     const state = await readSageOsState(stateStore);
     context.broadcast("sageos", state, { dropIfSlow: true });
     respond(true, { result, state }, undefined);

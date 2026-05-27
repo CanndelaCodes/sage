@@ -345,6 +345,46 @@ describe("sage os CLI", () => {
     expect(observeCalls[0]).toMatchObject({ cfg: { sources: { appFocus: true } } });
   });
 
+  it("runs the memory steward replay command", async () => {
+    const runCalls: unknown[] = [];
+    const program = makeProgram({
+      loadConfig: () => ({ sageos: { memory: { replayQueues: true } } }),
+      runMemoryStewardOnce: async (params) => {
+        runCalls.push(params);
+        return {
+          memory: { attempted: 1, captured: 1, failed: 0, remaining: 0, results: [] },
+          learning: { attempted: 2, accepted: 2, failed: 0, remaining: 0 },
+          status: createSageOsStatusSnapshot({
+            memory: {
+              status: "ok",
+              backend: "sage-memory",
+              canonical: "sage-memory",
+              captureQueue: { total: 0, pending: 0, failed: 0 },
+            },
+            learning: {
+              status: "ok",
+              activityQueue: { total: 0, pending: 0, failed: 0 },
+            },
+          }),
+        };
+      },
+    });
+
+    await program.parseAsync(["os", "memory", "replay", "--json"], { from: "user" });
+
+    expect(lastJson()).toMatchObject({
+      result: {
+        memory: { attempted: 1, captured: 1, failed: 0 },
+        learning: { attempted: 2, accepted: 2, failed: 0 },
+      },
+    });
+    expect(runCalls).toHaveLength(1);
+    expect(runCalls[0]).toMatchObject({
+      cfg: { sageos: { memory: { replayQueues: true } } },
+      agentId: "main",
+    });
+  });
+
   it("shows incidents, audit events, and doctor status", async () => {
     const store = createSageOsStateStore();
     const log = createSageOsEventLog();

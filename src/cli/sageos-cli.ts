@@ -1,10 +1,12 @@
 import type { Command } from "commander";
+import { loadConfig } from "../config/config.js";
 import { defaultRuntime } from "../runtime.js";
 import {
   getSageOsEmployeeTemplate,
   listSageOsEmployeeTemplates,
 } from "../sageos/employee-templates.js";
 import { appendSageOsEvent, createSageOsEventLog, readSageOsEvents } from "../sageos/event-log.js";
+import { runSageOsMemoryStewardOnce } from "../sageos/memory-steward.js";
 import { observeAppFocusOnce } from "../sageos/observations.js";
 import {
   createSageOsControlStore,
@@ -29,6 +31,8 @@ import {
 
 export type SageOsCliDeps = {
   observeAppFocusOnce?: typeof observeAppFocusOnce;
+  runMemoryStewardOnce?: typeof runSageOsMemoryStewardOnce;
+  loadConfig?: typeof loadConfig;
 };
 
 async function loadSnapshot() {
@@ -195,6 +199,8 @@ async function resolveApprovalFromCli(
 
 export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
   const observeAppFocus = deps.observeAppFocusOnce ?? observeAppFocusOnce;
+  const runMemorySteward = deps.runMemoryStewardOnce ?? runSageOsMemoryStewardOnce;
+  const loadSageConfig = deps.loadConfig ?? loadConfig;
   const os = program.command("os").description("SageOS command center controls");
 
   os.command("status")
@@ -428,6 +434,26 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
       const cliOpts = commandOptions(opts);
       const result = await observeAppFocus({ cfg: { sources: { appFocus: true } } });
       outputJsonOrText(cliOpts, { result }, () => renderJsonResource({ result }));
+    });
+
+  const memory = os.command("memory").description("Run SageOS memory steward controls");
+  memory
+    .command("replay")
+    .description("Replay Sage Memory capture and learning queues")
+    .option("--agent <id>", "Agent id", "main")
+    .option("--json", "Output JSON", false)
+    .action(async (opts: { agent?: string; json?: boolean }) => {
+      const cliOpts = commandOptions(opts);
+      const result = await runMemorySteward({
+        cfg: loadSageConfig(),
+        agentId: cliOpts.agent?.trim() || "main",
+      });
+      outputJsonOrText(cliOpts, { result }, () =>
+        [
+          `Memory replay: ${result.memory.captured}/${result.memory.attempted} captured, ${result.memory.failed} failed`,
+          `Learning replay: ${result.learning.accepted}/${result.learning.attempted} accepted, ${result.learning.failed} failed`,
+        ].join("\n"),
+      );
     });
 
   os.command("incidents")

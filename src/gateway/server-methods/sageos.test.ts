@@ -14,17 +14,26 @@ import {
   upsertSageOsAgent,
   upsertSageOsTask,
 } from "../../sageos/state-store.js";
+import { createSageOsStatusSnapshot } from "../../sageos/types.js";
 import { listGatewayMethods, GATEWAY_EVENTS } from "../server-methods-list.js";
 import { sageOsHandlers } from "./sageos.js";
 
 const { mockReadActiveAppFocus } = vi.hoisted(() => ({
   mockReadActiveAppFocus: vi.fn(),
 }));
+const { mockLoadConfig, mockRunMemoryStewardOnce } = vi.hoisted(() => ({
+  mockLoadConfig: vi.fn(),
+  mockRunMemoryStewardOnce: vi.fn(),
+}));
 
 vi.mock("../../learning/app-focus.js", async (importOriginal) => {
   const mod = await importOriginal<typeof import("../../learning/app-focus.js")>();
   return { ...mod, readActiveAppFocus: mockReadActiveAppFocus };
 });
+vi.mock("../../config/config.js", () => ({ loadConfig: mockLoadConfig }));
+vi.mock("../../sageos/memory-steward.js", () => ({
+  runSageOsMemoryStewardOnce: mockRunMemoryStewardOnce,
+}));
 
 const oldStateDir = process.env.SAGE_STATE_DIR;
 
@@ -46,6 +55,9 @@ describe("SageOS gateway methods", () => {
   beforeEach(async () => {
     process.env.SAGE_STATE_DIR = await mkdtemp(path.join(tmpdir(), "sageos-gateway-"));
     mockReadActiveAppFocus.mockReset();
+    mockLoadConfig.mockReset();
+    mockLoadConfig.mockReturnValue({ sageos: { memory: { replayQueues: true } } });
+    mockRunMemoryStewardOnce.mockReset();
   });
 
   afterEach(() => {
@@ -67,6 +79,7 @@ describe("SageOS gateway methods", () => {
     expect(listGatewayMethods()).toContain("sageos.approvals.resolve");
     expect(listGatewayMethods()).toContain("sageos.observations.list");
     expect(listGatewayMethods()).toContain("sageos.observe");
+    expect(listGatewayMethods()).toContain("sageos.memory.replay");
     expect(listGatewayMethods()).toContain("sageos.control");
     expect(GATEWAY_EVENTS).toContain("sageos");
   });
@@ -338,6 +351,49 @@ describe("SageOS gateway methods", () => {
     const { response } = await invoke("sageos.observe", { source: "screen" });
     expect(response?.ok).toBe(false);
     expect(response?.error).toMatchObject({ code: "INVALID_REQUEST" });
+  });
+
+  it("runs memory steward replay through gateway", async () => {
+    mockRunMemoryStewardOnce.mockResolvedValue({
+      memory: { attempted: 1, captured: 1, failed: 0, remaining: 0, results: [] },
+      learning: { attempted: 2, accepted: 2, failed: 0, remaining: 0 },
+      status: createSageOsStatusSnapshot({
+        memory: {
+          status: "ok",
+          backend: "sage-memory",
+          canonical: "sage-memory",
+          captureQueue: { total: 0, pending: 0, failed: 0 },
+        },
+        learning: {
+          status: "ok",
+          activityQueue: { total: 0, pending: 0, failed: 0 },
+        },
+      }),
+    });
+
+    const { response, broadcast } = await invoke("sageos.memory.replay", { agentId: "main" });
+
+    expect(response?.ok).toBe(true);
+    expect(response?.payload).toMatchObject({
+      result: {
+        memory: { attempted: 1, captured: 1, failed: 0 },
+        learning: { attempted: 2, accepted: 2, failed: 0 },
+      },
+    });
+    expect(mockRunMemoryStewardOnce).toHaveBeenCalledWith({
+      cfg: { sageos: { memory: { replayQueues: true } } },
+      agentId: "main",
+    });
+    expect(broadcast).toHaveBeenCalledWith(
+      "sageos",
+      expect.objectContaining({
+        status: expect.objectContaining({
+          memory: expect.objectContaining({ status: "ok" }),
+          learning: expect.objectContaining({ status: "ok" }),
+        }),
+      }),
+      { dropIfSlow: true },
+    );
   });
 
   it("writes supervisor control, state, and audit event", async () => {
