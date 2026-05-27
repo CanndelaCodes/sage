@@ -4,6 +4,13 @@ import type { GatewayBrowserClient } from "../gateway.ts";
 export type SageOsControlAction = "paused" | "running" | "stopped" | "emergency_stop";
 export type SageOsApprovalDecision = "approved" | "denied";
 
+const safeIncidentRepairMethods = new Set([
+  "sageos.memory.replay",
+  "sageos.memory.doctor",
+  "sageos.approvals.list",
+  "sageos.observations.list",
+]);
+
 export type SageOsUiState = {
   client: GatewayBrowserClient | null;
   connected: boolean;
@@ -93,6 +100,28 @@ export async function cancelSageOsTask(state: SageOsUiState, id: string) {
       },
     );
     state.sageOsState = payload.state;
+  });
+}
+
+export async function runSageOsIncidentRepair(state: SageOsUiState, incidentId: string) {
+  await runSageOsMutation(state, `repair:${incidentId}`, async () => {
+    const incident = state.sageOsState?.status.incidents.find((entry) => entry.id === incidentId);
+    if (!incident) {
+      throw new Error(`SageOS incident not found: ${incidentId}`);
+    }
+    const repair = incident.repairAction;
+    const gatewayMethod = repair?.gatewayMethod?.trim();
+    if (!incident.autoRepairSafe || repair?.approvalRequired || !gatewayMethod) {
+      throw new Error(`SageOS incident repair requires review: ${incidentId}`);
+    }
+    if (!safeIncidentRepairMethods.has(gatewayMethod)) {
+      throw new Error(`SageOS repair method is not allowlisted: ${gatewayMethod}`);
+    }
+    await requireClient(state).request(gatewayMethod, {});
+    state.sageOsState = await requireClient(state).request<SageOsPersistedState>(
+      "sageos.status",
+      {},
+    );
   });
 }
 

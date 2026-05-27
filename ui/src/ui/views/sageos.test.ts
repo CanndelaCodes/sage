@@ -74,7 +74,8 @@ function createState(): SageOsPersistedState {
         state: "proposed",
         requestedBy: "sageos.ambient_copilot",
         autonomyTier: "suggest",
-        policyScopes: [],
+        policyScopes: [{ kind: "repo", allow: ["C:/Users/jason/Desktop/sage"], risk: "low" }],
+        rollback: "Remove the proposed task.",
         createdAt: now,
         updatedAt: now,
       },
@@ -145,6 +146,7 @@ function createProps(overrides: Partial<SageOsViewProps> = {}): SageOsViewProps 
     onQueueTask: () => undefined,
     onRunNextTask: () => undefined,
     onCancelTask: () => undefined,
+    onRunRepair: () => undefined,
     ...overrides,
   };
 }
@@ -156,6 +158,7 @@ describe("SageOS view", () => {
     const onResolveApproval = vi.fn();
     const onQueueTask = vi.fn();
     const onCancelTask = vi.fn();
+    const onRunRepair = vi.fn();
 
     render(
       renderSageOs(
@@ -164,6 +167,7 @@ describe("SageOS view", () => {
           onResolveApproval,
           onQueueTask,
           onCancelTask,
+          onRunRepair,
         }),
       ),
       container,
@@ -190,6 +194,16 @@ describe("SageOS view", () => {
     ]) {
       expect(text).toContain(label);
     }
+    for (const label of [
+      "Details",
+      "Requested by",
+      "Created",
+      "Updated",
+      "Rollback",
+      "repo: allow C:/Users/jason/Desktop/sage; risk low",
+    ]) {
+      expect(text).toContain(label);
+    }
 
     clickButton(container, "Pause");
     expect(onControl).toHaveBeenCalledWith("paused");
@@ -202,6 +216,9 @@ describe("SageOS view", () => {
 
     clickButton(container, "Cancel", "task_run");
     expect(onCancelTask).toHaveBeenCalledWith("task_run");
+
+    clickButton(container, "Run repair", "incident_memory");
+    expect(onRunRepair).toHaveBeenCalledWith("incident_memory");
   });
 });
 

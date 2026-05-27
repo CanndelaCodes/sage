@@ -48,6 +48,7 @@ import {
   loadSageOs,
   queueSageOsTask,
   resolveSageOsApproval,
+  runSageOsIncidentRepair,
   runNextSageOsTask,
   setSageOsControl,
 } from "./controllers/sageos.ts";
@@ -279,6 +280,7 @@ export function renderApp(state: AppViewState) {
                 onQueueTask: (id) => void queueSageOsTask(state, id),
                 onRunNextTask: () => void runNextSageOsTask(state),
                 onCancelTask: (id) => void cancelSageOsTask(state, id),
+                onRunRepair: (id) => void runSageOsIncidentRepair(state, id),
               })
             : nothing
         }

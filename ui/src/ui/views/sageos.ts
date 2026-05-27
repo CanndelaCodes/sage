@@ -4,6 +4,7 @@ import type {
   SageOsApproval,
   SageOsCollaborationEvent,
   SageOsIncident,
+  SageOsPolicyScope,
   SageOsTaskSpec,
 } from "../../../../src/sageos/types.js";
 import type { SageOsApprovalDecision, SageOsControlAction } from "../controllers/sageos.ts";
@@ -21,6 +22,7 @@ export type SageOsViewProps = {
   onQueueTask: (id: string) => void;
   onRunNextTask: () => void;
   onCancelTask: (id: string) => void;
+  onRunRepair: (id: string) => void;
 };
 
 const terminalTaskStates = new Set(["completed", "failed", "cancelled", "expired"]);
@@ -154,7 +156,7 @@ export function renderSageOs(props: SageOsViewProps) {
             <section class="sageos-section-grid">
               ${renderTasks(props, state.tasks, queuedTasks)}
               ${renderApprovals(props, state.approvals)}
-              ${renderIncidents(status.incidents)}
+              ${renderIncidents(props, status.incidents)}
               ${renderCollaborations(state.collaborations)}
             </section>
           `
@@ -212,6 +214,7 @@ function renderTaskRow(props: SageOsViewProps, task: SageOsTaskSpec) {
         <div class="list-title">${task.title}</div>
         <div class="list-sub mono">${task.id}</div>
         <div class="list-sub">${task.objective}</div>
+        ${renderTaskDetails(task)}
       </div>
       <div class="list-meta">
         <span class="chip">${task.state}</span>
@@ -246,6 +249,26 @@ function renderTaskRow(props: SageOsViewProps, task: SageOsTaskSpec) {
         </div>
       </div>
     </div>
+  `;
+}
+
+function renderTaskDetails(task: SageOsTaskSpec) {
+  return html`
+    <details class="sageos-details">
+      <summary>Details</summary>
+      <div class="sageos-detail-grid">
+        <span>Requested by</span>
+        <span>${task.requestedBy}</span>
+        <span>Created</span>
+        <span>${task.createdAt}</span>
+        <span>Updated</span>
+        <span>${task.updatedAt}</span>
+        <span>Rollback</span>
+        <span>${task.rollback ?? "No rollback note."}</span>
+        <span>Policy</span>
+        <span>${formatPolicyScopes(task.policyScopes)}</span>
+      </div>
+    </details>
   `;
 }
 
@@ -300,7 +323,7 @@ function renderApprovalRow(props: SageOsViewProps, approval: SageOsApproval) {
   `;
 }
 
-function renderIncidents(incidents: SageOsIncident[]) {
+function renderIncidents(props: SageOsViewProps, incidents: SageOsIncident[]) {
   return html`
     <section class="card sageos-section">
       <div class="card-title">Incidents</div>
@@ -326,6 +349,21 @@ function renderIncidents(incidents: SageOsIncident[]) {
                           : "manual review"
                       }
                     </div>
+                    ${
+                      canRunIncidentRepair(incident)
+                        ? html`
+                          <div class="sageos-row-actions sageos-repair-actions">
+                            <button
+                              class="btn btn--sm"
+                              ?disabled=${isBusy(props)}
+                              @click=${() => props.onRunRepair(incident.id)}
+                            >
+                              Run repair
+                            </button>
+                          </div>
+                        `
+                        : nothing
+                    }
                   </div>
                   <div class="list-meta">
                     <span class="chip ${incident.severity === "error" || incident.severity === "critical" ? "chip-warn" : ""}">
@@ -340,6 +378,31 @@ function renderIncidents(incidents: SageOsIncident[]) {
       </div>
     </section>
   `;
+}
+
+function canRunIncidentRepair(incident: SageOsIncident): boolean {
+  return Boolean(
+    incident.autoRepairSafe &&
+    incident.repairAction &&
+    !incident.repairAction.approvalRequired &&
+    incident.repairAction.gatewayMethod,
+  );
+}
+
+function formatPolicyScopes(scopes: SageOsPolicyScope[]): string {
+  if (scopes.length === 0) {
+    return "No policy scopes.";
+  }
+  return scopes.map(formatPolicyScope).join(" | ");
+}
+
+function formatPolicyScope(scope: SageOsPolicyScope): string {
+  const parts = [
+    scope.allow?.length ? `allow ${scope.allow.join(", ")}` : undefined,
+    scope.deny?.length ? `deny ${scope.deny.join(", ")}` : undefined,
+    scope.risk ? `risk ${scope.risk}` : undefined,
+  ].filter((part): part is string => Boolean(part));
+  return `${scope.kind}: ${parts.length > 0 ? parts.join("; ") : "scoped"}`;
 }
 
 function renderCollaborations(collaborations: SageOsCollaborationEvent[]) {
