@@ -418,10 +418,15 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
   tasks
     .command("run-next")
     .description("Run the next queued SageOS task with the dry-run worker")
+    .option("--notify", "Send a Telegram task result notification", false)
     .option("--json", "Output JSON", false)
-    .action(async (opts: { json?: boolean }, command?: Command) => {
+    .action(async (opts: { notify?: boolean; json?: boolean }, command?: Command) => {
       const cliOpts = commandOptions(command ?? opts);
-      const result = await runNextTask({ requestedBy: "sageos.cli" });
+      const result = await runNextTask({
+        requestedBy: "sageos.cli",
+        notify: Boolean(cliOpts.notify),
+        cfg: cliOpts.notify ? loadSageConfig().sageos : undefined,
+      });
       outputJsonOrText(cliOpts, { result }, () =>
         result.outcome === "idle"
           ? "No queued SageOS tasks."

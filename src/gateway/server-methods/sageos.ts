@@ -158,8 +158,13 @@ export const sageOsHandlers: GatewayRequestHandlers = {
     context.broadcast("sageos", state, { dropIfSlow: true });
     respond(true, { result, state }, undefined);
   },
-  "sageos.tasks.runNext": async ({ respond, context }) => {
-    const result = await runNextSageOsTaskOnce({ requestedBy: "sageos.gateway" });
+  "sageos.tasks.runNext": async ({ params, respond, context }) => {
+    const notify = params.notify === true;
+    const result = await runNextSageOsTaskOnce({
+      requestedBy: "sageos.gateway",
+      notify,
+      cfg: notify ? loadConfig().sageos : undefined,
+    });
     const state = await readSageOsState(createSageOsStateStore());
     context.broadcast("sageos", state, { dropIfSlow: true });
     respond(true, { result, state }, undefined);

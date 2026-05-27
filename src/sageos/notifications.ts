@@ -1,4 +1,10 @@
-import type { SageOsConfig, SageOsObservation, SageOsStatusSnapshot } from "./types.js";
+import type {
+  SageOsConfig,
+  SageOsObservation,
+  SageOsRun,
+  SageOsStatusSnapshot,
+  SageOsTaskSpec,
+} from "./types.js";
 import { sendMessageTelegram } from "../telegram/send.js";
 import { appendSageOsEvent, createSageOsEventLog } from "./event-log.js";
 import {
@@ -9,7 +15,7 @@ import {
 } from "./state-store.js";
 import { collectSageOsStatus } from "./status.js";
 
-export type SageOsNotificationKind = "digest";
+export type SageOsNotificationKind = "digest" | "task";
 
 export type SageOsNotificationMessage = {
   kind: SageOsNotificationKind;
@@ -42,6 +48,26 @@ export type SageOsTelegramDigestResult =
       notification: SageOsNotificationMessage;
       error: string;
       status: SageOsStatusSnapshot;
+    };
+
+export type SageOsTelegramTaskResult =
+  | {
+      outcome: "sent";
+      target: string;
+      notification: SageOsNotificationMessage;
+      messageId?: string;
+      chatId?: string;
+    }
+  | {
+      outcome: "skipped";
+      reason: "telegram_disabled" | "missing_target";
+      notification?: SageOsNotificationMessage;
+    }
+  | {
+      outcome: "failed";
+      target: string;
+      notification: SageOsNotificationMessage;
+      error: string;
     };
 
 export function buildSageOsDigestNotification(params: {
@@ -146,9 +172,113 @@ export async function sendSageOsTelegramDigestOnce(params: {
   }
 }
 
+export function buildSageOsTaskNotification(params: {
+  task: SageOsTaskSpec;
+  run: SageOsRun;
+  cfg?: SageOsConfig;
+  target?: string;
+}): SageOsNotificationMessage {
+  const completed = params.run.state === "succeeded";
+  const target = params.target ?? telegramTarget(params.cfg);
+  const lines = [
+    completed ? "SageOS: Task completed" : "SageOS: Task failed",
+    `Task: ${params.task.id} - ${params.task.title}`,
+    `Run: ${params.run.id} (${params.run.state})`,
+    `Result: ${completed ? "completed" : "failed"}`,
+    `Risk: ${riskSummary(params.task)}`,
+    `Next: ${completed ? "review result or continue follow-up" : "inspect failure and retry if safe"}`,
+    "Actions: Open Command Center | Pause SageOS",
+  ];
+  if (params.run.error) {
+    lines.splice(4, 0, `Error: ${params.run.error}`);
+  }
+  return {
+    kind: "task",
+    title: completed ? "SageOS: Task completed" : "SageOS: Task failed",
+    text: lines.join("\n"),
+    target,
+    redactedObservationCount: 0,
+  };
+}
+
+export async function sendSageOsTaskNotificationOnce(params: {
+  stateDir?: string;
+  cfg?: SageOsConfig;
+  target?: string;
+  task: SageOsTaskSpec;
+  run: SageOsRun;
+  sender?: SageOsTelegramSender;
+}): Promise<SageOsTelegramTaskResult> {
+  const cfg = params.cfg;
+  const target = params.target ?? telegramTarget(cfg);
+  const eventLog = createSageOsEventLog({ stateDir: params.stateDir });
+  if (!cfg?.notifications?.telegram?.enabled) {
+    await appendSageOsEvent(eventLog, {
+      type: "notification_skipped",
+      actor: "sageos.notification_manager",
+      summary: `Skipped SageOS task notification for ${params.task.id} because Telegram notifications are disabled.`,
+      taskId: params.task.id,
+      runId: params.run.id,
+    });
+    return { outcome: "skipped", reason: "telegram_disabled" };
+  }
+  if (!target) {
+    await appendSageOsEvent(eventLog, {
+      type: "notification_skipped",
+      actor: "sageos.notification_manager",
+      summary: `Skipped SageOS task notification for ${params.task.id} because no target is configured.`,
+      taskId: params.task.id,
+      runId: params.run.id,
+    });
+    return { outcome: "skipped", reason: "missing_target" };
+  }
+
+  const notification = buildSageOsTaskNotification({
+    task: params.task,
+    run: params.run,
+    cfg,
+    target,
+  });
+  const sender = params.sender ?? sendMessageTelegram;
+  try {
+    const result = await sender(target, notification.text, { plainText: notification.text });
+    await appendSageOsEvent(eventLog, {
+      type: "notification_sent",
+      actor: "sageos.notification_manager",
+      summary: `Sent SageOS task notification for ${params.task.id} to ${target}.`,
+      taskId: params.task.id,
+      runId: params.run.id,
+    });
+    return {
+      outcome: "sent",
+      target,
+      notification,
+      messageId: result.messageId,
+      chatId: result.chatId,
+    };
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    await appendSageOsEvent(eventLog, {
+      type: "notification_failed",
+      actor: "sageos.notification_manager",
+      summary: `Failed to send SageOS task notification for ${params.task.id} to ${target}: ${error}`,
+      taskId: params.task.id,
+      runId: params.run.id,
+    });
+    return { outcome: "failed", target, notification, error };
+  }
+}
+
 function telegramTarget(cfg: SageOsConfig | undefined): string | undefined {
   const target = cfg?.notifications?.telegram?.target?.trim();
   return target || undefined;
+}
+
+function riskSummary(task: SageOsTaskSpec): string {
+  if (task.policyScopes.length === 0) {
+    return "local:low";
+  }
+  return task.policyScopes.map((scope) => `${scope.kind}:${scope.risk ?? "low"}`).join(", ");
 }
 
 function digestObservations(

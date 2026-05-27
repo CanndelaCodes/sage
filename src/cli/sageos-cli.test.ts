@@ -280,6 +280,51 @@ describe("sage os CLI", () => {
     });
   });
 
+  it("passes notification config when running the next task with --notify", async () => {
+    const runCalls: unknown[] = [];
+    const program = makeProgram({
+      loadConfig: () => ({
+        sageos: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+      }),
+      runNextTaskOnce: async (params: unknown) => {
+        runCalls.push(params);
+        return {
+          outcome: "completed" as const,
+          task: {
+            id: "task_notify",
+            title: "Notify completion",
+            objective: "Notify.",
+            state: "completed" as const,
+            requestedBy: "sageos.cli",
+            autonomyTier: "execute_scoped" as const,
+            policyScopes: [],
+            createdAt: "2026-05-27T21:25:00.000Z",
+            updatedAt: "2026-05-27T21:25:00.000Z",
+          },
+          run: {
+            id: "run_task_notify_1",
+            taskId: "task_notify",
+            attempt: 1,
+            state: "succeeded" as const,
+            traceId: "trace_task_notify",
+          },
+          status: createSageOsStatusSnapshot(),
+        };
+      },
+    } as SageOsCliDeps);
+
+    await program.parseAsync(["os", "tasks", "run-next", "--notify", "--json"], {
+      from: "user",
+    });
+
+    expect(lastJson()).toMatchObject({ result: { outcome: "completed" } });
+    expect(runCalls).toHaveLength(1);
+    expect(runCalls[0]).toMatchObject({
+      notify: true,
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+    });
+  });
+
   it("lists and resolves approvals with audit evidence", async () => {
     const stateDir = process.env.SAGE_STATE_DIR!;
     const store = createSageOsStateStore();

@@ -3,7 +3,12 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { createSageOsEventLog } from "./event-log.js";
-import { buildSageOsDigestNotification, sendSageOsTelegramDigestOnce } from "./notifications.js";
+import {
+  buildSageOsDigestNotification,
+  buildSageOsTaskNotification,
+  sendSageOsTaskNotificationOnce,
+  sendSageOsTelegramDigestOnce,
+} from "./notifications.js";
 import {
   createSageOsStateStore,
   readSageOsState,
@@ -179,5 +184,75 @@ describe("SageOS notifications", () => {
     expect(skipped).toMatchObject({ outcome: "skipped", reason: "telegram_disabled" });
     expect(sender).not.toHaveBeenCalled();
     await expect(readFile(logPath, "utf8")).resolves.toContain("notification_skipped");
+  });
+
+  it("builds and sends task result notifications with audit evidence", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-task-notification-"));
+    const task = {
+      id: "task_build",
+      title: "Build status widget",
+      objective: "Build a local Command Center widget.",
+      state: "completed" as const,
+      requestedBy: "sageos.task_runner",
+      autonomyTier: "execute_scoped" as const,
+      policyScopes: [{ kind: "repo" as const, allow: ["C:/repo"], risk: "medium" as const }],
+      createdAt: "2026-05-27T21:10:00.000Z",
+      updatedAt: "2026-05-27T21:12:00.000Z",
+    };
+    const run = {
+      id: "run_task_build_1",
+      taskId: task.id,
+      attempt: 1,
+      state: "succeeded" as const,
+      traceId: "trace_task_build",
+      startedAt: "2026-05-27T21:11:00.000Z",
+      finishedAt: "2026-05-27T21:12:00.000Z",
+    };
+
+    const notification = buildSageOsTaskNotification({
+      task,
+      run,
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+    });
+
+    expect(notification).toMatchObject({
+      kind: "task",
+      title: "SageOS: Task completed",
+      target: "telegram:123",
+    });
+    expect(notification.text).toContain("Task: task_build - Build status widget");
+    expect(notification.text).toContain("Run: run_task_build_1 (succeeded)");
+    expect(notification.text).toContain("Risk: repo:medium");
+    expect(notification.text).toContain("Actions: Open Command Center | Pause SageOS");
+
+    const sender = vi.fn(async () => ({ messageId: "99", chatId: "123" }));
+    const sent = await sendSageOsTaskNotificationOnce({
+      stateDir: root,
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+      task,
+      run,
+      sender,
+    });
+
+    expect(sent).toMatchObject({ outcome: "sent", target: "telegram:123" });
+    expect(sender).toHaveBeenCalledWith(
+      "telegram:123",
+      expect.stringContaining("SageOS: Task completed"),
+      expect.objectContaining({ plainText: expect.stringContaining("Run: run_task_build_1") }),
+    );
+    const logPath = createSageOsEventLog({ stateDir: root }).path;
+    await expect(readFile(logPath, "utf8")).resolves.toContain("notification_sent");
+
+    sender.mockClear();
+    const skipped = await sendSageOsTaskNotificationOnce({
+      stateDir: root,
+      cfg: { notifications: { telegram: { enabled: false, target: "telegram:123" } } },
+      task,
+      run,
+      sender,
+    });
+
+    expect(skipped).toMatchObject({ outcome: "skipped", reason: "telegram_disabled" });
+    expect(sender).not.toHaveBeenCalled();
   });
 });

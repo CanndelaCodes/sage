@@ -98,4 +98,42 @@ describe("SageOS task runner", () => {
     expect(log).toContain("task_failed");
     expect(log).toContain("executor failed");
   });
+
+  it("optionally sends a task notification after a completed run", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-task-runner-notify-"));
+    const store = createSageOsStateStore({ stateDir: root });
+    const now = "2026-05-27T21:20:00.000Z";
+    await upsertSageOsTask(store, {
+      id: "task_notify",
+      title: "Notify completion",
+      objective: "Exercise task notification integration.",
+      state: "queued",
+      requestedBy: "sageos.cli",
+      autonomyTier: "execute_scoped",
+      policyScopes: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+    const notificationCalls: unknown[] = [];
+
+    const result = await runNextSageOsTaskOnce({
+      stateDir: root,
+      requestedBy: "sageos.test",
+      notify: true,
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+      sendTaskNotificationOnce: async (params: unknown) => {
+        notificationCalls.push(params);
+        return { outcome: "sent", target: "telegram:123" };
+      },
+      now: () => new Date(now),
+    });
+
+    expect(result.outcome).toBe("completed");
+    expect(notificationCalls).toHaveLength(1);
+    expect(notificationCalls[0]).toMatchObject({
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+      task: { id: "task_notify", state: "completed" },
+      run: { id: "run_task_notify_1", state: "succeeded" },
+    });
+  });
 });

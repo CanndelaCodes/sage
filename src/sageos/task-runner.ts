@@ -1,5 +1,6 @@
-import type { SageOsRun, SageOsStatusSnapshot, SageOsTaskSpec } from "./types.js";
+import type { SageOsConfig, SageOsRun, SageOsStatusSnapshot, SageOsTaskSpec } from "./types.js";
 import { appendSageOsEvent, createSageOsEventLog } from "./event-log.js";
+import { sendSageOsTaskNotificationOnce } from "./notifications.js";
 import {
   createSageOsStateStore,
   readSageOsState,
@@ -34,6 +35,9 @@ export async function runNextSageOsTaskOnce(
     stateStore?: SageOsStateStore;
     requestedBy?: string;
     executor?: SageOsTaskExecutor;
+    notify?: boolean;
+    cfg?: SageOsConfig;
+    sendTaskNotificationOnce?: typeof sendSageOsTaskNotificationOnce;
     now?: () => Date;
   } = {},
 ): Promise<SageOsTaskRunnerResult> {
@@ -95,6 +99,7 @@ export async function runNextSageOsTaskOnce(
       runId: run.id,
       traceId: run.traceId,
     });
+    await maybeSendTaskNotification(params, completedTask, completedRun);
     const status = await collectSageOsStatus({ stateDir: params.stateDir });
     await writeSageOsState(store, status);
     return { outcome: "completed", task: completedTask, run: completedRun, status };
@@ -113,10 +118,33 @@ export async function runNextSageOsTaskOnce(
       runId: run.id,
       traceId: run.traceId,
     });
+    await maybeSendTaskNotification(params, failedTask, failedRun);
     const status = await collectSageOsStatus({ stateDir: params.stateDir });
     await writeSageOsState(store, status);
     return { outcome: "failed", task: failedTask, run: failedRun, status };
   }
+}
+
+async function maybeSendTaskNotification(
+  params: {
+    stateDir?: string;
+    notify?: boolean;
+    cfg?: SageOsConfig;
+    sendTaskNotificationOnce?: typeof sendSageOsTaskNotificationOnce;
+  },
+  task: SageOsTaskSpec,
+  run: SageOsRun,
+): Promise<void> {
+  if (!params.notify) {
+    return;
+  }
+  const sendTaskNotification = params.sendTaskNotificationOnce ?? sendSageOsTaskNotificationOnce;
+  await sendTaskNotification({
+    stateDir: params.stateDir,
+    cfg: params.cfg,
+    task,
+    run,
+  });
 }
 
 async function dryRunExecutor(ctx: { task: SageOsTaskSpec }): Promise<{ summary: string }> {

@@ -27,12 +27,14 @@ const {
   mockRunMemoryStewardOnce,
   mockRunAmbientCopilotOnce,
   mockSendTelegramDigestOnce,
+  mockSendTaskNotificationOnce,
   mockDiscoverWorkflowCandidates,
 } = vi.hoisted(() => ({
   mockLoadConfig: vi.fn(),
   mockRunMemoryStewardOnce: vi.fn(),
   mockRunAmbientCopilotOnce: vi.fn(),
   mockSendTelegramDigestOnce: vi.fn(),
+  mockSendTaskNotificationOnce: vi.fn(),
   mockDiscoverWorkflowCandidates: vi.fn(),
 }));
 
@@ -49,6 +51,7 @@ vi.mock("../../sageos/ambient-copilot.js", () => ({
 }));
 vi.mock("../../sageos/notifications.js", () => ({
   sendSageOsTelegramDigestOnce: mockSendTelegramDigestOnce,
+  sendSageOsTaskNotificationOnce: mockSendTaskNotificationOnce,
 }));
 vi.mock("../../sageos/workflow-compiler.js", () => ({
   discoverSageOsWorkflowCandidates: mockDiscoverWorkflowCandidates,
@@ -79,6 +82,7 @@ describe("SageOS gateway methods", () => {
     mockRunMemoryStewardOnce.mockReset();
     mockRunAmbientCopilotOnce.mockReset();
     mockSendTelegramDigestOnce.mockReset();
+    mockSendTaskNotificationOnce.mockReset();
     mockDiscoverWorkflowCandidates.mockReset();
   });
 
@@ -295,6 +299,40 @@ describe("SageOS gateway methods", () => {
         ]),
       }),
       { dropIfSlow: true },
+    );
+  });
+
+  it("runs the next queued task with task notification through gateway controls", async () => {
+    mockLoadConfig.mockReturnValue({
+      sageos: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+    });
+    mockSendTaskNotificationOnce.mockResolvedValue({ outcome: "sent", target: "telegram:123" });
+    const store = createSageOsStateStore();
+    const now = "2026-05-27T21:30:00.000Z";
+    await upsertSageOsTask(store, {
+      id: "task_notify",
+      title: "Notify completion",
+      objective: "Exercise notification path.",
+      state: "queued",
+      requestedBy: "sageos.cli",
+      autonomyTier: "execute_scoped",
+      policyScopes: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const { response } = await invoke("sageos.tasks.runNext", { notify: true });
+
+    expect(response?.ok).toBe(true);
+    expect(response?.payload).toMatchObject({
+      result: { outcome: "completed", task: { id: "task_notify", state: "completed" } },
+    });
+    expect(mockSendTaskNotificationOnce).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+        task: expect.objectContaining({ id: "task_notify", state: "completed" }),
+        run: expect.objectContaining({ id: "run_task_notify_1", state: "succeeded" }),
+      }),
     );
   });
 
