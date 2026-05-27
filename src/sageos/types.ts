@@ -95,6 +95,15 @@ export type SageOsQueueSummary = {
 
 export type SageOsHealthState = "ok" | "degraded" | "disabled" | "unknown";
 
+export type SageOsIncidentRepairAction = {
+  id: string;
+  label: string;
+  command?: string;
+  gatewayMethod?: string;
+  risk: "low" | "medium" | "high" | "critical";
+  approvalRequired: boolean;
+};
+
 export type SageOsIncident = {
   id: string;
   severity: "info" | "warning" | "error" | "critical";
@@ -104,6 +113,7 @@ export type SageOsIncident = {
   firstSeenAt: string;
   lastSeenAt: string;
   autoRepairSafe: boolean;
+  repairAction?: SageOsIncidentRepairAction;
 };
 
 export type SageOsStatusSnapshot = {

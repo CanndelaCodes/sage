@@ -63,6 +63,8 @@ export async function collectSageOsStatus(
   ]);
   const memoryCaptureQueue = queueSummary(memoryQueue);
   const learningActivityQueue = queueSummary(learningQueue);
+  const pendingApprovals = state.approvals.filter((approval) => approval.state === "pending");
+  const policyBlockedTasks = state.tasks.filter((task) => task.state === "waiting_for_policy");
   const incidents = [
     ...state.status.incidents,
     ...queueIncidents({
@@ -83,6 +85,11 @@ export async function collectSageOsStatus(
       } failed and need replay or repair.`,
       failed: learningActivityQueue.failed,
     }),
+    ...policyIncidents({
+      now: state.status.generatedAt,
+      pendingApprovals: pendingApprovals.length,
+      waitingTasks: policyBlockedTasks.length,
+    }),
   ];
 
   return createSageOsStatusSnapshot({
@@ -95,7 +102,7 @@ export async function collectSageOsStatus(
     skills: summarizeSkills(state.skills),
     apps: summarizeApps(state.apps),
     approvals: {
-      pending: state.approvals.filter((approval) => approval.state === "pending").length,
+      pending: pendingApprovals.length,
     },
     observations: summarizeObservations(state.observations),
     memory: {
@@ -237,6 +244,48 @@ function queueIncidents(params: {
       firstSeenAt: params.now,
       lastSeenAt: params.now,
       autoRepairSafe: true,
+      repairAction: queueRepairAction(params.category),
+    },
+  ];
+}
+
+function queueRepairAction(category: "memory" | "learning"): SageOsIncident["repairAction"] {
+  return {
+    id: `repair_${category}_queue_replay`,
+    label: category === "memory" ? "Replay memory queues" : "Replay learning queues",
+    command: "sage os memory replay --json",
+    gatewayMethod: "sageos.memory.replay",
+    risk: "low",
+    approvalRequired: false,
+  };
+}
+
+function policyIncidents(params: {
+  now: string;
+  pendingApprovals: number;
+  waitingTasks: number;
+}): SageOsIncident[] {
+  if (params.pendingApprovals === 0 && params.waitingTasks === 0) {
+    return [];
+  }
+  return [
+    {
+      id: "incident_policy_blocked",
+      severity: "warning",
+      category: "policy",
+      title: "SageOS work is waiting for policy review",
+      summary: `${params.pendingApprovals} approval(s) pending and ${params.waitingTasks} task(s) waiting for policy.`,
+      firstSeenAt: params.now,
+      lastSeenAt: params.now,
+      autoRepairSafe: false,
+      repairAction: {
+        id: "repair_policy_review",
+        label: "Review SageOS approvals",
+        command: "sage os approvals --json",
+        gatewayMethod: "sageos.approvals.list",
+        risk: "medium",
+        approvalRequired: false,
+      },
     },
   ];
 }

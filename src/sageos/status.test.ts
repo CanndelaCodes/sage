@@ -285,7 +285,25 @@ describe("SageOS status collector", () => {
     expect(snapshot.learning.activityQueue.failed).toBe(1);
     expect(snapshot.audit).toMatchObject({ recentEvents: 1, eventLogPath: log.path });
     expect(snapshot.incidents.map((incident) => incident.category)).toEqual(
-      expect.arrayContaining(["memory", "learning"]),
+      expect.arrayContaining(["memory", "learning", "policy"]),
+    );
+    expect(snapshot.incidents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "incident_memory_queue_failed",
+          repairAction: expect.objectContaining({
+            command: "sage os memory replay --json",
+            gatewayMethod: "sageos.memory.replay",
+          }),
+        }),
+        expect.objectContaining({
+          id: "incident_policy_blocked",
+          repairAction: expect.objectContaining({
+            command: "sage os approvals --json",
+            gatewayMethod: "sageos.approvals.list",
+          }),
+        }),
+      ]),
     );
   });
 });

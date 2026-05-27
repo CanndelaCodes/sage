@@ -63,6 +63,29 @@ describe("SageOS shared types", () => {
     ]);
   });
 
+  it("exposes repair actions on incidents", () => {
+    const incident = {
+      id: "incident_memory_queue_failed",
+      severity: "warning",
+      category: "memory",
+      title: "Memory queue failed",
+      summary: "Replay needed.",
+      firstSeenAt: "2026-05-18T00:00:00.000Z",
+      lastSeenAt: "2026-05-18T00:00:00.000Z",
+      autoRepairSafe: true,
+      repairAction: {
+        id: "repair_memory_replay",
+        label: "Replay memory queues",
+        command: "sage os memory replay --json",
+        gatewayMethod: "sageos.memory.replay",
+        risk: "low",
+        approvalRequired: false,
+      },
+    } satisfies import("./types.js").SageOsIncident;
+
+    expect(incident.repairAction.command).toBe("sage os memory replay --json");
+  });
+
   it("exposes resource contracts for employees, tasks, workflows, skills, app candidates, runs, and policy scopes", () => {
     const employee = {
       id: "employee_security",
