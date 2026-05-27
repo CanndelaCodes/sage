@@ -21,10 +21,16 @@ import { sageOsHandlers } from "./sageos.js";
 const { mockReadActiveAppFocus } = vi.hoisted(() => ({
   mockReadActiveAppFocus: vi.fn(),
 }));
-const { mockLoadConfig, mockRunMemoryStewardOnce, mockRunAmbientCopilotOnce } = vi.hoisted(() => ({
+const {
+  mockLoadConfig,
+  mockRunMemoryStewardOnce,
+  mockRunAmbientCopilotOnce,
+  mockSendTelegramDigestOnce,
+} = vi.hoisted(() => ({
   mockLoadConfig: vi.fn(),
   mockRunMemoryStewardOnce: vi.fn(),
   mockRunAmbientCopilotOnce: vi.fn(),
+  mockSendTelegramDigestOnce: vi.fn(),
 }));
 
 vi.mock("../../learning/app-focus.js", async (importOriginal) => {
@@ -37,6 +43,9 @@ vi.mock("../../sageos/memory-steward.js", () => ({
 }));
 vi.mock("../../sageos/ambient-copilot.js", () => ({
   runSageOsAmbientCopilotOnce: mockRunAmbientCopilotOnce,
+}));
+vi.mock("../../sageos/notifications.js", () => ({
+  sendSageOsTelegramDigestOnce: mockSendTelegramDigestOnce,
 }));
 
 const oldStateDir = process.env.SAGE_STATE_DIR;
@@ -63,6 +72,7 @@ describe("SageOS gateway methods", () => {
     mockLoadConfig.mockReturnValue({ sageos: { memory: { replayQueues: true } } });
     mockRunMemoryStewardOnce.mockReset();
     mockRunAmbientCopilotOnce.mockReset();
+    mockSendTelegramDigestOnce.mockReset();
   });
 
   afterEach(() => {
@@ -88,6 +98,7 @@ describe("SageOS gateway methods", () => {
     expect(listGatewayMethods()).toContain("sageos.observe");
     expect(listGatewayMethods()).toContain("sageos.copilot.suggest");
     expect(listGatewayMethods()).toContain("sageos.memory.replay");
+    expect(listGatewayMethods()).toContain("sageos.notifications.digest");
     expect(listGatewayMethods()).toContain("sageos.control");
     expect(GATEWAY_EVENTS).toContain("sageos");
   });
@@ -522,6 +533,53 @@ describe("SageOS gateway methods", () => {
       expect.objectContaining({
         status: expect.objectContaining({
           tasks: expect.objectContaining({ total: 1, queued: 1 }),
+        }),
+      }),
+      { dropIfSlow: true },
+    );
+  });
+
+  it("sends Telegram digest notifications through gateway controls", async () => {
+    mockLoadConfig.mockReturnValue({
+      sageos: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+    });
+    mockSendTelegramDigestOnce.mockResolvedValue({
+      outcome: "sent",
+      target: "telegram:123",
+      notification: {
+        kind: "digest",
+        title: "SageOS: Daily digest",
+        text: "SageOS: Daily digest\nActions: Open Command Center | Pause SageOS",
+        target: "telegram:123",
+        redactedObservationCount: 0,
+      },
+      messageId: "42",
+      chatId: "123",
+      status: createSageOsStatusSnapshot({
+        notifications: { telegram: { enabled: true, target: "telegram:123" }, urgentPending: 0 },
+      }),
+    });
+
+    const { response, broadcast } = await invoke("sageos.notifications.digest", { send: true });
+
+    expect(response?.ok).toBe(true);
+    expect(response?.payload).toMatchObject({
+      result: { outcome: "sent", target: "telegram:123" },
+      state: {
+        status: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+      },
+    });
+    expect(mockSendTelegramDigestOnce).toHaveBeenCalledWith({
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+      target: undefined,
+    });
+    expect(broadcast).toHaveBeenCalledWith(
+      "sageos",
+      expect.objectContaining({
+        status: expect.objectContaining({
+          notifications: expect.objectContaining({
+            telegram: expect.objectContaining({ enabled: true, target: "telegram:123" }),
+          }),
         }),
       }),
       { dropIfSlow: true },

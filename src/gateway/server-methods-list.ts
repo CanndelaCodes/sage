@@ -20,6 +20,7 @@ const BASE_METHODS = [
   "sageos.observe",
   "sageos.copilot.suggest",
   "sageos.memory.replay",
+  "sageos.notifications.digest",
   "sageos.control",
   "usage.status",
   "usage.cost",

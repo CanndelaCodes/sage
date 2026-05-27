@@ -104,6 +104,7 @@ const WRITE_METHODS = new Set([
   "sageos.observe",
   "sageos.copilot.suggest",
   "sageos.memory.replay",
+  "sageos.notifications.digest",
 ]);
 
 function authorizeGatewayMethod(method: string, client: GatewayRequestOptions["client"]) {

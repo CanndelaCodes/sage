@@ -7,6 +7,10 @@ import {
 } from "../../sageos/employee-templates.js";
 import { appendSageOsEvent, createSageOsEventLog } from "../../sageos/event-log.js";
 import { runSageOsMemoryStewardOnce } from "../../sageos/memory-steward.js";
+import {
+  buildSageOsDigestNotification,
+  sendSageOsTelegramDigestOnce,
+} from "../../sageos/notifications.js";
 import { observeAppFocusOnce } from "../../sageos/observations.js";
 import {
   createSageOsControlStore,
@@ -243,6 +247,26 @@ export const sageOsHandlers: GatewayRequestHandlers = {
     const state = await readSageOsState(stateStore);
     context.broadcast("sageos", state, { dropIfSlow: true });
     respond(true, { result, state }, undefined);
+  },
+  "sageos.notifications.digest": async ({ params, respond, context }) => {
+    const cfg = loadConfig().sageos;
+    const target =
+      typeof params.target === "string" && params.target.trim() ? params.target.trim() : undefined;
+    const stateStore = createSageOsStateStore();
+    if (params.send === true) {
+      const result = await sendSageOsTelegramDigestOnce({ cfg, target });
+      await writeSageOsState(stateStore, result.status);
+      const state = await readSageOsState(stateStore);
+      context.broadcast("sageos", state, { dropIfSlow: true });
+      respond(true, { result, state }, undefined);
+      return;
+    }
+
+    const status = await collectSageOsStatus({ cfg });
+    await writeSageOsState(stateStore, status);
+    const state = await readSageOsState(stateStore);
+    const notification = buildSageOsDigestNotification({ state, status, cfg, target });
+    respond(true, { notification, state }, undefined);
   },
   "sageos.control": async ({ params, respond, context }) => {
     const controlState = parseControlState(params.state);

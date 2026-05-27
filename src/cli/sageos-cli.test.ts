@@ -506,6 +506,54 @@ describe("sage os CLI", () => {
     });
   });
 
+  it("sends Telegram digest notifications through CLI controls", async () => {
+    const runCalls: unknown[] = [];
+    const deps = {
+      loadConfig: () => ({
+        sageos: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+      }),
+      sendTelegramDigestOnce: async (params: unknown) => {
+        runCalls.push(params);
+        return {
+          outcome: "sent" as const,
+          target: "telegram:123",
+          notification: {
+            kind: "digest" as const,
+            title: "SageOS: Daily digest",
+            text: "SageOS: Daily digest\nActions: Open Command Center | Pause SageOS",
+            target: "telegram:123",
+            redactedObservationCount: 0,
+          },
+          messageId: "42",
+          chatId: "123",
+          status: createSageOsStatusSnapshot({
+            notifications: {
+              telegram: { enabled: true, target: "telegram:123" },
+              urgentPending: 0,
+            },
+          }),
+        };
+      },
+    } as unknown as SageOsCliDeps;
+    const program = makeProgram(deps);
+
+    await program.parseAsync(["os", "notifications", "digest", "--send", "--json"], {
+      from: "user",
+    });
+
+    expect(lastJson()).toMatchObject({
+      result: {
+        outcome: "sent",
+        target: "telegram:123",
+        notification: { title: "SageOS: Daily digest" },
+      },
+    });
+    expect(runCalls).toHaveLength(1);
+    expect(runCalls[0]).toMatchObject({
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+    });
+  });
+
   it("shows incidents, audit events, and doctor status", async () => {
     const store = createSageOsStateStore();
     const log = createSageOsEventLog();

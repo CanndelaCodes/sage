@@ -8,6 +8,10 @@ import {
 } from "../sageos/employee-templates.js";
 import { appendSageOsEvent, createSageOsEventLog, readSageOsEvents } from "../sageos/event-log.js";
 import { runSageOsMemoryStewardOnce } from "../sageos/memory-steward.js";
+import {
+  buildSageOsDigestNotification,
+  sendSageOsTelegramDigestOnce,
+} from "../sageos/notifications.js";
 import { observeAppFocusOnce } from "../sageos/observations.js";
 import {
   createSageOsControlStore,
@@ -37,6 +41,7 @@ export type SageOsCliDeps = {
   runMemoryStewardOnce?: typeof runSageOsMemoryStewardOnce;
   runAmbientCopilotOnce?: typeof runSageOsAmbientCopilotOnce;
   runNextTaskOnce?: typeof runNextSageOsTaskOnce;
+  sendTelegramDigestOnce?: typeof sendSageOsTelegramDigestOnce;
   loadConfig?: typeof loadConfig;
 };
 
@@ -215,6 +220,7 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
   const runMemorySteward = deps.runMemoryStewardOnce ?? runSageOsMemoryStewardOnce;
   const runAmbientCopilot = deps.runAmbientCopilotOnce ?? runSageOsAmbientCopilotOnce;
   const runNextTask = deps.runNextTaskOnce ?? runNextSageOsTaskOnce;
+  const sendTelegramDigest = deps.sendTelegramDigestOnce ?? sendSageOsTelegramDigestOnce;
   const loadSageConfig = deps.loadConfig ?? loadConfig;
   const os = program.command("os").description("SageOS command center controls");
 
@@ -522,6 +528,40 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
           ...result.tasks.map((task) => `${task.id}\t${task.title}`),
         ].join("\n"),
       );
+    });
+
+  const notifications = os.command("notifications").description("Run SageOS notification controls");
+  notifications
+    .command("digest")
+    .description("Preview or send a redacted SageOS Telegram digest")
+    .option("--send", "Send the digest to Telegram", false)
+    .option("--target <target>", "Telegram target override")
+    .option("--json", "Output JSON", false)
+    .action(async (opts: { send?: boolean; target?: string; json?: boolean }) => {
+      const cliOpts = commandOptions(opts);
+      const cfg = loadSageConfig().sageos;
+      if (cliOpts.send) {
+        const result = await sendTelegramDigest({
+          cfg,
+          target: cliOpts.target?.trim() || undefined,
+        });
+        outputJsonOrText(cliOpts, { result }, () =>
+          result.outcome === "sent"
+            ? `Sent Telegram digest: ${result.target}`
+            : `${result.outcome}: ${"reason" in result ? result.reason : result.target}`,
+        );
+        return;
+      }
+
+      const status = await collectSageOsStatus({ cfg });
+      const state = await readSageOsState(createSageOsStateStore());
+      const notification = buildSageOsDigestNotification({
+        state: { ...state, status },
+        status,
+        cfg,
+        target: cliOpts.target?.trim() || undefined,
+      });
+      outputJsonOrText(cliOpts, { notification, status }, () => notification.text);
     });
 
   os.command("incidents")

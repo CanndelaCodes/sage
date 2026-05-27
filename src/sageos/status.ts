@@ -11,6 +11,8 @@ import { createSageOsEventLog } from "./event-log.js";
 import { createSageOsStateStore, readSageOsState } from "./state-store.js";
 import {
   createSageOsStatusSnapshot,
+  normalizeSageOsMode,
+  type SageOsConfig,
   type SageOsAgentSpec,
   type SageOsIncident,
   type SageOsObservation,
@@ -27,6 +29,7 @@ export type CollectSageOsStatusOptions = {
   agentId?: string;
   memoryCaptureQueuePath?: string;
   learningActivityQueuePath?: string;
+  cfg?: SageOsConfig;
 };
 
 export async function collectSageOsStatus(
@@ -99,6 +102,10 @@ export async function collectSageOsStatus(
       status: learningActivityQueue.failed > 0 ? "degraded" : "ok",
       activityQueue: learningActivityQueue,
     },
+    sources: summarizeSources(opts.cfg),
+    policy: summarizePolicy(opts.cfg, state.status.mode),
+    coding: summarizeCoding(opts.cfg),
+    notifications: summarizeNotifications(opts.cfg, incidents),
     incidents,
     audit: {
       ...state.status.audit,
@@ -193,6 +200,65 @@ function queueIncidents(params: {
       autoRepairSafe: true,
     },
   ];
+}
+
+function summarizeSources(cfg: SageOsConfig | undefined): SageOsStatusSnapshot["sources"] {
+  const entries = Object.entries(cfg?.sources ?? {});
+  return {
+    enabled: entries.filter(([, enabled]) => enabled).map(([source]) => source),
+    disabled: entries.filter(([, enabled]) => !enabled).map(([source]) => source),
+    failing: [],
+  };
+}
+
+function summarizePolicy(
+  cfg: SageOsConfig | undefined,
+  fallbackMode: SageOsStatusSnapshot["mode"],
+): SageOsStatusSnapshot["policy"] {
+  const mode = normalizeSageOsMode(cfg?.mode ?? fallbackMode);
+  return {
+    mode,
+    defaultTier: normalizeSageOsMode(cfg?.policy?.defaultTier ?? mode),
+    approvalsRequired: [
+      cfg?.policy?.requireApprovalForDestructive === false ? undefined : "destructive",
+      cfg?.policy?.requireApprovalForExternalWrites === false ? undefined : "external_writes",
+      cfg?.policy?.requireApprovalForProduction === false ? undefined : "production",
+      cfg?.policy?.requireApprovalForCredentials === false ? undefined : "credentials",
+      cfg?.policy?.requireApprovalForPolicyChanges === false ? undefined : "policy_changes",
+      cfg?.policy?.requireApprovalForPrivateDataExport === false
+        ? undefined
+        : "private_data_export",
+    ].filter((value): value is string => Boolean(value)),
+  };
+}
+
+function summarizeCoding(cfg: SageOsConfig | undefined): SageOsStatusSnapshot["coding"] {
+  const restrictions = [
+    cfg?.coding?.allowDependencyChanges ? undefined : "dependency_changes_require_approval",
+    cfg?.coding?.allowRelease ? undefined : "release_requires_approval",
+    cfg?.coding?.allowDeploy ? undefined : "deploy_requires_approval",
+  ].filter((value): value is string => Boolean(value));
+  return {
+    enabled: cfg?.coding?.enabled === true,
+    allowedRepos: cfg?.coding?.allowedRepos ?? [],
+    restrictions,
+  };
+}
+
+function summarizeNotifications(
+  cfg: SageOsConfig | undefined,
+  incidents: SageOsIncident[],
+): SageOsStatusSnapshot["notifications"] {
+  const target = cfg?.notifications?.telegram?.target?.trim();
+  return {
+    telegram: {
+      enabled: cfg?.notifications?.telegram?.enabled === true,
+      ...(target ? { target } : {}),
+    },
+    urgentPending: incidents.filter(
+      (incident) => incident.severity === "error" || incident.severity === "critical",
+    ).length,
+  };
 }
 
 async function countEventLogLines(logPath: string): Promise<number> {
