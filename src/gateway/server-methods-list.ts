@@ -12,6 +12,7 @@ const BASE_METHODS = [
   "sageos.agentTemplates.inspect",
   "sageos.tasks.list",
   "sageos.tasks.queue",
+  "sageos.tasks.runNext",
   "sageos.runs.list",
   "sageos.approvals.list",
   "sageos.approvals.resolve",

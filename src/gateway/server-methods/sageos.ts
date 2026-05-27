@@ -18,6 +18,7 @@ import {
 } from "../../sageos/state-store.js";
 import { collectSageOsStatus } from "../../sageos/status.js";
 import { queueSageOsTask } from "../../sageos/task-queue.js";
+import { runNextSageOsTaskOnce } from "../../sageos/task-runner.js";
 import {
   createSageOsStatusSnapshot,
   type SageOsApproval,
@@ -148,6 +149,12 @@ export const sageOsHandlers: GatewayRequestHandlers = {
       requestedBy: "sageos.gateway",
       reason: typeof params.reason === "string" ? params.reason : undefined,
     });
+    const state = await readSageOsState(createSageOsStateStore());
+    context.broadcast("sageos", state, { dropIfSlow: true });
+    respond(true, { result, state }, undefined);
+  },
+  "sageos.tasks.runNext": async ({ respond, context }) => {
+    const result = await runNextSageOsTaskOnce({ requestedBy: "sageos.gateway" });
     const state = await readSageOsState(createSageOsStateStore());
     context.broadcast("sageos", state, { dropIfSlow: true });
     respond(true, { result, state }, undefined);

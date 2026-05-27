@@ -80,6 +80,7 @@ describe("SageOS gateway methods", () => {
     expect(listGatewayMethods()).toContain("sageos.agentTemplates.inspect");
     expect(listGatewayMethods()).toContain("sageos.tasks.list");
     expect(listGatewayMethods()).toContain("sageos.tasks.queue");
+    expect(listGatewayMethods()).toContain("sageos.tasks.runNext");
     expect(listGatewayMethods()).toContain("sageos.runs.list");
     expect(listGatewayMethods()).toContain("sageos.approvals.list");
     expect(listGatewayMethods()).toContain("sageos.approvals.resolve");
@@ -214,6 +215,45 @@ describe("SageOS gateway methods", () => {
       expect.objectContaining({
         tasks: expect.arrayContaining([
           expect.objectContaining({ id: "task_low", state: "queued" }),
+        ]),
+      }),
+      { dropIfSlow: true },
+    );
+  });
+
+  it("runs the next queued task through gateway controls", async () => {
+    const store = createSageOsStateStore();
+    const now = "2026-05-27T18:15:00.000Z";
+    await upsertSageOsTask(store, {
+      id: "task_run",
+      title: "Run queued task",
+      objective: "Exercise the dry-run worker.",
+      state: "queued",
+      requestedBy: "sageos.cli",
+      autonomyTier: "execute_scoped",
+      policyScopes: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const { response, broadcast } = await invoke("sageos.tasks.runNext");
+
+    expect(response?.ok).toBe(true);
+    expect(response?.payload).toMatchObject({
+      result: {
+        outcome: "completed",
+        task: { id: "task_run", state: "completed" },
+        run: { id: "run_task_run_1", state: "succeeded" },
+      },
+    });
+    expect(broadcast).toHaveBeenCalledWith(
+      "sageos",
+      expect.objectContaining({
+        tasks: expect.arrayContaining([
+          expect.objectContaining({ id: "task_run", state: "completed" }),
+        ]),
+        runs: expect.arrayContaining([
+          expect.objectContaining({ id: "run_task_run_1", state: "succeeded" }),
         ]),
       }),
       { dropIfSlow: true },

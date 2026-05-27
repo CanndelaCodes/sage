@@ -22,6 +22,7 @@ import {
 import { renderSageOsStatus } from "../sageos/status-renderer.js";
 import { collectSageOsStatus } from "../sageos/status.js";
 import { queueSageOsTask } from "../sageos/task-queue.js";
+import { runNextSageOsTaskOnce } from "../sageos/task-runner.js";
 import {
   createSageOsStatusSnapshot,
   normalizeSageOsMode,
@@ -35,6 +36,7 @@ export type SageOsCliDeps = {
   observeAppFocusOnce?: typeof observeAppFocusOnce;
   runMemoryStewardOnce?: typeof runSageOsMemoryStewardOnce;
   runAmbientCopilotOnce?: typeof runSageOsAmbientCopilotOnce;
+  runNextTaskOnce?: typeof runNextSageOsTaskOnce;
   loadConfig?: typeof loadConfig;
 };
 
@@ -212,6 +214,7 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
   const observeAppFocus = deps.observeAppFocusOnce ?? observeAppFocusOnce;
   const runMemorySteward = deps.runMemoryStewardOnce ?? runSageOsMemoryStewardOnce;
   const runAmbientCopilot = deps.runAmbientCopilotOnce ?? runSageOsAmbientCopilotOnce;
+  const runNextTask = deps.runNextTaskOnce ?? runNextSageOsTaskOnce;
   const loadSageConfig = deps.loadConfig ?? loadConfig;
   const os = program.command("os").description("SageOS command center controls");
 
@@ -389,6 +392,20 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
         result.approval
           ? `Approval required: ${result.approval.id}\t${result.task.id}\t${result.task.title}`
           : `Queued: ${result.task.id}\t${result.task.title}`,
+      );
+    });
+
+  tasks
+    .command("run-next")
+    .description("Run the next queued SageOS task with the dry-run worker")
+    .option("--json", "Output JSON", false)
+    .action(async (opts: { json?: boolean }, command?: Command) => {
+      const cliOpts = commandOptions(command ?? opts);
+      const result = await runNextTask({ requestedBy: "sageos.cli" });
+      outputJsonOrText(cliOpts, { result }, () =>
+        result.outcome === "idle"
+          ? "No queued SageOS tasks."
+          : `${result.outcome}: ${result.task.id}\t${result.run.id}`,
       );
     });
 

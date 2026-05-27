@@ -252,6 +252,33 @@ describe("sage os CLI", () => {
     });
   });
 
+  it("runs the next queued task through CLI controls", async () => {
+    const store = createSageOsStateStore();
+    const now = "2026-05-27T18:10:00.000Z";
+    await upsertSageOsTask(store, {
+      id: "task_run",
+      title: "Run queued task",
+      objective: "Exercise the dry-run worker.",
+      state: "queued",
+      requestedBy: "sageos.cli",
+      autonomyTier: "execute_scoped",
+      policyScopes: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const program = makeProgram();
+    await program.parseAsync(["os", "tasks", "run-next", "--json"], { from: "user" });
+
+    expect(lastJson()).toMatchObject({
+      result: {
+        outcome: "completed",
+        task: { id: "task_run", state: "completed" },
+        run: { id: "run_task_run_1", state: "succeeded" },
+      },
+    });
+  });
+
   it("lists and resolves approvals with audit evidence", async () => {
     const stateDir = process.env.SAGE_STATE_DIR!;
     const store = createSageOsStateStore();

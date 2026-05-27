@@ -99,6 +99,7 @@ const WRITE_METHODS = new Set([
   "browser.request",
   "sageos.control",
   "sageos.tasks.queue",
+  "sageos.tasks.runNext",
   "sageos.approvals.resolve",
   "sageos.observe",
   "sageos.copilot.suggest",
