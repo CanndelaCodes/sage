@@ -17,6 +17,7 @@ import {
   writeSageOsState,
 } from "../../sageos/state-store.js";
 import { collectSageOsStatus } from "../../sageos/status.js";
+import { queueSageOsTask } from "../../sageos/task-queue.js";
 import {
   createSageOsStatusSnapshot,
   type SageOsApproval,
@@ -131,6 +132,25 @@ export const sageOsHandlers: GatewayRequestHandlers = {
   "sageos.tasks.list": async ({ respond }) => {
     const state = await readSageOsState(createSageOsStateStore());
     respond(true, { tasks: state.tasks }, undefined);
+  },
+  "sageos.tasks.queue": async ({ params, respond, context }) => {
+    const id = typeof params.id === "string" ? params.id.trim() : "";
+    if (!id) {
+      respond(
+        false,
+        undefined,
+        errorShape(ErrorCodes.INVALID_REQUEST, "invalid sageos.tasks.queue params: id required"),
+      );
+      return;
+    }
+    const result = await queueSageOsTask({
+      taskId: id,
+      requestedBy: "sageos.gateway",
+      reason: typeof params.reason === "string" ? params.reason : undefined,
+    });
+    const state = await readSageOsState(createSageOsStateStore());
+    context.broadcast("sageos", state, { dropIfSlow: true });
+    respond(true, { result, state }, undefined);
   },
   "sageos.runs.list": async ({ respond }) => {
     const state = await readSageOsState(createSageOsStateStore());

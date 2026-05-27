@@ -21,6 +21,7 @@ import {
 } from "../sageos/state-store.js";
 import { renderSageOsStatus } from "../sageos/status-renderer.js";
 import { collectSageOsStatus } from "../sageos/status.js";
+import { queueSageOsTask } from "../sageos/task-queue.js";
 import {
   createSageOsStatusSnapshot,
   normalizeSageOsMode,
@@ -89,9 +90,17 @@ function outputJsonOrText(opts: { json?: boolean }, payload: unknown, render: ()
 }
 
 function commandOptions<T extends Record<string, unknown>>(input: T | { opts: () => T }): T {
-  return typeof (input as { opts?: unknown }).opts === "function"
-    ? (input as { opts: () => T }).opts()
-    : (input as T);
+  if (typeof (input as { opts?: unknown }).opts !== "function") {
+    return input as T;
+  }
+  const command = input as { opts: () => T; parent?: { opts?: () => Record<string, unknown> } };
+  const local = command.opts();
+  const parent = command.parent?.opts?.() ?? {};
+  const merged = { ...parent, ...local } as Record<string, unknown>;
+  if ("json" in parent || "json" in local) {
+    merged.json = Boolean(parent.json || local.json);
+  }
+  return merged as T;
 }
 
 function fail(message: string): never {
@@ -362,6 +371,25 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
         fail(`SageOS task not found: ${id}`);
       }
       outputJsonOrText(cliOpts, { task }, () => renderJsonResource({ task }));
+    });
+
+  tasks
+    .command("queue <id>")
+    .description("Queue a proposed SageOS task through policy gates")
+    .option("--reason <reason>", "Reason for audit log")
+    .option("--json", "Output JSON", false)
+    .action(async (id: string, opts: { reason?: string; json?: boolean }, command?: Command) => {
+      const cliOpts = commandOptions(command ?? opts);
+      const result = await queueSageOsTask({
+        taskId: id,
+        requestedBy: "sageos.cli",
+        reason: cliOpts.reason,
+      });
+      outputJsonOrText(cliOpts, { result }, () =>
+        result.approval
+          ? `Approval required: ${result.approval.id}\t${result.task.id}\t${result.task.title}`
+          : `Queued: ${result.task.id}\t${result.task.title}`,
+      );
     });
 
   tasks

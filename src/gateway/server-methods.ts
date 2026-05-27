@@ -98,6 +98,7 @@ const WRITE_METHODS = new Set([
   "chat.abort",
   "browser.request",
   "sageos.control",
+  "sageos.tasks.queue",
   "sageos.approvals.resolve",
   "sageos.observe",
   "sageos.copilot.suggest",

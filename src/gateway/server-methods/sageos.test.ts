@@ -79,6 +79,7 @@ describe("SageOS gateway methods", () => {
     expect(listGatewayMethods()).toContain("sageos.agentTemplates.list");
     expect(listGatewayMethods()).toContain("sageos.agentTemplates.inspect");
     expect(listGatewayMethods()).toContain("sageos.tasks.list");
+    expect(listGatewayMethods()).toContain("sageos.tasks.queue");
     expect(listGatewayMethods()).toContain("sageos.runs.list");
     expect(listGatewayMethods()).toContain("sageos.approvals.list");
     expect(listGatewayMethods()).toContain("sageos.approvals.resolve");
@@ -182,6 +183,41 @@ describe("SageOS gateway methods", () => {
     await expect(invoke("sageos.runs.list")).resolves.toMatchObject({
       response: { ok: true, payload: { runs: [{ id: "run_build" }] } },
     });
+  });
+
+  it("queues proposed tasks through gateway policy controls", async () => {
+    const store = createSageOsStateStore();
+    const now = "2026-05-27T17:45:00.000Z";
+    await upsertSageOsTask(store, {
+      id: "task_low",
+      title: "Review observed work",
+      objective: "Review a local app-focus observation.",
+      state: "proposed",
+      requestedBy: "sageos.ambient_copilot",
+      autonomyTier: "suggest",
+      policyScopes: [{ kind: "app", allow: ["Code"], risk: "low" }],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const { response, broadcast } = await invoke("sageos.tasks.queue", {
+      id: "task_low",
+      reason: "accepted",
+    });
+
+    expect(response?.ok).toBe(true);
+    expect(response?.payload).toMatchObject({
+      result: { outcome: "queued", task: { id: "task_low", state: "queued" } },
+    });
+    expect(broadcast).toHaveBeenCalledWith(
+      "sageos",
+      expect.objectContaining({
+        tasks: expect.arrayContaining([
+          expect.objectContaining({ id: "task_low", state: "queued" }),
+        ]),
+      }),
+      { dropIfSlow: true },
+    );
   });
 
   it("lists and resolves durable approvals with audit evidence", async () => {

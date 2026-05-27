@@ -208,6 +208,50 @@ describe("sage os CLI", () => {
     expect(rawEvents).toContain("task_cancelled");
   });
 
+  it("queues tasks through policy-aware CLI controls", async () => {
+    const store = createSageOsStateStore();
+    const now = "2026-05-27T17:40:00.000Z";
+    await upsertSageOsTask(store, {
+      id: "task_low",
+      title: "Review observed work",
+      objective: "Review a local app-focus observation.",
+      state: "proposed",
+      requestedBy: "sageos.ambient_copilot",
+      autonomyTier: "suggest",
+      policyScopes: [{ kind: "app", allow: ["Code"], risk: "low" }],
+      createdAt: now,
+      updatedAt: now,
+    });
+    await upsertSageOsTask(store, {
+      id: "task_external",
+      title: "Send Telegram digest",
+      objective: "Send a redacted digest to Telegram.",
+      state: "proposed",
+      requestedBy: "sageos.ambient_copilot",
+      autonomyTier: "prepare",
+      policyScopes: [{ kind: "channel", allow: ["telegram"], risk: "high" }],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const program = makeProgram();
+    await program.parseAsync(["os", "tasks", "queue", "task_low", "--json"], { from: "user" });
+    expect(lastJson()).toMatchObject({
+      result: { outcome: "queued", task: { id: "task_low", state: "queued" } },
+    });
+
+    await program.parseAsync(["os", "tasks", "queue", "task_external", "--json"], {
+      from: "user",
+    });
+    expect(lastJson()).toMatchObject({
+      result: {
+        outcome: "approval_required",
+        task: { id: "task_external", state: "waiting_for_policy" },
+        approval: { id: "approval_task_task_external", state: "pending" },
+      },
+    });
+  });
+
   it("lists and resolves approvals with audit evidence", async () => {
     const stateDir = process.env.SAGE_STATE_DIR!;
     const store = createSageOsStateStore();
