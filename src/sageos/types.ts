@@ -113,6 +113,7 @@ export type SageOsStatusSnapshot = {
   employees: SageOsSummary;
   tasks: SageOsSummary;
   runs: SageOsRunSummary;
+  workflows: SageOsSummary;
   approvals: { pending: number };
   observations: { total: number; recent: number; redacted: number; failed: number };
   memory: {
@@ -171,6 +172,7 @@ export function createSageOsStatusSnapshot(
     employees: overrides.employees ?? emptySummary(),
     tasks: overrides.tasks ?? emptySummary(),
     runs: overrides.runs ?? emptyRunSummary(),
+    workflows: overrides.workflows ?? emptySummary(),
     approvals: overrides.approvals ?? { pending: 0 },
     observations: overrides.observations ?? { total: 0, recent: 0, redacted: 0, failed: 0 },
     memory: overrides.memory ?? {
@@ -251,6 +253,35 @@ export type SageOsRun = {
   startedAt?: string;
   finishedAt?: string;
   error?: string;
+};
+
+export const SAGEOS_WORKFLOW_STATES = [
+  "candidate",
+  "drafted_spec",
+  "implemented_draft",
+  "dry_run_passed",
+  "enabled",
+  "paused",
+  "failed",
+  "retired",
+] as const;
+
+export type SageOsWorkflowState = (typeof SAGEOS_WORKFLOW_STATES)[number];
+
+export type SageOsWorkflow = {
+  id: string;
+  name: string;
+  state: SageOsWorkflowState;
+  observedPattern: string;
+  sourceObservationIds: string[];
+  trigger: string;
+  inputs: string[];
+  outputs: string[];
+  policyScopes: SageOsPolicyScope[];
+  implementationRefs: string[];
+  evalRefs: string[];
+  createdAt: string;
+  updatedAt: string;
 };
 
 export const SAGEOS_APPROVAL_STATES = ["pending", "approved", "denied", "expired"] as const;

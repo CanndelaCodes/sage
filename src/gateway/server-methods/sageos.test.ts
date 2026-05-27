@@ -13,6 +13,7 @@ import {
   upsertSageOsRun,
   upsertSageOsAgent,
   upsertSageOsTask,
+  upsertSageOsWorkflow,
 } from "../../sageos/state-store.js";
 import { createSageOsStatusSnapshot } from "../../sageos/types.js";
 import { listGatewayMethods, GATEWAY_EVENTS } from "../server-methods-list.js";
@@ -26,11 +27,13 @@ const {
   mockRunMemoryStewardOnce,
   mockRunAmbientCopilotOnce,
   mockSendTelegramDigestOnce,
+  mockDiscoverWorkflowCandidates,
 } = vi.hoisted(() => ({
   mockLoadConfig: vi.fn(),
   mockRunMemoryStewardOnce: vi.fn(),
   mockRunAmbientCopilotOnce: vi.fn(),
   mockSendTelegramDigestOnce: vi.fn(),
+  mockDiscoverWorkflowCandidates: vi.fn(),
 }));
 
 vi.mock("../../learning/app-focus.js", async (importOriginal) => {
@@ -46,6 +49,9 @@ vi.mock("../../sageos/ambient-copilot.js", () => ({
 }));
 vi.mock("../../sageos/notifications.js", () => ({
   sendSageOsTelegramDigestOnce: mockSendTelegramDigestOnce,
+}));
+vi.mock("../../sageos/workflow-compiler.js", () => ({
+  discoverSageOsWorkflowCandidates: mockDiscoverWorkflowCandidates,
 }));
 
 const oldStateDir = process.env.SAGE_STATE_DIR;
@@ -73,6 +79,7 @@ describe("SageOS gateway methods", () => {
     mockRunMemoryStewardOnce.mockReset();
     mockRunAmbientCopilotOnce.mockReset();
     mockSendTelegramDigestOnce.mockReset();
+    mockDiscoverWorkflowCandidates.mockReset();
   });
 
   afterEach(() => {
@@ -91,6 +98,8 @@ describe("SageOS gateway methods", () => {
     expect(listGatewayMethods()).toContain("sageos.tasks.list");
     expect(listGatewayMethods()).toContain("sageos.tasks.queue");
     expect(listGatewayMethods()).toContain("sageos.tasks.runNext");
+    expect(listGatewayMethods()).toContain("sageos.workflows.list");
+    expect(listGatewayMethods()).toContain("sageos.workflows.discover");
     expect(listGatewayMethods()).toContain("sageos.runs.list");
     expect(listGatewayMethods()).toContain("sageos.approvals.list");
     expect(listGatewayMethods()).toContain("sageos.approvals.resolve");
@@ -185,6 +194,21 @@ describe("SageOS gateway methods", () => {
       traceId: "trace_build",
       startedAt: now,
     });
+    await upsertSageOsWorkflow(store, {
+      id: "workflow_build",
+      name: "Build workflow",
+      state: "candidate",
+      observedPattern: "app_focus:code",
+      sourceObservationIds: ["obs_1", "obs_2"],
+      trigger: "Repeated Code focus",
+      inputs: ["app focus"],
+      outputs: ["candidate"],
+      policyScopes: [{ kind: "app", allow: ["Code"], risk: "low" }],
+      implementationRefs: [],
+      evalRefs: [],
+      createdAt: now,
+      updatedAt: now,
+    });
 
     await expect(invoke("sageos.agents.list")).resolves.toMatchObject({
       response: { ok: true, payload: { agents: [{ id: "agent_builder" }] } },
@@ -194,6 +218,9 @@ describe("SageOS gateway methods", () => {
     });
     await expect(invoke("sageos.runs.list")).resolves.toMatchObject({
       response: { ok: true, payload: { runs: [{ id: "run_build" }] } },
+    });
+    await expect(invoke("sageos.workflows.list")).resolves.toMatchObject({
+      response: { ok: true, payload: { workflows: [{ id: "workflow_build" }] } },
     });
   });
 
@@ -581,6 +608,50 @@ describe("SageOS gateway methods", () => {
             telegram: expect.objectContaining({ enabled: true, target: "telegram:123" }),
           }),
         }),
+      }),
+      { dropIfSlow: true },
+    );
+  });
+
+  it("discovers workflow candidates through gateway controls", async () => {
+    mockDiscoverWorkflowCandidates.mockResolvedValue({
+      observed: 2,
+      created: 1,
+      skipped: 0,
+      candidates: [
+        {
+          id: "workflow_new",
+          name: "New workflow",
+          state: "candidate",
+          observedPattern: "app_focus:terminal",
+          sourceObservationIds: ["obs_1", "obs_2"],
+          trigger: "Repeated Terminal focus",
+          inputs: ["app focus"],
+          outputs: ["candidate"],
+          policyScopes: [{ kind: "app", allow: ["Terminal"], risk: "low" }],
+          implementationRefs: [],
+          evalRefs: [],
+          createdAt: "2026-05-27T21:00:00.000Z",
+          updatedAt: "2026-05-27T21:00:00.000Z",
+        },
+      ],
+      status: createSageOsStatusSnapshot({
+        workflows: { total: 1, active: 0, queued: 1, blocked: 0 },
+      }),
+    });
+
+    const { response, broadcast } = await invoke("sageos.workflows.discover", { min: 3 });
+
+    expect(response?.ok).toBe(true);
+    expect(response?.payload).toMatchObject({
+      result: { created: 1, candidates: [{ id: "workflow_new" }] },
+      state: { status: { workflows: { total: 1, queued: 1 } } },
+    });
+    expect(mockDiscoverWorkflowCandidates).toHaveBeenCalledWith({ minOccurrences: 3 });
+    expect(broadcast).toHaveBeenCalledWith(
+      "sageos",
+      expect.objectContaining({
+        status: expect.objectContaining({ workflows: expect.objectContaining({ total: 1 }) }),
       }),
       { dropIfSlow: true },
     );

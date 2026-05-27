@@ -11,6 +11,7 @@ import {
   upsertSageOsAgent,
   upsertSageOsObservation,
   upsertSageOsTask,
+  upsertSageOsWorkflow,
   writeSageOsState,
 } from "../sageos/state-store.js";
 import { createSageOsStatusSnapshot } from "../sageos/types.js";
@@ -552,6 +553,70 @@ describe("sage os CLI", () => {
     expect(runCalls[0]).toMatchObject({
       cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
     });
+  });
+
+  it("lists and discovers workflow candidates through CLI controls", async () => {
+    const store = createSageOsStateStore();
+    const now = "2026-05-27T20:45:00.000Z";
+    await upsertSageOsWorkflow(store, {
+      id: "workflow_existing",
+      name: "Existing workflow",
+      state: "candidate",
+      observedPattern: "app_focus:code",
+      sourceObservationIds: ["obs_1", "obs_2"],
+      trigger: "Repeated Code focus",
+      inputs: ["app focus"],
+      outputs: ["candidate"],
+      policyScopes: [{ kind: "app", allow: ["Code"], risk: "low" }],
+      implementationRefs: [],
+      evalRefs: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const discoverCalls: unknown[] = [];
+    const program = makeProgram({
+      discoverWorkflowCandidates: async (params: unknown) => {
+        discoverCalls.push(params);
+        return {
+          observed: 2,
+          created: 1,
+          skipped: 0,
+          candidates: [
+            {
+              id: "workflow_new",
+              name: "New workflow",
+              state: "candidate" as const,
+              observedPattern: "app_focus:terminal",
+              sourceObservationIds: ["obs_3", "obs_4"],
+              trigger: "Repeated Terminal focus",
+              inputs: ["app focus"],
+              outputs: ["candidate"],
+              policyScopes: [{ kind: "app", allow: ["Terminal"], risk: "low" as const }],
+              implementationRefs: [],
+              evalRefs: [],
+              createdAt: now,
+              updatedAt: now,
+            },
+          ],
+          status: createSageOsStatusSnapshot({
+            workflows: { total: 2, active: 0, queued: 2, blocked: 0 },
+          }),
+        };
+      },
+    } as unknown as SageOsCliDeps);
+
+    await program.parseAsync(["os", "workflows", "--json"], { from: "user" });
+    expect(lastJson()).toMatchObject({ workflows: [{ id: "workflow_existing" }] });
+
+    await program.parseAsync(["os", "workflows", "discover", "--min", "2", "--json"], {
+      from: "user",
+    });
+    expect(lastJson()).toMatchObject({
+      result: { observed: 2, created: 1, candidates: [{ id: "workflow_new" }] },
+    });
+    expect(discoverCalls).toHaveLength(1);
+    expect(discoverCalls[0]).toMatchObject({ minOccurrences: 2 });
   });
 
   it("shows incidents, audit events, and doctor status", async () => {

@@ -28,6 +28,7 @@ import {
   type SageOsApproval,
   type SageOsSupervisorStatus,
 } from "../../sageos/types.js";
+import { discoverSageOsWorkflowCandidates } from "../../sageos/workflow-compiler.js";
 import { ErrorCodes, errorShape } from "../protocol/index.js";
 
 const CONTROL_STATES = new Set(["paused", "running", "stopped"]);
@@ -166,6 +167,20 @@ export const sageOsHandlers: GatewayRequestHandlers = {
   "sageos.runs.list": async ({ respond }) => {
     const state = await readSageOsState(createSageOsStateStore());
     respond(true, { runs: state.runs }, undefined);
+  },
+  "sageos.workflows.list": async ({ respond }) => {
+    const state = await readSageOsState(createSageOsStateStore());
+    respond(true, { workflows: state.workflows }, undefined);
+  },
+  "sageos.workflows.discover": async ({ params, respond, context }) => {
+    const result = await discoverSageOsWorkflowCandidates({
+      minOccurrences: parseLimit(params.min, 2),
+    });
+    const stateStore = createSageOsStateStore();
+    await writeSageOsState(stateStore, result.status);
+    const state = await readSageOsState(stateStore);
+    context.broadcast("sageos", state, { dropIfSlow: true });
+    respond(true, { result, state }, undefined);
   },
   "sageos.approvals.list": async ({ respond }) => {
     const state = await readSageOsState(createSageOsStateStore());

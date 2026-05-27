@@ -16,6 +16,7 @@ import {
   upsertSageOsObservation,
   upsertSageOsRun,
   upsertSageOsTask,
+  upsertSageOsWorkflow,
   writeSageOsState,
 } from "./state-store.js";
 import { collectSageOsStatus } from "./status.js";
@@ -71,6 +72,21 @@ describe("SageOS status collector", () => {
       state: "running",
       traceId: "trace_active",
       startedAt: now,
+    });
+    await upsertSageOsWorkflow(store, {
+      id: "workflow_focus_code",
+      name: "Review repeated Code focus",
+      state: "candidate",
+      observedPattern: "app_focus:code",
+      sourceObservationIds: ["obs_recent", "obs_redacted"],
+      trigger: "Repeated Code focus observations",
+      inputs: ["window title"],
+      outputs: ["workflow candidate"],
+      policyScopes: [{ kind: "app", allow: ["Code"], risk: "low" }],
+      implementationRefs: [],
+      evalRefs: [],
+      createdAt: now,
+      updatedAt: now,
     });
     await upsertSageOsApproval(store, {
       id: "approval_external",
@@ -208,6 +224,7 @@ describe("SageOS status collector", () => {
     expect(snapshot.employees).toMatchObject({ total: 1, active: 1 });
     expect(snapshot.tasks).toMatchObject({ total: 3, active: 1, queued: 1, blocked: 1 });
     expect(snapshot.runs).toMatchObject({ total: 1, active: 1, failed: 0 });
+    expect(snapshot.workflows).toMatchObject({ total: 1, active: 0, queued: 1, blocked: 0 });
     expect(snapshot.approvals.pending).toBe(1);
     expect(snapshot.observations).toMatchObject({
       total: 3,

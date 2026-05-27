@@ -34,7 +34,9 @@ import {
   type SageOsAgentSpec,
   type SageOsObservation,
   type SageOsTaskSpec,
+  type SageOsWorkflow,
 } from "../sageos/types.js";
+import { discoverSageOsWorkflowCandidates } from "../sageos/workflow-compiler.js";
 
 export type SageOsCliDeps = {
   observeAppFocusOnce?: typeof observeAppFocusOnce;
@@ -42,6 +44,7 @@ export type SageOsCliDeps = {
   runAmbientCopilotOnce?: typeof runSageOsAmbientCopilotOnce;
   runNextTaskOnce?: typeof runNextSageOsTaskOnce;
   sendTelegramDigestOnce?: typeof sendSageOsTelegramDigestOnce;
+  discoverWorkflowCandidates?: typeof discoverSageOsWorkflowCandidates;
   loadConfig?: typeof loadConfig;
 };
 
@@ -148,6 +151,15 @@ function renderTasks(tasks: SageOsTaskSpec[]): string {
   return tasks.map((task) => `${task.id}\t${task.state}\t${task.title}`).join("\n");
 }
 
+function renderWorkflows(workflows: SageOsWorkflow[]): string {
+  if (workflows.length === 0) {
+    return "No SageOS workflows.";
+  }
+  return workflows
+    .map((workflow) => `${workflow.id}\t${workflow.state}\t${workflow.name}`)
+    .join("\n");
+}
+
 function renderApprovals(approvals: SageOsApproval[]): string {
   if (approvals.length === 0) {
     return "No SageOS approvals.";
@@ -221,6 +233,8 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
   const runAmbientCopilot = deps.runAmbientCopilotOnce ?? runSageOsAmbientCopilotOnce;
   const runNextTask = deps.runNextTaskOnce ?? runNextSageOsTaskOnce;
   const sendTelegramDigest = deps.sendTelegramDigestOnce ?? sendSageOsTelegramDigestOnce;
+  const discoverWorkflowCandidates =
+    deps.discoverWorkflowCandidates ?? discoverSageOsWorkflowCandidates;
   const loadSageConfig = deps.loadConfig ?? loadConfig;
   const os = program.command("os").description("SageOS command center controls");
 
@@ -441,6 +455,30 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
         taskId: id,
       });
       outputJsonOrText(cliOpts, { task: nextTask }, () => renderJsonResource({ task: nextTask }));
+    });
+
+  const workflows = os.command("workflows").description("List SageOS workflow candidates");
+  workflows.option("--json", "Output JSON", false).action(async (opts: { json?: boolean }) => {
+    const state = await readSageOsState(createSageOsStateStore());
+    outputJsonOrText(opts, { workflows: state.workflows }, () => renderWorkflows(state.workflows));
+  });
+
+  workflows
+    .command("discover")
+    .description("Discover workflow candidates from repeated observations")
+    .option("--min <count>", "Minimum repeated observations", "2")
+    .option("--json", "Output JSON", false)
+    .action(async (opts: { min?: string; json?: boolean }, command?: Command) => {
+      const cliOpts = commandOptions(command ?? opts);
+      const result = await discoverWorkflowCandidates({
+        minOccurrences: parseLimit(cliOpts.min, 2),
+      });
+      outputJsonOrText(cliOpts, { result }, () =>
+        [
+          `Workflow candidates: ${result.created}/${result.observed} created, ${result.skipped} skipped`,
+          ...result.candidates.map((workflow) => `${workflow.id}\t${workflow.name}`),
+        ].join("\n"),
+      );
     });
 
   const approvals = os.command("approvals").description("List SageOS approvals");

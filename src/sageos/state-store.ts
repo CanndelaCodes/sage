@@ -11,6 +11,7 @@ import {
   type SageOsRun,
   type SageOsStatusSnapshot,
   type SageOsTaskSpec,
+  type SageOsWorkflow,
 } from "./types.js";
 
 export type SageOsStateStore = {
@@ -23,6 +24,7 @@ export type SageOsPersistedState = {
   agents: SageOsAgentSpec[];
   tasks: SageOsTaskSpec[];
   runs: SageOsRun[];
+  workflows: SageOsWorkflow[];
   approvals: SageOsApproval[];
   observations: SageOsObservation[];
   updatedAt: string;
@@ -146,6 +148,10 @@ export async function readSageOsState(store: SageOsStateStore): Promise<SageOsPe
     siblingStore(store, "runs.json").path,
     base.runs ?? [],
   );
+  const workflows = await readJsonFile<SageOsWorkflow[]>(
+    siblingStore(store, "workflows.json").path,
+    base.workflows ?? [],
+  );
   const approvals = await readJsonFile<SageOsApproval[]>(
     siblingStore(store, "approvals.json").path,
     base.approvals ?? [],
@@ -162,6 +168,7 @@ export async function readSageOsState(store: SageOsStateStore): Promise<SageOsPe
       agents,
       tasks,
       runs,
+      workflows,
       approvals,
       observations,
       updatedAt: base.updatedAt ?? base.status.generatedAt,
@@ -174,6 +181,7 @@ export async function readSageOsState(store: SageOsStateStore): Promise<SageOsPe
     agents,
     tasks,
     runs,
+    workflows,
     approvals,
     observations,
     updatedAt: fallbackStatus.generatedAt,
@@ -196,6 +204,7 @@ export async function writeSageOsState(
     agents: current.agents,
     tasks: current.tasks,
     runs: current.runs,
+    workflows: current.workflows,
     approvals: current.approvals,
     observations: current.observations,
   };
@@ -235,6 +244,18 @@ export async function upsertSageOsRun(
   );
   const current = await readSageOsState(store);
   return { ...current, runs, updatedAt: new Date().toISOString() };
+}
+
+export async function upsertSageOsWorkflow(
+  store: SageOsStateStore,
+  workflow: SageOsWorkflow,
+): Promise<SageOsPersistedState> {
+  const workflowsFile = siblingStore(store, "workflows.json").path;
+  const workflows = await updateJsonFile<SageOsWorkflow[]>(workflowsFile, [], (current) =>
+    current.filter((item) => item.id !== workflow.id).concat(workflow),
+  );
+  const current = await readSageOsState(store);
+  return { ...current, workflows, updatedAt: new Date().toISOString() };
 }
 
 export async function upsertSageOsApproval(

@@ -22,6 +22,7 @@ import {
   type SageOsStatusSnapshot,
   type SageOsSummary,
   type SageOsTaskSpec,
+  type SageOsWorkflow,
 } from "./types.js";
 
 export type CollectSageOsStatusOptions = {
@@ -88,6 +89,7 @@ export async function collectSageOsStatus(
     employees: summarizeAgents(state.agents),
     tasks: summarizeTasks(state.tasks),
     runs: summarizeRuns(state.runs),
+    workflows: summarizeWorkflows(state.workflows),
     approvals: {
       pending: state.approvals.filter((approval) => approval.state === "pending").length,
     },
@@ -163,6 +165,20 @@ function summarizeRuns(runs: SageOsRun[]): SageOsRunSummary {
     active: runs.filter((run) => run.state === "running").length,
     queued: runs.filter((run) => run.state === "queued").length,
     failed: runs.filter((run) => run.state === "failed" || run.state === "timed_out").length,
+  };
+}
+
+function summarizeWorkflows(workflows: SageOsWorkflow[]): SageOsSummary {
+  return {
+    total: workflows.length,
+    active: workflows.filter((workflow) => ["dry_run_passed", "enabled"].includes(workflow.state))
+      .length,
+    queued: workflows.filter((workflow) =>
+      ["candidate", "drafted_spec", "implemented_draft"].includes(workflow.state),
+    ).length,
+    blocked: workflows.filter((workflow) =>
+      ["failed", "paused", "retired"].includes(workflow.state),
+    ).length,
   };
 }
 

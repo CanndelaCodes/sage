@@ -34,6 +34,7 @@ describe("SageOS shared types", () => {
     expect(snapshot.mode).toBe("observe");
     expect(snapshot.supervisor.state).toBe("running");
     expect(snapshot.tasks.total).toBe(0);
+    expect(snapshot.workflows.total).toBe(0);
     expect(snapshot.employees.total).toBe(0);
     expect(snapshot.incidents).toEqual([]);
   });
@@ -44,7 +45,7 @@ describe("SageOS shared types", () => {
     expect(SAGEOS_TASK_STATES).toContain("expired");
   });
 
-  it("exposes resource contracts for employees, tasks, runs, and policy scopes", () => {
+  it("exposes resource contracts for employees, tasks, workflows, runs, and policy scopes", () => {
     const employee = {
       id: "employee_security",
       name: "Security Sentinel",
@@ -79,7 +80,25 @@ describe("SageOS shared types", () => {
       traceId: "trc_1",
     } satisfies import("./types.js").SageOsRun;
 
+    const workflow = {
+      id: "workflow_app_focus_code_review",
+      name: "Review repeated Code focus",
+      state: "candidate",
+      observedPattern: "app_focus:code review",
+      sourceObservationIds: ["obs_1", "obs_2"],
+      trigger: "Repeated app_focus observations for Code",
+      inputs: ["active window title"],
+      outputs: ["review task"],
+      policyScopes: employee.allowedScopes,
+      implementationRefs: [],
+      evalRefs: [],
+      createdAt: "2026-05-18T00:00:00.000Z",
+      updatedAt: "2026-05-18T00:00:00.000Z",
+    } satisfies import("./types.js").SageOsWorkflow;
+
     expect(task.policyScopes[0]?.kind).toBe("system");
     expect(run.taskId).toBe(task.id);
+    expect(workflow.state).toBe("candidate");
+    expect(workflow.sourceObservationIds).toHaveLength(2);
   });
 });

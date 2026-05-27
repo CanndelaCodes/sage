@@ -8,6 +8,7 @@ export function renderSageOsStatus(snapshot: SageOsStatusSnapshot): string {
     `Employees: ${snapshot.employees.active}/${snapshot.employees.total} active, ${snapshot.employees.queued} draft, ${snapshot.employees.blocked} blocked`,
     `Tasks: ${snapshot.tasks.active} active, ${snapshot.tasks.queued} queued, ${snapshot.tasks.blocked} blocked, ${snapshot.tasks.total} total`,
     `Runs: ${snapshot.runs.active} active, ${snapshot.runs.queued} queued, ${snapshot.runs.failed} failed, ${snapshot.runs.total} total`,
+    `Workflows: ${snapshot.workflows.active} active, ${snapshot.workflows.queued} candidate, ${snapshot.workflows.blocked} blocked, ${snapshot.workflows.total} total`,
     `Approvals: ${snapshot.approvals.pending} pending`,
     `Observations: ${snapshot.observations.recent} recent, ${snapshot.observations.redacted} redacted, ${snapshot.observations.failed} failed, ${snapshot.observations.total} total`,
     `Memory: ${snapshot.memory.status}, backend ${snapshot.memory.backend}, capture queue ${snapshot.memory.captureQueue.pending} pending / ${snapshot.memory.captureQueue.failed} failed`,
