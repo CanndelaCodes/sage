@@ -150,6 +150,9 @@ describe("SageOS gateway methods", () => {
     expect(listGatewayMethods()).toContain("sageos.agents.activate");
     expect(listGatewayMethods()).toContain("sageos.agentTemplates.list");
     expect(listGatewayMethods()).toContain("sageos.agentTemplates.inspect");
+    expect(listGatewayMethods()).toContain("sageos.collaboration.list");
+    expect(listGatewayMethods()).toContain("sageos.collaboration.handoff");
+    expect(listGatewayMethods()).toContain("sageos.collaboration.requestReview");
     expect(listGatewayMethods()).toContain("sageos.tasks.list");
     expect(listGatewayMethods()).toContain("sageos.tasks.queue");
     expect(listGatewayMethods()).toContain("sageos.tasks.runNext");
@@ -255,6 +258,75 @@ describe("SageOS gateway methods", () => {
     );
     await expect(readSageOsState(store)).resolves.toMatchObject({
       agents: [{ id: "employee_memory", status: "active" }],
+    });
+  });
+
+  it("lists and creates collaboration events through gateway controls", async () => {
+    const store = createSageOsStateStore();
+
+    const handoff = await invoke("sageos.collaboration.handoff", {
+      fromAgentId: "employee_pc_steward",
+      toAgentId: "employee_reviewer",
+      title: "Review disk warning",
+      objective: "Review evidence",
+    });
+    expect(handoff.response?.ok).toBe(true);
+    expect(handoff.response?.payload).toMatchObject({
+      result: {
+        outcome: "created",
+        collaboration: {
+          kind: "handoff",
+          fromAgentId: "employee_pc_steward",
+          toAgentId: "employee_reviewer",
+        },
+        task: {
+          ownerAgentId: "employee_reviewer",
+          state: "proposed",
+        },
+      },
+    });
+    expect(handoff.broadcast).toHaveBeenCalledWith(
+      "sageos",
+      expect.objectContaining({
+        collaborations: expect.arrayContaining([expect.objectContaining({ kind: "handoff" })]),
+      }),
+      { dropIfSlow: true },
+    );
+
+    const review = await invoke("sageos.collaboration.requestReview", {
+      fromAgentId: "employee_coding",
+      reviewerAgentId: "employee_reviewer",
+      taskId: "task_coding",
+      title: "Review coding report",
+      summary: "Check diff and tests",
+      artifactRefs: ["coding_report_task_coding_1"],
+    });
+    expect(review.response?.ok).toBe(true);
+    expect(review.response?.payload).toMatchObject({
+      result: {
+        outcome: "created",
+        collaboration: {
+          kind: "review_request",
+          taskId: "task_coding",
+          artifactRefs: ["coding_report_task_coding_1"],
+        },
+      },
+    });
+
+    const list = await invoke("sageos.collaboration.list");
+    expect(list.response?.ok).toBe(true);
+    expect(list.response?.payload).toMatchObject({
+      collaborations: [
+        { kind: "handoff", fromAgentId: "employee_pc_steward" },
+        { kind: "review_request", fromAgentId: "employee_coding" },
+      ],
+    });
+    await expect(readSageOsState(store)).resolves.toMatchObject({
+      tasks: [{ ownerAgentId: "employee_reviewer" }],
+      collaborations: [
+        { kind: "handoff", fromAgentId: "employee_pc_steward" },
+        { kind: "review_request", fromAgentId: "employee_coding" },
+      ],
     });
   });
 

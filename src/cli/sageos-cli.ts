@@ -5,6 +5,7 @@ import { defaultRuntime } from "../runtime.js";
 import { runSageOsAmbientCopilotOnce } from "../sageos/ambient-copilot.js";
 import { discoverSageOsAppCandidates } from "../sageos/app-candidates.js";
 import { runSageOsNightShiftTask } from "../sageos/coding/night-shift.js";
+import { createSageOsTaskHandoff, requestSageOsReview } from "../sageos/collaboration.js";
 import {
   activateSageOsEmployee,
   buildSageOsEmployeeActivationPreview,
@@ -49,6 +50,7 @@ import {
   type SageOsAgentSpec,
   type SageOsAppCandidate,
   type SageOsCodingReport,
+  type SageOsCollaborationEvent,
   type SageOsObservation,
   type SageOsSkillRecord,
   type SageOsTaskSpec,
@@ -230,6 +232,18 @@ function renderObservations(observations: SageOsObservation[]): string {
     .map(
       (observation) =>
         `${observation.observedAt}\t${observation.source}\t${observation.state}\t${observation.title}`,
+    )
+    .join("\n");
+}
+
+function renderCollaborations(collaborations: SageOsCollaborationEvent[]): string {
+  if (collaborations.length === 0) {
+    return "No SageOS collaboration events.";
+  }
+  return collaborations
+    .map(
+      (collaboration) =>
+        `${collaboration.createdAt}\t${collaboration.kind}\t${collaboration.state}\t${collaboration.title}`,
     )
     .join("\n");
 }
@@ -560,6 +574,64 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
       });
       outputJsonOrText(cliOpts, { task: nextTask }, () => renderJsonResource({ task: nextTask }));
     });
+
+  const collaboration = os.command("collaboration").description("List SageOS collaboration events");
+  collaboration.option("--json", "Output JSON", false).action(async (opts: { json?: boolean }) => {
+    const state = await readSageOsState(createSageOsStateStore());
+    outputJsonOrText(opts, { collaborations: state.collaborations }, () =>
+      renderCollaborations(state.collaborations),
+    );
+  });
+
+  collaboration
+    .command("handoff <from> <to> <title>")
+    .description("Create a structured task handoff between SageOS employees")
+    .requiredOption("--objective <objective>", "Task objective for the receiving employee")
+    .option("--json", "Output JSON", false)
+    .action(
+      async (
+        fromAgentId: string,
+        toAgentId: string,
+        title: string,
+        opts: { objective: string; json?: boolean },
+      ) => {
+        const cliOpts = commandOptions(opts);
+        const result = await createSageOsTaskHandoff({
+          fromAgentId,
+          toAgentId,
+          title,
+          objective: cliOpts.objective,
+        });
+        outputJsonOrText(cliOpts, { result }, () => renderJsonResource({ result }));
+      },
+    );
+
+  collaboration
+    .command("request-review <from> <reviewer> <title>")
+    .description("Create a structured SageOS review request")
+    .requiredOption("--summary <summary>", "Review request summary")
+    .option("--task <id>", "Task to review")
+    .option("--artifact <ref...>", "Artifact reference")
+    .option("--json", "Output JSON", false)
+    .action(
+      async (
+        fromAgentId: string,
+        reviewerAgentId: string,
+        title: string,
+        opts: { summary: string; task?: string; artifact?: string[]; json?: boolean },
+      ) => {
+        const cliOpts = commandOptions(opts);
+        const result = await requestSageOsReview({
+          fromAgentId,
+          reviewerAgentId,
+          title,
+          summary: cliOpts.summary,
+          taskId: cliOpts.task,
+          artifactRefs: cliOpts.artifact,
+        });
+        outputJsonOrText(cliOpts, { result }, () => renderJsonResource({ result }));
+      },
+    );
 
   const workflows = os.command("workflows").description("List SageOS workflow candidates");
   workflows.option("--json", "Output JSON", false).action(async (opts: { json?: boolean }) => {

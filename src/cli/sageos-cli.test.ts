@@ -263,6 +263,84 @@ describe("sage os CLI", () => {
     expect(rawEvents).toContain("task_cancelled");
   });
 
+  it("lists and creates collaboration events through CLI controls", async () => {
+    const store = createSageOsStateStore();
+    const program = makeProgram();
+
+    await program.parseAsync(
+      [
+        "os",
+        "collaboration",
+        "handoff",
+        "employee_pc_steward",
+        "employee_reviewer",
+        "Review disk warning",
+        "--objective",
+        "Review evidence",
+        "--json",
+      ],
+      { from: "user" },
+    );
+    expect(lastJson()).toMatchObject({
+      result: {
+        outcome: "created",
+        collaboration: {
+          kind: "handoff",
+          fromAgentId: "employee_pc_steward",
+          toAgentId: "employee_reviewer",
+        },
+        task: {
+          ownerAgentId: "employee_reviewer",
+          state: "proposed",
+        },
+      },
+    });
+
+    await program.parseAsync(
+      [
+        "os",
+        "collaboration",
+        "request-review",
+        "employee_coding",
+        "employee_reviewer",
+        "Review coding report",
+        "--task",
+        "task_coding",
+        "--summary",
+        "Check diff and tests",
+        "--artifact",
+        "coding_report_task_coding_1",
+        "--json",
+      ],
+      { from: "user" },
+    );
+    expect(lastJson()).toMatchObject({
+      result: {
+        outcome: "created",
+        collaboration: {
+          kind: "review_request",
+          taskId: "task_coding",
+          artifactRefs: ["coding_report_task_coding_1"],
+        },
+      },
+    });
+
+    await program.parseAsync(["os", "collaboration", "--json"], { from: "user" });
+    expect(lastJson().collaborations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "handoff" }),
+        expect.objectContaining({ kind: "review_request" }),
+      ]),
+    );
+    await expect(readSageOsState(store)).resolves.toMatchObject({
+      tasks: [{ ownerAgentId: "employee_reviewer" }],
+      collaborations: [
+        { kind: "handoff", fromAgentId: "employee_pc_steward" },
+        { kind: "review_request", fromAgentId: "employee_coding" },
+      ],
+    });
+  });
+
   it("queues tasks through policy-aware CLI controls", async () => {
     const store = createSageOsStateStore();
     const now = "2026-05-27T17:40:00.000Z";

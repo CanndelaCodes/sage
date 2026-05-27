@@ -3,6 +3,7 @@ import { loadConfig } from "../../config/config.js";
 import { runSageOsAmbientCopilotOnce } from "../../sageos/ambient-copilot.js";
 import { discoverSageOsAppCandidates } from "../../sageos/app-candidates.js";
 import { runSageOsNightShiftTask } from "../../sageos/coding/night-shift.js";
+import { createSageOsTaskHandoff, requestSageOsReview } from "../../sageos/collaboration.js";
 import {
   activateSageOsEmployee,
   buildSageOsEmployeeActivationPreview,
@@ -75,6 +76,20 @@ function parseLimit(value: unknown, fallback: number): number {
         ? Number.parseInt(value, 10)
         : Number.NaN;
   return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : fallback;
+}
+
+function stringParam(params: Record<string, unknown>, key: string): string {
+  const value = params[key];
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function stringArrayParam(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter(
+      (entry): entry is string => typeof entry === "string" && Boolean(entry.trim()),
+    );
+  }
+  return typeof value === "string" && value.trim() ? [value.trim()] : [];
 }
 
 function supervisorStatusForControl(
@@ -218,6 +233,72 @@ export const sageOsHandlers: GatewayRequestHandlers = {
       return;
     }
     respond(true, { template }, undefined);
+  },
+  "sageos.collaboration.list": async ({ respond }) => {
+    const state = await readSageOsState(createSageOsStateStore());
+    respond(true, { collaborations: state.collaborations }, undefined);
+  },
+  "sageos.collaboration.handoff": async ({ params, respond, context }) => {
+    const fromAgentId = stringParam(params, "fromAgentId");
+    const toAgentId = stringParam(params, "toAgentId");
+    const title = stringParam(params, "title");
+    const objective = stringParam(params, "objective");
+    if (!fromAgentId || !toAgentId || !title || !objective) {
+      respond(
+        false,
+        undefined,
+        errorShape(
+          ErrorCodes.INVALID_REQUEST,
+          "invalid sageos.collaboration.handoff params: fromAgentId, toAgentId, title, and objective required",
+        ),
+      );
+      return;
+    }
+    const stateStore = createSageOsStateStore();
+    const result = await createSageOsTaskHandoff({
+      stateStore,
+      fromAgentId,
+      toAgentId,
+      title,
+      objective,
+    });
+    const status = await collectSageOsStatus();
+    await writeSageOsState(stateStore, status);
+    const state = await readSageOsState(stateStore);
+    context.broadcast("sageos", state, { dropIfSlow: true });
+    respond(true, { result, state }, undefined);
+  },
+  "sageos.collaboration.requestReview": async ({ params, respond, context }) => {
+    const fromAgentId = stringParam(params, "fromAgentId");
+    const reviewerAgentId = stringParam(params, "reviewerAgentId");
+    const title = stringParam(params, "title");
+    const summary = stringParam(params, "summary");
+    if (!fromAgentId || !reviewerAgentId || !title || !summary) {
+      respond(
+        false,
+        undefined,
+        errorShape(
+          ErrorCodes.INVALID_REQUEST,
+          "invalid sageos.collaboration.requestReview params: fromAgentId, reviewerAgentId, title, and summary required",
+        ),
+      );
+      return;
+    }
+    const stateStore = createSageOsStateStore();
+    const result = await requestSageOsReview({
+      stateStore,
+      fromAgentId,
+      reviewerAgentId,
+      title,
+      summary,
+      taskId: stringParam(params, "taskId") || undefined,
+      artifactRefs: stringArrayParam(params.artifactRefs),
+    });
+    const status = await collectSageOsStatus();
+    await writeSageOsState(stateStore, status);
+    const state = await readSageOsState(stateStore);
+    context.broadcast("sageos", state, { dropIfSlow: true });
+    respond(true, { result, state }, undefined);
   },
   "sageos.tasks.list": async ({ respond }) => {
     const state = await readSageOsState(createSageOsStateStore());

@@ -9,6 +9,7 @@ import {
   type SageOsAgentSpec,
   type SageOsAppCandidate,
   type SageOsCodingReport,
+  type SageOsCollaborationEvent,
   type SageOsObservation,
   type SageOsRun,
   type SageOsSkillRecord,
@@ -30,6 +31,7 @@ export type SageOsPersistedState = {
   workflows: SageOsWorkflow[];
   skills: SageOsSkillRecord[];
   apps: SageOsAppCandidate[];
+  collaborations: SageOsCollaborationEvent[];
   codingReports: SageOsCodingReport[];
   approvals: SageOsApproval[];
   observations: SageOsObservation[];
@@ -166,6 +168,10 @@ export async function readSageOsState(store: SageOsStateStore): Promise<SageOsPe
     siblingStore(store, "apps.json").path,
     base.apps ?? [],
   );
+  const collaborations = await readJsonFile<SageOsCollaborationEvent[]>(
+    siblingStore(store, "collaborations.json").path,
+    base.collaborations ?? [],
+  );
   const codingReports = await readJsonFile<SageOsCodingReport[]>(
     siblingStore(store, "coding-reports.json").path,
     base.codingReports ?? [],
@@ -189,6 +195,7 @@ export async function readSageOsState(store: SageOsStateStore): Promise<SageOsPe
       workflows,
       skills,
       apps,
+      collaborations,
       codingReports,
       approvals,
       observations,
@@ -205,6 +212,7 @@ export async function readSageOsState(store: SageOsStateStore): Promise<SageOsPe
     workflows,
     skills,
     apps,
+    collaborations,
     codingReports,
     approvals,
     observations,
@@ -231,6 +239,7 @@ export async function writeSageOsState(
     workflows: current.workflows,
     skills: current.skills,
     apps: current.apps,
+    collaborations: current.collaborations,
     codingReports: current.codingReports,
     approvals: current.approvals,
     observations: current.observations,
@@ -307,6 +316,20 @@ export async function upsertSageOsAppCandidate(
   );
   const current = await readSageOsState(store);
   return { ...current, apps, updatedAt: new Date().toISOString() };
+}
+
+export async function upsertSageOsCollaboration(
+  store: SageOsStateStore,
+  collaboration: SageOsCollaborationEvent,
+): Promise<SageOsPersistedState> {
+  const collaborationsFile = siblingStore(store, "collaborations.json").path;
+  const collaborations = await updateJsonFile<SageOsCollaborationEvent[]>(
+    collaborationsFile,
+    [],
+    (current) => current.filter((item) => item.id !== collaboration.id).concat(collaboration),
+  );
+  const current = await readSageOsState(store);
+  return { ...current, collaborations, updatedAt: new Date().toISOString() };
 }
 
 export async function upsertSageOsCodingReport(

@@ -416,6 +416,33 @@ export type SageOsAppCandidate = {
   updatedAt: string;
 };
 
+export const SAGEOS_COLLABORATION_KINDS = [
+  "handoff",
+  "review_request",
+  "incident_escalation",
+  "shared_artifact",
+] as const;
+
+export type SageOsCollaborationKind = (typeof SAGEOS_COLLABORATION_KINDS)[number];
+
+export const SAGEOS_COLLABORATION_STATES = ["open", "acknowledged", "closed"] as const;
+
+export type SageOsCollaborationState = (typeof SAGEOS_COLLABORATION_STATES)[number];
+
+export type SageOsCollaborationEvent = {
+  id: string;
+  kind: SageOsCollaborationKind;
+  fromAgentId: string;
+  toAgentId?: string;
+  taskId?: string;
+  title: string;
+  summary: string;
+  artifactRefs: string[];
+  state: SageOsCollaborationState;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export const SAGEOS_APPROVAL_STATES = ["pending", "approved", "denied", "expired"] as const;
 
 export type SageOsApprovalState = (typeof SAGEOS_APPROVAL_STATES)[number];
