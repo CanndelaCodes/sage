@@ -21,9 +21,10 @@ import { sageOsHandlers } from "./sageos.js";
 const { mockReadActiveAppFocus } = vi.hoisted(() => ({
   mockReadActiveAppFocus: vi.fn(),
 }));
-const { mockLoadConfig, mockRunMemoryStewardOnce } = vi.hoisted(() => ({
+const { mockLoadConfig, mockRunMemoryStewardOnce, mockRunAmbientCopilotOnce } = vi.hoisted(() => ({
   mockLoadConfig: vi.fn(),
   mockRunMemoryStewardOnce: vi.fn(),
+  mockRunAmbientCopilotOnce: vi.fn(),
 }));
 
 vi.mock("../../learning/app-focus.js", async (importOriginal) => {
@@ -33,6 +34,9 @@ vi.mock("../../learning/app-focus.js", async (importOriginal) => {
 vi.mock("../../config/config.js", () => ({ loadConfig: mockLoadConfig }));
 vi.mock("../../sageos/memory-steward.js", () => ({
   runSageOsMemoryStewardOnce: mockRunMemoryStewardOnce,
+}));
+vi.mock("../../sageos/ambient-copilot.js", () => ({
+  runSageOsAmbientCopilotOnce: mockRunAmbientCopilotOnce,
 }));
 
 const oldStateDir = process.env.SAGE_STATE_DIR;
@@ -58,6 +62,7 @@ describe("SageOS gateway methods", () => {
     mockLoadConfig.mockReset();
     mockLoadConfig.mockReturnValue({ sageos: { memory: { replayQueues: true } } });
     mockRunMemoryStewardOnce.mockReset();
+    mockRunAmbientCopilotOnce.mockReset();
   });
 
   afterEach(() => {
@@ -79,6 +84,7 @@ describe("SageOS gateway methods", () => {
     expect(listGatewayMethods()).toContain("sageos.approvals.resolve");
     expect(listGatewayMethods()).toContain("sageos.observations.list");
     expect(listGatewayMethods()).toContain("sageos.observe");
+    expect(listGatewayMethods()).toContain("sageos.copilot.suggest");
     expect(listGatewayMethods()).toContain("sageos.memory.replay");
     expect(listGatewayMethods()).toContain("sageos.control");
     expect(GATEWAY_EVENTS).toContain("sageos");
@@ -390,6 +396,56 @@ describe("SageOS gateway methods", () => {
         status: expect.objectContaining({
           memory: expect.objectContaining({ status: "ok" }),
           learning: expect.objectContaining({ status: "ok" }),
+        }),
+      }),
+      { dropIfSlow: true },
+    );
+  });
+
+  it("runs ambient copilot suggestions through gateway", async () => {
+    mockLoadConfig.mockReturnValue({ sageos: { enabled: true, mode: "suggest" } });
+    mockRunAmbientCopilotOnce.mockResolvedValue({
+      observed: 1,
+      proposed: 1,
+      skipped: 0,
+      tasks: [
+        {
+          id: "task_observation_obs_focus",
+          title: "Review observed work: Code",
+          objective: "Review observed focus.",
+          state: "proposed",
+          requestedBy: "sageos.ambient_copilot",
+          autonomyTier: "suggest",
+          policyScopes: [],
+          createdAt: "2026-05-27T17:15:00.000Z",
+          updatedAt: "2026-05-27T17:15:00.000Z",
+        },
+      ],
+      status: createSageOsStatusSnapshot({
+        tasks: { total: 1, active: 0, queued: 1, blocked: 0 },
+      }),
+    });
+
+    const { response, broadcast } = await invoke("sageos.copilot.suggest", { max: 2 });
+
+    expect(response?.ok).toBe(true);
+    expect(response?.payload).toMatchObject({
+      result: {
+        observed: 1,
+        proposed: 1,
+        skipped: 0,
+        tasks: [{ id: "task_observation_obs_focus" }],
+      },
+    });
+    expect(mockRunAmbientCopilotOnce).toHaveBeenCalledWith({
+      cfg: { enabled: true, mode: "suggest" },
+      maxSuggestions: 2,
+    });
+    expect(broadcast).toHaveBeenCalledWith(
+      "sageos",
+      expect.objectContaining({
+        status: expect.objectContaining({
+          tasks: expect.objectContaining({ total: 1, queued: 1 }),
         }),
       }),
       { dropIfSlow: true },

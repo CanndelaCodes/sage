@@ -1,6 +1,7 @@
 import type { Command } from "commander";
 import { loadConfig } from "../config/config.js";
 import { defaultRuntime } from "../runtime.js";
+import { runSageOsAmbientCopilotOnce } from "../sageos/ambient-copilot.js";
 import {
   getSageOsEmployeeTemplate,
   listSageOsEmployeeTemplates,
@@ -32,6 +33,7 @@ import {
 export type SageOsCliDeps = {
   observeAppFocusOnce?: typeof observeAppFocusOnce;
   runMemoryStewardOnce?: typeof runSageOsMemoryStewardOnce;
+  runAmbientCopilotOnce?: typeof runSageOsAmbientCopilotOnce;
   loadConfig?: typeof loadConfig;
 };
 
@@ -200,6 +202,7 @@ async function resolveApprovalFromCli(
 export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
   const observeAppFocus = deps.observeAppFocusOnce ?? observeAppFocusOnce;
   const runMemorySteward = deps.runMemoryStewardOnce ?? runSageOsMemoryStewardOnce;
+  const runAmbientCopilot = deps.runAmbientCopilotOnce ?? runSageOsAmbientCopilotOnce;
   const loadSageConfig = deps.loadConfig ?? loadConfig;
   const os = program.command("os").description("SageOS command center controls");
 
@@ -452,6 +455,26 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
         [
           `Memory replay: ${result.memory.captured}/${result.memory.attempted} captured, ${result.memory.failed} failed`,
           `Learning replay: ${result.learning.accepted}/${result.learning.attempted} accepted, ${result.learning.failed} failed`,
+        ].join("\n"),
+      );
+    });
+
+  const copilot = os.command("copilot").description("Run SageOS Ambient Copilot controls");
+  copilot
+    .command("suggest")
+    .description("Propose tasks from approved observations")
+    .option("--max <count>", "Maximum suggestions to create", "5")
+    .option("--json", "Output JSON", false)
+    .action(async (opts: { max?: string; json?: boolean }) => {
+      const cliOpts = commandOptions(opts);
+      const result = await runAmbientCopilot({
+        cfg: loadSageConfig().sageos,
+        maxSuggestions: parseLimit(cliOpts.max, 5),
+      });
+      outputJsonOrText(cliOpts, { result }, () =>
+        [
+          `Ambient suggestions: ${result.proposed}/${result.observed} proposed, ${result.skipped} skipped`,
+          ...result.tasks.map((task) => `${task.id}\t${task.title}`),
         ].join("\n"),
       );
     });

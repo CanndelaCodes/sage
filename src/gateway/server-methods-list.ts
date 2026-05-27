@@ -16,6 +16,7 @@ const BASE_METHODS = [
   "sageos.approvals.resolve",
   "sageos.observations.list",
   "sageos.observe",
+  "sageos.copilot.suggest",
   "sageos.memory.replay",
   "sageos.control",
   "usage.status",

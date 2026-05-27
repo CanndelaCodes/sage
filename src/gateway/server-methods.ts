@@ -100,6 +100,7 @@ const WRITE_METHODS = new Set([
   "sageos.control",
   "sageos.approvals.resolve",
   "sageos.observe",
+  "sageos.copilot.suggest",
   "sageos.memory.replay",
 ]);
 

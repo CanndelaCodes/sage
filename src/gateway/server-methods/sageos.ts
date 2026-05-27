@@ -1,5 +1,6 @@
 import type { GatewayRequestHandlers } from "./types.js";
 import { loadConfig } from "../../config/config.js";
+import { runSageOsAmbientCopilotOnce } from "../../sageos/ambient-copilot.js";
 import {
   getSageOsEmployeeTemplate,
   listSageOsEmployeeTemplates,
@@ -39,6 +40,16 @@ function parseApprovalDecision(value: unknown): SageOsApprovalDecision | undefin
   return typeof value === "string" && APPROVAL_DECISIONS.has(value)
     ? (value as SageOsApprovalDecision)
     : undefined;
+}
+
+function parseLimit(value: unknown, fallback: number): number {
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number.parseInt(value, 10)
+        : Number.NaN;
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : fallback;
 }
 
 function supervisorStatusForControl(
@@ -181,6 +192,17 @@ export const sageOsHandlers: GatewayRequestHandlers = {
     const stateStore = createSageOsStateStore();
     const status = await collectSageOsStatus();
     await writeSageOsState(stateStore, status);
+    const state = await readSageOsState(stateStore);
+    context.broadcast("sageos", state, { dropIfSlow: true });
+    respond(true, { result, state }, undefined);
+  },
+  "sageos.copilot.suggest": async ({ params, respond, context }) => {
+    const result = await runSageOsAmbientCopilotOnce({
+      cfg: loadConfig().sageos,
+      maxSuggestions: parseLimit(params.max, 5),
+    });
+    const stateStore = createSageOsStateStore();
+    await writeSageOsState(stateStore, result.status);
     const state = await readSageOsState(stateStore);
     context.broadcast("sageos", state, { dropIfSlow: true });
     respond(true, { result, state }, undefined);

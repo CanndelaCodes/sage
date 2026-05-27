@@ -385,6 +385,56 @@ describe("sage os CLI", () => {
     });
   });
 
+  it("runs the ambient copilot suggestion command", async () => {
+    const runCalls: unknown[] = [];
+    const deps = {
+      loadConfig: () => ({ sageos: { enabled: true, mode: "suggest" as const } }),
+      runAmbientCopilotOnce: async (params: unknown) => {
+        runCalls.push(params);
+        return {
+          observed: 1,
+          proposed: 1,
+          skipped: 0,
+          tasks: [
+            {
+              id: "task_observation_obs_focus",
+              title: "Review observed work: Code",
+              objective: "Review observed focus.",
+              state: "proposed" as const,
+              requestedBy: "sageos.ambient_copilot",
+              autonomyTier: "suggest" as const,
+              policyScopes: [],
+              createdAt: "2026-05-27T17:10:00.000Z",
+              updatedAt: "2026-05-27T17:10:00.000Z",
+            },
+          ],
+          status: createSageOsStatusSnapshot({
+            tasks: { total: 1, active: 0, queued: 1, blocked: 0 },
+          }),
+        };
+      },
+    } as SageOsCliDeps;
+    const program = makeProgram(deps);
+
+    await program.parseAsync(["os", "copilot", "suggest", "--max", "2", "--json"], {
+      from: "user",
+    });
+
+    expect(lastJson()).toMatchObject({
+      result: {
+        observed: 1,
+        proposed: 1,
+        skipped: 0,
+        tasks: [{ id: "task_observation_obs_focus" }],
+      },
+    });
+    expect(runCalls).toHaveLength(1);
+    expect(runCalls[0]).toMatchObject({
+      cfg: { enabled: true, mode: "suggest" },
+      maxSuggestions: 2,
+    });
+  });
+
   it("shows incidents, audit events, and doctor status", async () => {
     const store = createSageOsStateStore();
     const log = createSageOsEventLog();
