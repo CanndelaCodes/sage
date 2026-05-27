@@ -115,6 +115,7 @@ export type SageOsStatusSnapshot = {
   runs: SageOsRunSummary;
   workflows: SageOsSummary;
   skills: SageOsSummary;
+  apps: SageOsSummary;
   approvals: { pending: number };
   observations: { total: number; recent: number; redacted: number; failed: number };
   memory: {
@@ -175,6 +176,7 @@ export function createSageOsStatusSnapshot(
     runs: overrides.runs ?? emptyRunSummary(),
     workflows: overrides.workflows ?? emptySummary(),
     skills: overrides.skills ?? emptySummary(),
+    apps: overrides.apps ?? emptySummary(),
     approvals: overrides.approvals ?? { pending: 0 },
     observations: overrides.observations ?? { total: 0, recent: 0, redacted: 0, failed: 0 },
     memory: overrides.memory ?? {
@@ -299,6 +301,37 @@ export type SageOsSkillRecord = {
   triggerConditions: string[];
   tests: string[];
   allowedScopes: SageOsPolicyScope[];
+  rollbackRef?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export const SAGEOS_APP_CANDIDATE_STATES = [
+  "draft",
+  "preview_ready",
+  "enabled",
+  "blocked",
+  "retired",
+] as const;
+
+export type SageOsAppCandidateState = (typeof SAGEOS_APP_CANDIDATE_STATES)[number];
+
+export type SageOsAppTargetSurface = "widget" | "dashboard" | "tool" | "script" | "canvas";
+
+export type SageOsAppCandidate = {
+  id: string;
+  name: string;
+  state: SageOsAppCandidateState;
+  targetSurface: SageOsAppTargetSurface;
+  purpose: string;
+  sourceObservationIds: string[];
+  provenance: string[];
+  sensitivity: SageOsSensitivity;
+  inputs: string[];
+  outputs: string[];
+  policyScopes: SageOsPolicyScope[];
+  previewCommand?: string;
+  artifactRefs: string[];
   rollbackRef?: string;
   createdAt: string;
   updatedAt: string;

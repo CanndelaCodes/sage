@@ -14,6 +14,7 @@ import {
   readSageOsState,
   upsertSageOsApproval,
   upsertSageOsAgent,
+  upsertSageOsAppCandidate,
   upsertSageOsObservation,
   upsertSageOsRun,
   upsertSageOsSkill,
@@ -100,6 +101,24 @@ describe("SageOS status collector", () => {
       tests: ["obs_recent", "obs_redacted"],
       allowedScopes: [{ kind: "app", allow: ["Code"], risk: "low" }],
       rollbackRef: "workflow_focus_code@candidate",
+      createdAt: now,
+      updatedAt: now,
+    });
+    await upsertSageOsAppCandidate(store, {
+      id: "app_widget_code_focus",
+      name: "Code Focus Widget",
+      state: "draft",
+      targetSurface: "widget",
+      purpose: "Summarize repeated Code focus observations.",
+      sourceObservationIds: ["obs_recent", "obs_redacted"],
+      provenance: ["workflow_focus_code", "obs_recent", "obs_redacted"],
+      sensitivity: "private",
+      inputs: ["window title"],
+      outputs: ["local widget draft"],
+      policyScopes: [{ kind: "app", allow: ["Code"], risk: "low" }],
+      previewCommand: "sage os apps preview app_widget_code_focus",
+      artifactRefs: [],
+      rollbackRef: "delete apps.json entry app_widget_code_focus",
       createdAt: now,
       updatedAt: now,
     });
@@ -242,10 +261,17 @@ describe("SageOS status collector", () => {
     expect(snapshot.runs).toMatchObject({ total: 1, active: 1, failed: 0 });
     expect(snapshot.workflows).toMatchObject({ total: 1, active: 0, queued: 1, blocked: 0 });
     expect(snapshot.skills).toMatchObject({ total: 1, active: 0, queued: 1, blocked: 0 });
+    expect(snapshot.apps).toMatchObject({ total: 1, active: 0, queued: 1, blocked: 0 });
     expect(persisted.skills).toMatchObject([
       {
         id: "skill_focus_code",
         workflowId: "workflow_focus_code",
+      },
+    ]);
+    expect(persisted.apps).toMatchObject([
+      {
+        id: "app_widget_code_focus",
+        sourceObservationIds: ["obs_recent", "obs_redacted"],
       },
     ]);
     expect(snapshot.approvals.pending).toBe(1);

@@ -9,6 +9,7 @@ import {
   readSageOsState,
   readSageOsControl,
   upsertSageOsApproval,
+  upsertSageOsAppCandidate,
   upsertSageOsObservation,
   upsertSageOsRun,
   upsertSageOsAgent,
@@ -31,6 +32,7 @@ const {
   mockSendTaskNotificationOnce,
   mockDiscoverWorkflowCandidates,
   mockDraftSkillFromWorkflow,
+  mockDiscoverAppCandidates,
 } = vi.hoisted(() => ({
   mockLoadConfig: vi.fn(),
   mockRunMemoryStewardOnce: vi.fn(),
@@ -39,6 +41,7 @@ const {
   mockSendTaskNotificationOnce: vi.fn(),
   mockDiscoverWorkflowCandidates: vi.fn(),
   mockDraftSkillFromWorkflow: vi.fn(),
+  mockDiscoverAppCandidates: vi.fn(),
 }));
 
 vi.mock("../../learning/app-focus.js", async (importOriginal) => {
@@ -61,6 +64,9 @@ vi.mock("../../sageos/workflow-compiler.js", () => ({
 }));
 vi.mock("../../sageos/skill-steward.js", () => ({
   draftSageOsSkillFromWorkflow: mockDraftSkillFromWorkflow,
+}));
+vi.mock("../../sageos/app-candidates.js", () => ({
+  discoverSageOsAppCandidates: mockDiscoverAppCandidates,
 }));
 
 const oldStateDir = process.env.SAGE_STATE_DIR;
@@ -91,6 +97,7 @@ describe("SageOS gateway methods", () => {
     mockSendTaskNotificationOnce.mockReset();
     mockDiscoverWorkflowCandidates.mockReset();
     mockDraftSkillFromWorkflow.mockReset();
+    mockDiscoverAppCandidates.mockReset();
   });
 
   afterEach(() => {
@@ -113,6 +120,8 @@ describe("SageOS gateway methods", () => {
     expect(listGatewayMethods()).toContain("sageos.workflows.discover");
     expect(listGatewayMethods()).toContain("sageos.skills.list");
     expect(listGatewayMethods()).toContain("sageos.skills.draft");
+    expect(listGatewayMethods()).toContain("sageos.apps.list");
+    expect(listGatewayMethods()).toContain("sageos.apps.discover");
     expect(listGatewayMethods()).toContain("sageos.runs.list");
     expect(listGatewayMethods()).toContain("sageos.approvals.list");
     expect(listGatewayMethods()).toContain("sageos.approvals.resolve");
@@ -172,7 +181,7 @@ describe("SageOS gateway methods", () => {
     });
   });
 
-  it("lists command-center agent, task, run, workflow, and skill resources", async () => {
+  it("lists command-center agent, task, run, workflow, skill, and app resources", async () => {
     const store = createSageOsStateStore();
     const now = new Date().toISOString();
     await upsertSageOsAgent(store, {
@@ -234,6 +243,24 @@ describe("SageOS gateway methods", () => {
       createdAt: now,
       updatedAt: now,
     });
+    await upsertSageOsAppCandidate(store, {
+      id: "app_build",
+      name: "Build Widget",
+      state: "draft",
+      targetSurface: "widget",
+      purpose: "Summarize repeated build work.",
+      sourceObservationIds: ["obs_1", "obs_2"],
+      provenance: ["obs_1", "obs_2"],
+      sensitivity: "private",
+      inputs: ["captured observation pattern"],
+      outputs: ["local widget candidate"],
+      policyScopes: [{ kind: "app", allow: ["Code"], risk: "low" }],
+      previewCommand: "sage os apps preview app_build",
+      artifactRefs: [],
+      rollbackRef: "delete apps.json entry app_build",
+      createdAt: now,
+      updatedAt: now,
+    });
 
     await expect(invoke("sageos.agents.list")).resolves.toMatchObject({
       response: { ok: true, payload: { agents: [{ id: "agent_builder" }] } },
@@ -249,6 +276,9 @@ describe("SageOS gateway methods", () => {
     });
     await expect(invoke("sageos.skills.list")).resolves.toMatchObject({
       response: { ok: true, payload: { skills: [{ id: "skill_build" }] } },
+    });
+    await expect(invoke("sageos.apps.list")).resolves.toMatchObject({
+      response: { ok: true, payload: { apps: [{ id: "app_build" }] } },
     });
   });
 
@@ -762,6 +792,53 @@ describe("SageOS gateway methods", () => {
     const { response } = await invoke("sageos.skills.draft", {});
     expect(response?.ok).toBe(false);
     expect(response?.error).toMatchObject({ code: "INVALID_REQUEST" });
+  });
+
+  it("discovers app candidates through gateway controls", async () => {
+    mockDiscoverAppCandidates.mockResolvedValue({
+      observed: 2,
+      created: 1,
+      skipped: 0,
+      candidates: [
+        {
+          id: "app_widget_new",
+          name: "New Widget",
+          state: "draft",
+          targetSurface: "widget",
+          purpose: "Summarize repeated app focus.",
+          sourceObservationIds: ["obs_1", "obs_2"],
+          provenance: ["obs_1", "obs_2"],
+          sensitivity: "private",
+          inputs: ["captured observation pattern"],
+          outputs: ["local widget candidate"],
+          policyScopes: [{ kind: "app", allow: ["Terminal"], risk: "low" }],
+          previewCommand: "sage os apps preview app_widget_new",
+          artifactRefs: [],
+          rollbackRef: "delete apps.json entry app_widget_new",
+          createdAt: "2026-05-27T22:50:00.000Z",
+          updatedAt: "2026-05-27T22:50:00.000Z",
+        },
+      ],
+      status: createSageOsStatusSnapshot({
+        apps: { total: 1, active: 0, queued: 1, blocked: 0 },
+      }),
+    });
+
+    const { response, broadcast } = await invoke("sageos.apps.discover", { min: 3 });
+
+    expect(response?.ok).toBe(true);
+    expect(response?.payload).toMatchObject({
+      result: { created: 1, candidates: [{ id: "app_widget_new" }] },
+      state: { status: { apps: { total: 1, queued: 1 } } },
+    });
+    expect(mockDiscoverAppCandidates).toHaveBeenCalledWith({ minOccurrences: 3 });
+    expect(broadcast).toHaveBeenCalledWith(
+      "sageos",
+      expect.objectContaining({
+        status: expect.objectContaining({ apps: expect.objectContaining({ total: 1 }) }),
+      }),
+      { dropIfSlow: true },
+    );
   });
 
   it("writes supervisor control, state, and audit event", async () => {

@@ -9,6 +9,7 @@ import {
   readSageOsState,
   upsertSageOsApproval,
   upsertSageOsAgent,
+  upsertSageOsAppCandidate,
   upsertSageOsObservation,
   upsertSageOsSkill,
   upsertSageOsTask,
@@ -717,6 +718,76 @@ describe("sage os CLI", () => {
     });
     expect(draftCalls).toHaveLength(1);
     expect(draftCalls[0]).toMatchObject({ workflowId: "workflow_new" });
+  });
+
+  it("lists and discovers app candidates through CLI controls", async () => {
+    const store = createSageOsStateStore();
+    const now = "2026-05-27T22:45:00.000Z";
+    await upsertSageOsAppCandidate(store, {
+      id: "app_existing",
+      name: "Existing Widget",
+      state: "draft",
+      targetSurface: "widget",
+      purpose: "Existing app candidate.",
+      sourceObservationIds: ["obs_1", "obs_2"],
+      provenance: ["obs_1", "obs_2"],
+      sensitivity: "private",
+      inputs: ["captured observation pattern"],
+      outputs: ["local widget candidate"],
+      policyScopes: [{ kind: "app", allow: ["Code"], risk: "low" }],
+      previewCommand: "sage os apps preview app_existing",
+      artifactRefs: [],
+      rollbackRef: "delete apps.json entry app_existing",
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const discoverCalls: unknown[] = [];
+    const program = makeProgram({
+      discoverAppCandidates: async (params: unknown) => {
+        discoverCalls.push(params);
+        return {
+          observed: 2,
+          created: 1,
+          skipped: 0,
+          candidates: [
+            {
+              id: "app_widget_new",
+              name: "New Widget",
+              state: "draft" as const,
+              targetSurface: "widget" as const,
+              purpose: "Summarize repeated app focus.",
+              sourceObservationIds: ["obs_3", "obs_4"],
+              provenance: ["obs_3", "obs_4"],
+              sensitivity: "private" as const,
+              inputs: ["captured observation pattern"],
+              outputs: ["local widget candidate"],
+              policyScopes: [{ kind: "app" as const, allow: ["Terminal"], risk: "low" as const }],
+              previewCommand: "sage os apps preview app_widget_new",
+              artifactRefs: [],
+              rollbackRef: "delete apps.json entry app_widget_new",
+              createdAt: now,
+              updatedAt: now,
+            },
+          ],
+          status: createSageOsStatusSnapshot({
+            apps: { total: 2, active: 0, queued: 2, blocked: 0 },
+          }),
+        };
+      },
+    } as SageOsCliDeps);
+
+    await program.parseAsync(["os", "apps", "--json"], { from: "user" });
+    expect(lastJson()).toMatchObject({ apps: [{ id: "app_existing" }] });
+
+    await program.parseAsync(["os", "apps", "discover", "--min", "2", "--json"], {
+      from: "user",
+    });
+    expect(lastJson()).toMatchObject({
+      result: { observed: 2, created: 1, candidates: [{ id: "app_widget_new" }] },
+    });
+    expect(discoverCalls).toHaveLength(1);
+    expect(discoverCalls[0]).toMatchObject({ minOccurrences: 2 });
   });
 
   it("shows incidents, audit events, and doctor status", async () => {

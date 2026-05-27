@@ -1,6 +1,7 @@
 import type { GatewayRequestHandlers } from "./types.js";
 import { loadConfig } from "../../config/config.js";
 import { runSageOsAmbientCopilotOnce } from "../../sageos/ambient-copilot.js";
+import { discoverSageOsAppCandidates } from "../../sageos/app-candidates.js";
 import {
   getSageOsEmployeeTemplate,
   listSageOsEmployeeTemplates,
@@ -203,6 +204,20 @@ export const sageOsHandlers: GatewayRequestHandlers = {
       return;
     }
     const result = await draftSageOsSkillFromWorkflow({ workflowId });
+    const stateStore = createSageOsStateStore();
+    await writeSageOsState(stateStore, result.status);
+    const state = await readSageOsState(stateStore);
+    context.broadcast("sageos", state, { dropIfSlow: true });
+    respond(true, { result, state }, undefined);
+  },
+  "sageos.apps.list": async ({ respond }) => {
+    const state = await readSageOsState(createSageOsStateStore());
+    respond(true, { apps: state.apps }, undefined);
+  },
+  "sageos.apps.discover": async ({ params, respond, context }) => {
+    const result = await discoverSageOsAppCandidates({
+      minOccurrences: parseLimit(params.min, 2),
+    });
     const stateStore = createSageOsStateStore();
     await writeSageOsState(stateStore, result.status);
     const state = await readSageOsState(stateStore);

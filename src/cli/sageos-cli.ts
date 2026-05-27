@@ -2,6 +2,7 @@ import type { Command } from "commander";
 import { loadConfig } from "../config/config.js";
 import { defaultRuntime } from "../runtime.js";
 import { runSageOsAmbientCopilotOnce } from "../sageos/ambient-copilot.js";
+import { discoverSageOsAppCandidates } from "../sageos/app-candidates.js";
 import {
   getSageOsEmployeeTemplate,
   listSageOsEmployeeTemplates,
@@ -33,6 +34,7 @@ import {
   normalizeSageOsMode,
   type SageOsApproval,
   type SageOsAgentSpec,
+  type SageOsAppCandidate,
   type SageOsObservation,
   type SageOsSkillRecord,
   type SageOsTaskSpec,
@@ -48,6 +50,7 @@ export type SageOsCliDeps = {
   sendTelegramDigestOnce?: typeof sendSageOsTelegramDigestOnce;
   discoverWorkflowCandidates?: typeof discoverSageOsWorkflowCandidates;
   draftSkillFromWorkflow?: typeof draftSageOsSkillFromWorkflow;
+  discoverAppCandidates?: typeof discoverSageOsAppCandidates;
   loadConfig?: typeof loadConfig;
 };
 
@@ -170,6 +173,13 @@ function renderSkills(skills: SageOsSkillRecord[]): string {
   return skills.map((skill) => `${skill.id}\t${skill.state}\t${skill.name}`).join("\n");
 }
 
+function renderApps(apps: SageOsAppCandidate[]): string {
+  if (apps.length === 0) {
+    return "No SageOS app candidates.";
+  }
+  return apps.map((app) => `${app.id}\t${app.state}\t${app.name}`).join("\n");
+}
+
 function renderApprovals(approvals: SageOsApproval[]): string {
   if (approvals.length === 0) {
     return "No SageOS approvals.";
@@ -246,6 +256,7 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
   const discoverWorkflowCandidates =
     deps.discoverWorkflowCandidates ?? discoverSageOsWorkflowCandidates;
   const draftSkillFromWorkflow = deps.draftSkillFromWorkflow ?? draftSageOsSkillFromWorkflow;
+  const discoverAppCandidates = deps.discoverAppCandidates ?? discoverSageOsAppCandidates;
   const loadSageConfig = deps.loadConfig ?? loadConfig;
   const os = program.command("os").description("SageOS command center controls");
 
@@ -518,6 +529,30 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
         result.skill
           ? `${result.outcome}: ${result.skill.id}\t${result.skill.name}`
           : `${result.outcome}: ${workflowId}`,
+      );
+    });
+
+  const apps = os.command("apps").description("List SageOS app candidates");
+  apps.option("--json", "Output JSON", false).action(async (opts: { json?: boolean }) => {
+    const state = await readSageOsState(createSageOsStateStore());
+    outputJsonOrText(opts, { apps: state.apps }, () => renderApps(state.apps));
+  });
+
+  apps
+    .command("discover")
+    .description("Discover app/widget candidates from repeated observations")
+    .option("--min <count>", "Minimum repeated observations", "2")
+    .option("--json", "Output JSON", false)
+    .action(async (opts: { min?: string; json?: boolean }, command?: Command) => {
+      const cliOpts = commandOptions(command ?? opts);
+      const result = await discoverAppCandidates({
+        minOccurrences: parseLimit(cliOpts.min, 2),
+      });
+      outputJsonOrText(cliOpts, { result }, () =>
+        [
+          `App candidates: ${result.created}/${result.observed} created, ${result.skipped} skipped`,
+          ...result.candidates.map((app) => `${app.id}\t${app.name}`),
+        ].join("\n"),
       );
     });
 

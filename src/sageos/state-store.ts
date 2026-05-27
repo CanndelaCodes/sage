@@ -7,6 +7,7 @@ import {
   createSageOsStatusSnapshot,
   type SageOsApproval,
   type SageOsAgentSpec,
+  type SageOsAppCandidate,
   type SageOsObservation,
   type SageOsRun,
   type SageOsSkillRecord,
@@ -27,6 +28,7 @@ export type SageOsPersistedState = {
   runs: SageOsRun[];
   workflows: SageOsWorkflow[];
   skills: SageOsSkillRecord[];
+  apps: SageOsAppCandidate[];
   approvals: SageOsApproval[];
   observations: SageOsObservation[];
   updatedAt: string;
@@ -158,6 +160,10 @@ export async function readSageOsState(store: SageOsStateStore): Promise<SageOsPe
     siblingStore(store, "skills.json").path,
     base.skills ?? [],
   );
+  const apps = await readJsonFile<SageOsAppCandidate[]>(
+    siblingStore(store, "apps.json").path,
+    base.apps ?? [],
+  );
   const approvals = await readJsonFile<SageOsApproval[]>(
     siblingStore(store, "approvals.json").path,
     base.approvals ?? [],
@@ -176,6 +182,7 @@ export async function readSageOsState(store: SageOsStateStore): Promise<SageOsPe
       runs,
       workflows,
       skills,
+      apps,
       approvals,
       observations,
       updatedAt: base.updatedAt ?? base.status.generatedAt,
@@ -190,6 +197,7 @@ export async function readSageOsState(store: SageOsStateStore): Promise<SageOsPe
     runs,
     workflows,
     skills,
+    apps,
     approvals,
     observations,
     updatedAt: fallbackStatus.generatedAt,
@@ -214,6 +222,7 @@ export async function writeSageOsState(
     runs: current.runs,
     workflows: current.workflows,
     skills: current.skills,
+    apps: current.apps,
     approvals: current.approvals,
     observations: current.observations,
   };
@@ -277,6 +286,18 @@ export async function upsertSageOsSkill(
   );
   const current = await readSageOsState(store);
   return { ...current, skills, updatedAt: new Date().toISOString() };
+}
+
+export async function upsertSageOsAppCandidate(
+  store: SageOsStateStore,
+  app: SageOsAppCandidate,
+): Promise<SageOsPersistedState> {
+  const appsFile = siblingStore(store, "apps.json").path;
+  const apps = await updateJsonFile<SageOsAppCandidate[]>(appsFile, [], (current) =>
+    current.filter((item) => item.id !== app.id).concat(app),
+  );
+  const current = await readSageOsState(store);
+  return { ...current, apps, updatedAt: new Date().toISOString() };
 }
 
 export async function upsertSageOsApproval(

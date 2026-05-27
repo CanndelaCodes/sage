@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  SAGEOS_APP_CANDIDATE_STATES,
   SAGEOS_AUTONOMY_TIERS,
   SAGEOS_SKILL_STATES,
   SAGEOS_TASK_STATES,
@@ -37,6 +38,7 @@ describe("SageOS shared types", () => {
     expect(snapshot.tasks.total).toBe(0);
     expect(snapshot.workflows.total).toBe(0);
     expect(snapshot.skills.total).toBe(0);
+    expect(snapshot.apps.total).toBe(0);
     expect(snapshot.employees.total).toBe(0);
     expect(snapshot.incidents).toEqual([]);
   });
@@ -51,7 +53,17 @@ describe("SageOS shared types", () => {
     expect(SAGEOS_SKILL_STATES).toEqual(["draft", "active", "deprecated", "retired"]);
   });
 
-  it("exposes resource contracts for employees, tasks, workflows, skills, runs, and policy scopes", () => {
+  it("includes durable app candidate states from draft through retired", () => {
+    expect(SAGEOS_APP_CANDIDATE_STATES).toEqual([
+      "draft",
+      "preview_ready",
+      "enabled",
+      "blocked",
+      "retired",
+    ]);
+  });
+
+  it("exposes resource contracts for employees, tasks, workflows, skills, app candidates, runs, and policy scopes", () => {
     const employee = {
       id: "employee_security",
       name: "Security Sentinel",
@@ -116,11 +128,32 @@ describe("SageOS shared types", () => {
       updatedAt: "2026-05-18T00:00:00.000Z",
     } satisfies import("./types.js").SageOsSkillRecord;
 
+    const app = {
+      id: "app_widget_code_focus_dashboard",
+      name: "Code Focus Dashboard",
+      state: "draft",
+      targetSurface: "widget",
+      purpose: "Summarize repeated Code focus observations.",
+      sourceObservationIds: workflow.sourceObservationIds,
+      provenance: [workflow.id, ...workflow.sourceObservationIds],
+      sensitivity: "private",
+      inputs: ["active window title"],
+      outputs: ["local dashboard"],
+      policyScopes: [{ kind: "app", allow: ["Code"], risk: "low" }],
+      previewCommand: "sage os apps preview app_widget_code_focus_dashboard",
+      artifactRefs: [],
+      rollbackRef: "delete apps.json entry app_widget_code_focus_dashboard",
+      createdAt: "2026-05-18T00:00:00.000Z",
+      updatedAt: "2026-05-18T00:00:00.000Z",
+    } satisfies import("./types.js").SageOsAppCandidate;
+
     expect(task.policyScopes[0]?.kind).toBe("system");
     expect(run.taskId).toBe(task.id);
     expect(workflow.state).toBe("candidate");
     expect(workflow.sourceObservationIds).toHaveLength(2);
     expect(skill.provenance).toContain(workflow.id);
     expect(skill.allowedScopes[0]?.risk).toBe("low");
+    expect(app.targetSurface).toBe("widget");
+    expect(app.policyScopes[0]?.kind).toBe("app");
   });
 });
