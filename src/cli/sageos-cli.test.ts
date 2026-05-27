@@ -55,6 +55,13 @@ describe("sage os CLI", () => {
     const parsed = JSON.parse(runtimeLogs.at(-1) ?? "{}");
     expect(parsed).toMatchObject({ mode: "execute_scoped" });
     expect(parsed.supervisor.state).toBe("stopped");
+    expect(parsed.runs).toMatchObject({ total: 0, active: 0 });
+    expect(parsed.memory).toMatchObject({
+      canonical: "sage-memory",
+      captureQueue: { total: 0 },
+    });
+    expect(parsed.learning).toMatchObject({ activityQueue: { total: 0 } });
+    expect(parsed.audit.eventLogPath).toContain("events.jsonl");
   });
 
   it("pauses, resumes, and emergency-stops through durable state", async () => {

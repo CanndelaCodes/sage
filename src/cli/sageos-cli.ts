@@ -8,28 +8,12 @@ import {
   writeSageOsState,
   createSageOsStateStore,
 } from "../sageos/state-store.js";
+import { renderSageOsStatus } from "../sageos/status-renderer.js";
+import { collectSageOsStatus } from "../sageos/status.js";
 import { createSageOsStatusSnapshot } from "../sageos/types.js";
 
-const renderStatus = (snapshot: ReturnType<typeof createSageOsStatusSnapshot>): string => {
-  const lines = [
-    "SageOS Command Center",
-    `Mode: ${snapshot.mode}`,
-    `Supervisor: ${snapshot.supervisor.state}${snapshot.supervisor.paused ? " (paused)" : ""}`,
-    `Employees: ${snapshot.employees.active}/${snapshot.employees.total} active`,
-    `Tasks: ${snapshot.tasks.active} active, ${snapshot.tasks.queued} queued, ${snapshot.tasks.blocked} blocked`,
-    `Approvals: ${snapshot.approvals.pending} pending`,
-    `Incidents: ${snapshot.incidents.length}`,
-  ];
-  if (snapshot.audit.eventLogPath) {
-    lines.push(`Audit: ${snapshot.audit.eventLogPath}`);
-  }
-  return lines.join("\n");
-};
-
 async function loadSnapshot() {
-  const store = createSageOsStateStore();
-  const state = await readSageOsState(store);
-  return state.status;
+  return await collectSageOsStatus();
 }
 
 async function updateSupervisorState(
@@ -83,7 +67,9 @@ export function registerSageOsCli(program: Command) {
     .option("--json", "Output JSON", false)
     .action(async (opts: { json?: boolean }) => {
       const snapshot = await loadSnapshot();
-      defaultRuntime.log(opts.json ? JSON.stringify(snapshot, null, 2) : renderStatus(snapshot));
+      defaultRuntime.log(
+        opts.json ? JSON.stringify(snapshot, null, 2) : renderSageOsStatus(snapshot),
+      );
     });
 
   os.command("pause")

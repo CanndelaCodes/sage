@@ -7,6 +7,7 @@ import {
   writeSageOsControl,
   writeSageOsState,
 } from "../../sageos/state-store.js";
+import { collectSageOsStatus } from "../../sageos/status.js";
 import { createSageOsStatusSnapshot, type SageOsSupervisorStatus } from "../../sageos/types.js";
 import { ErrorCodes, errorShape } from "../protocol/index.js";
 
@@ -39,8 +40,10 @@ function supervisorStatusForControl(
 
 export const sageOsHandlers: GatewayRequestHandlers = {
   "sageos.status": async ({ respond }) => {
-    const state = await readSageOsState(createSageOsStateStore());
-    respond(true, state, undefined);
+    const stateStore = createSageOsStateStore();
+    const state = await readSageOsState(stateStore);
+    const status = await collectSageOsStatus();
+    respond(true, { ...state, status }, undefined);
   },
   "sageos.agents.list": async ({ respond }) => {
     const state = await readSageOsState(createSageOsStateStore());
@@ -81,6 +84,8 @@ export const sageOsHandlers: GatewayRequestHandlers = {
       summary: `SageOS ${emergency ? "emergency stop" : controlState}: ${reason}`,
     });
 
+    const statusWithAudit = await collectSageOsStatus();
+    await writeSageOsState(stateStore, statusWithAudit);
     const state = await readSageOsState(stateStore);
     context.broadcast("sageos", state, { dropIfSlow: true });
     respond(true, state, undefined);

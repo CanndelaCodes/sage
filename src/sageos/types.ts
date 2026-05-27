@@ -79,6 +79,22 @@ export type SageOsSummary = {
   blocked: number;
 };
 
+export type SageOsRunSummary = {
+  total: number;
+  active: number;
+  queued: number;
+  failed: number;
+};
+
+export type SageOsQueueSummary = {
+  total: number;
+  pending: number;
+  failed: number;
+  path?: string;
+};
+
+export type SageOsHealthState = "ok" | "degraded" | "disabled" | "unknown";
+
 export type SageOsIncident = {
   id: string;
   severity: "info" | "warning" | "error" | "critical";
@@ -96,19 +112,55 @@ export type SageOsStatusSnapshot = {
   supervisor: SageOsSupervisorStatus;
   employees: SageOsSummary;
   tasks: SageOsSummary;
+  runs: SageOsRunSummary;
   approvals: { pending: number };
+  memory: {
+    status: SageOsHealthState;
+    backend: "sage-memory" | "qmd" | "builtin" | "unknown";
+    canonical: "sage-memory" | "builtin" | "unknown";
+    captureQueue: SageOsQueueSummary;
+  };
+  learning: {
+    status: SageOsHealthState;
+    activityQueue: SageOsQueueSummary;
+  };
+  sources: {
+    enabled: string[];
+    disabled: string[];
+    failing: string[];
+  };
+  policy: {
+    mode: SageOsAutonomyMode;
+    defaultTier: SageOsAutonomyMode;
+    approvalsRequired: string[];
+  };
+  coding: {
+    enabled: boolean;
+    allowedRepos: string[];
+    restrictions: string[];
+  };
+  notifications: {
+    telegram: {
+      enabled: boolean;
+      target?: string;
+    };
+    urgentPending: number;
+  };
   incidents: SageOsIncident[];
   audit: { recentEvents: number; eventLogPath?: string };
 };
 
 const emptySummary = (): SageOsSummary => ({ total: 0, active: 0, queued: 0, blocked: 0 });
+const emptyRunSummary = (): SageOsRunSummary => ({ total: 0, active: 0, queued: 0, failed: 0 });
+const emptyQueueSummary = (): SageOsQueueSummary => ({ total: 0, pending: 0, failed: 0 });
 
 export function createSageOsStatusSnapshot(
   overrides: Partial<SageOsStatusSnapshot> = {},
 ): SageOsStatusSnapshot {
+  const mode = normalizeSageOsMode(overrides.mode);
   return {
     generatedAt: new Date().toISOString(),
-    mode: normalizeSageOsMode(overrides.mode),
+    mode,
     supervisor: {
       enabled: false,
       paused: false,
@@ -117,7 +169,36 @@ export function createSageOsStatusSnapshot(
     },
     employees: overrides.employees ?? emptySummary(),
     tasks: overrides.tasks ?? emptySummary(),
+    runs: overrides.runs ?? emptyRunSummary(),
     approvals: overrides.approvals ?? { pending: 0 },
+    memory: overrides.memory ?? {
+      status: "unknown",
+      backend: "unknown",
+      canonical: "unknown",
+      captureQueue: emptyQueueSummary(),
+    },
+    learning: overrides.learning ?? {
+      status: "unknown",
+      activityQueue: emptyQueueSummary(),
+    },
+    sources: overrides.sources ?? { enabled: [], disabled: [], failing: [] },
+    policy: overrides.policy ?? {
+      mode,
+      defaultTier: mode,
+      approvalsRequired: [
+        "destructive",
+        "external_writes",
+        "production",
+        "credentials",
+        "policy_changes",
+        "private_data_export",
+      ],
+    },
+    coding: overrides.coding ?? { enabled: false, allowedRepos: [], restrictions: [] },
+    notifications: overrides.notifications ?? {
+      telegram: { enabled: false },
+      urgentPending: 0,
+    },
     incidents: overrides.incidents ?? [],
     audit: overrides.audit ?? { recentEvents: 0 },
   };

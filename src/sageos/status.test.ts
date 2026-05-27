@@ -1,0 +1,143 @@
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+import { enqueueLearningEvents, replayLearningEventQueue } from "../learning/activity-queue.js";
+import { normalizeLearningEvent } from "../learning/events.js";
+import {
+  enqueueSageMemoryCaptureFailure,
+  replaySageMemoryCaptureQueue,
+} from "../memory/sage-memory-capture-queue.js";
+import { appendSageOsEvent, createSageOsEventLog } from "./event-log.js";
+import {
+  createSageOsStateStore,
+  upsertSageOsAgent,
+  upsertSageOsRun,
+  upsertSageOsTask,
+  writeSageOsState,
+} from "./state-store.js";
+import { collectSageOsStatus } from "./status.js";
+import { createSageOsStatusSnapshot } from "./types.js";
+
+describe("SageOS status collector", () => {
+  it("collects command-center status from durable resources and local queues", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "sageos-status-"));
+    const store = createSageOsStateStore({ stateDir: root });
+    const now = "2026-05-27T12:00:00.000Z";
+
+    await writeSageOsState(
+      store,
+      createSageOsStatusSnapshot({
+        supervisor: { enabled: true, paused: false, state: "running" },
+      }),
+    );
+    await upsertSageOsAgent(store, {
+      id: "agent_memory",
+      name: "Memory Steward",
+      role: "memory",
+      mission: "Keep Sage Memory capture healthy.",
+      status: "active",
+      autonomyTier: "execute_scoped",
+      responsibilities: ["memory"],
+      allowedScopes: [{ kind: "memory", allow: ["capture"], risk: "low" }],
+      deniedScopes: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    for (const [id, state] of [
+      ["task_queued", "queued"],
+      ["task_running", "running"],
+      ["task_blocked", "blocked"],
+    ] as const) {
+      await upsertSageOsTask(store, {
+        id,
+        title: id,
+        objective: `Exercise ${state} task accounting.`,
+        state,
+        requestedBy: "test",
+        autonomyTier: "execute_scoped",
+        policyScopes: [],
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+    await upsertSageOsRun(store, {
+      id: "run_active",
+      taskId: "task_running",
+      attempt: 1,
+      state: "running",
+      traceId: "trace_active",
+      startedAt: now,
+    });
+
+    const log = createSageOsEventLog({ stateDir: root });
+    await appendSageOsEvent(log, {
+      type: "task_queued",
+      actor: "test",
+      summary: "Queued test task.",
+    });
+
+    const memoryQueuePath = path.join(root, "agents", "main", "sage-memory", "capture-queue.json");
+    const sessionFile = path.join(root, "session.jsonl");
+    await fs.writeFile(sessionFile, "{}\n", "utf8");
+    await enqueueSageMemoryCaptureFailure({
+      queuePath: memoryQueuePath,
+      agentId: "main",
+      sessionFile,
+      captureMethod: "sage-memory-heartbeat",
+      error: "remote offline",
+      now: () => new Date(now),
+    });
+    await replaySageMemoryCaptureQueue({
+      queuePath: memoryQueuePath,
+      agentId: "main",
+      cfg: { memory: { backend: "sage-memory" } } as never,
+      managerFactory: () => ({
+        ingestLlmSession: async () => {
+          throw new Error("still offline");
+        },
+      }),
+      now: () => new Date("2026-05-27T12:01:00.000Z"),
+    });
+
+    const learningQueuePath = path.join(root, "agents", "main", "learning", "activity-queue.json");
+    const learningEvent = normalizeLearningEvent(
+      {
+        source: "tool_usage",
+        actor: "agent:main",
+        title: "Recovered workflow",
+        text: "A useful workflow should be retained.",
+      },
+      {
+        now: () => new Date(now),
+        idFactory: () => "learning-event-1",
+      },
+    );
+    await enqueueLearningEvents({ queuePath: learningQueuePath, events: [learningEvent] });
+    await replayLearningEventQueue({
+      queuePath: learningQueuePath,
+      ingest: async () => {
+        throw new Error("memory unavailable");
+      },
+      now: () => new Date("2026-05-27T12:02:00.000Z"),
+    });
+
+    const snapshot = await collectSageOsStatus({
+      stateDir: root,
+      agentId: "main",
+      memoryCaptureQueuePath: memoryQueuePath,
+      learningActivityQueuePath: learningQueuePath,
+    });
+
+    expect(snapshot.employees).toMatchObject({ total: 1, active: 1 });
+    expect(snapshot.tasks).toMatchObject({ total: 3, active: 1, queued: 1, blocked: 1 });
+    expect(snapshot.runs).toMatchObject({ total: 1, active: 1, failed: 0 });
+    expect(snapshot.memory.captureQueue.failed).toBe(1);
+    expect(snapshot.learning.activityQueue.failed).toBe(1);
+    expect(snapshot.audit).toMatchObject({ recentEvents: 1, eventLogPath: log.path });
+    expect(snapshot.incidents.map((incident) => incident.category)).toEqual(
+      expect.arrayContaining(["memory", "learning"]),
+    );
+  });
+});

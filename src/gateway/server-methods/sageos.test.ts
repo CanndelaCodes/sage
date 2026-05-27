@@ -6,8 +6,8 @@ import {
   createSageOsControlStore,
   createSageOsStateStore,
   readSageOsControl,
-  upsertSageOsAgent,
   upsertSageOsRun,
+  upsertSageOsAgent,
   upsertSageOsTask,
 } from "../../sageos/state-store.js";
 import { listGatewayMethods, GATEWAY_EVENTS } from "../server-methods-list.js";
@@ -52,13 +52,33 @@ describe("SageOS gateway methods", () => {
   });
 
   it("returns durable SageOS status", async () => {
+    const store = createSageOsStateStore();
+    const now = new Date().toISOString();
+    await upsertSageOsTask(store, {
+      id: "task_status",
+      title: "Expose status",
+      objective: "Count durable tasks in gateway status.",
+      state: "queued",
+      requestedBy: "test",
+      autonomyTier: "execute_scoped",
+      policyScopes: [],
+      createdAt: now,
+      updatedAt: now,
+    });
     const { response } = await invoke("sageos.status");
     expect(response?.ok).toBe(true);
     expect(response?.payload).toMatchObject({
       version: 1,
-      status: { supervisor: { state: "stopped" } },
+      status: {
+        supervisor: { state: "stopped" },
+        tasks: { total: 1, queued: 1 },
+        runs: { total: 0 },
+        memory: { canonical: "sage-memory", captureQueue: { total: 0 } },
+        learning: { activityQueue: { total: 0 } },
+        audit: { eventLogPath: expect.stringContaining("events.jsonl") },
+      },
       agents: [],
-      tasks: [],
+      tasks: [{ id: "task_status" }],
       runs: [],
     });
   });
