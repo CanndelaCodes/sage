@@ -15,6 +15,7 @@ import {
   upsertSageOsApproval,
   upsertSageOsAgent,
   upsertSageOsAppCandidate,
+  upsertSageOsCodingReport,
   upsertSageOsObservation,
   upsertSageOsRun,
   upsertSageOsSkill,
@@ -119,6 +120,25 @@ describe("SageOS status collector", () => {
       previewCommand: "sage os apps preview app_widget_code_focus",
       artifactRefs: [],
       rollbackRef: "delete apps.json entry app_widget_code_focus",
+      createdAt: now,
+      updatedAt: now,
+    });
+    await upsertSageOsCodingReport(store, {
+      id: "coding_report_task_running_1",
+      taskId: "task_running",
+      runId: "run_active",
+      repoPath: "C:\\repo",
+      objective: "Run targeted tests.",
+      outcome: "succeeded",
+      startedAt: now,
+      finishedAt: now,
+      preState: { branch: "main", dirty: false, changedFiles: [] },
+      postState: { branch: "main", dirty: true, changedFiles: ["README.md"] },
+      diff: { stat: "README.md | 1 +", preview: "+done", changedFiles: ["README.md"] },
+      tests: [{ command: "node test.js", exitCode: 0, stdoutPreview: "ok", stderrPreview: "" }],
+      blockers: [],
+      verificationRefs: ["test:node test.js"],
+      rollback: "Review git diff and revert changed files if needed.",
       createdAt: now,
       updatedAt: now,
     });
@@ -262,6 +282,10 @@ describe("SageOS status collector", () => {
     expect(snapshot.workflows).toMatchObject({ total: 1, active: 0, queued: 1, blocked: 0 });
     expect(snapshot.skills).toMatchObject({ total: 1, active: 0, queued: 1, blocked: 0 });
     expect(snapshot.apps).toMatchObject({ total: 1, active: 0, queued: 1, blocked: 0 });
+    expect(snapshot.coding).toMatchObject({
+      reports: { total: 1, active: 1, blocked: 0 },
+      lastReportId: "coding_report_task_running_1",
+    });
     expect(persisted.skills).toMatchObject([
       {
         id: "skill_focus_code",
@@ -272,6 +296,12 @@ describe("SageOS status collector", () => {
       {
         id: "app_widget_code_focus",
         sourceObservationIds: ["obs_recent", "obs_redacted"],
+      },
+    ]);
+    expect(persisted.codingReports).toMatchObject([
+      {
+        id: "coding_report_task_running_1",
+        outcome: "succeeded",
       },
     ]);
     expect(snapshot.approvals.pending).toBe(1);

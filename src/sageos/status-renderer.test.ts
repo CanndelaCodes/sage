@@ -31,7 +31,13 @@ describe("SageOS status renderer", () => {
       },
       sources: { enabled: ["sageSessions"], disabled: ["browser"], failing: [] },
       notifications: { telegram: { enabled: true, target: "urgent" }, urgentPending: 1 },
-      coding: { enabled: true, allowedRepos: ["C:/repo"], restrictions: ["no_release"] },
+      coding: {
+        enabled: true,
+        allowedRepos: ["C:/repo"],
+        restrictions: ["no_release"],
+        reports: { total: 1, active: 1, queued: 0, blocked: 0 },
+        lastReportId: "coding_report_1",
+      },
       audit: { recentEvents: 4, eventLogPath: "events.jsonl" },
     });
 
@@ -52,7 +58,7 @@ describe("SageOS status renderer", () => {
     expect(output).toContain("Policy: execute_scoped, approvals destructive, external_writes");
     expect(output).toContain("Sources: 1 enabled, 1 disabled, 0 failing");
     expect(output).toContain("Notifications: Telegram enabled, urgent pending 1");
-    expect(output).toContain("Coding: enabled, 1 repos, restrictions no_release");
+    expect(output).toContain("Coding: enabled, 1 repos, 1 reports, restrictions no_release");
     expect(output).toContain("Audit: 4 recent events, events.jsonl");
   });
 });

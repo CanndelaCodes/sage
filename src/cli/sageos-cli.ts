@@ -3,6 +3,7 @@ import { loadConfig } from "../config/config.js";
 import { defaultRuntime } from "../runtime.js";
 import { runSageOsAmbientCopilotOnce } from "../sageos/ambient-copilot.js";
 import { discoverSageOsAppCandidates } from "../sageos/app-candidates.js";
+import { runSageOsNightShiftTask } from "../sageos/coding/night-shift.js";
 import {
   getSageOsEmployeeTemplate,
   listSageOsEmployeeTemplates,
@@ -35,6 +36,7 @@ import {
   type SageOsApproval,
   type SageOsAgentSpec,
   type SageOsAppCandidate,
+  type SageOsCodingReport,
   type SageOsObservation,
   type SageOsSkillRecord,
   type SageOsTaskSpec,
@@ -53,6 +55,7 @@ export type SageOsCliDeps = {
   dryRunWorkflow?: typeof dryRunSageOsWorkflow;
   draftSkillFromWorkflow?: typeof draftSageOsSkillFromWorkflow;
   discoverAppCandidates?: typeof discoverSageOsAppCandidates;
+  runNightShiftTask?: typeof runSageOsNightShiftTask;
   loadConfig?: typeof loadConfig;
 };
 
@@ -182,6 +185,15 @@ function renderApps(apps: SageOsAppCandidate[]): string {
   return apps.map((app) => `${app.id}\t${app.state}\t${app.name}`).join("\n");
 }
 
+function renderCodingReports(reports: SageOsCodingReport[]): string {
+  if (reports.length === 0) {
+    return "No SageOS coding reports.";
+  }
+  return reports
+    .map((report) => `${report.id}\t${report.outcome}\t${report.taskId}\t${report.repoPath}`)
+    .join("\n");
+}
+
 function renderApprovals(approvals: SageOsApproval[]): string {
   if (approvals.length === 0) {
     return "No SageOS approvals.";
@@ -260,6 +272,7 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
   const dryRunWorkflow = deps.dryRunWorkflow ?? dryRunSageOsWorkflow;
   const draftSkillFromWorkflow = deps.draftSkillFromWorkflow ?? draftSageOsSkillFromWorkflow;
   const discoverAppCandidates = deps.discoverAppCandidates ?? discoverSageOsAppCandidates;
+  const runNightShiftTask = deps.runNightShiftTask ?? runSageOsNightShiftTask;
   const loadSageConfig = deps.loadConfig ?? loadConfig;
   const os = program.command("os").description("SageOS command center controls");
 
@@ -576,6 +589,76 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
         ].join("\n"),
       );
     });
+
+  const coding = os.command("coding").description("List SageOS coding reports");
+  coding.option("--json", "Output JSON", false).action(async (opts: { json?: boolean }) => {
+    const state = await readSageOsState(createSageOsStateStore());
+    outputJsonOrText(opts, { reports: state.codingReports }, () =>
+      renderCodingReports(state.codingReports),
+    );
+  });
+
+  coding
+    .command("inspect <id>")
+    .description("Inspect a SageOS coding report")
+    .option("--json", "Output JSON", false)
+    .action(async (id: string, opts: { json?: boolean }) => {
+      const cliOpts = commandOptions(opts);
+      const state = await readSageOsState(createSageOsStateStore());
+      const report = state.codingReports.find((entry) => entry.id === id);
+      if (!report) {
+        fail(`SageOS coding report not found: ${id}`);
+      }
+      outputJsonOrText(cliOpts, { report }, () => renderJsonResource({ report }));
+    });
+
+  coding
+    .command("run <taskId>")
+    .description("Run a scoped SageOS Night Shift coding task")
+    .option("--append-file <path>", "Repo-relative file to append")
+    .option("--append-text <text>", "Text to append to --append-file")
+    .option("--test-command <command>", "Test command to run in the repo")
+    .option("--json", "Output JSON", false)
+    .action(
+      async (
+        taskIdInput: string,
+        opts: {
+          appendFile?: string;
+          appendText?: string;
+          testCommand?: string;
+          json?: boolean;
+        },
+        command?: Command,
+      ) => {
+        const cliOpts = commandOptions(command ?? opts);
+        const taskId = taskIdInput.trim();
+        if (!taskId) {
+          fail("Task id required.");
+        }
+        const hasAppendFile = Boolean(cliOpts.appendFile?.trim());
+        const hasAppendText = cliOpts.appendText !== undefined;
+        if (hasAppendFile !== hasAppendText) {
+          fail("--append-file and --append-text must be provided together.");
+        }
+        const result = await runNightShiftTask({
+          taskId,
+          cfg: loadSageConfig().sageos,
+          append: hasAppendFile
+            ? {
+                relativePath: cliOpts.appendFile!.trim(),
+                text: cliOpts.appendText ?? "",
+              }
+            : undefined,
+          testCommand: cliOpts.testCommand?.trim() || undefined,
+          requestedBy: "sageos.cli",
+        });
+        outputJsonOrText(
+          cliOpts,
+          { result },
+          () => `${result.outcome}: ${result.task.id}\t${result.report.id}`,
+        );
+      },
+    );
 
   const approvals = os.command("approvals").description("List SageOS approvals");
   approvals.option("--json", "Output JSON", false).action(async (opts: { json?: boolean }) => {

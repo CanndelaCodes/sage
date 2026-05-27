@@ -152,6 +152,8 @@ export type SageOsStatusSnapshot = {
     enabled: boolean;
     allowedRepos: string[];
     restrictions: string[];
+    reports: SageOsSummary;
+    lastReportId?: string;
   };
   notifications: {
     telegram: {
@@ -212,7 +214,12 @@ export function createSageOsStatusSnapshot(
         "private_data_export",
       ],
     },
-    coding: overrides.coding ?? { enabled: false, allowedRepos: [], restrictions: [] },
+    coding: overrides.coding ?? {
+      enabled: false,
+      allowedRepos: [],
+      restrictions: [],
+      reports: emptySummary(),
+    },
     notifications: overrides.notifications ?? {
       telegram: { enabled: false },
       urgentPending: 0,
@@ -267,6 +274,47 @@ export type SageOsRun = {
   startedAt?: string;
   finishedAt?: string;
   error?: string;
+};
+
+export type SageOsRepoState = {
+  branch?: string;
+  dirty: boolean;
+  changedFiles: string[];
+};
+
+export type SageOsCodingDiff = {
+  stat: string;
+  preview: string;
+  changedFiles: string[];
+};
+
+export type SageOsCodingTestResult = {
+  command: string;
+  exitCode: number;
+  stdoutPreview: string;
+  stderrPreview: string;
+};
+
+export type SageOsCodingReportOutcome = "succeeded" | "failed" | "blocked";
+
+export type SageOsCodingReport = {
+  id: string;
+  taskId: string;
+  runId: string;
+  repoPath: string;
+  objective: string;
+  outcome: SageOsCodingReportOutcome;
+  startedAt: string;
+  finishedAt: string;
+  preState: SageOsRepoState;
+  postState: SageOsRepoState;
+  diff: SageOsCodingDiff;
+  tests: SageOsCodingTestResult[];
+  blockers: string[];
+  verificationRefs: string[];
+  rollback: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export const SAGEOS_WORKFLOW_STATES = [
@@ -464,6 +512,7 @@ export type SageOsConfig = {
   coding?: {
     enabled?: boolean;
     allowedRepos?: string[];
+    requireCleanGit?: boolean;
     allowDependencyChanges?: boolean;
     allowRelease?: boolean;
     allowDeploy?: boolean;

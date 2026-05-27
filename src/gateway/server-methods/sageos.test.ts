@@ -10,6 +10,7 @@ import {
   readSageOsControl,
   upsertSageOsApproval,
   upsertSageOsAppCandidate,
+  upsertSageOsCodingReport,
   upsertSageOsObservation,
   upsertSageOsRun,
   upsertSageOsAgent,
@@ -34,6 +35,7 @@ const {
   mockDraftSkillFromWorkflow,
   mockDiscoverAppCandidates,
   mockDryRunWorkflow,
+  mockRunNightShiftTask,
 } = vi.hoisted(() => ({
   mockLoadConfig: vi.fn(),
   mockRunMemoryStewardOnce: vi.fn(),
@@ -44,6 +46,7 @@ const {
   mockDraftSkillFromWorkflow: vi.fn(),
   mockDiscoverAppCandidates: vi.fn(),
   mockDryRunWorkflow: vi.fn(),
+  mockRunNightShiftTask: vi.fn(),
 }));
 
 vi.mock("../../learning/app-focus.js", async (importOriginal) => {
@@ -72,6 +75,9 @@ vi.mock("../../sageos/app-candidates.js", () => ({
 }));
 vi.mock("../../sageos/workflow-runner.js", () => ({
   dryRunSageOsWorkflow: mockDryRunWorkflow,
+}));
+vi.mock("../../sageos/coding/night-shift.js", () => ({
+  runSageOsNightShiftTask: mockRunNightShiftTask,
 }));
 
 const oldStateDir = process.env.SAGE_STATE_DIR;
@@ -104,6 +110,7 @@ describe("SageOS gateway methods", () => {
     mockDraftSkillFromWorkflow.mockReset();
     mockDiscoverAppCandidates.mockReset();
     mockDryRunWorkflow.mockReset();
+    mockRunNightShiftTask.mockReset();
   });
 
   afterEach(() => {
@@ -129,6 +136,8 @@ describe("SageOS gateway methods", () => {
     expect(listGatewayMethods()).toContain("sageos.skills.draft");
     expect(listGatewayMethods()).toContain("sageos.apps.list");
     expect(listGatewayMethods()).toContain("sageos.apps.discover");
+    expect(listGatewayMethods()).toContain("sageos.coding.list");
+    expect(listGatewayMethods()).toContain("sageos.coding.run");
     expect(listGatewayMethods()).toContain("sageos.runs.list");
     expect(listGatewayMethods()).toContain("sageos.approvals.list");
     expect(listGatewayMethods()).toContain("sageos.approvals.resolve");
@@ -287,6 +296,115 @@ describe("SageOS gateway methods", () => {
     await expect(invoke("sageos.apps.list")).resolves.toMatchObject({
       response: { ok: true, payload: { apps: [{ id: "app_build" }] } },
     });
+  });
+
+  it("lists and runs coding reports through gateway controls", async () => {
+    const store = createSageOsStateStore();
+    const now = "2026-05-27T23:58:00.000Z";
+    await upsertSageOsCodingReport(store, {
+      id: "coding_report_existing",
+      taskId: "task_existing",
+      runId: "run_existing_1",
+      repoPath: "C:\\repo",
+      objective: "Run tests.",
+      outcome: "succeeded",
+      startedAt: now,
+      finishedAt: now,
+      preState: { branch: "main", dirty: false, changedFiles: [] },
+      postState: { branch: "main", dirty: true, changedFiles: ["README.md"] },
+      diff: { stat: "README.md | 1 +", preview: "+done", changedFiles: ["README.md"] },
+      tests: [{ command: "node test.js", exitCode: 0, stdoutPreview: "ok", stderrPreview: "" }],
+      blockers: [],
+      verificationRefs: ["test:node test.js"],
+      rollback: "Review git diff and revert changed files if needed.",
+      createdAt: now,
+      updatedAt: now,
+    });
+    mockLoadConfig.mockReturnValue({
+      sageos: { coding: { enabled: true, allowedRepos: ["C:\\repo"] } },
+    });
+    mockRunNightShiftTask.mockResolvedValue({
+      outcome: "succeeded",
+      task: {
+        id: "task_new",
+        title: "Run fixture",
+        objective: "Append marker and test.",
+        state: "completed",
+        requestedBy: "jason",
+        autonomyTier: "execute_scoped",
+        policyScopes: [{ kind: "repo", allow: ["C:\\repo"], risk: "low" }],
+        createdAt: now,
+        updatedAt: now,
+      },
+      run: {
+        id: "run_task_new_1",
+        taskId: "task_new",
+        attempt: 1,
+        state: "succeeded",
+        traceId: "trace_task_new",
+        startedAt: now,
+        finishedAt: now,
+      },
+      report: {
+        id: "coding_report_task_new_1",
+        taskId: "task_new",
+        runId: "run_task_new_1",
+        repoPath: "C:\\repo",
+        objective: "Append marker and test.",
+        outcome: "succeeded",
+        startedAt: now,
+        finishedAt: now,
+        preState: { branch: "main", dirty: false, changedFiles: [] },
+        postState: { branch: "main", dirty: true, changedFiles: ["README.md"] },
+        diff: { stat: "README.md | 1 +", preview: "+done", changedFiles: ["README.md"] },
+        tests: [{ command: "node test.js", exitCode: 0, stdoutPreview: "ok", stderrPreview: "" }],
+        blockers: [],
+        verificationRefs: ["test:node test.js"],
+        rollback: "Review git diff and revert changed files if needed.",
+        createdAt: now,
+        updatedAt: now,
+      },
+      status: createSageOsStatusSnapshot(),
+    });
+
+    const list = await invoke("sageos.coding.list");
+    expect(list.response?.ok).toBe(true);
+    expect(list.response?.payload).toMatchObject({
+      reports: [{ id: "coding_report_existing", outcome: "succeeded" }],
+    });
+
+    const run = await invoke("sageos.coding.run", {
+      taskId: "task_new",
+      appendFile: "README.md",
+      appendText: "done",
+      testCommand: "node test.js",
+    });
+    expect(run.response?.ok).toBe(true);
+    expect(run.response?.payload).toMatchObject({
+      result: { outcome: "succeeded", report: { id: "coding_report_task_new_1" } },
+    });
+    expect(mockRunNightShiftTask).toHaveBeenCalledWith({
+      taskId: "task_new",
+      cfg: { coding: { enabled: true, allowedRepos: ["C:\\repo"] } },
+      append: { relativePath: "README.md", text: "done" },
+      testCommand: "node test.js",
+      requestedBy: "sageos.gateway",
+    });
+    expect(run.broadcast).toHaveBeenCalledWith(
+      "sageos",
+      expect.objectContaining({
+        codingReports: expect.arrayContaining([
+          expect.objectContaining({ id: "coding_report_existing" }),
+        ]),
+      }),
+      { dropIfSlow: true },
+    );
+  });
+
+  it("rejects coding runs without a task id", async () => {
+    const { response } = await invoke("sageos.coding.run", {});
+    expect(response?.ok).toBe(false);
+    expect(response?.error).toMatchObject({ code: "INVALID_REQUEST" });
   });
 
   it("queues proposed tasks through gateway policy controls", async () => {

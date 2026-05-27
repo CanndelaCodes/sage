@@ -20,6 +20,8 @@ const BASE_METHODS = [
   "sageos.skills.draft",
   "sageos.apps.list",
   "sageos.apps.discover",
+  "sageos.coding.list",
+  "sageos.coding.run",
   "sageos.runs.list",
   "sageos.approvals.list",
   "sageos.approvals.resolve",

@@ -2,6 +2,7 @@ import type { GatewayRequestHandlers } from "./types.js";
 import { loadConfig } from "../../config/config.js";
 import { runSageOsAmbientCopilotOnce } from "../../sageos/ambient-copilot.js";
 import { discoverSageOsAppCandidates } from "../../sageos/app-candidates.js";
+import { runSageOsNightShiftTask } from "../../sageos/coding/night-shift.js";
 import {
   getSageOsEmployeeTemplate,
   listSageOsEmployeeTemplates,
@@ -242,6 +243,47 @@ export const sageOsHandlers: GatewayRequestHandlers = {
     const stateStore = createSageOsStateStore();
     await writeSageOsState(stateStore, result.status);
     const state = await readSageOsState(stateStore);
+    context.broadcast("sageos", state, { dropIfSlow: true });
+    respond(true, { result, state }, undefined);
+  },
+  "sageos.coding.list": async ({ respond }) => {
+    const state = await readSageOsState(createSageOsStateStore());
+    respond(true, { reports: state.codingReports }, undefined);
+  },
+  "sageos.coding.run": async ({ params, respond, context }) => {
+    const taskId = typeof params.taskId === "string" ? params.taskId.trim() : "";
+    if (!taskId) {
+      respond(
+        false,
+        undefined,
+        errorShape(ErrorCodes.INVALID_REQUEST, "invalid sageos.coding.run params: taskId"),
+      );
+      return;
+    }
+    const appendFile = typeof params.appendFile === "string" ? params.appendFile.trim() : "";
+    const appendText = typeof params.appendText === "string" ? params.appendText : undefined;
+    if (Boolean(appendFile) !== (appendText !== undefined)) {
+      respond(
+        false,
+        undefined,
+        errorShape(
+          ErrorCodes.INVALID_REQUEST,
+          "invalid sageos.coding.run params: appendFile and appendText must be paired",
+        ),
+      );
+      return;
+    }
+    const result = await runSageOsNightShiftTask({
+      taskId,
+      cfg: loadConfig().sageos,
+      append: appendFile ? { relativePath: appendFile, text: appendText ?? "" } : undefined,
+      testCommand:
+        typeof params.testCommand === "string" && params.testCommand.trim()
+          ? params.testCommand.trim()
+          : undefined,
+      requestedBy: "sageos.gateway",
+    });
+    const state = await readSageOsState(createSageOsStateStore());
     context.broadcast("sageos", state, { dropIfSlow: true });
     respond(true, { result, state }, undefined);
   },

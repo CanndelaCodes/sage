@@ -223,6 +223,7 @@ const SageOsSchema = z
       .object({
         enabled: z.boolean().optional(),
         allowedRepos: z.array(z.string()).optional(),
+        requireCleanGit: z.boolean().optional(),
         allowDependencyChanges: z.boolean().optional(),
         allowRelease: z.boolean().optional(),
         allowDeploy: z.boolean().optional(),

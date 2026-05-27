@@ -10,6 +10,7 @@ import {
   upsertSageOsApproval,
   upsertSageOsAgent,
   upsertSageOsAppCandidate,
+  upsertSageOsCodingReport,
   upsertSageOsObservation,
   upsertSageOsSkill,
   upsertSageOsTask,
@@ -836,6 +837,123 @@ describe("sage os CLI", () => {
     });
     expect(discoverCalls).toHaveLength(1);
     expect(discoverCalls[0]).toMatchObject({ minOccurrences: 2 });
+  });
+
+  it("lists, inspects, and runs coding reports through CLI controls", async () => {
+    const store = createSageOsStateStore();
+    const now = "2026-05-27T23:55:00.000Z";
+    await upsertSageOsCodingReport(store, {
+      id: "coding_report_existing",
+      taskId: "task_existing",
+      runId: "run_existing_1",
+      repoPath: "C:\\repo",
+      objective: "Run tests.",
+      outcome: "succeeded",
+      startedAt: now,
+      finishedAt: now,
+      preState: { branch: "main", dirty: false, changedFiles: [] },
+      postState: { branch: "main", dirty: true, changedFiles: ["README.md"] },
+      diff: { stat: "README.md | 1 +", preview: "+done", changedFiles: ["README.md"] },
+      tests: [{ command: "node test.js", exitCode: 0, stdoutPreview: "ok", stderrPreview: "" }],
+      blockers: [],
+      verificationRefs: ["test:node test.js"],
+      rollback: "Review git diff and revert changed files if needed.",
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const runCalls: unknown[] = [];
+    const program = makeProgram({
+      loadConfig: () => ({
+        sageos: { coding: { enabled: true, allowedRepos: ["C:\\repo"] } },
+      }),
+      runNightShiftTask: async (params: unknown) => {
+        runCalls.push(params);
+        return {
+          outcome: "succeeded" as const,
+          task: {
+            id: "task_new",
+            title: "Run fixture",
+            objective: "Append marker and test.",
+            state: "completed" as const,
+            requestedBy: "jason",
+            autonomyTier: "execute_scoped" as const,
+            policyScopes: [{ kind: "repo" as const, allow: ["C:\\repo"], risk: "low" as const }],
+            createdAt: now,
+            updatedAt: now,
+          },
+          run: {
+            id: "run_task_new_1",
+            taskId: "task_new",
+            attempt: 1,
+            state: "succeeded" as const,
+            traceId: "trace_task_new",
+            startedAt: now,
+            finishedAt: now,
+          },
+          report: {
+            id: "coding_report_task_new_1",
+            taskId: "task_new",
+            runId: "run_task_new_1",
+            repoPath: "C:\\repo",
+            objective: "Append marker and test.",
+            outcome: "succeeded" as const,
+            startedAt: now,
+            finishedAt: now,
+            preState: { branch: "main", dirty: false, changedFiles: [] },
+            postState: { branch: "main", dirty: true, changedFiles: ["README.md"] },
+            diff: { stat: "README.md | 1 +", preview: "+done", changedFiles: ["README.md"] },
+            tests: [
+              { command: "node test.js", exitCode: 0, stdoutPreview: "ok", stderrPreview: "" },
+            ],
+            blockers: [],
+            verificationRefs: ["test:node test.js"],
+            rollback: "Review git diff and revert changed files if needed.",
+            createdAt: now,
+            updatedAt: now,
+          },
+          status: createSageOsStatusSnapshot(),
+        };
+      },
+    } as SageOsCliDeps);
+
+    await program.parseAsync(["os", "coding", "--json"], { from: "user" });
+    expect(lastJson()).toMatchObject({ reports: [{ id: "coding_report_existing" }] });
+
+    await program.parseAsync(["os", "coding", "inspect", "coding_report_existing", "--json"], {
+      from: "user",
+    });
+    expect(lastJson()).toMatchObject({
+      report: { id: "coding_report_existing", diff: { changedFiles: ["README.md"] } },
+    });
+
+    await program.parseAsync(
+      [
+        "os",
+        "coding",
+        "run",
+        "task_new",
+        "--append-file",
+        "README.md",
+        "--append-text",
+        "done",
+        "--test-command",
+        "node test.js",
+        "--json",
+      ],
+      { from: "user" },
+    );
+    expect(lastJson()).toMatchObject({
+      result: { outcome: "succeeded", report: { id: "coding_report_task_new_1" } },
+    });
+    expect(runCalls).toHaveLength(1);
+    expect(runCalls[0]).toMatchObject({
+      taskId: "task_new",
+      cfg: { coding: { enabled: true, allowedRepos: ["C:\\repo"] } },
+      append: { relativePath: "README.md", text: "done" },
+      testCommand: "node test.js",
+      requestedBy: "sageos.cli",
+    });
   });
 
   it("shows incidents, audit events, and doctor status", async () => {

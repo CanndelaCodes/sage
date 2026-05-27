@@ -15,6 +15,7 @@ import {
   type SageOsConfig,
   type SageOsAgentSpec,
   type SageOsAppCandidate,
+  type SageOsCodingReport,
   type SageOsIncident,
   type SageOsObservation,
   type SageOsQueueSummary,
@@ -117,7 +118,7 @@ export async function collectSageOsStatus(
     },
     sources: summarizeSources(opts.cfg),
     policy: summarizePolicy(opts.cfg, state.status.mode),
-    coding: summarizeCoding(opts.cfg),
+    coding: summarizeCoding(opts.cfg, state.codingReports),
     notifications: summarizeNotifications(opts.cfg, incidents),
     incidents,
     audit: {
@@ -320,16 +321,30 @@ function summarizePolicy(
   };
 }
 
-function summarizeCoding(cfg: SageOsConfig | undefined): SageOsStatusSnapshot["coding"] {
+function summarizeCoding(
+  cfg: SageOsConfig | undefined,
+  reports: SageOsCodingReport[],
+): SageOsStatusSnapshot["coding"] {
   const restrictions = [
+    cfg?.coding?.requireCleanGit === false ? undefined : "clean_git_required",
     cfg?.coding?.allowDependencyChanges ? undefined : "dependency_changes_require_approval",
     cfg?.coding?.allowRelease ? undefined : "release_requires_approval",
     cfg?.coding?.allowDeploy ? undefined : "deploy_requires_approval",
   ].filter((value): value is string => Boolean(value));
+  const lastReport = reports.toSorted(
+    (a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt),
+  )[0];
   return {
     enabled: cfg?.coding?.enabled === true,
     allowedRepos: cfg?.coding?.allowedRepos ?? [],
     restrictions,
+    reports: {
+      total: reports.length,
+      active: reports.filter((report) => report.outcome === "succeeded").length,
+      queued: 0,
+      blocked: reports.filter((report) => report.outcome === "blocked").length,
+    },
+    lastReportId: lastReport?.id,
   };
 }
 

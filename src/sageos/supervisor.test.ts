@@ -9,6 +9,7 @@ import {
   readSageOsState,
   upsertSageOsApproval,
   upsertSageOsAgent,
+  upsertSageOsCodingReport,
   upsertSageOsObservation,
   upsertSageOsRun,
   upsertSageOsTask,
@@ -197,6 +198,65 @@ describe("SageOS state store", () => {
     expect(state.status.supervisor.state).toBe("stopped");
     expect(state.tasks).toHaveLength(1);
     expect(state.runs).toEqual([expect.objectContaining({ taskId: "task_1" })]);
+  });
+
+  it("persists durable coding reports without losing other resources", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-coding-report-store-"));
+    const store = createSageOsStateStore({ stateDir: root });
+    const now = "2026-05-27T23:30:00.000Z";
+
+    await upsertSageOsTask(store, {
+      id: "task_fix",
+      title: "Fix failing test",
+      objective: "Fix a failing test in an allowed repo.",
+      state: "completed",
+      requestedBy: "jason",
+      autonomyTier: "execute_scoped",
+      policyScopes: [{ kind: "repo", allow: ["C:\\repo"], risk: "low" }],
+      createdAt: now,
+      updatedAt: now,
+    });
+    await upsertSageOsCodingReport(store, {
+      id: "coding_report_task_fix_1",
+      taskId: "task_fix",
+      runId: "run_task_fix_1",
+      repoPath: "C:\\repo",
+      objective: "Fix a failing test in an allowed repo.",
+      outcome: "succeeded",
+      startedAt: now,
+      finishedAt: now,
+      preState: { branch: "main", dirty: false, changedFiles: [] },
+      postState: { branch: "main", dirty: true, changedFiles: ["README.md"] },
+      diff: {
+        stat: "README.md | 1 +",
+        preview: "+night shift",
+        changedFiles: ["README.md"],
+      },
+      tests: [
+        {
+          command: "node test.js",
+          exitCode: 0,
+          stdoutPreview: "ok",
+          stderrPreview: "",
+        },
+      ],
+      blockers: [],
+      verificationRefs: ["test:node test.js"],
+      rollback: "Review git diff and revert changed files if needed.",
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const state = await readSageOsState(store);
+    expect(state.tasks).toEqual([expect.objectContaining({ id: "task_fix" })]);
+    expect(state.codingReports).toEqual([
+      expect.objectContaining({
+        id: "coding_report_task_fix_1",
+        taskId: "task_fix",
+        outcome: "succeeded",
+        diff: expect.objectContaining({ changedFiles: ["README.md"] }),
+      }),
+    ]);
   });
 
   it("persists durable approval resources without losing other resources", async () => {

@@ -22,7 +22,7 @@ export function renderSageOsStatus(snapshot: SageOsStatusSnapshot): string {
     }, urgent pending ${snapshot.notifications.urgentPending}`,
     `Coding: ${
       snapshot.coding.enabled ? "enabled" : "disabled"
-    }, ${snapshot.coding.allowedRepos.length} repos, restrictions ${listOrNone(
+    }, ${snapshot.coding.allowedRepos.length} repos, ${snapshot.coding.reports.total} reports, restrictions ${listOrNone(
       snapshot.coding.restrictions,
     )}`,
     `Incidents: ${snapshot.incidents.length}`,

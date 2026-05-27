@@ -8,6 +8,7 @@ import {
   type SageOsApproval,
   type SageOsAgentSpec,
   type SageOsAppCandidate,
+  type SageOsCodingReport,
   type SageOsObservation,
   type SageOsRun,
   type SageOsSkillRecord,
@@ -29,6 +30,7 @@ export type SageOsPersistedState = {
   workflows: SageOsWorkflow[];
   skills: SageOsSkillRecord[];
   apps: SageOsAppCandidate[];
+  codingReports: SageOsCodingReport[];
   approvals: SageOsApproval[];
   observations: SageOsObservation[];
   updatedAt: string;
@@ -164,6 +166,10 @@ export async function readSageOsState(store: SageOsStateStore): Promise<SageOsPe
     siblingStore(store, "apps.json").path,
     base.apps ?? [],
   );
+  const codingReports = await readJsonFile<SageOsCodingReport[]>(
+    siblingStore(store, "coding-reports.json").path,
+    base.codingReports ?? [],
+  );
   const approvals = await readJsonFile<SageOsApproval[]>(
     siblingStore(store, "approvals.json").path,
     base.approvals ?? [],
@@ -183,6 +189,7 @@ export async function readSageOsState(store: SageOsStateStore): Promise<SageOsPe
       workflows,
       skills,
       apps,
+      codingReports,
       approvals,
       observations,
       updatedAt: base.updatedAt ?? base.status.generatedAt,
@@ -198,6 +205,7 @@ export async function readSageOsState(store: SageOsStateStore): Promise<SageOsPe
     workflows,
     skills,
     apps,
+    codingReports,
     approvals,
     observations,
     updatedAt: fallbackStatus.generatedAt,
@@ -223,6 +231,7 @@ export async function writeSageOsState(
     workflows: current.workflows,
     skills: current.skills,
     apps: current.apps,
+    codingReports: current.codingReports,
     approvals: current.approvals,
     observations: current.observations,
   };
@@ -298,6 +307,18 @@ export async function upsertSageOsAppCandidate(
   );
   const current = await readSageOsState(store);
   return { ...current, apps, updatedAt: new Date().toISOString() };
+}
+
+export async function upsertSageOsCodingReport(
+  store: SageOsStateStore,
+  report: SageOsCodingReport,
+): Promise<SageOsPersistedState> {
+  const reportsFile = siblingStore(store, "coding-reports.json").path;
+  const codingReports = await updateJsonFile<SageOsCodingReport[]>(reportsFile, [], (current) =>
+    current.filter((item) => item.id !== report.id).concat(report),
+  );
+  const current = await readSageOsState(store);
+  return { ...current, codingReports, updatedAt: new Date().toISOString() };
 }
 
 export async function upsertSageOsApproval(
