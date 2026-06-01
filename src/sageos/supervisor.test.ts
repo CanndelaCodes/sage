@@ -135,6 +135,41 @@ describe("SageOS supervisor skeleton", () => {
     });
   });
 
+  it("persists degraded supervisor state when background work fails", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-supervisor-work-loop-error-"));
+    const runWorkLoopOnce = vi.fn().mockRejectedValue(new Error("observer failed"));
+    const supervisor = createSageOsSupervisor({
+      stateDir: root,
+      intervalMs: 5,
+      runWorkLoopOnce,
+    });
+
+    await supervisor.start();
+    const deadline = Date.now() + 500;
+    while (Date.now() < deadline && supervisor.getStatus().state !== "degraded") {
+      await wait(5);
+    }
+    expect(runWorkLoopOnce).toHaveBeenCalled();
+    try {
+      const store = createSageOsStateStore({ stateDir: root });
+      let persisted = await readSageOsState(store);
+      while (Date.now() < deadline && persisted.status.supervisor.state !== "degraded") {
+        await wait(5);
+        persisted = await readSageOsState(store);
+      }
+      expect(persisted).toMatchObject({
+        status: {
+          supervisor: {
+            state: "degraded",
+            lastError: "Error: observer failed",
+          },
+        },
+      });
+    } finally {
+      await supervisor.stop("test");
+    }
+  });
+
   it("routes enabled observation, memory replay, and queued task work through one supervisor work loop", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "sageos-supervisor-work-routes-"));
     const now = new Date("2026-06-01T15:00:00.000Z");

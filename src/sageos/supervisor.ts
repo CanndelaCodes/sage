@@ -223,9 +223,10 @@ export function createSageOsSupervisor(options: SageOsSupervisorOptions = {}): S
         await persist(result.status);
       }
     })()
-      .catch((err: unknown) => {
+      .catch(async (err: unknown) => {
         if (status.state === "running") {
           status = { ...status, state: "degraded", lastError: String(err) };
+          await persist();
         }
       })
       .finally(() => {
