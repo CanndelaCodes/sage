@@ -9,6 +9,7 @@ import { renderCommandDeck } from "./components/command-deck.js";
 import { renderCompactHud } from "./components/compact-hud.js";
 import { renderEdgeRail } from "./components/edge-rail.js";
 import { renderPinnedWidgets } from "./components/pinned-widgets.js";
+import type { PinnedWidgetView } from "./components/pinned-widgets.js";
 import { renderUniversalLauncher } from "./components/universal-launcher.js";
 import { OverlayGatewayBrowserClient } from "./gateway-client.js";
 import { SageOsOverlayController } from "./overlay-controller.js";
@@ -124,6 +125,7 @@ export function renderOverlayModel(
     },
     overview: buildOverviewGroups(status),
     workspace: buildWorkspaceModel(state, opts.workspaceTarget),
+    pinnedWidgets: buildPinnedWidgets(status),
     hud: {
       badges: [
         { label: "Tasks", value: activeTasks },
@@ -291,7 +293,7 @@ export class SageOsOverlayApp extends LitElement {
                     })
                   : nothing}
                 ${surfaceVisibility.pinnedWidgets
-                  ? renderPinnedWidgets(["activeOperations", "approvals", "incidents"])
+                  ? renderPinnedWidgets(model.pinnedWidgets)
                   : nothing}
                 ${surfaceVisibility.compactHud ? renderCompactHud(model.hud.badges) : nothing}
                 ${surfaceVisibility.edgeRail ? renderEdgeRail(model.edgeRail.badges) : nothing}
@@ -569,9 +571,7 @@ function safeLocalStorage(): Pick<Storage, "getItem"> | null {
 function buildOverviewGroups(
   status: SageOsOverlayStatusState["status"],
 ): OverlayOverviewGroup[] {
-  const urgentIncidents = status.incidents.filter(
-    (incident) => incident.severity === "critical" || incident.severity === "error",
-  ).length;
+  const urgentIncidents = countUrgentIncidents(status);
   const warningIncidents = status.incidents.filter(
     (incident) => incident.severity === "warning",
   ).length;
@@ -652,6 +652,12 @@ function buildOverviewGroups(
       ],
     },
   ];
+}
+
+function countUrgentIncidents(status: SageOsOverlayStatusState["status"]): number {
+  return status.incidents.filter(
+    (incident) => incident.severity === "critical" || incident.severity === "error",
+  ).length;
 }
 
 function buildWorkspaceModel(
@@ -760,6 +766,33 @@ function buildWorkspaceModel(
       },
     ],
   };
+}
+
+function buildPinnedWidgets(status: SageOsOverlayStatusState["status"]): PinnedWidgetView[] {
+  const urgentIncidents = countUrgentIncidents(status);
+  const warningIncidents = status.incidents.filter(
+    (incident) => incident.severity === "warning",
+  ).length;
+  return [
+    {
+      id: "activeOperations",
+      title: "Active Operations",
+      value: String(status.tasks.active),
+      detail: `${status.tasks.queued} queued / ${status.tasks.blocked} blocked`,
+    },
+    {
+      id: "approvals",
+      title: "Approvals",
+      value: String(status.approvals.pending),
+      detail: "Pending decisions",
+    },
+    {
+      id: "incidents",
+      title: "Incidents",
+      value: String(status.incidents.length),
+      detail: `${urgentIncidents} urgent / ${warningIncidents} warning`,
+    },
+  ];
 }
 
 function missingWorkspaceTarget(target: AgentWorkspaceTarget): AgentWorkspaceView {

@@ -360,6 +360,26 @@ button:not(:disabled):hover {
   pointer-events: auto;
 }
 
+.pinned-widget {
+  display: grid;
+  gap: 4px;
+}
+
+.pinned-widget__title,
+.pinned-widget__detail {
+  overflow: hidden;
+  color: #b7c1bd;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pinned-widget__value {
+  font-size: 24px;
+  font-weight: 650;
+  line-height: 1.1;
+}
+
 @media (max-width: 980px) {
   .overlay-shell {
     width: min(100vw - 24px, 760px);

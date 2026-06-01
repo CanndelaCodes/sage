@@ -207,6 +207,31 @@ describe("overlay renderer model", () => {
     });
   });
 
+  it("maps pinned widgets into live status summaries", () => {
+    const model = renderOverlayModel(state as never);
+
+    expect(model.pinnedWidgets).toEqual([
+      {
+        id: "activeOperations",
+        title: "Active Operations",
+        value: "1",
+        detail: "1 queued / 1 blocked",
+      },
+      {
+        id: "approvals",
+        title: "Approvals",
+        value: "2",
+        detail: "Pending decisions",
+      },
+      {
+        id: "incidents",
+        title: "Incidents",
+        value: "1",
+        detail: "0 urgent / 1 warning",
+      },
+    ]);
+  });
+
   it("reads gateway settings from URL parameters before defaults", () => {
     const settings = readOverlayGatewaySettings(
       "?gatewayUrl=ws%3A%2F%2F127.0.0.1%3A18888&token=abc&password=secret",
