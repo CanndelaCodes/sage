@@ -302,6 +302,35 @@ export function getOverlaySurfaceVisibility(surface: OverlaySurface): OverlaySur
   };
 }
 
+export type OverlayKeyboardActions = {
+  close: () => void;
+  focusLauncher: () => void;
+};
+
+export function handleOverlayKeyboardShortcut(
+  event: KeyboardEvent,
+  actions: OverlayKeyboardActions,
+) {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    actions.close();
+    return;
+  }
+
+  const target = event.target as Partial<HTMLElement> | null;
+  const tagName = target?.tagName?.toLowerCase();
+  const isTextEditing =
+    tagName === "input" || tagName === "textarea" || tagName === "select" || target?.isContentEditable;
+  if (isTextEditing) {
+    return;
+  }
+
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+    event.preventDefault();
+    actions.focusLauncher();
+  }
+}
+
 export class SageOsOverlayApp extends LitElement {
   static properties = {
     surface: { state: true },
@@ -322,6 +351,11 @@ export class SageOsOverlayApp extends LitElement {
   private sageOsState: SageOsOverlayStatusState | null = null;
   private launcherCommand = "";
   private workspaceTarget: AgentWorkspaceTarget | null = null;
+  private readonly onOverlayKeyDown = (event: KeyboardEvent) =>
+    handleOverlayKeyboardShortcut(event, {
+      close: () => void window.sageOsOverlay?.close(),
+      focusLauncher: () => this.focusLauncher(),
+    });
 
   protected createRenderRoot() {
     return this;
@@ -347,10 +381,12 @@ export class SageOsOverlayApp extends LitElement {
     controller = new SageOsOverlayController(client, () => this.syncControllerState());
     this.controller = controller;
     window.sageOsOverlay?.onSurface((surface) => this.setSurface(surface));
+    window.addEventListener("keydown", this.onOverlayKeyDown);
     controller.start();
   }
 
   disconnectedCallback() {
+    window.removeEventListener("keydown", this.onOverlayKeyDown);
     this.controller?.stop();
     this.controller = null;
     super.disconnectedCallback();

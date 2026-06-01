@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   getOverlaySurfaceVisibility,
+  handleOverlayKeyboardShortcut,
   readInitialOverlaySurface,
   readOverlayGatewaySettings,
   readOverlayLayoutSettings,
@@ -538,5 +539,54 @@ describe("overlay renderer model", () => {
     ).createRenderRoot();
 
     expect(renderRoot).toBe(app);
+  });
+
+  it("maps overlay keyboard shortcuts to close and launcher focus actions", () => {
+    const close = vi.fn();
+    const focusLauncher = vi.fn();
+    const preventDefault = vi.fn();
+
+    handleOverlayKeyboardShortcut(
+      {
+        key: "Escape",
+        target: { tagName: "MAIN" },
+        preventDefault,
+      } as unknown as KeyboardEvent,
+      { close, focusLauncher },
+    );
+    handleOverlayKeyboardShortcut(
+      {
+        key: "k",
+        ctrlKey: true,
+        target: { tagName: "MAIN" },
+        preventDefault,
+      } as unknown as KeyboardEvent,
+      { close, focusLauncher },
+    );
+
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(focusLauncher).toHaveBeenCalledTimes(1);
+    expect(preventDefault).toHaveBeenCalledTimes(2);
+  });
+
+  it("dismisses from text fields but does not steal command focus shortcuts from them", () => {
+    const close = vi.fn();
+    const focusLauncher = vi.fn();
+    const preventDefault = vi.fn();
+    const input = { tagName: "INPUT" };
+    const textarea = { tagName: "TEXTAREA" };
+
+    handleOverlayKeyboardShortcut(
+      { key: "Escape", target: input, preventDefault } as unknown as KeyboardEvent,
+      { close, focusLauncher },
+    );
+    handleOverlayKeyboardShortcut(
+      { key: "k", metaKey: true, target: textarea, preventDefault } as unknown as KeyboardEvent,
+      { close, focusLauncher },
+    );
+
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(focusLauncher).not.toHaveBeenCalled();
+    expect(preventDefault).toHaveBeenCalledTimes(1);
   });
 });

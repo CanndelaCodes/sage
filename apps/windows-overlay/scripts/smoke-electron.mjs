@@ -98,6 +98,12 @@ async function smokeFullOverlay(gatewayUrl) {
 
     await page.evaluate(() => window.sageOsOverlay?.expand());
     await page.waitForSelector(".overlay-shell--commandDeck", { timeout: 5_000 });
+    await page.keyboard.press("Control+K");
+    await page.waitForFunction(
+      () => document.activeElement?.getAttribute("aria-label") === "SageOS command",
+    );
+    await page.keyboard.press("Escape");
+    await waitForOverlayWindowHidden(app);
   } finally {
     await app.close().catch(() => {});
   }
@@ -151,6 +157,23 @@ async function assertPreloadBridge(page) {
   assertEqual(api.collapse, "function", "window.sageOsOverlay?.collapse is exposed");
   assertEqual(api.expand, "function", "window.sageOsOverlay?.expand is exposed");
   assertEqual(api.close, "function", "window.sageOsOverlay?.close is exposed");
+}
+
+async function waitForOverlayWindowHidden(app, timeoutMs = 5_000) {
+  const page = app.windows()[0];
+  if (!page) {
+    throw new Error("Overlay smoke did not find an Electron window");
+  }
+  const browserWindow = await app.browserWindow(page);
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    const visible = await browserWindow.evaluate((window) => window.isVisible());
+    if (!visible) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error("Timed out waiting for overlay BrowserWindow to hide");
 }
 
 async function startMockGateway(recorded) {

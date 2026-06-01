@@ -2,7 +2,7 @@
 
 Date: 2026-06-01
 Operator: Codex
-Build: overlay hotkey and active-monitor hardening slice after fff04fae50
+Build: overlay keyboard dismissal slice after e5c05118ac
 
 ## Preconditions
 
@@ -29,6 +29,8 @@ Build: overlay hotkey and active-monitor hardening slice after fff04fae50
 - [x] `SAGEOS_OVERLAY_ACTIVE_MONITOR=auto|primary|<display id>` routes the overlay to the active, primary, or configured monitor.
 - [x] `powershell -ExecutionPolicy Bypass -File scripts/sageos-windows-overlay.ps1 -OpenMode hud` starts HUD-first mode.
 - [x] HUD expands to full overlay.
+- [x] `Ctrl+K` focuses the Universal Launcher when the full overlay is active.
+- [x] `Escape` dismisses the overlay through the preload IPC close bridge.
 - [x] Edge Rail collapse keeps health, approval, and incident indicators visible.
 - [ ] Pinned widget mode leaves the underlying app usable outside active widget controls.
 - [x] Pause, resume, approve, deny, queue, cancel, and emergency stop controls call the expected `sageos.*` RPC methods.
@@ -53,6 +55,7 @@ Build: overlay hotkey and active-monitor hardening slice after fff04fae50
   queue, cancel, and launcher send. Unit coverage now verifies the registered global hotkey
   callback opens and closes the overlay, startup fails if Electron reports hotkey registration
   failure, and active-monitor selection honors `primary` plus configured display IDs. The smoke
-  emitted Electron's development CSP warning only; no renderer page errors were observed.
-  Physical hotkey open/close and real pass-through usability over an underlying app still need
-  physical/manual verification.
+  now presses `Ctrl+K`, verifies launcher focus, presses `Escape`, and waits for the Electron
+  BrowserWindow to hide through the close bridge. The smoke emitted Electron's development CSP
+  warning only; no renderer page errors were observed. Physical hotkey open/close and real
+  pass-through usability over an underlying app still need physical/manual verification.

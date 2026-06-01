@@ -26,6 +26,9 @@ describe("Electron overlay smoke script", () => {
       'name: "Run", exact: true',
       'waitForRecordedMethod("sageos.tasks.queue")',
       'filter({ hasText: "Memory replay" })',
+      'page.keyboard.press("Control+K")',
+      'page.keyboard.press("Escape")',
+      'waitForOverlayWindowHidden(app)',
     ]) {
       expect(script).toContain(expected);
     }
