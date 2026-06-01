@@ -115,11 +115,21 @@ button:not(:disabled):hover {
   min-height: 0;
 }
 
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
 .overlay-panel {
   display: grid;
   align-content: start;
   gap: 10px;
   min-width: 0;
+}
+
+.overview-panel {
+  gap: 8px;
 }
 
 .overlay-panel__header {
@@ -186,6 +196,38 @@ button:not(:disabled):hover {
   gap: 8px;
 }
 
+.overview-row {
+  display: grid;
+  grid-template-columns: minmax(92px, 0.7fr) minmax(86px, 0.55fr) minmax(0, 1.2fr);
+  gap: 10px;
+  align-items: center;
+  min-height: 34px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  color: #d9dfdc;
+  font-size: 13px;
+}
+
+.overview-row__label,
+.overview-row__value,
+.overview-row__detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overview-row__label {
+  color: #b7c1bd;
+}
+
+.overview-row__value {
+  color: #f7f7f2;
+  font-weight: 650;
+}
+
+.overview-row__detail {
+  color: #8fa19a;
+}
+
 .universal-launcher {
   display: grid;
   grid-template-columns: 1fr auto auto;
@@ -237,11 +279,13 @@ button:not(:disabled):hover {
   }
 
   .command-deck,
+  .overview-grid,
   .operational-grid {
     grid-template-columns: 1fr;
   }
 
-  .overlay-row {
+  .overlay-row,
+  .overview-row {
     grid-template-columns: 1fr;
   }
 }

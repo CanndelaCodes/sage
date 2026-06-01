@@ -12,6 +12,8 @@ import type { SageOsOverlayStatusState } from "./sageos-actions.js";
 
 export type OverlayCard = { title: string; value: string; detail: string };
 export type OverlayBadge = { label: string; value: string };
+export type OverlayOverviewRow = { label: string; value: string; detail: string };
+export type OverlayOverviewGroup = { title: string; rows: OverlayOverviewRow[] };
 export type OverlayTaskRow = {
   id: string;
   title: string;
@@ -97,6 +99,7 @@ export function renderOverlayModel(state: SageOsOverlayStatusState) {
       approvals: approvalRows satisfies OverlayApprovalRow[],
       incidents: incidentRows satisfies OverlayIncidentRow[],
     },
+    overview: buildOverviewGroups(status),
     hud: {
       badges: [
         { label: "Tasks", value: activeTasks },
@@ -207,6 +210,7 @@ export class SageOsOverlayApp extends LitElement {
             ? html`
                 ${renderUniversalLauncher()}
                 ${renderCommandDeck(model.commandDeck.cards)}
+                ${this.renderOverviewGroups(model.overview)}
                 ${this.renderOperationalRows(model.commandDeck)}
                 ${renderAgentWorkspace(
                   "Agent Workspace",
@@ -219,6 +223,31 @@ export class SageOsOverlayApp extends LitElement {
             : html`<section class="overlay-callout">Waiting for SageOS gateway state.</section>`}
         </section>
       </main>
+    `;
+  }
+
+  private renderOverviewGroups(groups: ReturnType<typeof renderOverlayModel>["overview"]) {
+    return html`
+      <section class="overview-grid">
+        ${groups.map(
+          (group) => html`
+            <article class="overlay-panel overview-panel">
+              <div class="overlay-panel__header">
+                <h2>${group.title}</h2>
+              </div>
+              ${group.rows.map(
+                (row) => html`
+                  <div class="overview-row">
+                    <span class="overview-row__label">${row.label}</span>
+                    <span class="overview-row__value">${row.value}</span>
+                    <span class="overview-row__detail">${row.detail}</span>
+                  </div>
+                `,
+              )}
+            </article>
+          `,
+        )}
+      </section>
     `;
   }
 
@@ -347,4 +376,114 @@ function safeLocalStorage(): Pick<Storage, "getItem"> | null {
   } catch {
     return null;
   }
+}
+
+function buildOverviewGroups(
+  status: SageOsOverlayStatusState["status"],
+): OverlayOverviewGroup[] {
+  const urgentIncidents = status.incidents.filter(
+    (incident) => incident.severity === "critical" || incident.severity === "error",
+  ).length;
+  const warningIncidents = status.incidents.filter(
+    (incident) => incident.severity === "warning",
+  ).length;
+
+  return [
+    {
+      title: "Workforce",
+      rows: [
+        summaryRow("Employees", status.employees),
+        summaryRow("Tasks", status.tasks),
+        runSummaryRow("Runs", status.runs),
+        summaryRow("Workflows", status.workflows),
+        summaryRow("Skills", status.skills),
+        summaryRow("Apps", status.apps),
+      ],
+    },
+    {
+      title: "Computer",
+      rows: [
+        {
+          label: "Observations",
+          value: `${status.observations.recent} recent`,
+          detail: [
+            `${status.observations.total} total`,
+            `${status.observations.failed} failed`,
+            `${status.observations.redacted} redacted`,
+          ].join(" / "),
+        },
+        {
+          label: "Security",
+          value: `${urgentIncidents} urgent`,
+          detail: `${warningIncidents} warnings / ${status.incidents.length} incidents`,
+        },
+        {
+          label: "Sources",
+          value: `${status.sources.enabled.length} enabled`,
+          detail: `${status.sources.disabled.length} disabled / ${status.sources.failing.length} failing`,
+        },
+        {
+          label: "Coding",
+          value: status.coding.enabled ? "Enabled" : "Disabled",
+          detail: `${status.coding.reports.total} reports / ${status.coding.allowedRepos.length} repos`,
+        },
+        {
+          label: "Policy",
+          value: status.policy.mode,
+          detail: status.policy.approvalsRequired.join(", ") || "No extra approvals",
+        },
+      ],
+    },
+    {
+      title: "Memory",
+      rows: [
+        {
+          label: "Memory",
+          value: status.memory.status,
+          detail: [
+            `${status.memory.captureQueue.pending} pending`,
+            `${status.memory.captureQueue.failed} failed`,
+            status.memory.backend,
+          ].join(" / "),
+        },
+        {
+          label: "Learning",
+          value: status.learning.status,
+          detail: `${status.learning.activityQueue.pending} pending / ${status.learning.activityQueue.failed} failed`,
+        },
+        {
+          label: "Notifications",
+          value: `${status.notifications.urgentPending} urgent`,
+          detail: status.notifications.telegram.enabled ? "Telegram enabled" : "Telegram disabled",
+        },
+        {
+          label: "Audit",
+          value: `${status.audit.recentEvents} events`,
+          detail: status.audit.eventLogPath ?? "Event log pending",
+        },
+      ],
+    },
+  ];
+}
+
+function summaryRow(
+  label: string,
+  summary: { total: number; active: number; blocked: number },
+): OverlayOverviewRow {
+  return {
+    label,
+    value: `${summary.active} active`,
+    detail: `${summary.total} total / ${summary.blocked} blocked`,
+  };
+}
+
+function runSummaryRow(
+  label: string,
+  summary: { total: number; active: number; failed: number },
+): OverlayOverviewRow {
+  return {
+    label,
+    value: `${summary.active} active`,
+    detail: `${summary.total} total / ${summary.failed} failed`,
+  };
 }

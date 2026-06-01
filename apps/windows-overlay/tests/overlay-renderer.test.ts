@@ -3,10 +3,41 @@ import { readOverlayGatewaySettings, renderOverlayModel } from "../src/renderer/
 
 const state = {
   status: {
+    generatedAt: "2026-06-01T13:00:00.000Z",
     mode: "execute_scoped",
     supervisor: { state: "running", enabled: true, paused: false },
+    employees: { total: 7, active: 3, queued: 1, blocked: 0 },
     approvals: { pending: 2 },
     tasks: { total: 3, active: 1, queued: 1, blocked: 1 },
+    runs: { total: 4, active: 1, queued: 0, failed: 1 },
+    workflows: { total: 5, active: 2, queued: 1, blocked: 0 },
+    skills: { total: 9, active: 1, queued: 0, blocked: 0 },
+    apps: { total: 2, active: 1, queued: 0, blocked: 0 },
+    observations: { total: 20, recent: 4, redacted: 2, failed: 1 },
+    memory: {
+      status: "degraded",
+      backend: "sage-memory",
+      canonical: "sage-memory",
+      captureQueue: { total: 6, pending: 2, failed: 1, path: "memory.jsonl" },
+    },
+    learning: {
+      status: "ok",
+      activityQueue: { total: 5, pending: 1, failed: 0, path: "learning.jsonl" },
+    },
+    sources: { enabled: ["apps", "clipboard"], disabled: ["audio"], failing: ["screen"] },
+    policy: {
+      mode: "execute_scoped",
+      defaultTier: "execute_scoped",
+      approvalsRequired: ["destructive", "external_writes"],
+    },
+    coding: {
+      enabled: true,
+      allowedRepos: ["C:/Users/jason/Desktop/sage"],
+      restrictions: ["no destructive git"],
+      reports: { total: 2, active: 0, queued: 1, blocked: 0 },
+    },
+    notifications: { telegram: { enabled: true, target: "Jason" }, urgentPending: 1 },
+    audit: { recentEvents: 12, eventLogPath: "events.jsonl" },
     incidents: [
       {
         id: "incident_1",
@@ -92,6 +123,46 @@ describe("overlay renderer model", () => {
       severity: "warning",
       repairLabel: "Replay memory queue",
       canRepair: true,
+    });
+  });
+
+  it("maps the full SageOS contract into overview groups", () => {
+    const model = renderOverlayModel(state as never);
+
+    expect(model.overview.map((group) => group.title)).toEqual([
+      "Workforce",
+      "Computer",
+      "Memory",
+    ]);
+    expect(model.overview[0].rows).toContainEqual({
+      label: "Employees",
+      value: "3 active",
+      detail: "7 total / 0 blocked",
+    });
+    expect(model.overview[1].rows).toContainEqual({
+      label: "Observations",
+      value: "4 recent",
+      detail: "20 total / 1 failed / 2 redacted",
+    });
+    expect(model.overview[1].rows).toContainEqual({
+      label: "Security",
+      value: "0 urgent",
+      detail: "1 warnings / 1 incidents",
+    });
+    expect(model.overview[1].rows).toContainEqual({
+      label: "Policy",
+      value: "execute_scoped",
+      detail: "destructive, external_writes",
+    });
+    expect(model.overview[2].rows).toContainEqual({
+      label: "Memory",
+      value: "degraded",
+      detail: "2 pending / 1 failed / sage-memory",
+    });
+    expect(model.overview[2].rows).toContainEqual({
+      label: "Audit",
+      value: "12 events",
+      detail: "events.jsonl",
     });
   });
 
