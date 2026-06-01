@@ -559,7 +559,7 @@ export async function startGatewayServer(
     logChannels,
     logBrowser,
   }));
-  const sageOsSupervisor = await startGatewaySageOsSupervisor({
+  let sageOsSupervisor = await startGatewaySageOsSupervisor({
     cfg: cfgAtStart,
     log: {
       info: (msg) => logSageOs.info(msg),
@@ -575,6 +575,7 @@ export async function startGatewayServer(
       heartbeatRunner,
       cronState,
       browserControl,
+      sageOsSupervisor,
     }),
     setState: (nextState) => {
       hooksConfig = nextState.hooksConfig;
@@ -583,6 +584,7 @@ export async function startGatewayServer(
       cron = cronState.cron;
       cronStorePath = cronState.storePath;
       browserControl = nextState.browserControl;
+      sageOsSupervisor = nextState.sageOsSupervisor;
     },
     startChannel,
     stopChannel,
@@ -591,6 +593,7 @@ export async function startGatewayServer(
     logChannels,
     logCron,
     logReload,
+    logSageOs,
   });
 
   const configReloader = startGatewayConfigReloader({
@@ -626,7 +629,7 @@ export async function startGatewayServer(
     clients,
     configReloader,
     browserControl,
-    sageOsSupervisor,
+    sageOsSupervisor: () => sageOsSupervisor,
     wss,
     httpServer,
     httpServers,

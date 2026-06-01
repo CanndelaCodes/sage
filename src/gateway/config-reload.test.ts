@@ -85,6 +85,13 @@ describe("buildGatewayReloadPlan", () => {
     expect(plan.reloadHooks).toBe(true);
   });
 
+  it("hot-restarts the SageOS supervisor for sageos config changes", () => {
+    const plan = buildGatewayReloadPlan(["sageos.mode", "sageos.sources.appFocus"]);
+    expect(plan.restartGateway).toBe(false);
+    expect(plan.restartSageOsSupervisor).toBe(true);
+    expect(plan.hotReasons).toEqual(["sageos.mode", "sageos.sources.appFocus"]);
+  });
+
   it("restarts providers when provider config prefixes change", () => {
     const changedPaths = ["web.enabled", "channels.telegram.botToken"];
     const plan = buildGatewayReloadPlan(changedPaths);

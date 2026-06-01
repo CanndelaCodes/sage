@@ -27,7 +27,10 @@ export function createGatewayCloseHandler(params: {
   clients: Set<{ socket: { close: (code: number, reason: string) => void } }>;
   configReloader: { stop: () => Promise<void> };
   browserControl: { stop: () => Promise<void> } | null;
-  sageOsSupervisor?: Pick<SageOsSupervisor, "stop"> | null;
+  sageOsSupervisor?:
+    | Pick<SageOsSupervisor, "stop">
+    | (() => Pick<SageOsSupervisor, "stop"> | null)
+    | null;
   wss: WebSocketServer;
   httpServer: HttpServer;
   httpServers?: HttpServer[];
@@ -69,7 +72,9 @@ export function createGatewayCloseHandler(params: {
     if (params.pluginServices) {
       await params.pluginServices.stop().catch(() => {});
     }
-    await params.sageOsSupervisor?.stop(reason).catch(() => {});
+    await resolveSageOsSupervisor(params.sageOsSupervisor)
+      ?.stop(reason)
+      .catch(() => {});
     await stopGmailWatcher();
     params.cron.stop();
     params.heartbeatRunner.stop();
@@ -128,4 +133,14 @@ export function createGatewayCloseHandler(params: {
       );
     }
   };
+}
+
+function resolveSageOsSupervisor(
+  supervisor:
+    | Pick<SageOsSupervisor, "stop">
+    | (() => Pick<SageOsSupervisor, "stop"> | null)
+    | null
+    | undefined,
+): Pick<SageOsSupervisor, "stop"> | null {
+  return typeof supervisor === "function" ? supervisor() : (supervisor ?? null);
 }

@@ -20,6 +20,7 @@ export type GatewayReloadPlan = {
   restartBrowserControl: boolean;
   restartCron: boolean;
   restartHeartbeat: boolean;
+  restartSageOsSupervisor: boolean;
   restartChannels: Set<ChannelKind>;
   noopPaths: string[];
 };
@@ -36,6 +37,7 @@ type ReloadAction =
   | "restart-browser-control"
   | "restart-cron"
   | "restart-heartbeat"
+  | "restart-sageos-supervisor"
   | `restart-channel:${ChannelId}`;
 
 const DEFAULT_RELOAD_SETTINGS: GatewayReloadSettings = {
@@ -55,6 +57,7 @@ const BASE_RELOAD_RULES: ReloadRule[] = [
   },
   { prefix: "agent.heartbeat", kind: "hot", actions: ["restart-heartbeat"] },
   { prefix: "cron", kind: "hot", actions: ["restart-cron"] },
+  { prefix: "sageos", kind: "hot", actions: ["restart-sageos-supervisor"] },
   {
     prefix: "browser",
     kind: "hot",
@@ -189,6 +192,7 @@ export function buildGatewayReloadPlan(changedPaths: string[]): GatewayReloadPla
     restartBrowserControl: false,
     restartCron: false,
     restartHeartbeat: false,
+    restartSageOsSupervisor: false,
     restartChannels: new Set(),
     noopPaths: [],
   };
@@ -214,6 +218,9 @@ export function buildGatewayReloadPlan(changedPaths: string[]): GatewayReloadPla
         break;
       case "restart-heartbeat":
         plan.restartHeartbeat = true;
+        break;
+      case "restart-sageos-supervisor":
+        plan.restartSageOsSupervisor = true;
         break;
       default:
         break;

@@ -1,6 +1,7 @@
 import type { CliDeps } from "../cli/deps.js";
 import type { loadConfig } from "../config/config.js";
 import type { HeartbeatRunner } from "../infra/heartbeat-runner.js";
+import type { SageOsSupervisor } from "../sageos/supervisor.js";
 import type { ChannelKind, GatewayReloadPlan } from "./config-reload.js";
 import { resolveAgentMaxConcurrent, resolveSubagentMaxConcurrent } from "../config/agent-limits.js";
 import { startGmailWatcher, stopGmailWatcher } from "../hooks/gmail-watcher.js";
@@ -15,12 +16,14 @@ import { CommandLane } from "../process/lanes.js";
 import { resolveHooksConfig } from "./hooks.js";
 import { startBrowserControlServerIfEnabled } from "./server-browser.js";
 import { buildGatewayCronService, type GatewayCronState } from "./server-cron.js";
+import { startGatewaySageOsSupervisor } from "./server-sageos.js";
 
 type GatewayHotReloadState = {
   hooksConfig: ReturnType<typeof resolveHooksConfig>;
   heartbeatRunner: HeartbeatRunner;
   cronState: GatewayCronState;
   browserControl: Awaited<ReturnType<typeof startBrowserControlServerIfEnabled>> | null;
+  sageOsSupervisor: SageOsSupervisor | null;
 };
 
 export function createGatewayReloadHandlers(params: {
@@ -39,6 +42,7 @@ export function createGatewayReloadHandlers(params: {
   logChannels: { info: (msg: string) => void; error: (msg: string) => void };
   logCron: { error: (msg: string) => void };
   logReload: { info: (msg: string) => void; warn: (msg: string) => void };
+  logSageOs: { info: (msg: string) => void; error: (msg: string) => void };
 }) {
   const applyHotReload = async (
     plan: GatewayReloadPlan,
@@ -83,6 +87,14 @@ export function createGatewayReloadHandlers(params: {
       } catch (err) {
         params.logBrowser.error(`server failed to start: ${String(err)}`);
       }
+    }
+
+    if (plan.restartSageOsSupervisor) {
+      await state.sageOsSupervisor?.stop("config reload").catch(() => {});
+      nextState.sageOsSupervisor = await startGatewaySageOsSupervisor({
+        cfg: nextConfig,
+        log: params.logSageOs,
+      });
     }
 
     if (plan.restartGmailWatcher) {
