@@ -1,8 +1,14 @@
-import type { SageOsStatusSnapshot } from "../../../../src/sageos/types.js";
+import type {
+  SageOsApproval,
+  SageOsStatusSnapshot,
+  SageOsTaskSpec,
+} from "../../../../src/sageos/types.js";
 import type { OverlayGatewayClient } from "./gateway-client.js";
 
 export type SageOsOverlayStatusState = {
   status: SageOsStatusSnapshot;
+  tasks?: SageOsTaskSpec[];
+  approvals?: SageOsApproval[];
 } & Record<string, unknown>;
 
 export function loadSageOsOverlayStatus(client: OverlayGatewayClient) {

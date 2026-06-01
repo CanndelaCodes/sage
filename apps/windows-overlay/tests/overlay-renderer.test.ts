@@ -9,8 +9,19 @@ const state = {
     tasks: { total: 3, active: 1, queued: 1, blocked: 1 },
     incidents: [{ id: "incident_1", severity: "warning", title: "Memory queue backlog" }],
   },
-  tasks: [{ id: "task_1", title: "Night Shift report", state: "running" }],
-  approvals: [{ id: "approval_1", title: "Approve repair", state: "pending" }],
+  tasks: [
+    { id: "task_1", title: "Night Shift report", objective: "Summarize coding work", state: "running" },
+    { id: "task_2", title: "Memory replay", objective: "Replay queued memory captures", state: "proposed" },
+  ],
+  approvals: [
+    {
+      id: "approval_1",
+      title: "Approve repair",
+      proposedAction: "Run memory replay",
+      state: "pending",
+      riskClass: "local_reversible_write",
+    },
+  ],
 };
 
 describe("overlay renderer model", () => {
@@ -32,6 +43,40 @@ describe("overlay renderer model", () => {
       { label: "Incidents", value: "1" },
     ]);
     expect(model.edgeRail.badges).toContainEqual({ kind: "approval", count: 2 });
+  });
+
+  it("maps tasks, approvals, and incidents into operational rows", () => {
+    const model = renderOverlayModel(state as never);
+
+    expect(model.commandDeck.tasks).toEqual([
+      {
+        id: "task_1",
+        title: "Night Shift report",
+        detail: "Summarize coding work",
+        state: "running",
+        canQueue: false,
+        canCancel: true,
+      },
+      {
+        id: "task_2",
+        title: "Memory replay",
+        detail: "Replay queued memory captures",
+        state: "proposed",
+        canQueue: true,
+        canCancel: true,
+      },
+    ]);
+    expect(model.commandDeck.approvals[0]).toMatchObject({
+      id: "approval_1",
+      title: "Approve repair",
+      risk: "local_reversible_write",
+      state: "pending",
+    });
+    expect(model.commandDeck.incidents[0]).toMatchObject({
+      id: "incident_1",
+      title: "Memory queue backlog",
+      severity: "warning",
+    });
   });
 
   it("reads gateway settings from URL parameters before defaults", () => {

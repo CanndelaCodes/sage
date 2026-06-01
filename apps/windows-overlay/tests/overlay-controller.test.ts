@@ -54,4 +54,35 @@ describe("SageOsOverlayController", () => {
       reason: "windows-overlay",
     });
   });
+
+  it("resolves approvals and task actions through existing RPC methods", async () => {
+    const request = vi.fn().mockResolvedValue(stateFixture("execute_scoped"));
+    const controller = new SageOsOverlayController({ request });
+
+    await controller.approveApproval("approval_1");
+    await controller.denyApproval("approval_2");
+    await controller.queueTask("task_1");
+    await controller.cancelTask("task_2");
+    await controller.runNextTask();
+
+    expect(request).toHaveBeenCalledWith("sageos.approvals.resolve", {
+      id: "approval_1",
+      decision: "approved",
+      reason: "windows-overlay",
+    });
+    expect(request).toHaveBeenCalledWith("sageos.approvals.resolve", {
+      id: "approval_2",
+      decision: "denied",
+      reason: "windows-overlay",
+    });
+    expect(request).toHaveBeenCalledWith("sageos.tasks.queue", {
+      id: "task_1",
+      reason: "windows-overlay",
+    });
+    expect(request).toHaveBeenCalledWith("sageos.tasks.cancel", {
+      id: "task_2",
+      reason: "windows-overlay",
+    });
+    expect(request).toHaveBeenCalledWith("sageos.tasks.runNext", {});
+  });
 });

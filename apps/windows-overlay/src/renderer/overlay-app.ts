@@ -11,6 +11,27 @@ import type { SageOsOverlayStatusState } from "./sageos-actions.js";
 
 export type OverlayCard = { title: string; value: string; detail: string };
 export type OverlayBadge = { label: string; value: string };
+export type OverlayTaskRow = {
+  id: string;
+  title: string;
+  detail: string;
+  state: string;
+  canQueue: boolean;
+  canCancel: boolean;
+};
+export type OverlayApprovalRow = {
+  id: string;
+  title: string;
+  detail: string;
+  risk: string;
+  state: string;
+};
+export type OverlayIncidentRow = {
+  id: string;
+  title: string;
+  detail: string;
+  severity: string;
+};
 export type OverlayGatewaySettings = {
   url: string;
   token?: string;
@@ -33,6 +54,27 @@ export function renderOverlayModel(state: SageOsOverlayStatusState) {
   const activeTasks = String(status.tasks.active);
   const pendingApprovals = String(status.approvals.pending);
   const incidents = String(status.incidents.length);
+  const taskRows = (state.tasks ?? []).map((task) => ({
+    id: task.id,
+    title: task.title,
+    detail: task.objective,
+    state: task.state,
+    canQueue: task.state === "proposed" || task.state === "waiting_for_policy",
+    canCancel: !["completed", "failed", "cancelled", "expired"].includes(task.state),
+  }));
+  const approvalRows = (state.approvals ?? []).map((approval) => ({
+    id: approval.id,
+    title: approval.title,
+    detail: approval.proposedAction,
+    risk: approval.riskClass,
+    state: approval.state,
+  }));
+  const incidentRows = status.incidents.map((incident) => ({
+    id: incident.id,
+    title: incident.title,
+    detail: incident.summary,
+    severity: incident.severity,
+  }));
 
   return {
     commandDeck: {
@@ -46,6 +88,9 @@ export function renderOverlayModel(state: SageOsOverlayStatusState) {
         { title: "Approvals", value: pendingApprovals, detail: "Pending decisions" },
         { title: "Incidents", value: incidents, detail: "Needs review" },
       ] satisfies OverlayCard[],
+      tasks: taskRows satisfies OverlayTaskRow[],
+      approvals: approvalRows satisfies OverlayApprovalRow[],
+      incidents: incidentRows satisfies OverlayIncidentRow[],
     },
     hud: {
       badges: [
@@ -150,19 +195,119 @@ export class SageOsOverlayApp extends LitElement {
           <button type="button" @click=${() => window.sageOsOverlay?.collapse()}>Rail</button>
           <button type="button" @click=${() => window.sageOsOverlay?.close()}>Close</button>
         </nav>
-        ${this.error ? html`<section class="overlay-callout">${this.error}</section>` : nothing}
-        ${this.loading ? html`<section class="overlay-callout">Loading SageOS state...</section>` : nothing}
-        ${model
-          ? html`
-              ${renderUniversalLauncher()}
-              ${renderCommandDeck(model.commandDeck.cards)}
-              ${renderAgentWorkspace("Agent Workspace", "Select an employee, task, run, approval, or incident.")}
-              ${renderPinnedWidgets(["activeOperations", "approvals", "incidents"])}
-              ${renderCompactHud(model.hud.badges)}
-              ${renderEdgeRail(model.edgeRail.badges)}
-            `
-          : html`<section class="overlay-callout">Waiting for SageOS gateway state.</section>`}
+        <section class="overlay-content">
+          ${this.error ? html`<section class="overlay-callout">${this.error}</section>` : nothing}
+          ${this.loading ? html`<section class="overlay-callout">Loading SageOS state...</section>` : nothing}
+          ${model
+            ? html`
+                ${renderUniversalLauncher()}
+                ${renderCommandDeck(model.commandDeck.cards)}
+                ${this.renderOperationalRows(model.commandDeck)}
+                ${renderAgentWorkspace(
+                  "Agent Workspace",
+                  "Select an employee, task, run, approval, or incident.",
+                )}
+                ${renderPinnedWidgets(["activeOperations", "approvals", "incidents"])}
+                ${renderCompactHud(model.hud.badges)}
+                ${renderEdgeRail(model.edgeRail.badges)}
+              `
+            : html`<section class="overlay-callout">Waiting for SageOS gateway state.</section>`}
+        </section>
       </main>
+    `;
+  }
+
+  private renderOperationalRows(commandDeck: ReturnType<typeof renderOverlayModel>["commandDeck"]) {
+    return html`
+      <section class="operational-grid">
+        <article class="overlay-panel">
+          <div class="overlay-panel__header">
+            <h2>Active Operations</h2>
+            <button type="button" @click=${() => void this.controller?.runNextTask()}>Run next</button>
+          </div>
+          ${commandDeck.tasks.length === 0
+            ? html`<p class="overlay-muted">No tracked SageOS tasks.</p>`
+            : commandDeck.tasks.map(
+                (task) => html`
+                  <div class="overlay-row">
+                    <div>
+                      <div class="overlay-row__title">${task.title}</div>
+                      <div class="overlay-row__detail">${task.detail}</div>
+                      <div class="overlay-row__meta">${task.id} / ${task.state}</div>
+                    </div>
+                    <div class="overlay-row__actions">
+                      <button
+                        type="button"
+                        ?disabled=${!task.canQueue}
+                        @click=${() => void this.controller?.queueTask(task.id)}
+                      >
+                        Queue
+                      </button>
+                      <button
+                        type="button"
+                        ?disabled=${!task.canCancel}
+                        @click=${() => void this.controller?.cancelTask(task.id)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                `,
+              )}
+        </article>
+
+        <article class="overlay-panel">
+          <div class="overlay-panel__header">
+            <h2>Approvals</h2>
+          </div>
+          ${commandDeck.approvals.length === 0
+            ? html`<p class="overlay-muted">No pending approval records.</p>`
+            : commandDeck.approvals.map(
+                (approval) => html`
+                  <div class="overlay-row">
+                    <div>
+                      <div class="overlay-row__title">${approval.title}</div>
+                      <div class="overlay-row__detail">${approval.detail}</div>
+                      <div class="overlay-row__meta">${approval.risk} / ${approval.state}</div>
+                    </div>
+                    <div class="overlay-row__actions">
+                      <button
+                        type="button"
+                        @click=${() => void this.controller?.approveApproval(approval.id)}
+                      >
+                        Approve
+                      </button>
+                      <button
+                        type="button"
+                        @click=${() => void this.controller?.denyApproval(approval.id)}
+                      >
+                        Deny
+                      </button>
+                    </div>
+                  </div>
+                `,
+              )}
+        </article>
+
+        <article class="overlay-panel">
+          <div class="overlay-panel__header">
+            <h2>Incidents</h2>
+          </div>
+          ${commandDeck.incidents.length === 0
+            ? html`<p class="overlay-muted">No active incidents.</p>`
+            : commandDeck.incidents.map(
+                (incident) => html`
+                  <div class="overlay-row">
+                    <div>
+                      <div class="overlay-row__title">${incident.title}</div>
+                      <div class="overlay-row__detail">${incident.detail}</div>
+                      <div class="overlay-row__meta">${incident.id} / ${incident.severity}</div>
+                    </div>
+                  </div>
+                `,
+              )}
+        </article>
+      </section>
     `;
   }
 

@@ -1,9 +1,14 @@
 import type { OverlayGatewayClient, OverlayGatewayEventFrame } from "./gateway-client.js";
 import {
+  approveSageOsApproval,
+  cancelSageOsTask,
+  denySageOsApproval,
   emergencyStopSageOs,
   loadSageOsOverlayStatus,
   pauseSageOs,
+  queueSageOsTask,
   resumeSageOs,
+  runNextSageOsTask,
   type SageOsOverlayStatusState,
 } from "./sageos-actions.js";
 
@@ -80,6 +85,26 @@ export class SageOsOverlayController {
 
   async emergencyStop() {
     await this.runMutation(() => emergencyStopSageOs(this.client));
+  }
+
+  async approveApproval(id: string) {
+    await this.runMutation(() => approveSageOsApproval(this.client, id));
+  }
+
+  async denyApproval(id: string) {
+    await this.runMutation(() => denySageOsApproval(this.client, id));
+  }
+
+  async queueTask(id: string) {
+    await this.runMutation(() => queueSageOsTask(this.client, id));
+  }
+
+  async cancelTask(id: string) {
+    await this.runMutation(() => cancelSageOsTask(this.client, id));
+  }
+
+  async runNextTask() {
+    await this.runMutation(() => runNextSageOsTask(this.client));
   }
 
   private async runMutation(run: () => Promise<unknown>) {
