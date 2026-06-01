@@ -190,6 +190,58 @@ button:not(:disabled):hover {
   font-size: 13px;
 }
 
+.agent-workspace {
+  display: grid;
+  gap: 10px;
+}
+
+.agent-workspace__header {
+  display: grid;
+  gap: 4px;
+}
+
+.agent-workspace__eyebrow {
+  color: #8fa19a;
+  font-size: 12px;
+}
+
+.agent-workspace__facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.agent-workspace__fact {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.agent-workspace__fact dt,
+.agent-workspace__fact dd {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-workspace__fact dt {
+  color: #8fa19a;
+  font-size: 12px;
+}
+
+.agent-workspace__fact dd {
+  margin: 0;
+  color: #f7f7f2;
+  font-size: 13px;
+}
+
+.agent-workspace__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .overlay-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -327,7 +379,8 @@ button:not(:disabled):hover {
   }
 
   .overlay-row,
-  .overview-row {
+  .overview-row,
+  .agent-workspace__facts {
     grid-template-columns: 1fr;
   }
 }

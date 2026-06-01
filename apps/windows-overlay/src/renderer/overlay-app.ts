@@ -1,5 +1,10 @@
 import { LitElement, html, nothing } from "lit";
 import { renderAgentWorkspace } from "./components/agent-workspace.js";
+import type {
+  AgentWorkspaceAction,
+  AgentWorkspaceTarget,
+  AgentWorkspaceView,
+} from "./components/agent-workspace.js";
 import { renderCommandDeck } from "./components/command-deck.js";
 import { renderCompactHud } from "./components/compact-hud.js";
 import { renderEdgeRail } from "./components/edge-rail.js";
@@ -54,6 +59,9 @@ export type OverlayGatewaySettings = {
   token?: string;
   password?: string;
 };
+export type RenderOverlayModelOptions = {
+  workspaceTarget?: AgentWorkspaceTarget;
+};
 
 declare global {
   interface Window {
@@ -66,7 +74,10 @@ declare global {
   }
 }
 
-export function renderOverlayModel(state: SageOsOverlayStatusState) {
+export function renderOverlayModel(
+  state: SageOsOverlayStatusState,
+  opts: RenderOverlayModelOptions = {},
+) {
   const status = state.status;
   const activeTasks = String(status.tasks.active);
   const pendingApprovals = String(status.approvals.pending);
@@ -112,6 +123,7 @@ export function renderOverlayModel(state: SageOsOverlayStatusState) {
       incidents: incidentRows satisfies OverlayIncidentRow[],
     },
     overview: buildOverviewGroups(status),
+    workspace: buildWorkspaceModel(state, opts.workspaceTarget),
     hud: {
       badges: [
         { label: "Tasks", value: activeTasks },
@@ -206,6 +218,7 @@ export class SageOsOverlayApp extends LitElement {
     error: { state: true },
     sageOsState: { state: true },
     launcherCommand: { state: true },
+    workspaceTarget: { state: true },
   };
 
   private controller: SageOsOverlayController | null = null;
@@ -215,6 +228,7 @@ export class SageOsOverlayApp extends LitElement {
   private error: string | null = null;
   private sageOsState: SageOsOverlayStatusState | null = null;
   private launcherCommand = "";
+  private workspaceTarget: AgentWorkspaceTarget | null = null;
 
   protected createRenderRoot() {
     return this;
@@ -250,7 +264,11 @@ export class SageOsOverlayApp extends LitElement {
   }
 
   render() {
-    const model = this.sageOsState ? renderOverlayModel(this.sageOsState) : null;
+    const model = this.sageOsState
+      ? renderOverlayModel(this.sageOsState, {
+          workspaceTarget: this.workspaceTarget ?? undefined,
+        })
+      : null;
     const surfaceVisibility = getOverlaySurfaceVisibility(this.surface);
 
     return html`
@@ -268,10 +286,9 @@ export class SageOsOverlayApp extends LitElement {
                   ? this.renderOperationalRows(model.commandDeck)
                   : nothing}
                 ${surfaceVisibility.agentWorkspace
-                  ? renderAgentWorkspace(
-                      "Agent Workspace",
-                      "Select an employee, task, run, approval, or incident.",
-                    )
+                  ? renderAgentWorkspace(model.workspace, {
+                      onAction: (action) => void this.runWorkspaceAction(action),
+                    })
                   : nothing}
                 ${surfaceVisibility.pinnedWidgets
                   ? renderPinnedWidgets(["activeOperations", "approvals", "incidents"])
@@ -400,6 +417,12 @@ export class SageOsOverlayApp extends LitElement {
                     <div class="overlay-row__actions">
                       <button
                         type="button"
+                        @click=${() => this.openWorkspace({ kind: "task", id: task.id })}
+                      >
+                        Open
+                      </button>
+                      <button
+                        type="button"
                         ?disabled=${!task.canQueue}
                         @click=${() => void this.controller?.queueTask(task.id)}
                       >
@@ -435,6 +458,13 @@ export class SageOsOverlayApp extends LitElement {
                     <div class="overlay-row__actions">
                       <button
                         type="button"
+                        @click=${() =>
+                          this.openWorkspace({ kind: "approval", id: approval.id })}
+                      >
+                        Open
+                      </button>
+                      <button
+                        type="button"
                         @click=${() => void this.controller?.approveApproval(approval.id)}
                       >
                         Approve
@@ -468,6 +498,13 @@ export class SageOsOverlayApp extends LitElement {
                     <div class="overlay-row__actions">
                       <button
                         type="button"
+                        @click=${() =>
+                          this.openWorkspace({ kind: "incident", id: incident.id })}
+                      >
+                        Open
+                      </button>
+                      <button
+                        type="button"
                         ?disabled=${!incident.canRepair}
                         @click=${() => void this.controller?.runIncidentRepair(incident.id)}
                       >
@@ -491,6 +528,29 @@ export class SageOsOverlayApp extends LitElement {
     this.error = this.controller.state.error;
     this.sageOsState = this.controller.state.sageOsState;
     this.requestUpdate();
+  }
+
+  private openWorkspace(target: AgentWorkspaceTarget) {
+    this.workspaceTarget = target;
+    this.requestUpdate();
+  }
+
+  private async runWorkspaceAction(action: AgentWorkspaceAction) {
+    if (!this.controller || !action.enabled) {
+      return;
+    }
+
+    if (action.kind === "queueTask" && action.target.kind === "task") {
+      await this.controller.queueTask(action.target.id);
+    } else if (action.kind === "cancelTask" && action.target.kind === "task") {
+      await this.controller.cancelTask(action.target.id);
+    } else if (action.kind === "approveApproval" && action.target.kind === "approval") {
+      await this.controller.approveApproval(action.target.id);
+    } else if (action.kind === "denyApproval" && action.target.kind === "approval") {
+      await this.controller.denyApproval(action.target.id);
+    } else if (action.kind === "runIncidentRepair" && action.target.kind === "incident") {
+      await this.controller.runIncidentRepair(action.target.id);
+    }
   }
 }
 
@@ -592,6 +652,135 @@ function buildOverviewGroups(
       ],
     },
   ];
+}
+
+function buildWorkspaceModel(
+  state: SageOsOverlayStatusState,
+  target: AgentWorkspaceTarget | undefined,
+): AgentWorkspaceView {
+  if (!target) {
+    return {
+      title: "Agent Workspace",
+      eyebrow: "Selection",
+      detail: "Select an operation, approval, or incident to inspect scope, evidence, and actions.",
+      facts: [
+        { label: "Active tasks", value: String(state.status.tasks.active) },
+        { label: "Pending approvals", value: String(state.status.approvals.pending) },
+        { label: "Incidents", value: String(state.status.incidents.length) },
+      ],
+      actions: [],
+    };
+  }
+
+  if (target.kind === "task") {
+    const task = state.tasks?.find((entry) => entry.id === target.id);
+    if (!task) {
+      return missingWorkspaceTarget(target);
+    }
+    const canQueue = task.state === "proposed" || task.state === "waiting_for_policy";
+    const canCancel = !["completed", "failed", "cancelled", "expired"].includes(task.state);
+    return {
+      title: task.title,
+      eyebrow: `Task / ${task.state}`,
+      detail: task.objective,
+      facts: [
+        { label: "Objective", value: task.objective },
+        { label: "Autonomy", value: task.autonomyTier ?? "Unknown" },
+        { label: "Requested by", value: task.requestedBy ?? "Unknown" },
+        { label: "Policy scope", value: formatPolicyScopes(task.policyScopes ?? []) },
+      ],
+      actions: [
+        ...(canQueue
+          ? [
+              {
+                kind: "queueTask",
+                label: "Queue",
+                enabled: true,
+                target,
+              } satisfies AgentWorkspaceAction,
+            ]
+          : []),
+        {
+          kind: "cancelTask",
+          label: "Cancel",
+          enabled: canCancel,
+          target,
+        },
+      ],
+    };
+  }
+
+  if (target.kind === "approval") {
+    const approval = state.approvals?.find((entry) => entry.id === target.id);
+    if (!approval) {
+      return missingWorkspaceTarget(target);
+    }
+    const pending = approval.state === "pending";
+    const evidence = Array.isArray(approval.evidence) ? approval.evidence : [];
+    return {
+      title: approval.title,
+      eyebrow: `Approval / ${approval.state}`,
+      detail: approval.proposedAction,
+      facts: [
+        { label: "Action", value: approval.proposedAction },
+        { label: "Risk", value: approval.riskClass },
+        { label: "Requested by", value: approval.requestedBy ?? "Unknown" },
+        { label: "Evidence", value: evidence.join(", ") || "None" },
+      ],
+      actions: [
+        { kind: "approveApproval", label: "Approve", enabled: pending, target },
+        { kind: "denyApproval", label: "Deny", enabled: pending, target },
+      ],
+    };
+  }
+
+  const incident = state.status.incidents.find((entry) => entry.id === target.id);
+  if (!incident) {
+    return missingWorkspaceTarget(target);
+  }
+  return {
+    title: incident.title,
+    eyebrow: `Incident / ${incident.severity}`,
+    detail: incident.summary,
+    facts: [
+      { label: "Severity", value: incident.severity },
+      { label: "Auto repair", value: incident.autoRepairSafe ? "Safe" : "Review required" },
+      {
+        label: "Repair method",
+        value: incident.repairAction?.gatewayMethod ?? "No repair method",
+      },
+      { label: "Last seen", value: incident.lastSeenAt ?? "Unknown" },
+    ],
+    actions: [
+      {
+        kind: "runIncidentRepair",
+        label: incident.repairAction?.label ?? "Run repair",
+        enabled: canRunSageOsIncidentRepair(incident),
+        target,
+      },
+    ],
+  };
+}
+
+function missingWorkspaceTarget(target: AgentWorkspaceTarget): AgentWorkspaceView {
+  return {
+    title: "Selection unavailable",
+    eyebrow: `${target.kind} / missing`,
+    detail: "The selected record is no longer present in the latest SageOS state.",
+    facts: [{ label: "ID", value: target.id }],
+    actions: [],
+  };
+}
+
+function formatPolicyScopes(
+  scopes: { kind: string; allow?: string[]; risk?: string }[],
+): string {
+  if (scopes.length === 0) {
+    return "None";
+  }
+  return scopes
+    .map((scope) => `${scope.kind}:${scope.allow?.join("|") || "*"} (${scope.risk ?? "low"})`)
+    .join(", ");
 }
 
 function summaryRow(

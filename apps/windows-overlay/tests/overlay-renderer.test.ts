@@ -172,6 +172,41 @@ describe("overlay renderer model", () => {
     });
   });
 
+  it("builds workspace details for selected operational targets", () => {
+    const taskModel = renderOverlayModel(state as never, {
+      workspaceTarget: { kind: "task", id: "task_1" },
+    });
+    const approvalModel = renderOverlayModel(state as never, {
+      workspaceTarget: { kind: "approval", id: "approval_1" },
+    });
+    const incidentModel = renderOverlayModel(state as never, {
+      workspaceTarget: { kind: "incident", id: "incident_1" },
+    });
+
+    expect(taskModel.workspace).toMatchObject({
+      title: "Night Shift report",
+      eyebrow: "Task / running",
+      actions: [{ kind: "cancelTask", label: "Cancel", enabled: true }],
+    });
+    expect(taskModel.workspace.facts).toContainEqual({
+      label: "Objective",
+      value: "Summarize coding work",
+    });
+    expect(approvalModel.workspace).toMatchObject({
+      title: "Approve repair",
+      eyebrow: "Approval / pending",
+      actions: [
+        { kind: "approveApproval", label: "Approve", enabled: true },
+        { kind: "denyApproval", label: "Deny", enabled: true },
+      ],
+    });
+    expect(incidentModel.workspace).toMatchObject({
+      title: "Memory queue backlog",
+      eyebrow: "Incident / warning",
+      actions: [{ kind: "runIncidentRepair", label: "Replay memory queue", enabled: true }],
+    });
+  });
+
   it("reads gateway settings from URL parameters before defaults", () => {
     const settings = readOverlayGatewaySettings(
       "?gatewayUrl=ws%3A%2F%2F127.0.0.1%3A18888&token=abc&password=secret",
