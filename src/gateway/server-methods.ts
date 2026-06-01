@@ -104,6 +104,7 @@ const WRITE_METHODS = new Set([
   "chat.abort",
   "browser.request",
   "sageos.control",
+  "sageos.agents.create",
   "sageos.agents.activate",
   "sageos.collaboration.handoff",
   "sageos.collaboration.requestReview",

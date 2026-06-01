@@ -8,6 +8,7 @@ const BASE_METHODS = [
   "status",
   "sageos.status",
   "sageos.agents.list",
+  "sageos.agents.create",
   "sageos.agents.activationPreview",
   "sageos.agents.activate",
   "sageos.agentTemplates.list",

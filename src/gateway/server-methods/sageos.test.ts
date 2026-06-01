@@ -154,6 +154,7 @@ describe("SageOS gateway methods", () => {
   it("registers methods and events for command-center clients", () => {
     expect(listGatewayMethods()).toContain("sageos.status");
     expect(listGatewayMethods()).toContain("sageos.agents.list");
+    expect(listGatewayMethods()).toContain("sageos.agents.create");
     expect(listGatewayMethods()).toContain("sageos.agents.activationPreview");
     expect(listGatewayMethods()).toContain("sageos.agents.activate");
     expect(listGatewayMethods()).toContain("sageos.agentTemplates.list");
@@ -209,6 +210,7 @@ describe("SageOS gateway methods", () => {
       "sageos.observations.list",
     ];
     const writeMethods = [
+      "sageos.agents.create",
       "sageos.agents.activate",
       "sageos.collaboration.handoff",
       "sageos.collaboration.requestReview",
@@ -278,6 +280,59 @@ describe("SageOS gateway methods", () => {
     expect(inspect.response?.payload).toMatchObject({
       template: { id: "memory_steward", name: "Memory Steward", role: "memory" },
     });
+  });
+
+  it("creates employee drafts through gateway controls", async () => {
+    const store = createSageOsStateStore();
+    const description =
+      "Create a Security Sentinel that watches Defender, startup apps, and network posture, reports urgent issues immediately, summarizes daily, and asks before changing firewall settings.";
+
+    const created = await invoke("sageos.agents.create", { description });
+
+    expect(created.response?.ok).toBe(true);
+    expect(created.response?.payload).toMatchObject({
+      employee: {
+        id: "employee_security_sentinel",
+        name: "Security Sentinel",
+        role: "security",
+        status: "draft",
+        autonomyTier: "observe",
+        tools: expect.arrayContaining(["sageos.system-observer", "windows-security-readonly"]),
+        memoryScopes: expect.arrayContaining(["security_observations", "incidents"]),
+        schedules: expect.arrayContaining([
+          "gateway tick",
+          "daily digest",
+          "urgent incident trigger",
+        ]),
+      },
+      preview: {
+        employeeId: "employee_security_sentinel",
+        tools: expect.arrayContaining(["sageos.system-observer", "windows-security-readonly"]),
+        memoryAccess: expect.arrayContaining(["security_observations", "incidents"]),
+        schedules: expect.arrayContaining(["daily digest", "urgent incident trigger"]),
+        approvalRequired: false,
+      },
+      state: {
+        agents: [expect.objectContaining({ id: "employee_security_sentinel" })],
+      },
+    });
+    expect(created.broadcast).toHaveBeenCalledWith(
+      "sageos",
+      expect.objectContaining({
+        agents: expect.arrayContaining([
+          expect.objectContaining({ id: "employee_security_sentinel", status: "draft" }),
+        ]),
+      }),
+      { dropIfSlow: true },
+    );
+    await expect(readSageOsState(store)).resolves.toMatchObject({
+      agents: [{ id: "employee_security_sentinel", status: "draft" }],
+    });
+    const rawEvents = await readFile(
+      path.join(process.env.SAGE_STATE_DIR!, "sageos", "events.jsonl"),
+      "utf8",
+    );
+    expect(rawEvents).toContain("employee_drafted");
   });
 
   it("previews and activates employees through gateway controls", async () => {

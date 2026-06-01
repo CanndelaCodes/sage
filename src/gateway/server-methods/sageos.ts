@@ -9,6 +9,7 @@ import {
   activateSageOsEmployee,
   buildSageOsEmployeeActivationPreview,
 } from "../../sageos/employee-activation.js";
+import { draftSageOsEmployeeFromIntent } from "../../sageos/employee-builder.js";
 import {
   getSageOsEmployeeTemplate,
   listSageOsEmployeeTemplates,
@@ -36,6 +37,7 @@ import {
   createSageOsControlStore,
   createSageOsStateStore,
   readSageOsState,
+  upsertSageOsAgent,
   upsertSageOsTask,
   writeSageOsControl,
   writeSageOsState,
@@ -135,6 +137,58 @@ export const sageOsHandlers: GatewayRequestHandlers = {
   "sageos.agents.list": async ({ respond }) => {
     const state = await readSageOsState(createSageOsStateStore());
     respond(true, { agents: state.agents }, undefined);
+  },
+  "sageos.agents.create": async ({ params, respond, context }) => {
+    const description = stringParam(params, "description");
+    if (!description) {
+      respond(
+        false,
+        undefined,
+        errorShape(
+          ErrorCodes.INVALID_REQUEST,
+          "invalid sageos.agents.create params: description required",
+        ),
+      );
+      return;
+    }
+
+    let employee: ReturnType<typeof draftSageOsEmployeeFromIntent>;
+    try {
+      employee = draftSageOsEmployeeFromIntent({
+        description,
+        name: stringParam(params, "name") || undefined,
+        role: stringParam(params, "role") || undefined,
+        autonomyTier:
+          stringParam(params, "tier") || stringParam(params, "autonomyTier") || undefined,
+        templateId:
+          stringParam(params, "templateId") || stringParam(params, "template") || undefined,
+      });
+    } catch (err) {
+      respond(
+        false,
+        undefined,
+        errorShape(
+          ErrorCodes.INVALID_REQUEST,
+          err instanceof Error ? err.message : "Unable to draft SageOS employee.",
+        ),
+      );
+      return;
+    }
+
+    const preview = buildSageOsEmployeeActivationPreview(employee);
+    const stateStore = createSageOsStateStore();
+    await upsertSageOsAgent(stateStore, employee);
+    await appendSageOsEvent(createSageOsEventLog(), {
+      type: "employee_drafted",
+      actor: "sageos.gateway",
+      summary: `Drafted SageOS employee ${employee.name}`,
+      sensitivity: "normal",
+    });
+    const status = await collectSageOsStatus();
+    await writeSageOsState(stateStore, status);
+    const state = await readSageOsState(stateStore);
+    context.broadcast("sageos", state, { dropIfSlow: true });
+    respond(true, { employee, preview, state }, undefined);
   },
   "sageos.agents.activationPreview": async ({ params, respond }) => {
     const id = typeof params.id === "string" ? params.id.trim() : "";
