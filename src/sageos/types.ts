@@ -77,7 +77,7 @@ export type SageOsOverlayConfig = {
   hudExpandsToFull?: boolean;
   passThroughDefault?: boolean;
   collapsedEdge?: SageOsOverlayEdge;
-  activeMonitor?: "auto" | "primary" | string;
+  activeMonitor?: string;
   showApprovalBadge?: boolean;
   showIncidentBadge?: boolean;
   pinnedWidgets?: SageOsOverlayWidgetId[];

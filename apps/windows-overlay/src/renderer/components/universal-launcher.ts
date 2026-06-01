@@ -3,9 +3,9 @@ import { html } from "lit";
 export type UniversalLauncherProps = {
   value: string;
   disabled?: boolean;
-  onInput(value: string): void;
-  onRun(): void;
-  onVoice(): void;
+  onInput: (value: string) => void;
+  onRun: () => void;
+  onVoice: () => void;
 };
 
 export function renderUniversalLauncher(props: UniversalLauncherProps) {
@@ -29,14 +29,14 @@ export function renderUniversalLauncher(props: UniversalLauncherProps) {
         type="button"
         aria-label="Start voice command"
         ?disabled=${props.disabled}
-        @click=${props.onVoice}
+        @click=${() => props.onVoice()}
       >
         Voice
       </button>
       <button
         type="button"
         ?disabled=${props.disabled || !props.value.trim()}
-        @click=${props.onRun}
+        @click=${() => props.onRun()}
       >
         Run
       </button>

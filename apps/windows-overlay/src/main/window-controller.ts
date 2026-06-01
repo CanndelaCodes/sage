@@ -6,13 +6,13 @@ import {
 import type { SageOsOverlayConfig } from "../../../../src/sageos/types.js";
 
 export type OverlayShellAdapter = {
-  showFullOverlay(): void;
-  showHud(): void;
-  showEdgeRail(): void;
-  hideOverlay(): void;
-  setPassThrough(enabled: boolean): void;
-  registerHotkey(hotkey: string, callback: () => void): void;
-  setTrayState(state: SageOsOverlayState): void;
+  showFullOverlay: () => void;
+  showHud: () => void;
+  showEdgeRail: () => void;
+  hideOverlay: () => void;
+  setPassThrough: (enabled: boolean) => void;
+  registerHotkey: (hotkey: string, callback: () => void) => void;
+  setTrayState: (state: SageOsOverlayState) => void;
 };
 
 export function createOverlayWindowController(
@@ -41,7 +41,7 @@ export function createOverlayWindowController(
 
   const controller = {
     start() {
-      adapter.registerHotkey(config.hotkey ?? "Ctrl+Alt+Space", controller.toggle);
+      adapter.registerHotkey(config.hotkey ?? "Ctrl+Alt+Space", () => controller.toggle());
       adapter.setTrayState(state);
     },
     state() {

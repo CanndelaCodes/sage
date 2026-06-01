@@ -72,7 +72,9 @@ export class OverlayGatewayBrowserClient implements OverlayGatewayClient {
     const WebSocketCtor = this.opts.WebSocketCtor ?? globalThis.WebSocket;
     this.ws = new WebSocketCtor(this.opts.url);
     this.ws.addEventListener("open", () => this.queueConnect());
-    this.ws.addEventListener("message", (event) => this.handleMessage(String(event.data ?? "")));
+    this.ws.addEventListener("message", (event) => {
+      this.handleMessage(typeof event.data === "string" ? event.data : "");
+    });
     this.ws.addEventListener("close", (event) => {
       this.flushPending(new Error(`gateway closed (${event.code ?? 0}): ${event.reason ?? ""}`));
       this.opts.onClose?.({ code: event.code ?? 0, reason: event.reason ?? "" });

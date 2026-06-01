@@ -62,11 +62,11 @@ describe("OverlayGatewayBrowserClient", () => {
     const client = createClient();
     client.start();
 
-    const ws = FakeWebSocket.instances[0]!;
+    const ws = FakeWebSocket.instances[0];
     ws.open();
     await Promise.resolve();
 
-    const frame = JSON.parse(ws.sent[0]!);
+    const frame = JSON.parse(ws.sent[0]);
     expect(frame).toMatchObject({
       type: "req",
       id: "connect_1",
@@ -90,12 +90,12 @@ describe("OverlayGatewayBrowserClient", () => {
   it("resolves requests from gateway response frames", async () => {
     const client = createClient();
     client.start();
-    const ws = FakeWebSocket.instances[0]!;
+    const ws = FakeWebSocket.instances[0];
     ws.open();
     await Promise.resolve();
 
     const pending = client.request("sageos.status", {});
-    const requestFrame = JSON.parse(ws.sent[1]!);
+    const requestFrame = JSON.parse(ws.sent[1]);
     expect(requestFrame).toMatchObject({
       type: "req",
       id: "request_1",
@@ -111,7 +111,7 @@ describe("OverlayGatewayBrowserClient", () => {
     const onEvent = vi.fn();
     const client = createClient({ onEvent });
     client.start();
-    const ws = FakeWebSocket.instances[0]!;
+    const ws = FakeWebSocket.instances[0];
     ws.open();
 
     ws.message({ type: "event", event: "sageos", payload: { status: { mode: "execute_scoped" } } });
