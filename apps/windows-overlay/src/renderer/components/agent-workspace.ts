@@ -10,7 +10,8 @@ export type AgentWorkspaceTarget = {
     | "skill"
     | "app"
     | "observation"
-    | "collaboration";
+    | "collaboration"
+    | "system";
   id: string;
 };
 

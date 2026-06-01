@@ -74,6 +74,12 @@ export type OverlayResourceRow = {
   detail: string;
   state: string;
 };
+export type OverlaySystemResourceRow = {
+  id: string;
+  title: string;
+  detail: string;
+  state: string;
+};
 export type OverlayGatewaySettings = {
   url: string;
   token?: string;
@@ -136,6 +142,7 @@ export function renderOverlayModel(
     outcome: report.outcome,
   }));
   const resourceRows = buildResourceRows(state);
+  const systemResourceRows = buildSystemResourceRows(status);
 
   return {
     commandDeck: {
@@ -154,6 +161,7 @@ export function renderOverlayModel(
       incidents: incidentRows satisfies OverlayIncidentRow[],
       codingReports: codingReportRows satisfies OverlayCodingReportRow[],
       resources: resourceRows satisfies OverlayResourceRow[],
+      systemResources: systemResourceRows satisfies OverlaySystemResourceRow[],
     },
     overview: buildOverviewGroups(status),
     workspace: buildWorkspaceModel(state, opts.workspaceTarget),
@@ -607,6 +615,31 @@ export class SageOsOverlayApp extends LitElement {
                 `,
               )}
         </article>
+
+        <article class="overlay-panel">
+          <div class="overlay-panel__header">
+            <h2>System</h2>
+          </div>
+          ${commandDeck.systemResources.map(
+            (resource) => html`
+              <div class="overlay-row">
+                <div>
+                  <div class="overlay-row__title">${resource.title}</div>
+                  <div class="overlay-row__detail">${resource.detail}</div>
+                  <div class="overlay-row__meta">${resource.state}</div>
+                </div>
+                <div class="overlay-row__actions">
+                  <button
+                    type="button"
+                    @click=${() => this.openWorkspace({ kind: "system", id: resource.id })}
+                  >
+                    Open
+                  </button>
+                </div>
+              </div>
+            `,
+          )}
+        </article>
       </section>
     `;
   }
@@ -787,6 +820,55 @@ function buildResourceRows(state: SageOsOverlayStatusState): OverlayResourceRow[
       detail: collaboration.summary,
       state: collaboration.state,
     })),
+  ];
+}
+
+function buildSystemResourceRows(
+  status: SageOsOverlayStatusState["status"],
+): OverlaySystemResourceRow[] {
+  return [
+    {
+      id: "supervisor",
+      title: "Supervisor",
+      detail: status.supervisor.paused ? "Paused" : "Running",
+      state: status.supervisor.state,
+    },
+    {
+      id: "memory",
+      title: "Memory",
+      detail: `${status.memory.captureQueue.pending} pending / ${status.memory.captureQueue.failed} failed`,
+      state: status.memory.status,
+    },
+    {
+      id: "learning",
+      title: "Learning",
+      detail: `${status.learning.activityQueue.pending} pending / ${status.learning.activityQueue.failed} failed`,
+      state: status.learning.status,
+    },
+    {
+      id: "sources",
+      title: "Sources",
+      detail: `${status.sources.enabled.length} enabled / ${status.sources.failing.length} failing`,
+      state: status.sources.failing.length > 0 ? "degraded" : "ok",
+    },
+    {
+      id: "policy",
+      title: "Policy",
+      detail: status.policy.approvalsRequired.join(", ") || "No extra approvals",
+      state: status.policy.mode,
+    },
+    {
+      id: "notifications",
+      title: "Notifications",
+      detail: status.notifications.telegram.enabled ? "Telegram enabled" : "Telegram disabled",
+      state: `${status.notifications.urgentPending} urgent`,
+    },
+    {
+      id: "audit",
+      title: "Audit",
+      detail: status.audit.eventLogPath ?? "Event log pending",
+      state: `${status.audit.recentEvents} events`,
+    },
   ];
 }
 
@@ -994,6 +1076,10 @@ function buildWorkspaceModel(
     };
   }
 
+  if (target.kind === "system") {
+    return systemWorkspaceModel(state.status, target.id);
+  }
+
   const incident = state.status.incidents.find((entry) => entry.id === target.id);
   if (!incident) {
     return missingWorkspaceTarget(target);
@@ -1047,6 +1133,121 @@ function buildPinnedWidgets(status: SageOsOverlayStatusState["status"]): PinnedW
       detail: `${urgentIncidents} urgent / ${warningIncidents} warning`,
     },
   ];
+}
+
+function systemWorkspaceModel(
+  status: SageOsOverlayStatusState["status"],
+  id: string,
+): AgentWorkspaceView {
+  if (id === "supervisor") {
+    return {
+      title: "Supervisor",
+      eyebrow: `System / ${status.supervisor.state}`,
+      detail: status.supervisor.paused ? "SageOS autonomous work is paused." : "SageOS is running.",
+      facts: [
+        { label: "Enabled", value: String(status.supervisor.enabled) },
+        { label: "Paused", value: String(status.supervisor.paused) },
+        { label: "Last tick", value: status.supervisor.lastTickAt ?? "None" },
+        { label: "Next tick", value: status.supervisor.nextTickAt ?? "None" },
+      ],
+      actions: [],
+    };
+  }
+
+  if (id === "memory") {
+    return {
+      title: "Memory",
+      eyebrow: `System / ${status.memory.status}`,
+      detail: `${status.memory.backend} is canonical through ${status.memory.canonical}.`,
+      facts: [
+        {
+          label: "Capture queue",
+          value: `${status.memory.captureQueue.pending} pending / ${status.memory.captureQueue.failed} failed`,
+        },
+        { label: "Queue total", value: String(status.memory.captureQueue.total) },
+        { label: "Queue path", value: status.memory.captureQueue.path ?? "Unknown" },
+        { label: "Doctor", value: status.memory.doctor?.ok === false ? "Needs review" : "OK" },
+      ],
+      actions: [],
+    };
+  }
+
+  if (id === "learning") {
+    return {
+      title: "Learning",
+      eyebrow: `System / ${status.learning.status}`,
+      detail: "Learning activity queue health and replay state.",
+      facts: [
+        {
+          label: "Activity queue",
+          value: `${status.learning.activityQueue.pending} pending / ${status.learning.activityQueue.failed} failed`,
+        },
+        { label: "Queue total", value: String(status.learning.activityQueue.total) },
+        { label: "Queue path", value: status.learning.activityQueue.path ?? "Unknown" },
+      ],
+      actions: [],
+    };
+  }
+
+  if (id === "sources") {
+    return {
+      title: "Sources",
+      eyebrow: `System / ${status.sources.failing.length > 0 ? "degraded" : "ok"}`,
+      detail: "Observation source enablement and failures.",
+      facts: [
+        { label: "Enabled", value: status.sources.enabled.join(", ") || "None" },
+        { label: "Disabled", value: status.sources.disabled.join(", ") || "None" },
+        { label: "Failing", value: status.sources.failing.join(", ") || "None" },
+      ],
+      actions: [],
+    };
+  }
+
+  if (id === "policy") {
+    return {
+      title: "Policy",
+      eyebrow: `System / ${status.policy.mode}`,
+      detail: `Default autonomy tier: ${status.policy.defaultTier}.`,
+      facts: [
+        { label: "Mode", value: status.policy.mode },
+        { label: "Default tier", value: status.policy.defaultTier },
+        {
+          label: "Approvals",
+          value: status.policy.approvalsRequired.join(", ") || "No extra approvals",
+        },
+      ],
+      actions: [],
+    };
+  }
+
+  if (id === "notifications") {
+    return {
+      title: "Notifications",
+      eyebrow: `System / ${status.notifications.telegram.enabled ? "enabled" : "disabled"}`,
+      detail: "Telegram and urgent notification state.",
+      facts: [
+        { label: "Telegram", value: status.notifications.telegram.enabled ? "Enabled" : "Disabled" },
+        { label: "Target", value: status.notifications.telegram.target ?? "None" },
+        { label: "Urgent pending", value: String(status.notifications.urgentPending) },
+      ],
+      actions: [],
+    };
+  }
+
+  if (id === "audit") {
+    return {
+      title: "Audit",
+      eyebrow: "System / events",
+      detail: status.audit.eventLogPath ?? "Event log path is pending.",
+      facts: [
+        { label: "Recent events", value: String(status.audit.recentEvents) },
+        { label: "Event log", value: status.audit.eventLogPath ?? "None" },
+      ],
+      actions: [],
+    };
+  }
+
+  return missingWorkspaceTarget({ kind: "system", id });
 }
 
 function missingWorkspaceTarget(target: AgentWorkspaceTarget): AgentWorkspaceView {

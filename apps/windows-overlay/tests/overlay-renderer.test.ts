@@ -213,6 +213,15 @@ describe("overlay renderer model", () => {
       "Code: SageOS",
       "Review memory queue",
     ]);
+    expect(model.commandDeck.systemResources.map((resource) => resource.title)).toEqual([
+      "Supervisor",
+      "Memory",
+      "Learning",
+      "Sources",
+      "Policy",
+      "Notifications",
+      "Audit",
+    ]);
   });
 
   it("maps the full SageOS contract into overview groups", () => {
@@ -283,6 +292,15 @@ describe("overlay renderer model", () => {
     const collaborationModel = renderOverlayModel(state as never, {
       workspaceTarget: { kind: "collaboration", id: "collab_1" },
     });
+    const memoryModel = renderOverlayModel(state as never, {
+      workspaceTarget: { kind: "system", id: "memory" },
+    });
+    const policyModel = renderOverlayModel(state as never, {
+      workspaceTarget: { kind: "system", id: "policy" },
+    });
+    const auditModel = renderOverlayModel(state as never, {
+      workspaceTarget: { kind: "system", id: "audit" },
+    });
 
     expect(taskModel.workspace).toMatchObject({
       title: "Night Shift report",
@@ -334,6 +352,22 @@ describe("overlay renderer model", () => {
     expect(collaborationModel.workspace).toMatchObject({
       title: "Review memory queue",
       eyebrow: "Collaboration / handoff",
+    });
+    expect(memoryModel.workspace).toMatchObject({
+      title: "Memory",
+      eyebrow: "System / degraded",
+    });
+    expect(memoryModel.workspace.facts).toContainEqual({
+      label: "Capture queue",
+      value: "2 pending / 1 failed",
+    });
+    expect(policyModel.workspace).toMatchObject({
+      title: "Policy",
+      eyebrow: "System / execute_scoped",
+    });
+    expect(auditModel.workspace).toMatchObject({
+      title: "Audit",
+      eyebrow: "System / events",
     });
   });
 
