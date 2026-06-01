@@ -1641,13 +1641,15 @@ Get-Content C:\Users\jason\Desktop\PeakIQ-AI-Assistant\apps\intranet\src\compone
 Get-Content C:\Users\jason\Desktop\PeakIQ-AI-Assistant\apps\intranet\src\styles\tokens.css
 ```
 
-SageOS should adopt a Sage-specific Vitreus/Vitreous Liquor system: neutral charcoal and cool platinum surfaces, layered glass elevation, crisp borders, rim highlights, restrained blur, scan-friendly operational density, and spring-calibrated motion. Do not copy PeakHQ branding directly.
+SageOS should adopt Liquid Linear command glass for the MVP overlay: Apple-like liquid glass material physics plus Linear-like command hierarchy, density, restraint, and operational precision. This was selected as visual companion Option B and is specified in `docs/superpowers/specs/2026-06-01-sageos-liquid-linear-overlay-design.md`.
+
+The implementation should keep the Sage-specific Vitreus/Vitreous Liquor foundation: neutral charcoal and cool platinum surfaces, layered glass elevation, crisp borders, rim highlights, restrained blur, scan-friendly operational density, and spring-calibrated motion. Do not copy PeakHQ, Apple, or Linear branding directly.
 
 - [ ] **Step 1: Write visual contract tests**
 
 Add tests that assert the overlay stylesheet exposes SageOS material tokens and state classes:
 
-- `--sageos-bg`, `--sageos-surface-*`, `--sageos-glass-*`, `--sageos-border-*`, `--sageos-shadow-*`, `--sageos-accent-*`, `--sageos-motion-*`.
+- `--sageos-bg`, `--sageos-surface-*`, `--sageos-glass-*`, `--sageos-liquid-*`, `--sageos-border-*`, `--sageos-shadow-*`, `--sageos-accent-*`, `--sageos-motion-*`.
 - Surface classes for command deck, HUD, edge rail, pinned widgets, toolbar, launcher, panels, rows, buttons, focus states, loading, empty, error, degraded, success, warning, critical, and disabled states.
 - Reduced-motion media query.
 - Text overflow guards for rows, cards, badges, buttons, and pinned widgets.
@@ -1665,8 +1667,8 @@ Expected: FAIL until the visual token layer and state classes exist.
 Refactor `styles.css` so visual constants live in a small token section:
 
 - Background: transparent overlay root, neutral charcoal command surfaces, cool platinum-compatible light fallback.
-- Glass: background alpha levels, opacity floors, blur scale, border colors, rim highlight colors.
-- Elevation: ambient, default, featured, modal/summit.
+- Glass: background alpha levels, opacity floors, blur scale, saturation, border colors, rim highlight colors.
+- Liquid Linear elevation: ambient, command, focus, summit.
 - Status: primary, success, warning, danger, info.
 - Motion: fast, normal, slow, snappy, responsive, smooth, reduced-motion fallbacks.
 - Radius and spacing: compact system controls, 8px default cards, stable dimensions for buttons/badges/widgets.
@@ -1713,6 +1715,7 @@ Manual acceptance:
 - Keyboard focus is visible and ordered.
 - Reduced motion is respected.
 - UI density is enterprise/operations-grade, not marketing-style.
+- Apple-like liquid glass depth is visible, but Linear-like row density, command hierarchy, and contrast remain dominant.
 - No in-app explanatory filler text replaces actual controls.
 
 - [ ] **Step 5: Record visual evidence and commit**

@@ -671,18 +671,21 @@ Trace spans should cover:
 
 ## Visual Design Language
 
-SageOS should use a Sage-native adaptation of PeakHQ's Vitreus/Vitreous Liquor design language. The PeakHQ reference is `C:\Users\jason\Desktop\PeakIQ-AI-Assistant\apps\intranet\src\PEAKHQ_DESIGN_LANGUAGE.md`; SageOS should borrow the design physics and material logic, not the PeakHQ brand identity.
+SageOS should use Liquid Linear command glass as the MVP overlay visual target: Apple-like liquid glass material physics plus Linear-like command hierarchy, density, restraint, and operational precision. This direction was selected through the visual companion as Option B and is specified in `docs/superpowers/specs/2026-06-01-sageos-liquid-linear-overlay-design.md`.
+
+The foundation remains a Sage-native adaptation of PeakHQ's Vitreus/Vitreous Liquor design language. The PeakHQ reference is `C:\Users\jason\Desktop\PeakIQ-AI-Assistant\apps\intranet\src\PEAKHQ_DESIGN_LANGUAGE.md`; SageOS should borrow the design physics and material logic, not the PeakHQ brand identity.
 
 ### Material System
 
-The overlay should feel like a precise glass command surface over Windows:
+The overlay should feel like a precise liquid glass command surface over Windows:
 
 - Neutral charcoal dark surfaces and cool platinum light surfaces.
-- Layered glass elevation: ambient, default, featured, modal/summit.
+- Layered Liquid Linear glass elevation: ambient, command, focus, and summit.
 - Backdrop blur only where it improves separation; opacity floors must preserve text contrast over bright and dark desktop content.
 - Thin rim highlights, crisp borders, soft internal shadows, and subtle glows for state.
 - Static dot-matrix or topographic texture as background depth only when it does not compete with operational data.
 - 8px default card radius unless a specific surface needs a tighter system control or a larger modal container.
+- Apple-like liquid glass effects must never undermine Linear-like scan density, command hierarchy, or legibility.
 
 ### Color And State
 
@@ -708,6 +711,7 @@ The overlay must be mouse-first, keyboard-complete, and voice-ready:
 The MVP cannot close with "functionally present but visually rough" overlay UI. A final visual polish pass must:
 
 - Audit every overlay surface: Command Deck, Universal Launcher, Agent Workspace, Compact HUD, Edge Rail, Pinned Widgets, dialogs, loading, empty, error, disabled, and degraded states.
+- Verify the overlay matches the Liquid Linear command glass target from `docs/superpowers/specs/2026-06-01-sageos-liquid-linear-overlay-design.md`.
 - Verify desktop and narrow viewport layouts with screenshots.
 - Check that text never overlaps or clips inside cards, rows, badges, or buttons.
 - Check that pinned widgets remain legible over representative dark, light, text-heavy, and browser/IDE backgrounds.
