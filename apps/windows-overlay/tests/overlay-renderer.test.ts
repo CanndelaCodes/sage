@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   getOverlaySurfaceVisibility,
   handleOverlayKeyboardShortcut,
+  isOverlayInteractiveElement,
   readInitialOverlaySurface,
   readOverlayGatewaySettings,
   readOverlayInteractionSettings,
@@ -604,5 +605,20 @@ describe("overlay renderer model", () => {
     expect(close).toHaveBeenCalledTimes(1);
     expect(focusLauncher).not.toHaveBeenCalled();
     expect(preventDefault).toHaveBeenCalledTimes(1);
+  });
+
+  it("detects overlay controls that should temporarily capture pointer input", () => {
+    const interactive = {
+      closest: vi.fn().mockReturnValue({ tagName: "BUTTON" }),
+    };
+    const passive = {
+      closest: vi.fn().mockReturnValue(null),
+    };
+
+    expect(isOverlayInteractiveElement(interactive as unknown as Element)).toBe(true);
+    expect(isOverlayInteractiveElement(passive as unknown as Element)).toBe(false);
+    expect(interactive.closest).toHaveBeenCalledWith(
+      'button, input, textarea, select, a, [role="button"], [data-overlay-interactive="true"]',
+    );
   });
 });

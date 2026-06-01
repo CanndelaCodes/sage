@@ -113,6 +113,8 @@ async function smokeFullOverlay(gatewayUrl) {
 
     await page.evaluate(() => window.sageOsOverlay?.collapse());
     await page.waitForSelector(".edge-rail--left", { timeout: 5_000 });
+    await page.evaluate(() => window.sageOsOverlay?.setInteractivePointer(true));
+    await page.evaluate(() => window.sageOsOverlay?.setInteractivePointer(false));
     await page.screenshot({
       path: path.join(screenshotDir, "overlay-smoke-edge-left.png"),
       animations: "disabled",
@@ -185,10 +187,16 @@ async function assertPreloadBridge(page) {
     collapse: typeof window.sageOsOverlay?.collapse,
     expand: typeof window.sageOsOverlay?.expand,
     close: typeof window.sageOsOverlay?.close,
+    interactivePointer: typeof window.sageOsOverlay?.setInteractivePointer,
   }));
   assertEqual(api.collapse, "function", "window.sageOsOverlay?.collapse is exposed");
   assertEqual(api.expand, "function", "window.sageOsOverlay?.expand is exposed");
   assertEqual(api.close, "function", "window.sageOsOverlay?.close is exposed");
+  assertEqual(
+    api.interactivePointer,
+    "function",
+    "sageos-overlay:interactive-pointer bridge is exposed",
+  );
 }
 
 async function setVisualBackdrop(page, kind) {

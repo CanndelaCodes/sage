@@ -63,6 +63,12 @@ export function createOverlayWindowController(
       state = reduceSageOsOverlayState(state, { type: "collapse" });
       render();
     },
+    setInteractivePointer(active: boolean) {
+      if (!state.visible || state.pointerMode !== "passThrough") {
+        return;
+      }
+      adapter.setPassThrough(!active);
+    },
     close() {
       state = reduceSageOsOverlayState(state, { type: "close" });
       render();

@@ -2,7 +2,7 @@
 
 Date: 2026-06-01
 Operator: Codex
-Build: Liquid Linear visual evidence slice after 2082a95859
+Build: interactive pass-through bridge slice after 3e34cf2f08
 
 ## Preconditions
 
@@ -36,6 +36,7 @@ Build: Liquid Linear visual evidence slice after 2082a95859
 - [x] Liquid Linear material tokens cover ambient, command, focus, and summit glass elevations.
 - [x] Automated smoke captures the overlay over bright, text-heavy, and IDE-like visual backdrops.
 - [x] Edge Rail collapse keeps health, approval, and incident indicators visible.
+- [x] Pass-through surfaces can temporarily restore overlay pointer capture over active controls.
 - [ ] Pinned widget mode leaves the underlying app usable outside active widget controls.
 - [x] Pause, resume, approve, deny, queue, cancel, run next, safe repair, and emergency stop controls call the expected `sageos.*` RPC methods.
 - [x] No renderer page errors appear during the smoke flow.
@@ -61,6 +62,8 @@ Build: Liquid Linear visual evidence slice after 2082a95859
   verifies the Voice button focuses the Universal Launcher,
   captures full Command Deck over a bright synthetic desktop, captures Edge Rail and pinned widgets
   over a text-heavy synthetic app, captures HUD over an IDE-like dark surface,
+  verifies the `sageos-overlay:interactive-pointer` preload bridge and exercises temporary pointer
+  capture while Edge Rail is active,
   renders without pinned-widget overlap in the full Command Deck, exposes the preload IPC bridge
   as `window.sageOsOverlay`, collapses to the left Edge Rail, launches HUD-first mode, expands HUD
   to the full overlay, and records expected RPC calls for pause, resume, emergency stop, approve,

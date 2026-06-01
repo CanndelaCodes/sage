@@ -13,6 +13,8 @@ describe("Electron overlay smoke script", () => {
     for (const expected of [
       "window.sageOsOverlay?.collapse",
       "window.sageOsOverlay?.expand",
+      "window.sageOsOverlay?.setInteractivePointer",
+      "sageos-overlay:interactive-pointer",
       "SAGEOS_OVERLAY_COLLAPSED_EDGE",
       "SAGEOS_OVERLAY_ACTIVE_MONITOR",
       "SAGEOS_OVERLAY_PINNED_WIDGETS",

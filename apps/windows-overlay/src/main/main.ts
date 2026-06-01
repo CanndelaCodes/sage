@@ -22,6 +22,9 @@ void app
     ipcMain.handle("sageos-overlay:expand", () => controller.expand());
     ipcMain.handle("sageos-overlay:collapse", () => controller.collapse());
     ipcMain.handle("sageos-overlay:close", () => controller.close());
+    ipcMain.handle("sageos-overlay:interactive-pointer", (_event, active: unknown) =>
+      controller.setInteractivePointer(Boolean(active)),
+    );
 
     controller.start();
     if (launchConfig.openOnLaunch) {

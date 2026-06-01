@@ -120,10 +120,14 @@ declare global {
       expand(): Promise<void>;
       collapse(): Promise<void>;
       close(): Promise<void>;
+      setInteractivePointer(active: boolean): Promise<void>;
       onSurface(callback: (surface: string) => void): void;
     };
   }
 }
+
+const OVERLAY_INTERACTIVE_SELECTOR =
+  'button, input, textarea, select, a, [role="button"], [data-overlay-interactive="true"]';
 
 export function renderOverlayModel(
   state: SageOsOverlayStatusState,
@@ -317,6 +321,10 @@ export function getOverlaySurfaceVisibility(surface: OverlaySurface): OverlaySur
   };
 }
 
+export function isOverlayInteractiveElement(element: Element | null): boolean {
+  return Boolean(element?.closest(OVERLAY_INTERACTIVE_SELECTOR));
+}
+
 export type OverlayKeyboardActions = {
   close: () => void;
   focusLauncher: () => void;
@@ -367,11 +375,13 @@ export class SageOsOverlayApp extends LitElement {
   private sageOsState: SageOsOverlayStatusState | null = null;
   private launcherCommand = "";
   private workspaceTarget: AgentWorkspaceTarget | null = null;
+  private interactivePointerActive = false;
   private readonly onOverlayKeyDown = (event: KeyboardEvent) =>
     handleOverlayKeyboardShortcut(event, {
       close: () => void window.sageOsOverlay?.close(),
       focusLauncher: () => this.focusLauncher(),
     });
+  private readonly onOverlayPointerMove = (event: MouseEvent) => this.syncInteractivePointer(event);
 
   protected createRenderRoot() {
     return this;
@@ -398,11 +408,13 @@ export class SageOsOverlayApp extends LitElement {
     this.controller = controller;
     window.sageOsOverlay?.onSurface((surface) => this.setSurface(surface));
     window.addEventListener("keydown", this.onOverlayKeyDown);
+    window.addEventListener("mousemove", this.onOverlayPointerMove);
     controller.start();
   }
 
   disconnectedCallback() {
     window.removeEventListener("keydown", this.onOverlayKeyDown);
+    window.removeEventListener("mousemove", this.onOverlayPointerMove);
     this.controller?.stop();
     this.controller = null;
     super.disconnectedCallback();
@@ -470,6 +482,16 @@ export class SageOsOverlayApp extends LitElement {
 
   private syncSurfaceAttribute() {
     this.dataset.surface = this.surface;
+  }
+
+  private syncInteractivePointer(event: MouseEvent) {
+    const element = this.ownerDocument.elementFromPoint(event.clientX, event.clientY);
+    const active = isOverlayInteractiveElement(element);
+    if (active === this.interactivePointerActive) {
+      return;
+    }
+    this.interactivePointerActive = active;
+    void window.sageOsOverlay?.setInteractivePointer(active);
   }
 
   private renderToolbar() {

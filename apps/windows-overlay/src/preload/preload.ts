@@ -13,4 +13,7 @@ contextBridge.exposeInMainWorld("sageOsOverlay", {
   close() {
     return ipcRenderer.invoke("sageos-overlay:close");
   },
+  setInteractivePointer(active: boolean) {
+    return ipcRenderer.invoke("sageos-overlay:interactive-pointer", Boolean(active));
+  },
 });

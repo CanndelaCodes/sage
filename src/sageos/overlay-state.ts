@@ -55,7 +55,17 @@ export function reduceSageOsOverlayState(
 ): SageOsOverlayState {
   switch (action.type) {
     case "toggle":
-      return { ...state, visible: !state.visible };
+      if (state.visible) {
+        return { ...state, visible: false };
+      }
+      return {
+        ...state,
+        visible: true,
+        pointerMode:
+          state.surface === "hud" || state.surface === "edgeRail"
+            ? "passThrough"
+            : state.pointerMode,
+      };
     case "close":
       return { ...state, visible: false };
     case "expand":

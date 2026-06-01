@@ -18,7 +18,9 @@ describe("SageOS overlay state", () => {
     const full = reduceSageOsOverlayState(hud, { type: "expand" });
 
     expect(hud.surface).toBe("hud");
+    expect(hud.pointerMode).toBe("passThrough");
     expect(full.surface).toBe("commandDeck");
+    expect(full.pointerMode).toBe("focused");
   });
 
   it("keeps pinned widgets pass-through capable", () => {
