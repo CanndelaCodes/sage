@@ -1,0 +1,35 @@
+import { describe, expect, it } from "vitest";
+import { readOverlayLaunchConfig } from "../src/main/launch-config.js";
+
+describe("overlay launch config", () => {
+  it("maps environment settings into shell config and renderer gateway query", () => {
+    const config = readOverlayLaunchConfig({
+      SAGEOS_OVERLAY_HOTKEY: "Ctrl+Shift+Space",
+      SAGEOS_OVERLAY_OPEN_MODE: "hud",
+      SAGEOS_OVERLAY_GATEWAY_URL: "ws://127.0.0.1:18888",
+      SAGEOS_OVERLAY_TOKEN: "token-1",
+      SAGEOS_OVERLAY_PASSWORD: "password-1",
+    });
+
+    expect(config.shell.hotkey).toBe("Ctrl+Shift+Space");
+    expect(config.shell.openMode).toBe("hud");
+    expect(config.rendererQuery).toEqual({
+      gatewayUrl: "ws://127.0.0.1:18888",
+      token: "token-1",
+      password: "password-1",
+    });
+  });
+
+  it("defaults to the production MVP full overlay settings", () => {
+    const config = readOverlayLaunchConfig({});
+
+    expect(config.shell).toMatchObject({
+      enabled: true,
+      hotkey: "Ctrl+Alt+Space",
+      openMode: "full",
+      hudExpandsToFull: true,
+      collapsedEdge: "right",
+    });
+    expect(config.rendererQuery).toEqual({});
+  });
+});

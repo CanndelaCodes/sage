@@ -15,7 +15,7 @@ Build: 0a9866dd10
 - [x] `pnpm --dir apps/windows-overlay typecheck` passes.
 - [x] `pnpm --dir apps/windows-overlay test` passes.
 - [x] `pnpm --dir apps/windows-overlay build` passes.
-- [ ] `powershell -ExecutionPolicy Bypass -File scripts/sageos-windows-overlay.ps1 -Hotkey "Ctrl+Alt+Space" -OpenMode full` starts the overlay.
+- [ ] `powershell -ExecutionPolicy Bypass -File scripts/sageos-windows-overlay.ps1 -Hotkey "Ctrl+Alt+Space" -OpenMode full -GatewayUrl "ws://127.0.0.1:18789"` starts the overlay.
 - [ ] `Ctrl+Alt+Space` opens the full-screen translucent overlay.
 - [ ] `Ctrl+Alt+Space` closes the overlay.
 - [ ] `powershell -ExecutionPolicy Bypass -File scripts/sageos-windows-overlay.ps1 -OpenMode hud` starts HUD-first mode.
@@ -28,4 +28,4 @@ Build: 0a9866dd10
 ## Evidence
 
 - Screenshot path:
-- Notes: Automated root overlay config/state tests plus overlay package typecheck, test, and build passed on 2026-06-01. Manual desktop overlay launch and hotkey checks still need to be run in an active Windows desktop session with the Sage gateway running. The current build emits a non-fatal tsdown warning about Electron dependency bundling.
+- Notes: Automated root overlay config/state tests plus overlay package typecheck, test, and build passed on 2026-06-01. Manual desktop overlay launch and hotkey checks still need to be run in an active Windows desktop session with the Sage gateway running. The package-local overlay build config now avoids the earlier non-fatal Electron bundling warning.

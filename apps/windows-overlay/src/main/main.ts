@@ -1,23 +1,18 @@
 import { app, globalShortcut, ipcMain } from "electron";
 import path from "node:path";
 import { createElectronOverlayAdapter } from "./electron-adapter.js";
+import { readOverlayLaunchConfig } from "./launch-config.js";
 import { createOverlayWindowController } from "./window-controller.js";
 
 app.whenReady().then(() => {
+  const launchConfig = readOverlayLaunchConfig();
   const controller = createOverlayWindowController(
     createElectronOverlayAdapter({
       rendererHtmlPath: path.join(app.getAppPath(), "dist", "renderer", "index.html"),
       preloadPath: path.join(app.getAppPath(), "dist", "preload", "preload.js"),
+      rendererQuery: launchConfig.rendererQuery,
     }),
-    {
-      enabled: true,
-      hotkey: process.env.SAGEOS_OVERLAY_HOTKEY ?? "Ctrl+Alt+Space",
-      openMode: process.env.SAGEOS_OVERLAY_OPEN_MODE === "hud" ? "hud" : "full",
-      hudExpandsToFull: true,
-      passThroughDefault: false,
-      collapsedEdge: "right",
-      pinnedWidgets: ["activeOperations", "approvals", "incidents"],
-    },
+    launchConfig.shell,
   );
 
   ipcMain.handle("sageos-overlay:expand", () => controller.expand());

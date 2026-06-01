@@ -1,11 +1,13 @@
 import { BrowserWindow, Tray, globalShortcut, nativeImage, screen } from "electron";
 import path from "node:path";
 import type { SageOsOverlayState } from "../../../../src/sageos/overlay-state.js";
+import type { OverlayRendererQuery } from "./launch-config.js";
 import type { OverlayShellAdapter } from "./window-controller.js";
 
 export function createElectronOverlayAdapter(params: {
   rendererHtmlPath: string;
   preloadPath: string;
+  rendererQuery?: OverlayRendererQuery;
 }): OverlayShellAdapter {
   let window: BrowserWindow | null = null;
   let tray: Tray | null = null;
@@ -34,7 +36,9 @@ export function createElectronOverlayAdapter(params: {
         nodeIntegration: false,
       },
     });
-    void window.loadFile(params.rendererHtmlPath);
+    void window.loadFile(params.rendererHtmlPath, {
+      query: params.rendererQuery,
+    });
     return window;
   };
 
