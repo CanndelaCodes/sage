@@ -13,6 +13,7 @@ import {
   activateSageOsEmployee,
   buildSageOsEmployeeActivationPreview,
 } from "../sageos/employee-activation.js";
+import { draftSageOsEmployeeFromIntent } from "../sageos/employee-builder.js";
 import {
   getSageOsEmployeeTemplate,
   listSageOsEmployeeTemplates,
@@ -49,7 +50,6 @@ import { queueSageOsTask } from "../sageos/task-queue.js";
 import { runNextSageOsTaskOnce } from "../sageos/task-runner.js";
 import {
   createSageOsStatusSnapshot,
-  normalizeSageOsMode,
   type SageOsApproval,
   type SageOsAgentSpec,
   type SageOsAppCandidate,
@@ -233,22 +233,6 @@ function fail(message: string): never {
   defaultRuntime.error(message);
   defaultRuntime.exit(1);
   throw new Error(message);
-}
-
-function slugify(value: string): string {
-  const slug = value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-  return slug || "employee";
-}
-
-function inferEmployeeName(description: string): string {
-  const words = description.trim().split(/\s+/).filter(Boolean).slice(0, 3);
-  if (words.length === 0) {
-    return "Draft Employee";
-  }
-  return words.map((word) => word.slice(0, 1).toUpperCase() + word.slice(1)).join(" ");
 }
 
 function renderEmployees(agents: SageOsAgentSpec[]): string {
@@ -545,32 +529,31 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
     .option("--name <name>", "Employee display name")
     .option("--role <role>", "Employee role")
     .option("--tier <mode>", "Autonomy tier")
+    .option("--template <id>", "Default employee template to use as a guardrailed starting point")
     .option("--json", "Output JSON", false)
     .action(
       async (
         descriptionInput: string,
-        opts: { name?: string; role?: string; tier?: string; json?: boolean },
+        opts: { name?: string; role?: string; tier?: string; template?: string; json?: boolean },
       ) => {
         const cliOpts = commandOptions(opts);
         const description = descriptionInput.trim();
         if (!description) {
           fail("Employee description required.");
         }
-        const now = new Date().toISOString();
-        const name = cliOpts.name?.trim() || inferEmployeeName(description);
-        const employee: SageOsAgentSpec = {
-          id: `employee_${slugify(name)}`,
-          name,
-          role: cliOpts.role?.trim() || "generalist",
-          mission: description,
-          status: "draft",
-          autonomyTier: normalizeSageOsMode(cliOpts.tier ?? "suggest"),
-          responsibilities: [description],
-          allowedScopes: [],
-          deniedScopes: [],
-          createdAt: now,
-          updatedAt: now,
-        };
+        let employee: SageOsAgentSpec;
+        try {
+          employee = draftSageOsEmployeeFromIntent({
+            description,
+            name: cliOpts.name,
+            role: cliOpts.role,
+            autonomyTier: cliOpts.tier,
+            templateId: cliOpts.template,
+          });
+        } catch (err) {
+          fail(err instanceof Error ? err.message : "Unable to draft SageOS employee.");
+        }
+        const preview = buildSageOsEmployeeActivationPreview(employee);
         const store = createSageOsStateStore();
         await upsertSageOsAgent(store, employee);
         await appendSageOsEvent(createSageOsEventLog(), {
@@ -579,7 +562,9 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
           summary: `Drafted SageOS employee ${employee.name}`,
           sensitivity: "normal",
         });
-        outputJsonOrText(cliOpts, { employee }, () => renderJsonResource({ employee }));
+        outputJsonOrText(cliOpts, { employee, preview }, () =>
+          renderJsonResource({ employee, preview }),
+        );
       },
     );
 

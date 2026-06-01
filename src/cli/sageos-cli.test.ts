@@ -269,12 +269,53 @@ describe("sage os CLI", () => {
         status: "draft",
         mission: "Watch Sage Memory capture health",
       },
+      preview: {
+        employeeId: "employee_memory_steward",
+        tools: expect.arrayContaining(["sage-memory"]),
+        memoryAccess: expect.arrayContaining(["capture_queue"]),
+        schedules: expect.arrayContaining(["gateway tick"]),
+      },
+    });
+
+    await program.parseAsync(
+      [
+        "os",
+        "employees",
+        "create",
+        "Create a Security Sentinel that watches Defender, startup apps, and network posture, reports urgent issues immediately, summarizes daily, and asks before changing firewall settings.",
+        "--json",
+      ],
+      { from: "user" },
+    );
+    expect(lastJson()).toMatchObject({
+      employee: {
+        id: "employee_security_sentinel",
+        name: "Security Sentinel",
+        role: "security",
+        status: "draft",
+        autonomyTier: "observe",
+        tools: expect.arrayContaining(["sageos.system-observer", "windows-security-readonly"]),
+        memoryScopes: expect.arrayContaining(["security_observations", "incidents"]),
+        schedules: expect.arrayContaining([
+          "gateway tick",
+          "daily digest",
+          "urgent incident trigger",
+        ]),
+      },
+      preview: {
+        employeeId: "employee_security_sentinel",
+        tools: expect.arrayContaining(["sageos.system-observer", "windows-security-readonly"]),
+        memoryAccess: expect.arrayContaining(["security_observations", "incidents"]),
+        schedules: expect.arrayContaining(["daily digest", "urgent incident trigger"]),
+        approvalRequired: false,
+      },
     });
     await expect(readSageOsState(store)).resolves.toMatchObject({
       agents: [
         { id: "employee_reviewer" },
         { id: "employee_memory", status: "active" },
         { id: "employee_memory_steward" },
+        { id: "employee_security_sentinel" },
       ],
     });
     const rawEvents = await readFile(path.join(stateDir, "sageos", "events.jsonl"), "utf8");
