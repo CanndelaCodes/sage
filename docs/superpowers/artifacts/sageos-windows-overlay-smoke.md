@@ -33,7 +33,7 @@ Build: overlay keyboard dismissal slice after e5c05118ac
 - [x] `Escape` dismisses the overlay through the preload IPC close bridge.
 - [x] Edge Rail collapse keeps health, approval, and incident indicators visible.
 - [ ] Pinned widget mode leaves the underlying app usable outside active widget controls.
-- [x] Pause, resume, approve, deny, queue, cancel, and emergency stop controls call the expected `sageos.*` RPC methods.
+- [x] Pause, resume, approve, deny, queue, cancel, run next, safe repair, and emergency stop controls call the expected `sageos.*` RPC methods.
 - [x] No renderer page errors appear during the smoke flow.
 
 ## Evidence
@@ -52,10 +52,11 @@ Build: overlay keyboard dismissal slice after e5c05118ac
   renders without pinned-widget overlap in the full Command Deck, exposes the preload IPC bridge
   as `window.sageOsOverlay`, collapses to the left Edge Rail, launches HUD-first mode, expands HUD
   to the full overlay, and records expected RPC calls for pause, resume, emergency stop, approve,
-  queue, cancel, and launcher send. Unit coverage now verifies the registered global hotkey
-  callback opens and closes the overlay, startup fails if Electron reports hotkey registration
-  failure, and active-monitor selection honors `primary` plus configured display IDs. The smoke
-  now presses `Ctrl+K`, verifies launcher focus, presses `Escape`, and waits for the Electron
-  BrowserWindow to hide through the close bridge. The smoke emitted Electron's development CSP
-  warning only; no renderer page errors were observed. Physical hotkey open/close and real
-  pass-through usability over an underlying app still need physical/manual verification.
+  deny, run next, safe memory replay repair, queue, cancel, and launcher send. Unit coverage now
+  verifies the registered global hotkey callback opens and closes the overlay, startup fails if
+  Electron reports hotkey registration failure, and active-monitor selection honors `primary` plus
+  configured display IDs. The smoke now presses `Ctrl+K`, verifies launcher focus, presses
+  `Escape`, and waits for the Electron BrowserWindow to hide through the close bridge. The smoke
+  emitted Electron's development CSP warning only; no renderer page errors were observed. Physical
+  hotkey open/close and real pass-through usability over an underlying app still need
+  physical/manual verification.

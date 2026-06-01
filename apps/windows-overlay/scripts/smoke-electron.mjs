@@ -26,6 +26,8 @@ try {
     "sageos.approvals.resolve",
     "sageos.tasks.queue",
     "sageos.tasks.cancel",
+    "sageos.tasks.runNext",
+    "sageos.memory.replay",
     "chat.send",
   ]);
 
@@ -80,6 +82,12 @@ async function smokeFullOverlay(gatewayUrl) {
     await waitForRecordedMethod("sageos.control", 3);
     await page.getByRole("button", { name: "Approve" }).click();
     await waitForRecordedMethod("sageos.approvals.resolve");
+    await page.getByRole("button", { name: "Deny" }).click();
+    await waitForRecordedMethod("sageos.approvals.resolve", 2);
+    await page.getByRole("button", { name: "Run next" }).click();
+    await waitForRecordedMethod("sageos.tasks.runNext");
+    await page.getByRole("button", { name: "Replay memory queue" }).click();
+    await waitForRecordedMethod("sageos.memory.replay");
     const memoryReplayRow = page.locator(".overlay-row").filter({ hasText: "Memory replay" });
     await memoryReplayRow.getByRole("button", { name: "Queue" }).click();
     await waitForRecordedMethod("sageos.tasks.queue");
@@ -203,6 +211,8 @@ async function startMockGateway(recorded) {
                   "sageos.approvals.resolve",
                   "sageos.tasks.queue",
                   "sageos.tasks.cancel",
+                  "sageos.tasks.runNext",
+                  "sageos.memory.replay",
                   "chat.send",
                 ],
                 events: ["sageos"],
