@@ -1,10 +1,12 @@
 import type {
   SageOsApproval,
+  SageOsAgentSpec,
   SageOsAppCandidate,
   SageOsCodingReport,
   SageOsCollaborationEvent,
   SageOsIncident,
   SageOsObservation,
+  SageOsRun,
   SageOsSkillRecord,
   SageOsStatusSnapshot,
   SageOsTaskSpec,
@@ -14,7 +16,9 @@ import type { OverlayGatewayClient } from "./gateway-client.js";
 
 export type SageOsOverlayStatusState = {
   status: SageOsStatusSnapshot;
+  agents?: SageOsAgentSpec[];
   tasks?: SageOsTaskSpec[];
+  runs?: SageOsRun[];
   approvals?: SageOsApproval[];
   codingReports?: SageOsCodingReport[];
   workflows?: SageOsWorkflow[];

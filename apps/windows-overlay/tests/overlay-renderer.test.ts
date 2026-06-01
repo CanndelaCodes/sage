@@ -60,9 +60,32 @@ const state = {
       },
     ],
   },
+  agents: [
+    {
+      id: "employee_memory",
+      name: "Memory Steward",
+      role: "memory",
+      mission: "Keep Sage Memory capture healthy.",
+      status: "active",
+      autonomyTier: "execute_scoped",
+      responsibilities: ["memory"],
+      allowedScopes: [{ kind: "memory", allow: ["capture"], risk: "low" }],
+      deniedScopes: [],
+    },
+  ],
   tasks: [
     { id: "task_1", title: "Night Shift report", objective: "Summarize coding work", state: "running" },
     { id: "task_2", title: "Memory replay", objective: "Replay queued memory captures", state: "proposed" },
+  ],
+  runs: [
+    {
+      id: "run_task_1",
+      taskId: "task_1",
+      attempt: 1,
+      state: "running",
+      traceId: "trace_task_1",
+      startedAt: "2026-06-01T12:50:00.000Z",
+    },
   ],
   approvals: [
     {
@@ -207,6 +230,8 @@ describe("overlay renderer model", () => {
       },
     ]);
     expect(model.commandDeck.resources.map((resource) => resource.title)).toEqual([
+      "Memory Steward",
+      "run_task_1",
       "Review repeated Code focus",
       "Skill: Review repeated Code focus",
       "Code Focus Widget",
@@ -277,6 +302,12 @@ describe("overlay renderer model", () => {
     const codingReportModel = renderOverlayModel(state as never, {
       workspaceTarget: { kind: "codingReport", id: "coding_report_task_1" },
     });
+    const employeeModel = renderOverlayModel(state as never, {
+      workspaceTarget: { kind: "employee", id: "employee_memory" },
+    });
+    const runModel = renderOverlayModel(state as never, {
+      workspaceTarget: { kind: "run", id: "run_task_1" },
+    });
     const workflowModel = renderOverlayModel(state as never, {
       workspaceTarget: { kind: "workflow", id: "workflow_1" },
     });
@@ -332,6 +363,14 @@ describe("overlay renderer model", () => {
     expect(codingReportModel.workspace.facts).toContainEqual({
       label: "Tests",
       value: "node test.js: 0",
+    });
+    expect(employeeModel.workspace).toMatchObject({
+      title: "Memory Steward",
+      eyebrow: "Employee / active",
+    });
+    expect(runModel.workspace).toMatchObject({
+      title: "run_task_1",
+      eyebrow: "Run / running",
     });
     expect(workflowModel.workspace).toMatchObject({
       title: "Review repeated Code focus",

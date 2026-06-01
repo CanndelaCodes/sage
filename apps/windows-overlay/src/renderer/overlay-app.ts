@@ -62,6 +62,8 @@ export type OverlayCodingReportRow = {
   outcome: string;
 };
 export type OverlayResourceKind =
+  | "employee"
+  | "run"
   | "workflow"
   | "skill"
   | "app"
@@ -785,6 +787,20 @@ function countUrgentIncidents(status: SageOsOverlayStatusState["status"]): numbe
 
 function buildResourceRows(state: SageOsOverlayStatusState): OverlayResourceRow[] {
   return [
+    ...(state.agents ?? []).map((agent) => ({
+      id: agent.id,
+      kind: "employee" as const,
+      title: agent.name,
+      detail: agent.mission,
+      state: agent.status,
+    })),
+    ...(state.runs ?? []).map((run) => ({
+      id: run.id,
+      kind: "run" as const,
+      title: run.id,
+      detail: `${run.taskId} / attempt ${run.attempt}`,
+      state: run.state,
+    })),
     ...(state.workflows ?? []).map((workflow) => ({
       id: workflow.id,
       kind: "workflow" as const,
@@ -925,6 +941,45 @@ function buildWorkspaceModel(
           target,
         },
       ],
+    };
+  }
+
+  if (target.kind === "employee") {
+    const employee = state.agents?.find((entry) => entry.id === target.id);
+    if (!employee) {
+      return missingWorkspaceTarget(target);
+    }
+    return {
+      title: employee.name,
+      eyebrow: `Employee / ${employee.status}`,
+      detail: employee.mission,
+      facts: [
+        { label: "Role", value: employee.role },
+        { label: "Autonomy", value: employee.autonomyTier },
+        { label: "Responsibilities", value: employee.responsibilities?.join(", ") || "None" },
+        { label: "Allowed scopes", value: formatPolicyScopes(employee.allowedScopes ?? []) },
+      ],
+      actions: [],
+    };
+  }
+
+  if (target.kind === "run") {
+    const run = state.runs?.find((entry) => entry.id === target.id);
+    if (!run) {
+      return missingWorkspaceTarget(target);
+    }
+    return {
+      title: run.id,
+      eyebrow: `Run / ${run.state}`,
+      detail: `${run.taskId} / ${run.traceId}`,
+      facts: [
+        { label: "Task", value: run.taskId },
+        { label: "Attempt", value: String(run.attempt) },
+        { label: "Started", value: run.startedAt ?? "Not started" },
+        { label: "Finished", value: run.finishedAt ?? "Not finished" },
+        { label: "Error", value: run.error ?? "None" },
+      ],
+      actions: [],
     };
   }
 

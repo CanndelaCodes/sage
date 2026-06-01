@@ -2,6 +2,8 @@ import { html } from "lit";
 
 export type AgentWorkspaceTarget = {
   kind:
+    | "employee"
+    | "run"
     | "task"
     | "approval"
     | "incident"
