@@ -19,6 +19,7 @@ describe("overlay launch config", () => {
       gatewayUrl: "ws://127.0.0.1:18888",
       token: "token-1",
       password: "password-1",
+      surface: "hud",
     });
   });
 

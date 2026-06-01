@@ -10,6 +10,18 @@ import { SageOsOverlayController } from "./overlay-controller.js";
 import { canRunSageOsIncidentRepair } from "./sageos-actions.js";
 import type { SageOsOverlayStatusState } from "./sageos-actions.js";
 
+export type OverlaySurface = "commandDeck" | "hud" | "edgeRail";
+export type OverlaySurfaceVisibility = {
+  toolbar: boolean;
+  launcher: boolean;
+  commandDeck: boolean;
+  overview: boolean;
+  operationalRows: boolean;
+  agentWorkspace: boolean;
+  pinnedWidgets: boolean;
+  compactHud: boolean;
+  edgeRail: boolean;
+};
 export type OverlayCard = { title: string; value: string; detail: string };
 export type OverlayBadge = { label: string; value: string };
 export type OverlayOverviewRow = { label: string; value: string; detail: string };
@@ -136,8 +148,59 @@ export function readOverlayGatewaySettings(
   };
 }
 
+export function readInitialOverlaySurface(search = globalThis.location?.search ?? ""): OverlaySurface {
+  return normalizeOverlaySurface(new URLSearchParams(search).get("surface"));
+}
+
+export function normalizeOverlaySurface(value: unknown): OverlaySurface {
+  return value === "hud" || value === "edgeRail" ? value : "commandDeck";
+}
+
+export function getOverlaySurfaceVisibility(surface: OverlaySurface): OverlaySurfaceVisibility {
+  if (surface === "hud") {
+    return {
+      toolbar: true,
+      launcher: false,
+      commandDeck: false,
+      overview: false,
+      operationalRows: false,
+      agentWorkspace: false,
+      pinnedWidgets: false,
+      compactHud: true,
+      edgeRail: false,
+    };
+  }
+
+  if (surface === "edgeRail") {
+    return {
+      toolbar: false,
+      launcher: false,
+      commandDeck: false,
+      overview: false,
+      operationalRows: false,
+      agentWorkspace: false,
+      pinnedWidgets: true,
+      compactHud: false,
+      edgeRail: true,
+    };
+  }
+
+  return {
+    toolbar: true,
+    launcher: true,
+    commandDeck: true,
+    overview: true,
+    operationalRows: true,
+    agentWorkspace: true,
+    pinnedWidgets: true,
+    compactHud: false,
+    edgeRail: false,
+  };
+}
+
 export class SageOsOverlayApp extends LitElement {
   static properties = {
+    surface: { state: true },
     overlayConnected: { state: true },
     loading: { state: true },
     error: { state: true },
@@ -146,6 +209,7 @@ export class SageOsOverlayApp extends LitElement {
   };
 
   private controller: SageOsOverlayController | null = null;
+  private surface = readInitialOverlaySurface();
   private overlayConnected = false;
   private loading = false;
   private error: string | null = null;
@@ -158,6 +222,7 @@ export class SageOsOverlayApp extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    this.syncSurfaceAttribute();
     if (this.controller) {
       return;
     }
@@ -174,6 +239,7 @@ export class SageOsOverlayApp extends LitElement {
     });
     controller = new SageOsOverlayController(client, () => this.syncControllerState());
     this.controller = controller;
+    window.sageOsOverlay?.onSurface((surface) => this.setSurface(surface));
     controller.start();
   }
 
@@ -185,49 +251,91 @@ export class SageOsOverlayApp extends LitElement {
 
   render() {
     const model = this.sageOsState ? renderOverlayModel(this.sageOsState) : null;
+    const surfaceVisibility = getOverlaySurfaceVisibility(this.surface);
 
     return html`
-      <main class="overlay-shell">
-        <nav class="overlay-toolbar" aria-label="SageOS overlay controls">
-          <span class="overlay-connection">${this.overlayConnected ? "Connected" : "Connecting"}</span>
-          <button type="button" @click=${() => void this.controller?.pause()}>Pause</button>
-          <button type="button" @click=${() => void this.controller?.resume()}>Resume</button>
-          <button type="button" @click=${() => void this.controller?.emergencyStop()}>
-            Emergency stop
-          </button>
-          <button type="button" @click=${() => window.sageOsOverlay?.expand()}>Full</button>
-          <button type="button" @click=${() => window.sageOsOverlay?.collapse()}>Rail</button>
-          <button type="button" @click=${() => window.sageOsOverlay?.close()}>Close</button>
-        </nav>
+      <main class=${`overlay-shell overlay-shell--${this.surface}`}>
+        ${surfaceVisibility.toolbar ? this.renderToolbar() : nothing}
         <section class="overlay-content">
           ${this.error ? html`<section class="overlay-callout">${this.error}</section>` : nothing}
           ${this.loading ? html`<section class="overlay-callout">Loading SageOS state...</section>` : nothing}
           ${model
             ? html`
-                ${renderUniversalLauncher({
-                  value: this.launcherCommand,
-                  disabled: this.loading || !this.overlayConnected,
-                  onInput: (value) => {
-                    this.launcherCommand = value;
-                  },
-                  onRun: () => void this.runLauncherCommand(),
-                  onVoice: () => this.focusLauncher(),
-                })}
-                ${renderCommandDeck(model.commandDeck.cards)}
-                ${this.renderOverviewGroups(model.overview)}
-                ${this.renderOperationalRows(model.commandDeck)}
-                ${renderAgentWorkspace(
-                  "Agent Workspace",
-                  "Select an employee, task, run, approval, or incident.",
-                )}
-                ${renderPinnedWidgets(["activeOperations", "approvals", "incidents"])}
-                ${renderCompactHud(model.hud.badges)}
-                ${renderEdgeRail(model.edgeRail.badges)}
+                ${surfaceVisibility.launcher ? this.renderLauncher() : nothing}
+                ${surfaceVisibility.commandDeck ? renderCommandDeck(model.commandDeck.cards) : nothing}
+                ${surfaceVisibility.overview ? this.renderOverviewGroups(model.overview) : nothing}
+                ${surfaceVisibility.operationalRows
+                  ? this.renderOperationalRows(model.commandDeck)
+                  : nothing}
+                ${surfaceVisibility.agentWorkspace
+                  ? renderAgentWorkspace(
+                      "Agent Workspace",
+                      "Select an employee, task, run, approval, or incident.",
+                    )
+                  : nothing}
+                ${surfaceVisibility.pinnedWidgets
+                  ? renderPinnedWidgets(["activeOperations", "approvals", "incidents"])
+                  : nothing}
+                ${surfaceVisibility.compactHud ? renderCompactHud(model.hud.badges) : nothing}
+                ${surfaceVisibility.edgeRail ? renderEdgeRail(model.edgeRail.badges) : nothing}
               `
             : html`<section class="overlay-callout">Waiting for SageOS gateway state.</section>`}
         </section>
       </main>
     `;
+  }
+
+  protected updated() {
+    this.syncSurfaceAttribute();
+  }
+
+  private setSurface(surface: unknown) {
+    const next = normalizeOverlaySurface(surface);
+    if (this.surface === next) {
+      return;
+    }
+    this.surface = next;
+    this.syncSurfaceAttribute();
+    this.requestUpdate();
+  }
+
+  private syncSurfaceAttribute() {
+    this.dataset.surface = this.surface;
+  }
+
+  private renderToolbar() {
+    const isCommandDeck = this.surface === "commandDeck";
+    return html`
+      <nav class=${`overlay-toolbar overlay-toolbar--${this.surface}`} aria-label="SageOS overlay controls">
+        <span class="overlay-connection">${this.overlayConnected ? "Connected" : "Connecting"}</span>
+        ${isCommandDeck
+          ? html`
+              <button type="button" @click=${() => void this.controller?.pause()}>Pause</button>
+              <button type="button" @click=${() => void this.controller?.resume()}>Resume</button>
+              <button type="button" @click=${() => void this.controller?.emergencyStop()}>
+                Emergency stop
+              </button>
+            `
+          : nothing}
+        <button type="button" @click=${() => window.sageOsOverlay?.expand()}>Full</button>
+        ${isCommandDeck
+          ? html`<button type="button" @click=${() => window.sageOsOverlay?.collapse()}>Rail</button>`
+          : nothing}
+        <button type="button" @click=${() => window.sageOsOverlay?.close()}>Close</button>
+      </nav>
+    `;
+  }
+
+  private renderLauncher() {
+    return renderUniversalLauncher({
+      value: this.launcherCommand,
+      disabled: this.loading || !this.overlayConnected,
+      onInput: (value) => {
+        this.launcherCommand = value;
+      },
+      onRun: () => void this.runLauncherCommand(),
+      onVoice: () => this.focusLauncher(),
+    });
   }
 
   private async runLauncherCommand() {

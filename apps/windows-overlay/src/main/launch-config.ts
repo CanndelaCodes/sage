@@ -4,6 +4,7 @@ export type OverlayRendererQuery = {
   gatewayUrl?: string;
   token?: string;
   password?: string;
+  surface?: string;
 };
 
 export type OverlayLaunchConfig = {
@@ -29,6 +30,7 @@ export function readOverlayLaunchConfig(
       gatewayUrl: env.SAGEOS_OVERLAY_GATEWAY_URL,
       token: env.SAGEOS_OVERLAY_TOKEN,
       password: env.SAGEOS_OVERLAY_PASSWORD,
+      surface: env.SAGEOS_OVERLAY_OPEN_MODE === "hud" ? "hud" : undefined,
     }),
     openOnLaunch: isEnabled(env.SAGEOS_OVERLAY_OPEN_ON_LAUNCH),
   };

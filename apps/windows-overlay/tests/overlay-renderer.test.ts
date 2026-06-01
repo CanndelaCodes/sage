@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  getOverlaySurfaceVisibility,
+  readInitialOverlaySurface,
   readOverlayGatewaySettings,
   renderOverlayModel,
   SageOsOverlayApp,
@@ -180,6 +182,38 @@ describe("overlay renderer model", () => {
       url: "ws://127.0.0.1:18888",
       token: "abc",
       password: "secret",
+    });
+  });
+
+  it("reads and normalizes the initial overlay surface from URL parameters", () => {
+    expect(readInitialOverlaySurface("?surface=hud")).toBe("hud");
+    expect(readInitialOverlaySurface("?surface=edgeRail")).toBe("edgeRail");
+    expect(readInitialOverlaySurface("?surface=unexpected")).toBe("commandDeck");
+  });
+
+  it("keeps full overlay, HUD, and edge rail sections mutually exclusive", () => {
+    expect(getOverlaySurfaceVisibility("commandDeck")).toMatchObject({
+      launcher: true,
+      commandDeck: true,
+      overview: true,
+      operationalRows: true,
+      agentWorkspace: true,
+      compactHud: false,
+      edgeRail: false,
+    });
+    expect(getOverlaySurfaceVisibility("hud")).toMatchObject({
+      launcher: false,
+      commandDeck: false,
+      compactHud: true,
+      edgeRail: false,
+      pinnedWidgets: false,
+    });
+    expect(getOverlaySurfaceVisibility("edgeRail")).toMatchObject({
+      launcher: false,
+      commandDeck: false,
+      compactHud: false,
+      edgeRail: true,
+      pinnedWidgets: true,
     });
   });
 
