@@ -119,6 +119,14 @@ describe("SageOS shared types", () => {
       attempt: 1,
       state: "queued",
       traceId: "trc_1",
+      workerSessionId: "worker_task_1_1",
+      logs: ["Queued run_1"],
+      artifacts: ["artifact://run_1/report"],
+      verificationResult: {
+        outcome: "skipped",
+        summary: "Verification has not run yet.",
+        refs: [],
+      },
     } satisfies import("./types.js").SageOsRun;
 
     const workflow = {

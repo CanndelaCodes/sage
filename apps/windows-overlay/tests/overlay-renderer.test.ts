@@ -110,6 +110,14 @@ const state = {
       attempt: 1,
       state: "running",
       traceId: "trace_task_1",
+      workerSessionId: "worker_task_1_1",
+      logs: ["Started SageOS task task_1 run run_task_1"],
+      artifacts: ["coding_report_task_1"],
+      verificationResult: {
+        outcome: "passed",
+        summary: "Tests passed",
+        refs: ["test:node test.js"],
+      },
       startedAt: "2026-06-01T12:50:00.000Z",
     },
   ],
@@ -468,6 +476,15 @@ describe("overlay renderer model", () => {
       title: "run_task_1",
       eyebrow: "Run / running",
     });
+    expect(runModel.workspace.facts).toEqual(
+      expect.arrayContaining([
+        { label: "Worker", value: "worker_task_1_1" },
+        { label: "Trace", value: "trace_task_1" },
+        { label: "Verification", value: "passed / Tests passed / test:node test.js" },
+        { label: "Logs", value: "Started SageOS task task_1 run run_task_1" },
+        { label: "Artifacts", value: "coding_report_task_1" },
+      ]),
+    );
     expect(workflowModel.workspace).toMatchObject({
       title: "Review repeated Code focus",
       eyebrow: "Workflow / candidate",

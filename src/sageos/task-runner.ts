@@ -1,4 +1,10 @@
-import type { SageOsConfig, SageOsRun, SageOsStatusSnapshot, SageOsTaskSpec } from "./types.js";
+import type {
+  SageOsConfig,
+  SageOsRun,
+  SageOsRunVerificationResult,
+  SageOsStatusSnapshot,
+  SageOsTaskSpec,
+} from "./types.js";
 import { runSageOsNightShiftTask } from "./coding/night-shift.js";
 import { appendSageOsEvent, createSageOsEventLog } from "./event-log.js";
 import { sendSageOsTaskNotificationOnce } from "./notifications.js";
@@ -12,11 +18,18 @@ import {
 } from "./state-store.js";
 import { collectSageOsStatus } from "./status.js";
 
+export type SageOsTaskExecutorResult = {
+  summary?: string;
+  logs?: string[];
+  artifacts?: string[];
+  verificationResult?: SageOsRunVerificationResult;
+};
+
 export type SageOsTaskExecutor = (ctx: {
   task: SageOsTaskSpec;
   run: SageOsRun;
   stateDir?: string;
-}) => Promise<{ summary?: string } | void>;
+}) => Promise<SageOsTaskExecutorResult | void>;
 
 export type SageOsTaskRunnerResult =
   | {
@@ -84,16 +97,7 @@ export async function runNextSageOsTaskOnce(
     } catch (err) {
       const error = err instanceof Error ? err.message : String(err);
       const failedTask: SageOsTaskSpec = { ...task, state: "failed", updatedAt: now };
-      const failedRun: SageOsRun = {
-        id: `run_${safeId(task.id)}_${attempt}`,
-        taskId: task.id,
-        attempt,
-        state: "failed",
-        traceId: `trace_run_${safeId(task.id)}_${attempt}`,
-        startedAt: now,
-        finishedAt: now,
-        error,
-      };
+      const failedRun = failRun(createTaskRun(task, attempt, now), task, now, error);
       await upsertSageOsTask(store, failedTask);
       await upsertSageOsRun(store, failedRun);
       await appendSageOsEvent(createSageOsEventLog({ stateDir: params.stateDir }), {
@@ -111,14 +115,7 @@ export async function runNextSageOsTaskOnce(
     }
   }
 
-  const run: SageOsRun = {
-    id: `run_${safeId(task.id)}_${attempt}`,
-    taskId: task.id,
-    attempt,
-    state: "running",
-    traceId: `trace_run_${safeId(task.id)}_${attempt}`,
-    startedAt: now,
-  };
+  const run = createTaskRun(task, attempt, now);
   const runningTask: SageOsTaskSpec = { ...task, state: "running", updatedAt: now };
   await upsertSageOsTask(store, runningTask);
   await upsertSageOsRun(store, run);
@@ -143,7 +140,7 @@ export async function runNextSageOsTaskOnce(
       state: "completed",
       updatedAt: finishedAt,
     };
-    const completedRun: SageOsRun = { ...run, state: "succeeded", finishedAt };
+    const completedRun = completeRun(run, runningTask, finishedAt, execution);
     await upsertSageOsTask(store, completedTask);
     await upsertSageOsRun(store, completedRun);
     await appendSageOsEvent(createSageOsEventLog({ stateDir: params.stateDir }), {
@@ -162,7 +159,7 @@ export async function runNextSageOsTaskOnce(
     const error = err instanceof Error ? err.message : String(err);
     const finishedAt = (params.now?.() ?? new Date()).toISOString();
     const failedTask: SageOsTaskSpec = { ...runningTask, state: "failed", updatedAt: finishedAt };
-    const failedRun: SageOsRun = { ...run, state: "failed", finishedAt, error };
+    const failedRun = failRun(run, runningTask, finishedAt, error);
     await upsertSageOsTask(store, failedTask);
     await upsertSageOsRun(store, failedRun);
     await appendSageOsEvent(createSageOsEventLog({ stateDir: params.stateDir }), {
@@ -178,6 +175,75 @@ export async function runNextSageOsTaskOnce(
     await writeSageOsState(store, status);
     return { outcome: "failed", task: failedTask, run: failedRun, status };
   }
+}
+
+function createTaskRun(task: SageOsTaskSpec, attempt: number, startedAt: string): SageOsRun {
+  const slug = safeId(task.id);
+  const id = `run_${slug}_${attempt}`;
+  return {
+    id,
+    taskId: task.id,
+    attempt,
+    state: "running",
+    traceId: `trace_run_${slug}_${attempt}`,
+    workerSessionId: `worker_${slug}_${attempt}`,
+    logs: [`Started SageOS task ${task.id} run ${id}`],
+    artifacts: [],
+    verificationResult: {
+      outcome: "skipped",
+      summary: "Verification has not run yet.",
+      refs: [],
+    },
+    startedAt,
+  };
+}
+
+function completeRun(
+  run: SageOsRun,
+  task: SageOsTaskSpec,
+  finishedAt: string,
+  execution: SageOsTaskExecutorResult | void,
+): SageOsRun {
+  const summary = execution?.summary?.trim() || "dry run completed";
+  return {
+    ...run,
+    state: "succeeded",
+    finishedAt,
+    logs: [
+      ...(run.logs ?? []),
+      ...(execution?.logs ?? []),
+      `Completed SageOS task ${task.id}: ${summary}`,
+    ],
+    artifacts: uniqueStrings(execution?.artifacts ?? task.evidenceRefs ?? []),
+    verificationResult:
+      execution?.verificationResult ??
+      ({
+        outcome: "passed",
+        summary,
+        refs: uniqueStrings(task.verificationPlan ?? []),
+      } satisfies SageOsRunVerificationResult),
+  };
+}
+
+function failRun(
+  run: SageOsRun,
+  task: SageOsTaskSpec,
+  finishedAt: string,
+  error: string,
+): SageOsRun {
+  return {
+    ...run,
+    state: "failed",
+    finishedAt,
+    error,
+    logs: [...(run.logs ?? []), `Failed SageOS task ${task.id}: ${error}`],
+    artifacts: run.artifacts ?? [],
+    verificationResult: {
+      outcome: "failed",
+      summary: error,
+      refs: [],
+    },
+  };
 }
 
 async function maybeSendTaskNotification(
@@ -214,4 +280,8 @@ function safeId(value: string): string {
     .replace(/^_+|_+$/g, "")
     .slice(0, 80);
   return safe || "task";
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }

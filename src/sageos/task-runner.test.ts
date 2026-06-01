@@ -75,6 +75,18 @@ describe("SageOS task runner", () => {
         taskId: "task_build",
         attempt: 1,
         state: "succeeded",
+        traceId: "trace_run_task_build_1",
+        workerSessionId: "worker_task_build_1",
+        logs: [
+          "Started SageOS task task_build run run_task_build_1",
+          "Completed SageOS task task_build: dry-run executor accepted task_build",
+        ],
+        artifacts: [],
+        verificationResult: {
+          outcome: "passed",
+          summary: "dry-run executor accepted task_build",
+          refs: [],
+        },
         startedAt: now,
         finishedAt: now,
       },
@@ -85,7 +97,14 @@ describe("SageOS task runner", () => {
     });
     await expect(readSageOsState(store)).resolves.toMatchObject({
       tasks: [{ id: "task_build", state: "completed" }],
-      runs: [{ id: "run_task_build_1", state: "succeeded" }],
+      runs: [
+        {
+          id: "run_task_build_1",
+          state: "succeeded",
+          workerSessionId: "worker_task_build_1",
+          verificationResult: { outcome: "passed" },
+        },
+      ],
     });
     const log = await readFile(path.join(root, "sageos", "events.jsonl"), "utf8");
     expect(log).toContain("task_run_started");
@@ -125,6 +144,19 @@ describe("SageOS task runner", () => {
       outcome: "completed",
       task: { id: "task_coding_plan", state: "completed" },
       run: { id: "run_task_coding_plan_1", state: "succeeded" },
+    });
+    expect(result.run).toMatchObject({
+      workerSessionId: "worker_task_coding_plan_1",
+      logs: [
+        "Started SageOS coding task task_coding_plan run run_task_coding_plan_1",
+        "Completed SageOS coding task task_coding_plan: 1 file(s) changed",
+      ],
+      artifacts: ["coding_report_task_coding_plan_1"],
+      verificationResult: {
+        outcome: "passed",
+        summary: "node test.js: passed",
+        refs: ["test:node test.js"],
+      },
     });
     await expect(readFile(path.join(repo, "README.md"), "utf8")).resolves.toContain("night shift");
     await expect(readSageOsState(store)).resolves.toMatchObject({
@@ -175,6 +207,17 @@ describe("SageOS task runner", () => {
         id: "run_task_coding_disabled_1",
         state: "failed",
         error: "SageOS coding is disabled.",
+        workerSessionId: "worker_task_coding_disabled_1",
+        logs: [
+          "Started SageOS task task_coding_disabled run run_task_coding_disabled_1",
+          "Failed SageOS task task_coding_disabled: SageOS coding is disabled.",
+        ],
+        artifacts: [],
+        verificationResult: {
+          outcome: "failed",
+          summary: "SageOS coding is disabled.",
+          refs: [],
+        },
       },
     });
     await expect(readSageOsState(store)).resolves.toMatchObject({
@@ -220,6 +263,17 @@ describe("SageOS task runner", () => {
         attempt: 1,
         state: "failed",
         error: "executor failed",
+        workerSessionId: "worker_task_fail_1",
+        logs: [
+          "Started SageOS task task_fail run run_task_fail_1",
+          "Failed SageOS task task_fail: executor failed",
+        ],
+        artifacts: [],
+        verificationResult: {
+          outcome: "failed",
+          summary: "executor failed",
+          refs: [],
+        },
       },
     });
     expect(result.status.runs).toMatchObject({ total: 1, active: 0, failed: 1 });

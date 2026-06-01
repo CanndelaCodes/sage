@@ -77,14 +77,7 @@ export async function runSageOsNightShiftTask(params: {
     state.runs
       .filter((run) => run.taskId === task.id)
       .reduce((max, run) => Math.max(max, run.attempt), 0) + 1;
-  const run: SageOsRun = {
-    id: `run_${safeId(task.id)}_${attempt}`,
-    taskId: task.id,
-    attempt,
-    state: "running",
-    traceId: `trace_coding_${safeId(task.id)}_${attempt}`,
-    startedAt,
-  };
+  const run = createCodingRun(task, attempt, startedAt);
   const runningTask: SageOsTaskSpec = { ...task, state: "running", updatedAt: startedAt };
   await upsertSageOsTask(store, runningTask);
   await upsertSageOsRun(store, run);
@@ -153,6 +146,7 @@ export async function runSageOsNightShiftTask(params: {
   };
   await upsertSageOsCodingReport(store, report);
 
+  const completionSummary = blockers[0] ?? `${diff.changedFiles.length} file(s) changed`;
   const finalTask: SageOsTaskSpec = {
     ...runningTask,
     state: outcome === "succeeded" ? "completed" : outcome === "blocked" ? "blocked" : "failed",
@@ -163,6 +157,16 @@ export async function runSageOsNightShiftTask(params: {
     state: outcome === "succeeded" ? "succeeded" : "failed",
     finishedAt,
     error: blockers.length > 0 ? blockers.join("; ") : undefined,
+    logs: [
+      ...(run.logs ?? []),
+      `${outcome === "succeeded" ? "Completed" : outcome === "blocked" ? "Blocked" : "Failed"} SageOS coding task ${task.id}: ${completionSummary}`,
+    ],
+    artifacts: [report.id],
+    verificationResult: {
+      outcome: outcome === "succeeded" ? "passed" : "failed",
+      summary: formatCodingVerificationSummary(tests, completionSummary),
+      refs: report.verificationRefs,
+    },
   };
   await upsertSageOsTask(store, finalTask);
   await upsertSageOsRun(store, finalRun);
@@ -174,9 +178,7 @@ export async function runSageOsNightShiftTask(params: {
           ? "coding_task_blocked"
           : "coding_task_failed",
     actor: requestedBy,
-    summary: `SageOS coding task ${task.id} ${outcome}: ${
-      blockers[0] ?? `${diff.changedFiles.length} file(s) changed`
-    }`,
+    summary: `SageOS coding task ${task.id} ${outcome}: ${completionSummary}`,
     taskId: task.id,
     runId: run.id,
     traceId: run.traceId,
@@ -184,6 +186,39 @@ export async function runSageOsNightShiftTask(params: {
   const status = await collectSageOsStatus({ stateDir: params.stateDir, cfg: params.cfg });
   await writeSageOsState(store, status);
   return { outcome, task: finalTask, run: finalRun, report, status };
+}
+
+function createCodingRun(task: SageOsTaskSpec, attempt: number, startedAt: string): SageOsRun {
+  const slug = safeId(task.id);
+  const id = `run_${slug}_${attempt}`;
+  return {
+    id,
+    taskId: task.id,
+    attempt,
+    state: "running",
+    traceId: `trace_coding_${slug}_${attempt}`,
+    workerSessionId: `worker_${slug}_${attempt}`,
+    logs: [`Started SageOS coding task ${task.id} run ${id}`],
+    artifacts: [],
+    verificationResult: {
+      outcome: "skipped",
+      summary: "Verification has not run yet.",
+      refs: [],
+    },
+    startedAt,
+  };
+}
+
+function formatCodingVerificationSummary(
+  tests: SageOsCodingTestResult[],
+  fallback: string,
+): string {
+  if (tests.length === 0) {
+    return fallback;
+  }
+  return tests
+    .map((test) => `${test.command}: ${test.exitCode === 0 ? "passed" : "failed"}`)
+    .join(", ");
 }
 
 async function runTestCommand(

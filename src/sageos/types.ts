@@ -349,12 +349,22 @@ export type SageOsTaskExecutionPlan = {
   testCommand?: string;
 };
 
+export type SageOsRunVerificationResult = {
+  outcome: "passed" | "failed" | "skipped";
+  summary: string;
+  refs?: string[];
+};
+
 export type SageOsRun = {
   id: string;
   taskId: string;
   attempt: number;
   state: "queued" | "running" | "succeeded" | "failed" | "cancelled" | "timed_out";
   traceId: string;
+  workerSessionId?: string;
+  logs?: string[];
+  artifacts?: string[];
+  verificationResult?: SageOsRunVerificationResult;
   startedAt?: string;
   finishedAt?: string;
   error?: string;

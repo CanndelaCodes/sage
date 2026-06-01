@@ -1182,8 +1182,13 @@ function buildWorkspaceModel(
       facts: [
         { label: "Task", value: run.taskId },
         { label: "Attempt", value: String(run.attempt) },
+        { label: "Worker", value: run.workerSessionId ?? "Unknown" },
+        { label: "Trace", value: run.traceId },
         { label: "Started", value: run.startedAt ?? "Not started" },
         { label: "Finished", value: run.finishedAt ?? "Not finished" },
+        { label: "Verification", value: formatRunVerification(run.verificationResult) },
+        { label: "Logs", value: formatList(run.logs ?? []) },
+        { label: "Artifacts", value: formatList(run.artifacts ?? []) },
         { label: "Error", value: run.error ?? "None" },
       ],
       actions: [],
@@ -1671,6 +1676,23 @@ function formatNotificationPolicy(
     return "Not specified";
   }
   return `${formatList(policy.channels ?? [])} / ${formatList(policy.notifyOn ?? [])}`;
+}
+
+function formatRunVerification(
+  verification:
+    | {
+        outcome?: string;
+        summary?: string;
+        refs?: string[];
+      }
+    | undefined,
+): string {
+  if (!verification) {
+    return "Not verified";
+  }
+  const refs = formatList(verification.refs ?? []);
+  const base = `${verification.outcome ?? "unknown"} / ${verification.summary ?? "No summary"}`;
+  return refs === "None" ? base : `${base} / ${refs}`;
 }
 
 function summaryRow(
