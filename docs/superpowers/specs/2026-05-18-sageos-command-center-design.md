@@ -6,14 +6,14 @@ Supersedes: `docs/superpowers/specs/2026-05-17-sageos-mvp-design.md` as the high
 
 ## Goal
 
-Define SageOS as Jason's local-first AI operations layer for his Windows computer: a continuously running command center and autonomy kernel where Sage can create, supervise, coordinate, and improve a team of AI agent employees that work across the machine while the computer is on.
+Define SageOS as Jason's local-first AI operations layer for his Windows computer: a continuously running Windows overlay, command center, and autonomy kernel where Sage can create, supervise, coordinate, and improve a team of AI agent employees that work across the machine while the computer is on.
 
-SageOS is not just a dashboard. The dashboard is the control tower. The product is a local operating layer for autonomous work, full-PC stewardship, memory, security, workflow automation, coding, and self-improvement.
+SageOS is not a browser dashboard. The Windows overlay is the primary control tower, opened and dismissed with a programmable global hotkey. The web Command Center, TUI, CLI, and Telegram are supplemental admin, debug, remote, and fallback surfaces. The product is a local operating layer for autonomous work, full-PC stewardship, memory, security, workflow automation, coding, and self-improvement.
 
 The design target is:
 
 - Sage is the AI agent and harness.
-- SageOS is the agentic Windows overlay and command center for full-PC management.
+- SageOS is the agentic Windows overlay and command center contract for full-PC management.
 - Sage Memory is the separate local-first memory and SecondBrain substrate.
 
 SageOS should let Jason express intent in plain language, create durable agent employees from that intent, monitor what they are doing, interrupt or redirect them, delegate broad scopes of autonomy, and let agents collaborate with each other when useful.
@@ -48,6 +48,7 @@ Jason wants SageOS to become the place where he can:
 7. Give Sage broad full-PC responsibility over time.
 8. Keep private memory and computer data local unless explicitly authorized.
 9. Grow SageOS itself through skills, workflows, widgets, apps, and deterministic automation.
+10. Open the primary SageOS UI from anywhere in Windows with a programmable hotkey, keep useful widgets pinned, and dismiss it without losing the underlying work context.
 
 This is stronger than a conventional assistant or chat UI. The goal is a local autonomous operations layer for Jason's computer.
 
@@ -65,6 +66,7 @@ This is stronger than a conventional assistant or chat UI. The goal is a local a
 10. SageOS may improve itself, but cannot silently grant itself new powers, weaken safety policy, change credential rules, or erase audit history.
 11. Workflow learning should produce deterministic scripts, skills, cron jobs, applets, and playbooks whenever possible.
 12. The Command Center should always answer what is happening, why, what changed, what needs attention, and how to stop it.
+13. The production MVP user interface is the Windows overlay; browser and terminal surfaces must stay supplemental.
 
 ## Product boundaries
 
@@ -82,6 +84,7 @@ SageOS is not:
 SageOS is:
 
 - The local command center for Sage.
+- The primary Windows overlay for operating SageOS in the active desktop session.
 - The autonomy kernel for agent employees.
 - The operating layer for full-PC stewardship.
 - The visibility and control surface for long-running agent work.
@@ -107,14 +110,14 @@ Windows user session and local machine
       Verification and Evaluation Harness
       Notification Manager
       Command Center API
+        Windows overlay shell
         CLI
         TUI
-        Gateway control UI
-        Native overlay or tray surface later
+        Gateway web control UI
         Telegram control channel
 ```
 
-The first implementation should create the spine rather than a polished UI:
+The first implementation should create the spine that every surface consumes, then ship the Windows overlay as the primary MVP UI:
 
 1. Shared SageOS types and status contract.
 2. `sageos` config namespace.
@@ -126,6 +129,8 @@ The first implementation should create the spine rather than a polished UI:
 8. `sage os status --json`.
 9. Pause, resume, stop, and emergency stop.
 10. Minimal Command Center overview.
+11. Production Windows overlay shell.
+12. Supplemental web/TUI views that render the same contract.
 
 ## Resource model
 
@@ -396,34 +401,34 @@ Rules:
 
 SageOS should use delegated autonomy tiers.
 
-| Tier | Name | Meaning | Default use |
-| --- | --- | --- | --- |
-| 0 | Off | No autonomous work, status only | disabled service |
-| 1 | Observe | Collect approved observations and health | new sources |
-| 2 | Suggest | Create suggestions, plans, drafts, incidents | risky domains |
-| 3 | Prepare | Create local drafts, branches, scripts, previews | workflow and app drafts |
-| 4 | Execute scoped | Run reversible low-risk work in approved scopes | MVP target |
-| 5 | Execute delegated | Run pre-approved playbooks unattended | trusted employee workflows |
-| 6 | Full operator | Broad cross-app and full-PC autonomy with active monitoring | opt-in later |
+| Tier | Name              | Meaning                                                     | Default use                |
+| ---- | ----------------- | ----------------------------------------------------------- | -------------------------- |
+| 0    | Off               | No autonomous work, status only                             | disabled service           |
+| 1    | Observe           | Collect approved observations and health                    | new sources                |
+| 2    | Suggest           | Create suggestions, plans, drafts, incidents                | risky domains              |
+| 3    | Prepare           | Create local drafts, branches, scripts, previews            | workflow and app drafts    |
+| 4    | Execute scoped    | Run reversible low-risk work in approved scopes             | MVP target                 |
+| 5    | Execute delegated | Run pre-approved playbooks unattended                       | trusted employee workflows |
+| 6    | Full operator     | Broad cross-app and full-PC autonomy with active monitoring | opt-in later               |
 
 Tier 5 and Tier 6 do not remove safety. They mean Jason has delegated a class of work. SageOS still enforces budgets, deny rules, audit, verification, data boundaries, and stop controls.
 
 ## Risk policy
 
-| Risk class | Examples | Default behavior |
-| --- | --- | --- |
-| Read local low sensitivity | status, logs, git diff, test output | allowed in approved scopes |
-| Read local private context | memory, transcripts, window titles, file metadata | allowed only for enabled sources and tasks |
-| Local reversible write | draft file, generated report, branch edit, staging move | allowed at Tier 3 or higher with audit |
-| Local destructive write | delete, overwrite, truncate, reset, bulk move | approval or explicit playbook required |
-| Security remediation | kill process, quarantine file, firewall change | approval or explicit playbook required |
-| Windows setting change | service/startup/task/config change | approval or explicit playbook required |
-| External read | web, GitHub metadata, package docs | allowed if task scope permits |
-| External write | Telegram, email, comments, issues, calendar | approval or explicit workflow required |
-| Production effect | deploy, publish, release, cloud mutation | explicit workflow, dry run, rollback, approval |
-| Credential or auth change | tokens, allowlists, secrets, permissions | approval required |
-| Policy change | autonomy, approval, safety, audit settings | approval required |
-| Private data export | sending private or secret content outside local machine | explicit approval required |
+| Risk class                 | Examples                                                | Default behavior                               |
+| -------------------------- | ------------------------------------------------------- | ---------------------------------------------- |
+| Read local low sensitivity | status, logs, git diff, test output                     | allowed in approved scopes                     |
+| Read local private context | memory, transcripts, window titles, file metadata       | allowed only for enabled sources and tasks     |
+| Local reversible write     | draft file, generated report, branch edit, staging move | allowed at Tier 3 or higher with audit         |
+| Local destructive write    | delete, overwrite, truncate, reset, bulk move           | approval or explicit playbook required         |
+| Security remediation       | kill process, quarantine file, firewall change          | approval or explicit playbook required         |
+| Windows setting change     | service/startup/task/config change                      | approval or explicit playbook required         |
+| External read              | web, GitHub metadata, package docs                      | allowed if task scope permits                  |
+| External write             | Telegram, email, comments, issues, calendar             | approval or explicit workflow required         |
+| Production effect          | deploy, publish, release, cloud mutation                | explicit workflow, dry run, rollback, approval |
+| Credential or auth change  | tokens, allowlists, secrets, permissions                | approval required                              |
+| Policy change              | autonomy, approval, safety, audit settings              | approval required                              |
+| Private data export        | sending private or secret content outside local machine | explicit approval required                     |
 
 ## Full-PC operating scope
 
@@ -663,9 +668,57 @@ Trace spans should cover:
 - Verification checks.
 - Notifications.
 
+## Windows Overlay UX
+
+The Windows overlay is the main SageOS MVP interface. It should feel like a system dashboard layered over the active desktop, not like opening a site in a browser.
+
+### Launch and shell behavior
+
+The overlay shell must support:
+
+- Programmable global Windows hotkey to open, close, and toggle SageOS.
+- Full-screen translucent overlay as the default open state.
+- Configurable compact HUD-first mode that expands into the full overlay.
+- Always-on-top window behavior while the overlay is open.
+- Tray status affordance for health and settings.
+- Startup in the active Windows user session so foreground app observation and user interaction continue to work.
+- Multi-monitor behavior that opens on the active monitor by default and can be pinned to a configured monitor.
+
+### Interaction priority
+
+MVP interaction priority is:
+
+1. Mouse-first: all core flows work through visible controls, cards, menus, buttons, and drag/pin actions.
+2. Keyboard-second: global hotkey, search focus, command palette navigation, escape-to-dismiss, tab order, and arrow navigation.
+3. Voice-third: voice command entry can attach to the launcher, but voice must not block the mouse and keyboard MVP.
+
+### Overlay surfaces
+
+The overlay should ship these concrete surfaces:
+
+- Command Deck: the default full overlay home with supervisor state, active operations, approvals, urgent incidents, next scheduled work, and pause/stop controls.
+- Universal Launcher: plain-language command input and quick actions for employees, tasks, workflows, memory, coding, apps, policy, and repairs.
+- Agent Workspace: focused drill-down for one employee, task, run, approval, incident, repo, workflow, skill, or app/widget.
+- Compact HUD: small always-on-top status surface with active task count, pending approvals, urgent incident count, and expand/pause controls.
+- Edge Rail: collapsed persistent strip showing health, approval badge, incident badge, and active-operation indicator.
+- Pinned Widgets: pass-through-capable widgets for active operations, approvals, memory queue, Night Shift report, system health, and app/widget previews.
+
+### Pass-through and pinned behavior
+
+The overlay must support both focused and pass-through use:
+
+- Focused mode captures pointer and keyboard input for review, approvals, editing, launcher commands, and workspace inspection.
+- Pinned widget mode lets selected widgets stay visible while pointer input passes through to the underlying Windows app outside active widget controls.
+- Edge Rail remains available as the collapsed state so SageOS is visible without occupying the whole screen.
+- Approval, incident, and active-operation badges must remain visible in collapsed or HUD modes unless disabled by config.
+
+### Relationship to web Command Center
+
+The gateway web Command Center is supplemental. It is useful for development, debugging, remote browser access, and admin fallback, but it is not the primary product experience for MVP. Both overlay and web UI must consume the same SageOS status and control contract so work on one surface does not fork product behavior.
+
 ## Command Center UX
 
-Command Center should be the daily control tower.
+Command Center is the control-plane model. The Windows overlay is the daily control tower for MVP, while web/TUI/CLI/Telegram render the same model where those surfaces are useful.
 
 Top-level sections:
 
@@ -865,6 +918,23 @@ sageos:
     nightShiftWindow: "23:00-06:00"
   commandCenter:
     enabled: true
+  overlay:
+    enabled: true
+    hotkey: "Ctrl+Alt+Space"
+    openMode: full
+    hudExpandsToFull: true
+    passThroughDefault: false
+    collapsedEdge: right
+    activeMonitor: auto
+    showApprovalBadge: true
+    showIncidentBadge: true
+    pinnedWidgets:
+      - activeOperations
+      - approvals
+      - incidents
+    voice:
+      enabled: true
+      mode: pushToTalk
   sources:
     sageSessions: true
     toolUsage: true
@@ -937,11 +1007,13 @@ Deliverables:
 - Updated implementation tracker if needed.
 - Agreed first resource model.
 - Decision that current Sage runtime is the substrate.
+- Decision that the Windows overlay is the primary MVP interface and web Command Center is supplemental.
 
 Acceptance:
 
 - Spec distinguishes Sage, SageOS, and Sage Memory.
 - Spec includes full-PC management and agent employee model.
+- Spec makes the overlay-first MVP requirement explicit.
 - Spec keeps local-first and approval boundaries.
 
 ### Phase 1: Shared types and config
@@ -951,7 +1023,6 @@ Goal: define stable contracts before UI or worker code depends on them.
 Files likely involved:
 
 - `src/sageos/types.ts`
-- `src/config/types.sageos.ts`
 - `src/config/types.ts`
 - `src/config/zod-schema.ts`
 
@@ -997,7 +1068,7 @@ Verification:
 
 ### Phase 3: CLI status and Command Center overview
 
-Goal: make SageOS visible immediately.
+Goal: make SageOS visible immediately through the shared contract that the overlay, web, TUI, CLI, and Telegram consume.
 
 Deliverables:
 
@@ -1008,6 +1079,7 @@ Deliverables:
 - `sage os emergency-stop`.
 - Compact status renderer.
 - JSON contract consumed by future UI.
+- Overlay-ready control/status shape for Command Deck, Launcher, Agent Workspace, HUD, Edge Rail, and pinned widgets.
 
 Verification:
 
@@ -1162,13 +1234,39 @@ Verification:
 - Dirty repo policy preserves unrelated changes.
 - Dependency/release/deploy attempts require approval.
 
-### Phase 12: Rich Command Center UI
+### Phase 12: Production Windows overlay shell
 
-Goal: make daily monitoring and steering pleasant.
+Goal: ship the production-usable Windows overlay as the primary MVP interface.
 
 Deliverables:
 
-- UI sections listed above.
+- `apps/windows-overlay/` workspace package.
+- Overlay config for enabled state, hotkey, open mode, HUD behavior, edge rail, active monitor, pass-through default, and pinned widgets.
+- Transparent always-on-top Windows shell with global hotkey toggle and tray status.
+- Command Deck, Universal Launcher, Agent Workspace, Compact HUD, Edge Rail, and Pinned Widgets.
+- Mouse-first controls for pause, resume, stop, emergency stop, approvals, task queue/run/cancel, incident repair, and employee/task inspection.
+- Keyboard navigation for hotkey, focus, command palette, escape dismissal, and tab order.
+- Voice command entry point behind config after mouse and keyboard flows are stable.
+- Tests around overlay state, config, window controller abstraction, gateway client, and rendered surfaces.
+
+Verification:
+
+- Hotkey opens and closes overlay.
+- Full overlay opens by default.
+- HUD-first mode expands to full overlay.
+- Edge Rail remains visible in collapsed state.
+- Pinned widgets support pass-through mode.
+- Pause, resume, cancel, approve, deny, run repair, and inspect actions work from overlay.
+- Overlay consumes the same JSON contract as CLI, TUI, and web.
+
+### Phase 13: Supplemental web and TUI Command Center
+
+Goal: keep browser and terminal views useful for admin, development, debugging, remote review, and fallback access.
+
+Deliverables:
+
+- Web Command Center sections listed above.
+- TUI Command Center overview and drill-downs.
 - Task drill-down.
 - Trace timeline.
 - Approval cards.
@@ -1178,8 +1276,8 @@ Deliverables:
 
 Verification:
 
-- UI consumes same JSON contract as CLI.
-- Pause, resume, cancel, and approve work from UI.
+- Web and TUI consume the same JSON contract as the overlay.
+- Pause, resume, cancel, approve, deny, and safe repair actions work from supplemental surfaces.
 
 ## Acceptance criteria
 
@@ -1188,7 +1286,11 @@ The revised SageOS design is implemented when:
 - SageOS runs continuously with gateway or daemon lifecycle.
 - Jason can pause, resume, stop, and emergency-stop SageOS.
 - `sage os status --json` returns a stable full status snapshot.
-- Command Center shows employees, tasks, approvals, security, PC management, memory, workflows, skills, coding, apps, incidents, and audit.
+- The Windows overlay is production-usable as the primary MVP interface and opens/closes with a configurable global hotkey.
+- The overlay shows Command Deck, Universal Launcher, Agent Workspace, Compact HUD, Edge Rail, and Pinned Widgets.
+- The overlay shows employees, tasks, approvals, security, PC management, memory, workflows, skills, coding, apps, incidents, audit, policy, and collaboration.
+- Pinned widgets can stay visible while pass-through mode leaves the underlying app usable.
+- Web Command Center, TUI, CLI, Telegram, and future panels remain supplemental surfaces backed by the same contract.
 - Jason can create a draft AI employee from plain language.
 - Employee activation shows tools, scopes, autonomy, memory access, schedules, and risks.
 - Employees can run durable tasks with budgets, logs, traces, verification, and reports.
@@ -1215,17 +1317,19 @@ The revised SageOS design is implemented when:
 - Whether screen, OCR, audio, clipboard, and accessibility belong in MVP or post-MVP.
 - Where generated apps/widgets should live.
 - Which self-improvement actions can be auto-promoted without Jason review.
+- Final visual density and default pinned widget order for the overlay.
 
 ## Recommended first implementation brick
 
 Start with the kernel spine:
 
 1. `src/sageos/types.ts` with status, employee, task, run, event, policy, and incident types.
-2. `src/config/types.sageos.ts` and config defaults.
+2. `src/config/zod-schema.ts` and config defaults.
 3. `src/sageos/supervisor.ts` with start, stop, pause, resume, and tick status.
 4. `src/sageos/state-store.ts` and `src/sageos/event-log.ts`.
 5. `sage os status --json` plus human rendering.
 6. Tests for lifecycle, config, status, and event logging.
+7. Windows overlay shell consuming the same contract.
 
 This enables all later work without creating a throwaway UI or brittle automation.
 
