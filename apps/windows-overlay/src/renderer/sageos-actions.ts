@@ -91,6 +91,25 @@ export function cancelSageOsTask(client: OverlayGatewayClient, id: string) {
   return client.request("sageos.tasks.cancel", { id, reason: "windows-overlay" });
 }
 
+export async function runSageOsLauncherCommand(
+  client: OverlayGatewayClient,
+  message: string,
+  opts: { idempotencyKey?: string; sessionKey?: string } = {},
+) {
+  const trimmed = message.trim();
+  if (!trimmed) {
+    throw new Error("SageOS launcher command is required");
+  }
+
+  const employeeDescription = parseEmployeeDraftLauncherCommand(trimmed);
+  if (employeeDescription) {
+    await client.request("sageos.agents.create", { description: employeeDescription });
+    return loadSageOsOverlayStatus(client);
+  }
+
+  return sendSageOsLauncherCommand(client, trimmed, opts);
+}
+
 export function sendSageOsLauncherCommand(
   client: OverlayGatewayClient,
   message: string,
@@ -106,6 +125,27 @@ export function sendSageOsLauncherCommand(
     deliver: false,
     idempotencyKey: opts.idempotencyKey ?? createLauncherCommandId(),
   });
+}
+
+function parseEmployeeDraftLauncherCommand(message: string): string | null {
+  const normalized = message.toLowerCase();
+  if (!/^(create|draft|add)\s+/.test(normalized)) {
+    return null;
+  }
+
+  const employeeHints = [
+    "employee",
+    "agent",
+    "security sentinel",
+    "pc steward",
+    "windows admin",
+    "system doctor",
+    "memory steward",
+    "workflow engineer",
+    "coding worker",
+    "reviewer",
+  ];
+  return employeeHints.some((hint) => normalized.includes(hint)) ? message : null;
 }
 
 export function canRunSageOsIncidentRepair(

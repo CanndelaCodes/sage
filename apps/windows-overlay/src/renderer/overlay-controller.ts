@@ -10,7 +10,7 @@ import {
   resumeSageOs,
   runSageOsIncidentRepair,
   runNextSageOsTask,
-  sendSageOsLauncherCommand,
+  runSageOsLauncherCommand,
   type SageOsOverlayStatusState,
 } from "./sageos-actions.js";
 
@@ -120,7 +120,7 @@ export class SageOsOverlayController {
 
   async sendLauncherCommand(message: string, idempotencyKey?: string) {
     await this.runMutation(() =>
-      sendSageOsLauncherCommand(this.client, message, { idempotencyKey }),
+      runSageOsLauncherCommand(this.client, message, { idempotencyKey }),
     );
   }
 

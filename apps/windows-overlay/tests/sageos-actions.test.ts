@@ -5,6 +5,7 @@ import {
   pauseSageOs,
   queueSageOsTask,
   runSageOsIncidentRepair,
+  runSageOsLauncherCommand,
   sendSageOsLauncherCommand,
 } from "../src/renderer/sageos-actions.js";
 
@@ -90,7 +91,7 @@ describe("SageOS overlay actions", () => {
   it("sends launcher commands through chat.send on the main session", async () => {
     const request = vi.fn().mockResolvedValue({ runId: "run_1", status: "started" });
 
-    const result = await sendSageOsLauncherCommand({ request }, "  summarize my active work  ", {
+    const result = await runSageOsLauncherCommand({ request }, "  summarize my active work  ", {
       idempotencyKey: "overlay-run-1",
     });
 
@@ -101,5 +102,36 @@ describe("SageOS overlay actions", () => {
       idempotencyKey: "overlay-run-1",
     });
     expect(result).toEqual({ runId: "run_1", status: "started" });
+  });
+
+  it("routes employee creation launcher commands through SageOS agent creation", async () => {
+    const refreshed = { status: { employees: { total: 1 } } };
+    const request = vi.fn().mockResolvedValueOnce({ employee: { id: "employee_security_sentinel" } }).mockResolvedValueOnce(refreshed);
+
+    const result = await runSageOsLauncherCommand(
+      { request },
+      "Create a Security Sentinel that watches Defender and reports daily",
+    );
+
+    expect(request).toHaveBeenNthCalledWith(1, "sageos.agents.create", {
+      description: "Create a Security Sentinel that watches Defender and reports daily",
+    });
+    expect(request).toHaveBeenNthCalledWith(2, "sageos.status", {});
+    expect(result).toBe(refreshed);
+  });
+
+  it("still exposes the raw chat launcher command helper", async () => {
+    const request = vi.fn().mockResolvedValue({ runId: "run_1", status: "started" });
+
+    await sendSageOsLauncherCommand({ request }, "check SageOS health", {
+      idempotencyKey: "overlay-run-2",
+    });
+
+    expect(request).toHaveBeenCalledWith("chat.send", {
+      sessionKey: "main",
+      message: "check SageOS health",
+      deliver: false,
+      idempotencyKey: "overlay-run-2",
+    });
   });
 });

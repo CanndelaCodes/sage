@@ -125,4 +125,18 @@ describe("SageOsOverlayController", () => {
       idempotencyKey: "overlay-run-1",
     });
   });
+
+  it("creates employees from Universal Launcher employee commands", async () => {
+    const refreshed = stateFixture("execute_scoped");
+    const request = vi.fn().mockResolvedValueOnce({ employee: { id: "employee_security_sentinel" } }).mockResolvedValueOnce(refreshed);
+    const controller = new SageOsOverlayController({ request });
+
+    await controller.sendLauncherCommand("Create a Security Sentinel that watches Defender");
+
+    expect(request).toHaveBeenNthCalledWith(1, "sageos.agents.create", {
+      description: "Create a Security Sentinel that watches Defender",
+    });
+    expect(request).toHaveBeenNthCalledWith(2, "sageos.status", {});
+    expect(controller.state.sageOsState).toBe(refreshed);
+  });
 });
