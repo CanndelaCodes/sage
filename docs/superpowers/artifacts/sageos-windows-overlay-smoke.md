@@ -2,7 +2,7 @@
 
 Date: 2026-06-01
 Operator: Codex
-Build: working tree before startup-smoke commit
+Build: 0a9866dd10
 
 ## Preconditions
 
@@ -28,4 +28,4 @@ Build: working tree before startup-smoke commit
 ## Evidence
 
 - Screenshot path:
-- Notes: Automated typecheck, test, and build passed on 2026-06-01. Manual desktop overlay launch and hotkey checks still need to be run in an active Windows desktop session with the Sage gateway running. The current build emits a non-fatal tsdown warning about Electron dependency bundling.
+- Notes: Automated root overlay config/state tests plus overlay package typecheck, test, and build passed on 2026-06-01. Manual desktop overlay launch and hotkey checks still need to be run in an active Windows desktop session with the Sage gateway running. The current build emits a non-fatal tsdown warning about Electron dependency bundling.
