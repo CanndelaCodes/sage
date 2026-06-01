@@ -19,3 +19,77 @@ button,
 input {
   font: inherit;
 }
+
+.overlay-shell {
+  width: min(1440px, calc(100vw - 48px));
+  height: calc(100vh - 48px);
+  margin: 24px auto;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 16px;
+}
+
+.command-deck {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.overlay-card,
+.agent-workspace,
+.pinned-widget {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(20, 24, 28, 0.86);
+  padding: 14px;
+}
+
+.overlay-card__title,
+.overlay-card__detail {
+  color: #b7c1bd;
+  font-size: 12px;
+}
+
+.overlay-card__value {
+  margin-top: 8px;
+  font-size: 24px;
+  line-height: 1.1;
+}
+
+.universal-launcher {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+}
+
+.compact-hud {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  display: flex;
+  gap: 8px;
+}
+
+.hud-badge {
+  border-radius: 999px;
+  padding: 8px 10px;
+  background: rgba(20, 24, 28, 0.88);
+}
+
+.edge-rail {
+  position: fixed;
+  right: 0;
+  top: 20vh;
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+}
+
+.pinned-widgets {
+  position: fixed;
+  right: 18px;
+  top: 18px;
+  display: grid;
+  gap: 10px;
+  width: min(360px, calc(100vw - 32px));
+}
