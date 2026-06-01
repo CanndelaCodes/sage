@@ -73,6 +73,18 @@ const state = {
       riskClass: "local_reversible_write",
     },
   ],
+  codingReports: [
+    {
+      id: "coding_report_task_1",
+      taskId: "task_1",
+      repoPath: "C:/Users/jason/Desktop/sage",
+      objective: "Summarize coding work",
+      outcome: "succeeded",
+      tests: [{ command: "node test.js", exitCode: 0 }],
+      blockers: [],
+      diff: { changedFiles: ["README.md"] },
+    },
+  ],
 };
 
 describe("overlay renderer model", () => {
@@ -130,6 +142,14 @@ describe("overlay renderer model", () => {
       repairLabel: "Replay memory queue",
       canRepair: true,
     });
+    expect(model.commandDeck.codingReports).toEqual([
+      {
+        id: "coding_report_task_1",
+        title: "Summarize coding work",
+        detail: "succeeded / 1 changed / 1 test",
+        outcome: "succeeded",
+      },
+    ]);
   });
 
   it("maps the full SageOS contract into overview groups", () => {
@@ -182,6 +202,9 @@ describe("overlay renderer model", () => {
     const incidentModel = renderOverlayModel(state as never, {
       workspaceTarget: { kind: "incident", id: "incident_1" },
     });
+    const codingReportModel = renderOverlayModel(state as never, {
+      workspaceTarget: { kind: "codingReport", id: "coding_report_task_1" },
+    });
 
     expect(taskModel.workspace).toMatchObject({
       title: "Night Shift report",
@@ -204,6 +227,15 @@ describe("overlay renderer model", () => {
       title: "Memory queue backlog",
       eyebrow: "Incident / warning",
       actions: [{ kind: "runIncidentRepair", label: "Replay memory queue", enabled: true }],
+    });
+    expect(codingReportModel.workspace).toMatchObject({
+      title: "Summarize coding work",
+      eyebrow: "Coding report / succeeded",
+      actions: [],
+    });
+    expect(codingReportModel.workspace.facts).toContainEqual({
+      label: "Tests",
+      value: "node test.js: 0",
     });
   });
 

@@ -1,7 +1,7 @@
 import { html } from "lit";
 
 export type AgentWorkspaceTarget = {
-  kind: "task" | "approval" | "incident";
+  kind: "task" | "approval" | "incident" | "codingReport";
   id: string;
 };
 

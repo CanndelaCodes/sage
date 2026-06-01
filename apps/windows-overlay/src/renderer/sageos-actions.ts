@@ -1,5 +1,6 @@
 import type {
   SageOsApproval,
+  SageOsCodingReport,
   SageOsIncident,
   SageOsStatusSnapshot,
   SageOsTaskSpec,
@@ -10,6 +11,7 @@ export type SageOsOverlayStatusState = {
   status: SageOsStatusSnapshot;
   tasks?: SageOsTaskSpec[];
   approvals?: SageOsApproval[];
+  codingReports?: SageOsCodingReport[];
 } & Record<string, unknown>;
 
 const safeIncidentRepairMethods = new Set([

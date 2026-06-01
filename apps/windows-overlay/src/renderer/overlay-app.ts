@@ -55,6 +55,12 @@ export type OverlayIncidentRow = {
   repairLabel?: string;
   canRepair: boolean;
 };
+export type OverlayCodingReportRow = {
+  id: string;
+  title: string;
+  detail: string;
+  outcome: string;
+};
 export type OverlayGatewaySettings = {
   url: string;
   token?: string;
@@ -106,6 +112,16 @@ export function renderOverlayModel(
     repairLabel: incident.repairAction?.label,
     canRepair: canRunSageOsIncidentRepair(incident),
   }));
+  const codingReportRows = (state.codingReports ?? []).map((report) => ({
+    id: report.id,
+    title: report.objective,
+    detail: [
+      report.outcome,
+      `${report.diff.changedFiles.length} changed`,
+      `${report.tests.length} ${report.tests.length === 1 ? "test" : "tests"}`,
+    ].join(" / "),
+    outcome: report.outcome,
+  }));
 
   return {
     commandDeck: {
@@ -122,6 +138,7 @@ export function renderOverlayModel(
       tasks: taskRows satisfies OverlayTaskRow[],
       approvals: approvalRows satisfies OverlayApprovalRow[],
       incidents: incidentRows satisfies OverlayIncidentRow[],
+      codingReports: codingReportRows satisfies OverlayCodingReportRow[],
     },
     overview: buildOverviewGroups(status),
     workspace: buildWorkspaceModel(state, opts.workspaceTarget),
@@ -485,6 +502,34 @@ export class SageOsOverlayApp extends LitElement {
 
         <article class="overlay-panel">
           <div class="overlay-panel__header">
+            <h2>Night Shift</h2>
+          </div>
+          ${commandDeck.codingReports.length === 0
+            ? html`<p class="overlay-muted">No coding reports yet.</p>`
+            : commandDeck.codingReports.map(
+                (report) => html`
+                  <div class="overlay-row">
+                    <div>
+                      <div class="overlay-row__title">${report.title}</div>
+                      <div class="overlay-row__detail">${report.detail}</div>
+                      <div class="overlay-row__meta">${report.id} / ${report.outcome}</div>
+                    </div>
+                    <div class="overlay-row__actions">
+                      <button
+                        type="button"
+                        @click=${() =>
+                          this.openWorkspace({ kind: "codingReport", id: report.id })}
+                      >
+                        Open
+                      </button>
+                    </div>
+                  </div>
+                `,
+              )}
+        </article>
+
+        <article class="overlay-panel">
+          <div class="overlay-panel__header">
             <h2>Incidents</h2>
           </div>
           ${commandDeck.incidents.length === 0
@@ -737,6 +782,32 @@ function buildWorkspaceModel(
         { kind: "approveApproval", label: "Approve", enabled: pending, target },
         { kind: "denyApproval", label: "Deny", enabled: pending, target },
       ],
+    };
+  }
+
+  if (target.kind === "codingReport") {
+    const report = state.codingReports?.find((entry) => entry.id === target.id);
+    if (!report) {
+      return missingWorkspaceTarget(target);
+    }
+    const changedFiles = report.diff?.changedFiles ?? [];
+    const tests = report.tests ?? [];
+    const blockers = report.blockers ?? [];
+    return {
+      title: report.objective,
+      eyebrow: `Coding report / ${report.outcome}`,
+      detail: `${report.repoPath} / ${changedFiles.length} changed file(s)`,
+      facts: [
+        { label: "Outcome", value: report.outcome },
+        { label: "Repo", value: report.repoPath },
+        { label: "Changed files", value: changedFiles.join(", ") || "None" },
+        {
+          label: "Tests",
+          value: tests.map((test) => `${test.command}: ${test.exitCode}`).join(", ") || "None",
+        },
+        { label: "Blockers", value: blockers.join("; ") || "None" },
+      ],
+      actions: [],
     };
   }
 
