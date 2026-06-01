@@ -90,10 +90,15 @@ describe("SageOsOverlayController", () => {
     const request = vi.fn().mockResolvedValue(stateFixture("execute_scoped"));
     const controller = new SageOsOverlayController({ request });
 
+    await controller.activateEmployee("employee_memory");
     await controller.pauseEmployee("employee_memory");
     await controller.resumeEmployee("employee_memory");
     await controller.retireEmployee("employee_memory");
 
+    expect(request).toHaveBeenCalledWith("sageos.agents.activate", {
+      id: "employee_memory",
+      reason: "windows-overlay",
+    });
     expect(request).toHaveBeenCalledWith("sageos.agents.pause", {
       id: "employee_memory",
       reason: "windows-overlay",

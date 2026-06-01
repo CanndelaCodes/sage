@@ -839,6 +839,8 @@ export class SageOsOverlayApp extends LitElement {
       await this.controller.approveApproval(action.target.id);
     } else if (action.kind === "denyApproval" && action.target.kind === "approval") {
       await this.controller.denyApproval(action.target.id);
+    } else if (action.kind === "activateEmployee" && action.target.kind === "employee") {
+      await this.controller.activateEmployee(action.target.id);
     } else if (action.kind === "pauseEmployee" && action.target.kind === "employee") {
       await this.controller.pauseEmployee(action.target.id);
     } else if (action.kind === "resumeEmployee" && action.target.kind === "employee") {
@@ -1531,7 +1533,13 @@ function buildEmployeeWorkspaceActions(
       { kind: "retireEmployee", label: "Retire", enabled: true, target },
     ];
   }
-  if (status === "draft" || status === "disabled") {
+  if (status === "draft") {
+    return [
+      { kind: "activateEmployee", label: "Activate", enabled: true, target },
+      { kind: "retireEmployee", label: "Retire", enabled: true, target },
+    ];
+  }
+  if (status === "disabled") {
     return [{ kind: "retireEmployee", label: "Retire", enabled: true, target }];
   }
   return [];

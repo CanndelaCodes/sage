@@ -1,5 +1,6 @@
 import type { OverlayGatewayClient, OverlayGatewayEventFrame } from "./gateway-client.js";
 import {
+  activateSageOsEmployee,
   approveSageOsApproval,
   cancelSageOsTask,
   denySageOsApproval,
@@ -110,6 +111,10 @@ export class SageOsOverlayController {
 
   async runNextTask() {
     await this.runMutation(() => runNextSageOsTask(this.client));
+  }
+
+  async activateEmployee(id: string) {
+    await this.runMutation(() => activateSageOsEmployee(this.client, id));
   }
 
   async pauseEmployee(id: string) {

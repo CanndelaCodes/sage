@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  activateSageOsEmployee,
   approveSageOsApproval,
   pauseSageOsEmployee,
   loadSageOsOverlayStatus,
@@ -59,6 +60,17 @@ describe("SageOS overlay actions", () => {
       reason: "windows-overlay",
     });
     expect(request).toHaveBeenCalledWith("sageos.agents.retire", {
+      id: "employee_memory",
+      reason: "windows-overlay",
+    });
+  });
+
+  it("uses the employee activation RPC method", async () => {
+    const request = vi.fn().mockResolvedValue({ result: { outcome: "activated" } });
+
+    await activateSageOsEmployee({ request }, "employee_memory");
+
+    expect(request).toHaveBeenCalledWith("sageos.agents.activate", {
       id: "employee_memory",
       reason: "windows-overlay",
     });

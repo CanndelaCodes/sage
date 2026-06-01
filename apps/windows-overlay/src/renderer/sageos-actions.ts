@@ -91,6 +91,10 @@ export function cancelSageOsTask(client: OverlayGatewayClient, id: string) {
   return client.request("sageos.tasks.cancel", { id, reason: "windows-overlay" });
 }
 
+export function activateSageOsEmployee(client: OverlayGatewayClient, id: string) {
+  return client.request("sageos.agents.activate", { id, reason: "windows-overlay" });
+}
+
 export function pauseSageOsEmployee(client: OverlayGatewayClient, id: string) {
   return client.request("sageos.agents.pause", { id, reason: "windows-overlay" });
 }

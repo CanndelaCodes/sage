@@ -22,6 +22,7 @@ export type AgentWorkspaceActionKind =
   | "cancelTask"
   | "approveApproval"
   | "denyApproval"
+  | "activateEmployee"
   | "pauseEmployee"
   | "resumeEmployee"
   | "retireEmployee"
