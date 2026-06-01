@@ -4,7 +4,7 @@
   "type": "module",
   "main": "dist/main/main.js",
   "scripts": {
-    "build": "tsdown src/main/main.ts src/preload/preload.ts src/renderer/overlay-app.ts --format esm --dts false --out-dir dist && node scripts/copy-renderer-assets.mjs",
+    "build": "tsdown --config tsdown.config.ts && node scripts/copy-renderer-assets.mjs",
     "dev": "pnpm build && electron .",
     "smoke": "powershell -ExecutionPolicy Bypass -File ../../scripts/sageos-windows-overlay.ps1",
     "test": "vitest run --config vitest.config.ts",
