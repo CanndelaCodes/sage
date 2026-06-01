@@ -82,7 +82,13 @@ const state = {
     },
   ],
   tasks: [
-    { id: "task_1", title: "Night Shift report", objective: "Summarize coding work", state: "running" },
+    {
+      id: "task_1",
+      title: "Night Shift report",
+      objective: "Summarize coding work",
+      state: "running",
+      ownerAgentId: "employee_memory",
+    },
     { id: "task_2", title: "Memory replay", objective: "Replay queued memory captures", state: "proposed" },
   ],
   runs: [
@@ -204,6 +210,7 @@ describe("overlay renderer model", () => {
         title: "Night Shift report",
         detail: "Summarize coding work",
         state: "running",
+        owner: "Memory Steward",
         canQueue: false,
         canCancel: true,
       },
@@ -212,6 +219,7 @@ describe("overlay renderer model", () => {
         title: "Memory replay",
         detail: "Replay queued memory captures",
         state: "proposed",
+        owner: "Unassigned",
         canQueue: true,
         canCancel: true,
       },
@@ -368,6 +376,10 @@ describe("overlay renderer model", () => {
       label: "Objective",
       value: "Summarize coding work",
     });
+    expect(taskModel.workspace.facts).toContainEqual({
+      label: "Owner",
+      value: "Memory Steward",
+    });
     expect(approvalModel.workspace).toMatchObject({
       title: "Approve repair",
       eyebrow: "Approval / pending",
@@ -401,6 +413,7 @@ describe("overlay renderer model", () => {
     });
     expect(employeeModel.workspace.facts).toEqual(
       expect.arrayContaining([
+        { label: "Assigned tasks", value: "Night Shift report (running)" },
         { label: "Tools", value: "sage-memory" },
         { label: "Memory", value: "capture_queue" },
         { label: "Schedules", value: "gateway tick" },

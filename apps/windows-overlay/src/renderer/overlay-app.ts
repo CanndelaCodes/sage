@@ -43,6 +43,7 @@ export type OverlayTaskRow = {
   title: string;
   detail: string;
   state: string;
+  owner: string;
   canQueue: boolean;
   canCancel: boolean;
 };
@@ -137,11 +138,13 @@ export function renderOverlayModel(
   const activeTasks = String(status.tasks.active);
   const pendingApprovals = String(status.approvals.pending);
   const incidents = String(status.incidents.length);
+  const employeeNames = new Map((state.agents ?? []).map((agent) => [agent.id, agent.name]));
   const taskRows = (state.tasks ?? []).map((task) => ({
     id: task.id,
     title: task.title,
     detail: task.objective,
     state: task.state,
+    owner: ownerLabel(task.ownerAgentId, employeeNames),
     canQueue: task.state === "proposed" || task.state === "waiting_for_policy",
     canCancel: !["completed", "failed", "cancelled", "expired"].includes(task.state),
   }));
@@ -609,7 +612,7 @@ export class SageOsOverlayApp extends LitElement {
                     <div>
                       <div class="overlay-row__title">${task.title}</div>
                       <div class="overlay-row__detail">${task.detail}</div>
-                      <div class="overlay-row__meta">${task.id} / ${task.state}</div>
+                      <div class="overlay-row__meta">${task.id} / ${task.state} / ${task.owner}</div>
                     </div>
                     <div class="overlay-row__actions">
                       <button
@@ -1107,6 +1110,7 @@ function buildWorkspaceModel(
       detail: task.objective,
       facts: [
         { label: "Objective", value: task.objective },
+        { label: "Owner", value: ownerLabelForState(state, task.ownerAgentId) },
         { label: "Autonomy", value: task.autonomyTier ?? "Unknown" },
         { label: "Requested by", value: task.requestedBy ?? "Unknown" },
         { label: "Policy scope", value: formatPolicyScopes(task.policyScopes ?? []) },
@@ -1145,6 +1149,7 @@ function buildWorkspaceModel(
         { label: "Role", value: employee.role },
         { label: "Autonomy", value: employee.autonomyTier },
         { label: "Responsibilities", value: employee.responsibilities?.join(", ") || "None" },
+        { label: "Assigned tasks", value: assignedTasksSummary(state.tasks ?? [], employee.id) },
         { label: "Tools", value: employee.tools?.join(", ") || "None" },
         { label: "Memory", value: employee.memoryScopes?.join(", ") || "None" },
         { label: "Schedules", value: employee.schedules?.join(", ") || "Manual" },
@@ -1536,6 +1541,34 @@ function missingWorkspaceTarget(target: AgentWorkspaceTarget): AgentWorkspaceVie
     facts: [{ label: "ID", value: target.id }],
     actions: [],
   };
+}
+
+function ownerLabelForState(state: SageOsOverlayStatusState, ownerAgentId: string | undefined): string {
+  return ownerLabel(
+    ownerAgentId,
+    new Map((state.agents ?? []).map((agent) => [agent.id, agent.name])),
+  );
+}
+
+function ownerLabel(ownerAgentId: string | undefined, employeeNames: Map<string, string>): string {
+  if (!ownerAgentId) {
+    return "Unassigned";
+  }
+  return employeeNames.get(ownerAgentId) ?? ownerAgentId;
+}
+
+function assignedTasksSummary(
+  tasks: NonNullable<SageOsOverlayStatusState["tasks"]>,
+  employeeId: string,
+): string {
+  const assigned = tasks.filter((task) => task.ownerAgentId === employeeId);
+  if (assigned.length === 0) {
+    return "None";
+  }
+  const visible = assigned.slice(0, 3).map((task) => `${task.title} (${task.state})`);
+  return assigned.length > visible.length
+    ? `${visible.join(", ")}, +${assigned.length - visible.length} more`
+    : visible.join(", ");
 }
 
 function labelFromId(id: string): string {
