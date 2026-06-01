@@ -53,6 +53,40 @@ export const SAGEOS_TASK_STATES = [
 
 export type SageOsTaskState = (typeof SAGEOS_TASK_STATES)[number];
 
+export const SAGEOS_OVERLAY_OPEN_MODES = ["full", "hud"] as const;
+export type SageOsOverlayOpenMode = (typeof SAGEOS_OVERLAY_OPEN_MODES)[number];
+
+export const SAGEOS_OVERLAY_EDGES = ["left", "right", "top", "bottom"] as const;
+export type SageOsOverlayEdge = (typeof SAGEOS_OVERLAY_EDGES)[number];
+
+export const SAGEOS_OVERLAY_WIDGET_IDS = [
+  "activeOperations",
+  "approvals",
+  "incidents",
+  "memoryQueue",
+  "nightShift",
+  "systemHealth",
+  "appPreview",
+] as const;
+export type SageOsOverlayWidgetId = (typeof SAGEOS_OVERLAY_WIDGET_IDS)[number];
+
+export type SageOsOverlayConfig = {
+  enabled?: boolean;
+  hotkey?: string;
+  openMode?: SageOsOverlayOpenMode;
+  hudExpandsToFull?: boolean;
+  passThroughDefault?: boolean;
+  collapsedEdge?: SageOsOverlayEdge;
+  activeMonitor?: "auto" | "primary" | string;
+  showApprovalBadge?: boolean;
+  showIncidentBadge?: boolean;
+  pinnedWidgets?: SageOsOverlayWidgetId[];
+  voice?: {
+    enabled?: boolean;
+    mode?: "pushToTalk";
+  };
+};
+
 export type SageOsSupervisorState =
   | "disabled"
   | "starting"
@@ -531,6 +565,7 @@ export type SageOsConfig = {
     nightShiftWindow?: string;
   };
   commandCenter?: { enabled?: boolean };
+  overlay?: SageOsOverlayConfig;
   sources?: Partial<Record<string, boolean>>;
   privacy?: {
     localOnlyDefault?: boolean;

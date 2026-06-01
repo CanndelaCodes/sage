@@ -164,6 +164,18 @@ const SageOsModeSchema = z.enum([
   "full_operator",
 ]);
 
+const SageOsOverlayOpenModeSchema = z.enum(["full", "hud"]);
+const SageOsOverlayEdgeSchema = z.enum(["left", "right", "top", "bottom"]);
+const SageOsOverlayWidgetSchema = z.enum([
+  "activeOperations",
+  "approvals",
+  "incidents",
+  "memoryQueue",
+  "nightShift",
+  "systemHealth",
+  "appPreview",
+]);
+
 const SageOsSchema = z
   .object({
     enabled: z.boolean().optional(),
@@ -181,6 +193,30 @@ const SageOsSchema = z
     commandCenter: z
       .object({
         enabled: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
+    overlay: z
+      .object({
+        enabled: z.boolean().optional(),
+        hotkey: z.string().min(1).optional(),
+        openMode: SageOsOverlayOpenModeSchema.optional(),
+        hudExpandsToFull: z.boolean().optional(),
+        passThroughDefault: z.boolean().optional(),
+        collapsedEdge: SageOsOverlayEdgeSchema.optional(),
+        activeMonitor: z
+          .union([z.literal("auto"), z.literal("primary"), z.string().min(1)])
+          .optional(),
+        showApprovalBadge: z.boolean().optional(),
+        showIncidentBadge: z.boolean().optional(),
+        pinnedWidgets: z.array(SageOsOverlayWidgetSchema).optional(),
+        voice: z
+          .object({
+            enabled: z.boolean().optional(),
+            mode: z.literal("pushToTalk").optional(),
+          })
+          .strict()
+          .optional(),
       })
       .strict()
       .optional(),

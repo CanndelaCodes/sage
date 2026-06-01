@@ -37,6 +37,52 @@ describe("SageOS config schema", () => {
     expect(parsed.sageos?.sources?.defender).toBe(true);
   });
 
+  it("accepts the SageOS Windows overlay config namespace", () => {
+    const parsed = SageSchema.parse({
+      sageos: {
+        overlay: {
+          enabled: true,
+          hotkey: "Ctrl+Alt+Space",
+          openMode: "full",
+          hudExpandsToFull: true,
+          passThroughDefault: false,
+          collapsedEdge: "right",
+          activeMonitor: "auto",
+          showApprovalBadge: true,
+          showIncidentBadge: true,
+          pinnedWidgets: ["activeOperations", "approvals", "incidents"],
+          voice: {
+            enabled: true,
+            mode: "pushToTalk",
+          },
+        },
+      },
+    });
+
+    expect(parsed.sageos?.overlay?.hotkey).toBe("Ctrl+Alt+Space");
+    expect(parsed.sageos?.overlay?.openMode).toBe("full");
+    expect(parsed.sageos?.overlay?.pinnedWidgets).toEqual([
+      "activeOperations",
+      "approvals",
+      "incidents",
+    ]);
+    expect(parsed.sageos?.overlay?.voice?.mode).toBe("pushToTalk");
+  });
+
+  it("rejects invalid SageOS overlay config values", () => {
+    expect(() =>
+      SageSchema.parse({
+        sageos: {
+          overlay: {
+            openMode: "browser",
+            collapsedEdge: "center",
+            pinnedWidgets: ["unknownWidget"],
+          },
+        },
+      }),
+    ).toThrow();
+  });
+
   it("rejects unknown SageOS config keys", () => {
     expect(() =>
       SageSchema.parse({
