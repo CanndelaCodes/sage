@@ -2,7 +2,7 @@
 
 Date: 2026-06-01
 Operator: Codex
-Build: tray controls slice after 021e7d9dab
+Build: native pass-through probe slice after 3382620003
 
 ## Preconditions
 
@@ -38,7 +38,7 @@ Build: tray controls slice after 021e7d9dab
 - [x] Automated smoke captures the overlay over bright, text-heavy, and IDE-like visual backdrops.
 - [x] Edge Rail collapse keeps health, approval, and incident indicators visible.
 - [x] Pass-through surfaces can temporarily restore overlay pointer capture over active controls.
-- [ ] Pinned widget mode leaves the underlying app usable outside active widget controls.
+- [x] Pinned widget mode leaves the underlying app usable outside active widget controls.
 - [x] Pause, resume, approve, deny, queue, cancel, run next, safe repair, and emergency stop controls call the expected `sageos.*` RPC methods.
 - [x] No renderer page errors appear during the smoke flow.
 
@@ -65,6 +65,9 @@ Build: tray controls slice after 021e7d9dab
   over a text-heavy synthetic app, captures HUD over an IDE-like dark surface,
   verifies the `sageos-overlay:interactive-pointer` preload bridge and exercises temporary pointer
   capture while Edge Rail is active,
+  creates a native Electron underlay probe and sends a Windows user32 mouse click through the
+  pass-through Edge Rail surface; `smoke:electron` reports `passThroughProbeClicks` after the
+  underlay receives the click,
   verifies the tray menu exposes mouse-first open, HUD, collapse, hide, and quit controls wired to
   the overlay controller,
   renders without pinned-widget overlap in the full Command Deck, exposes the preload IPC bridge
@@ -76,5 +79,4 @@ Build: tray controls slice after 021e7d9dab
   configured display IDs. The smoke now presses `Ctrl+K`, verifies launcher focus, presses
   `Escape`, and waits for the Electron BrowserWindow to hide through the close bridge. The smoke
   emitted Electron's development CSP warning only; no renderer page errors were observed. Physical
-  hotkey open/close and real pass-through usability over an underlying app still need
-  physical/manual verification.
+  hotkey open/close still needs physical/manual verification.

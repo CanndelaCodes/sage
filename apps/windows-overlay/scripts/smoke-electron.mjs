@@ -1,14 +1,17 @@
 import { _electron as electron } from "playwright-core";
 import { WebSocketServer } from "ws";
+import { execFile } from "node:child_process";
 import { createRequire } from "node:module";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { promisify } from "node:util";
 
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
 const overlayDir = path.resolve(import.meta.dirname, "..");
 const screenshotDir = path.join(overlayDir, "dist");
 const require = createRequire(import.meta.url);
 const electronPath = require(path.join(overlayDir, "node_modules/electron"));
+const execFileAsync = promisify(execFile);
 const now = "2026-06-01T19:30:00.000Z";
 
 await fs.mkdir(screenshotDir, { recursive: true });
@@ -17,7 +20,7 @@ const recordedMethods = [];
 const gateway = await startMockGateway(recordedMethods);
 
 try {
-  await smokeFullOverlay(gateway.url);
+  const fullSmoke = await smokeFullOverlay(gateway.url);
   await smokeHudOverlay(gateway.url);
   assertRecordedMethods(recordedMethods, [
     "connect",
@@ -35,6 +38,7 @@ try {
     JSON.stringify(
       {
         ok: true,
+        passThroughProbeClicks: fullSmoke.passThroughProbeClicks,
         methods: recordedMethods.map((entry) => entry.method),
         screenshots: {
           full: path.join(screenshotDir, "overlay-smoke-styled.png"),
@@ -113,6 +117,9 @@ async function smokeFullOverlay(gatewayUrl) {
 
     await page.evaluate(() => window.sageOsOverlay?.collapse());
     await page.waitForSelector(".edge-rail--left", { timeout: 5_000 });
+    const passThroughProbe = await createPassThroughProbe(app);
+    await sendNativeMouseClick(passThroughProbe.clickPoint);
+    const passThroughProbeClicks = await waitForPassThroughProbeClick(passThroughProbe);
     await page.evaluate(() => window.sageOsOverlay?.setInteractivePointer(true));
     await page.evaluate(() => window.sageOsOverlay?.setInteractivePointer(false));
     await page.screenshot({
@@ -133,6 +140,7 @@ async function smokeFullOverlay(gatewayUrl) {
     );
     await page.keyboard.press("Escape");
     await waitForOverlayWindowHidden(app);
+    return { passThroughProbeClicks };
   } finally {
     await app.close().catch(() => {});
   }
@@ -180,6 +188,134 @@ async function launchOverlay(env) {
       ...env,
     },
   });
+}
+
+async function createPassThroughProbe(app) {
+  const html = `<!doctype html>
+    <html>
+      <head>
+        <title>SageOS pass-through probe</title>
+        <style>
+          html,
+          body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            background: #f8fafc;
+            color: #0f172a;
+            font: 13px/1.45 "Segoe UI", sans-serif;
+          }
+
+          body {
+            display: grid;
+            place-items: center;
+          }
+
+          #target {
+            width: 220px;
+            height: 96px;
+            border: 1px solid #0284c7;
+            border-radius: 8px;
+            background: #e0f2fe;
+          }
+        </style>
+      </head>
+      <body data-clicks="0">
+        <button id="target" type="button">Underlay clicks: <span id="count">0</span></button>
+        <script>
+          document.addEventListener("click", () => {
+            const next = Number(document.body.dataset.clicks || "0") + 1;
+            document.body.dataset.clicks = String(next);
+            document.getElementById("count").textContent = String(next);
+          });
+        </script>
+      </body>
+    </html>`;
+  const probe = await app.evaluate(
+    async ({ BrowserWindow, screen }, probeHtml) => {
+      const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+      const width = 360;
+      const height = 180;
+      const x = display.bounds.x + display.bounds.width - width - 96;
+      const y = display.bounds.y + display.bounds.height - height - 96;
+      const window = new BrowserWindow({
+        x,
+        y,
+        width,
+        height,
+        frame: false,
+        show: false,
+        skipTaskbar: true,
+        alwaysOnTop: false,
+        resizable: false,
+        backgroundColor: "#f8fafc",
+        webPreferences: {
+          contextIsolation: true,
+          nodeIntegration: false,
+        },
+      });
+      await window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(probeHtml)}`);
+      window.showInactive();
+      return {
+        id: window.id,
+        clickPoint: {
+          x: x + Math.floor(width / 2),
+          y: y + Math.floor(height / 2),
+        },
+      };
+    },
+    html,
+  );
+  return { ...probe, page: await waitForPageTitle(app, "SageOS pass-through probe") };
+}
+
+async function waitForPageTitle(app, title, timeoutMs = 5_000) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    for (const page of app.windows()) {
+      if ((await page.title()) === title) {
+        return page;
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error(`Timed out waiting for Electron window title: ${title}`);
+}
+
+async function sendNativeMouseClick({ x, y }) {
+  if (process.platform !== "win32") {
+    throw new Error("SageOS pass-through smoke requires native Windows mouse input");
+  }
+  const script = `
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+
+public static class SageOsMouseInput {
+  [DllImport("user32.dll")] public static extern bool SetCursorPos(int X, int Y);
+  [DllImport("user32.dll")] public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, UIntPtr dwExtraInfo);
+}
+"@
+[SageOsMouseInput]::SetCursorPos(${Math.round(x)}, ${Math.round(y)}) | Out-Null
+Start-Sleep -Milliseconds 60
+[SageOsMouseInput]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero)
+Start-Sleep -Milliseconds 60
+[SageOsMouseInput]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero)
+`;
+  await execFileAsync(
+    "powershell.exe",
+    ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
+    { windowsHide: true },
+  );
+}
+
+async function waitForPassThroughProbeClick(probe, timeoutMs = 5_000) {
+  await probe.page.waitForFunction(
+    () => Number(document.body.dataset.clicks || "0") > 0,
+    undefined,
+    { timeout: timeoutMs },
+  );
+  return probe.page.evaluate(() => Number(document.body.dataset.clicks || "0"));
 }
 
 async function assertPreloadBridge(page) {
