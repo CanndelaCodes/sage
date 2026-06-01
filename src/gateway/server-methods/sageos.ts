@@ -11,6 +11,10 @@ import {
 } from "../../sageos/employee-activation.js";
 import { draftSageOsEmployeeFromIntent } from "../../sageos/employee-builder.js";
 import {
+  updateSageOsEmployeeLifecycle,
+  type SageOsEmployeeLifecycleAction,
+} from "../../sageos/employee-lifecycle.js";
+import {
   getSageOsEmployeeTemplate,
   listSageOsEmployeeTemplates,
 } from "../../sageos/employee-templates.js";
@@ -125,6 +129,46 @@ async function resolveApprovalFromGateway(
     reason: opts.reason?.trim() || "gateway",
   });
   return result.outcome === "resolved" ? result : undefined;
+}
+
+async function runEmployeeLifecycleGatewayAction(
+  action: SageOsEmployeeLifecycleAction,
+  params: Record<string, unknown>,
+  respond: Parameters<GatewayRequestHandlers[string]>[0]["respond"],
+  context: Parameters<GatewayRequestHandlers[string]>[0]["context"],
+) {
+  const id = stringParam(params, "id");
+  if (!id) {
+    respond(
+      false,
+      undefined,
+      errorShape(ErrorCodes.INVALID_REQUEST, `invalid sageos.agents.${action} params: id required`),
+    );
+    return;
+  }
+
+  const stateStore = createSageOsStateStore();
+  const result = await updateSageOsEmployeeLifecycle({
+    employeeId: id,
+    action,
+    requestedBy: "sageos.gateway",
+    reason: stringParam(params, "reason") || undefined,
+    stateStore,
+  });
+  if (result.outcome === "not_found") {
+    respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "SageOS employee not found"));
+    return;
+  }
+  if (result.outcome === "invalid_transition") {
+    respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, result.reason));
+    return;
+  }
+
+  const status = await collectSageOsStatus();
+  await writeSageOsState(stateStore, status);
+  const state = await readSageOsState(stateStore);
+  context.broadcast("sageos", state, { dropIfSlow: true });
+  respond(true, { result, state }, undefined);
 }
 
 export const sageOsHandlers: GatewayRequestHandlers = {
@@ -256,6 +300,12 @@ export const sageOsHandlers: GatewayRequestHandlers = {
     context.broadcast("sageos", state, { dropIfSlow: true });
     respond(true, { result, state }, undefined);
   },
+  "sageos.agents.pause": async ({ params, respond, context }) =>
+    runEmployeeLifecycleGatewayAction("pause", params, respond, context),
+  "sageos.agents.resume": async ({ params, respond, context }) =>
+    runEmployeeLifecycleGatewayAction("resume", params, respond, context),
+  "sageos.agents.retire": async ({ params, respond, context }) =>
+    runEmployeeLifecycleGatewayAction("retire", params, respond, context),
   "sageos.agentTemplates.list": async ({ respond }) => {
     respond(true, { templates: listSageOsEmployeeTemplates() }, undefined);
   },

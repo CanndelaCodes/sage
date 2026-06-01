@@ -839,6 +839,12 @@ export class SageOsOverlayApp extends LitElement {
       await this.controller.approveApproval(action.target.id);
     } else if (action.kind === "denyApproval" && action.target.kind === "approval") {
       await this.controller.denyApproval(action.target.id);
+    } else if (action.kind === "pauseEmployee" && action.target.kind === "employee") {
+      await this.controller.pauseEmployee(action.target.id);
+    } else if (action.kind === "resumeEmployee" && action.target.kind === "employee") {
+      await this.controller.resumeEmployee(action.target.id);
+    } else if (action.kind === "retireEmployee" && action.target.kind === "employee") {
+      await this.controller.retireEmployee(action.target.id);
     } else if (action.kind === "runIncidentRepair" && action.target.kind === "incident") {
       await this.controller.runIncidentRepair(action.target.id);
     }
@@ -1123,7 +1129,7 @@ function buildWorkspaceModel(
         { label: "Responsibilities", value: employee.responsibilities?.join(", ") || "None" },
         { label: "Allowed scopes", value: formatPolicyScopes(employee.allowedScopes ?? []) },
       ],
-      actions: [],
+      actions: buildEmployeeWorkspaceActions(target, employee.status),
     };
   }
 
@@ -1507,6 +1513,28 @@ function missingWorkspaceTarget(target: AgentWorkspaceTarget): AgentWorkspaceVie
     facts: [{ label: "ID", value: target.id }],
     actions: [],
   };
+}
+
+function buildEmployeeWorkspaceActions(
+  target: AgentWorkspaceTarget,
+  status: NonNullable<SageOsOverlayStatusState["agents"]>[number]["status"],
+): AgentWorkspaceAction[] {
+  if (status === "active") {
+    return [
+      { kind: "pauseEmployee", label: "Pause", enabled: true, target },
+      { kind: "retireEmployee", label: "Retire", enabled: true, target },
+    ];
+  }
+  if (status === "paused") {
+    return [
+      { kind: "resumeEmployee", label: "Resume", enabled: true, target },
+      { kind: "retireEmployee", label: "Retire", enabled: true, target },
+    ];
+  }
+  if (status === "draft" || status === "disabled") {
+    return [{ kind: "retireEmployee", label: "Retire", enabled: true, target }];
+  }
+  return [];
 }
 
 function formatPolicyScopes(

@@ -309,6 +309,15 @@ describe("overlay renderer model", () => {
     const employeeModel = renderOverlayModel(state as never, {
       workspaceTarget: { kind: "employee", id: "employee_memory" },
     });
+    const pausedEmployeeModel = renderOverlayModel(
+      {
+        ...state,
+        agents: [{ ...state.agents[0], status: "paused" }],
+      } as never,
+      {
+        workspaceTarget: { kind: "employee", id: "employee_memory" },
+      },
+    );
     const runModel = renderOverlayModel(state as never, {
       workspaceTarget: { kind: "run", id: "run_task_1" },
     });
@@ -371,6 +380,18 @@ describe("overlay renderer model", () => {
     expect(employeeModel.workspace).toMatchObject({
       title: "Memory Steward",
       eyebrow: "Employee / active",
+      actions: [
+        { kind: "pauseEmployee", label: "Pause", enabled: true },
+        { kind: "retireEmployee", label: "Retire", enabled: true },
+      ],
+    });
+    expect(pausedEmployeeModel.workspace).toMatchObject({
+      title: "Memory Steward",
+      eyebrow: "Employee / paused",
+      actions: [
+        { kind: "resumeEmployee", label: "Resume", enabled: true },
+        { kind: "retireEmployee", label: "Retire", enabled: true },
+      ],
     });
     expect(runModel.workspace).toMatchObject({
       title: "run_task_1",

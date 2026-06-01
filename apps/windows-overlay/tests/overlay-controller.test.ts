@@ -86,6 +86,28 @@ describe("SageOsOverlayController", () => {
     expect(request).toHaveBeenCalledWith("sageos.tasks.runNext", {});
   });
 
+  it("runs employee lifecycle actions through existing RPC methods", async () => {
+    const request = vi.fn().mockResolvedValue(stateFixture("execute_scoped"));
+    const controller = new SageOsOverlayController({ request });
+
+    await controller.pauseEmployee("employee_memory");
+    await controller.resumeEmployee("employee_memory");
+    await controller.retireEmployee("employee_memory");
+
+    expect(request).toHaveBeenCalledWith("sageos.agents.pause", {
+      id: "employee_memory",
+      reason: "windows-overlay",
+    });
+    expect(request).toHaveBeenCalledWith("sageos.agents.resume", {
+      id: "employee_memory",
+      reason: "windows-overlay",
+    });
+    expect(request).toHaveBeenCalledWith("sageos.agents.retire", {
+      id: "employee_memory",
+      reason: "windows-overlay",
+    });
+  });
+
   it("runs safe incident repairs through the controller and refreshes status", async () => {
     const refreshed = stateFixture("execute_scoped");
     const request = vi.fn().mockResolvedValueOnce({ result: { ok: true } }).mockResolvedValueOnce(refreshed);

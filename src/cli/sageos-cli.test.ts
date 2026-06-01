@@ -250,6 +250,42 @@ describe("sage os CLI", () => {
     });
 
     await program.parseAsync(
+      ["os", "employees", "pause", "employee_memory", "--reason", "maintenance", "--json"],
+      { from: "user" },
+    );
+    expect(lastJson()).toMatchObject({
+      result: {
+        outcome: "updated",
+        employee: { id: "employee_memory", status: "paused" },
+        previousStatus: "active",
+      },
+    });
+
+    await program.parseAsync(
+      ["os", "employees", "resume", "employee_memory", "--reason", "ready", "--json"],
+      { from: "user" },
+    );
+    expect(lastJson()).toMatchObject({
+      result: {
+        outcome: "updated",
+        employee: { id: "employee_memory", status: "active" },
+        previousStatus: "paused",
+      },
+    });
+
+    await program.parseAsync(
+      ["os", "employees", "retire", "employee_memory", "--reason", "replaced", "--json"],
+      { from: "user" },
+    );
+    expect(lastJson()).toMatchObject({
+      result: {
+        outcome: "updated",
+        employee: { id: "employee_memory", status: "retired" },
+        previousStatus: "active",
+      },
+    });
+
+    await program.parseAsync(
       [
         "os",
         "employees",
@@ -313,7 +349,7 @@ describe("sage os CLI", () => {
     await expect(readSageOsState(store)).resolves.toMatchObject({
       agents: [
         { id: "employee_reviewer" },
-        { id: "employee_memory", status: "active" },
+        { id: "employee_memory", status: "retired" },
         { id: "employee_memory_steward" },
         { id: "employee_security_sentinel" },
       ],
@@ -321,6 +357,9 @@ describe("sage os CLI", () => {
     const rawEvents = await readFile(path.join(stateDir, "sageos", "events.jsonl"), "utf8");
     expect(rawEvents).toContain("employee_drafted");
     expect(rawEvents).toContain("employee_activated");
+    expect(rawEvents).toContain("employee_paused");
+    expect(rawEvents).toContain("employee_resumed");
+    expect(rawEvents).toContain("employee_retired");
   });
 
   it("lists, inspects, and cancels tasks", async () => {

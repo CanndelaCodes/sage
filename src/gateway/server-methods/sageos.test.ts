@@ -157,6 +157,9 @@ describe("SageOS gateway methods", () => {
     expect(listGatewayMethods()).toContain("sageos.agents.create");
     expect(listGatewayMethods()).toContain("sageos.agents.activationPreview");
     expect(listGatewayMethods()).toContain("sageos.agents.activate");
+    expect(listGatewayMethods()).toContain("sageos.agents.pause");
+    expect(listGatewayMethods()).toContain("sageos.agents.resume");
+    expect(listGatewayMethods()).toContain("sageos.agents.retire");
     expect(listGatewayMethods()).toContain("sageos.agentTemplates.list");
     expect(listGatewayMethods()).toContain("sageos.agentTemplates.inspect");
     expect(listGatewayMethods()).toContain("sageos.collaboration.list");
@@ -212,6 +215,9 @@ describe("SageOS gateway methods", () => {
     const writeMethods = [
       "sageos.agents.create",
       "sageos.agents.activate",
+      "sageos.agents.pause",
+      "sageos.agents.resume",
+      "sageos.agents.retire",
       "sageos.collaboration.handoff",
       "sageos.collaboration.requestReview",
       "sageos.tasks.queue",
@@ -398,6 +404,64 @@ describe("SageOS gateway methods", () => {
     await expect(readSageOsState(store)).resolves.toMatchObject({
       agents: [{ id: "employee_memory", status: "active" }],
     });
+
+    const paused = await invoke("sageos.agents.pause", {
+      id: "employee_memory",
+      reason: "maintenance",
+    });
+    expect(paused.response?.ok).toBe(true);
+    expect(paused.response?.payload).toMatchObject({
+      result: {
+        outcome: "updated",
+        employee: { id: "employee_memory", status: "paused" },
+        previousStatus: "active",
+      },
+      state: {
+        agents: [{ id: "employee_memory", status: "paused" }],
+      },
+    });
+
+    const resumed = await invoke("sageos.agents.resume", {
+      id: "employee_memory",
+      reason: "ready",
+    });
+    expect(resumed.response?.ok).toBe(true);
+    expect(resumed.response?.payload).toMatchObject({
+      result: {
+        outcome: "updated",
+        employee: { id: "employee_memory", status: "active" },
+        previousStatus: "paused",
+      },
+    });
+
+    const retired = await invoke("sageos.agents.retire", {
+      id: "employee_memory",
+      reason: "replaced",
+    });
+    expect(retired.response?.ok).toBe(true);
+    expect(retired.response?.payload).toMatchObject({
+      result: {
+        outcome: "updated",
+        employee: { id: "employee_memory", status: "retired" },
+        previousStatus: "active",
+      },
+    });
+    expect(retired.broadcast).toHaveBeenCalledWith(
+      "sageos",
+      expect.objectContaining({
+        agents: expect.arrayContaining([
+          expect.objectContaining({ id: "employee_memory", status: "retired" }),
+        ]),
+      }),
+      { dropIfSlow: true },
+    );
+    const rawEvents = await readFile(
+      path.join(process.env.SAGE_STATE_DIR!, "sageos", "events.jsonl"),
+      "utf8",
+    );
+    expect(rawEvents).toContain("employee_paused");
+    expect(rawEvents).toContain("employee_resumed");
+    expect(rawEvents).toContain("employee_retired");
   });
 
   it("lists and creates collaboration events through gateway controls", async () => {

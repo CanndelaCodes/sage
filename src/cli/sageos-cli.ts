@@ -15,6 +15,10 @@ import {
 } from "../sageos/employee-activation.js";
 import { draftSageOsEmployeeFromIntent } from "../sageos/employee-builder.js";
 import {
+  updateSageOsEmployeeLifecycle,
+  type SageOsEmployeeLifecycleAction,
+} from "../sageos/employee-lifecycle.js";
+import {
   getSageOsEmployeeTemplate,
   listSageOsEmployeeTemplates,
 } from "../sageos/employee-templates.js";
@@ -522,6 +526,34 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
       }
       outputJsonOrText(cliOpts, { result }, () => renderJsonResource({ result }));
     });
+
+  for (const action of [
+    "pause",
+    "resume",
+    "retire",
+  ] as const satisfies SageOsEmployeeLifecycleAction[]) {
+    employees
+      .command(`${action} <id>`)
+      .description(`${action[0]?.toUpperCase()}${action.slice(1)} a SageOS employee`)
+      .option("--reason <reason>", "Lifecycle review note")
+      .option("--json", "Output JSON", false)
+      .action(async (id: string, opts: { reason?: string; json?: boolean }) => {
+        const cliOpts = commandOptions(opts);
+        const result = await updateSageOsEmployeeLifecycle({
+          employeeId: id,
+          action,
+          requestedBy: "sageos.cli",
+          reason: cliOpts.reason,
+        });
+        if (result.outcome === "not_found") {
+          fail(`SageOS employee not found: ${id}`);
+        }
+        if (result.outcome === "invalid_transition") {
+          fail(`SageOS employee cannot ${action}: ${result.reason}`);
+        }
+        outputJsonOrText(cliOpts, { result }, () => renderJsonResource({ result }));
+      });
+  }
 
   employees
     .command("create <description>")

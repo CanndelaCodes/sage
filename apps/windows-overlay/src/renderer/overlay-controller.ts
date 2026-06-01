@@ -5,9 +5,12 @@ import {
   denySageOsApproval,
   emergencyStopSageOs,
   loadSageOsOverlayStatus,
+  pauseSageOsEmployee,
   pauseSageOs,
   queueSageOsTask,
+  resumeSageOsEmployee,
   resumeSageOs,
+  retireSageOsEmployee,
   runSageOsIncidentRepair,
   runNextSageOsTask,
   runSageOsLauncherCommand,
@@ -107,6 +110,18 @@ export class SageOsOverlayController {
 
   async runNextTask() {
     await this.runMutation(() => runNextSageOsTask(this.client));
+  }
+
+  async pauseEmployee(id: string) {
+    await this.runMutation(() => pauseSageOsEmployee(this.client, id));
+  }
+
+  async resumeEmployee(id: string) {
+    await this.runMutation(() => resumeSageOsEmployee(this.client, id));
+  }
+
+  async retireEmployee(id: string) {
+    await this.runMutation(() => retireSageOsEmployee(this.client, id));
   }
 
   async runIncidentRepair(id: string) {

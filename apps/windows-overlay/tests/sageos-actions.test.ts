@@ -1,9 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   approveSageOsApproval,
+  pauseSageOsEmployee,
   loadSageOsOverlayStatus,
   pauseSageOs,
   queueSageOsTask,
+  resumeSageOsEmployee,
+  retireSageOsEmployee,
   runSageOsIncidentRepair,
   runSageOsLauncherCommand,
   sendSageOsLauncherCommand,
@@ -36,6 +39,27 @@ describe("SageOS overlay actions", () => {
     });
     expect(request).toHaveBeenCalledWith("sageos.tasks.queue", {
       id: "task_1",
+      reason: "windows-overlay",
+    });
+  });
+
+  it("uses employee lifecycle RPC methods", async () => {
+    const request = vi.fn().mockResolvedValue({ state: {} });
+
+    await pauseSageOsEmployee({ request }, "employee_memory");
+    await resumeSageOsEmployee({ request }, "employee_memory");
+    await retireSageOsEmployee({ request }, "employee_memory");
+
+    expect(request).toHaveBeenCalledWith("sageos.agents.pause", {
+      id: "employee_memory",
+      reason: "windows-overlay",
+    });
+    expect(request).toHaveBeenCalledWith("sageos.agents.resume", {
+      id: "employee_memory",
+      reason: "windows-overlay",
+    });
+    expect(request).toHaveBeenCalledWith("sageos.agents.retire", {
+      id: "employee_memory",
       reason: "windows-overlay",
     });
   });
