@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderOverlayModel } from "../src/renderer/overlay-app.js";
+import { readOverlayGatewaySettings, renderOverlayModel } from "../src/renderer/overlay-app.js";
 
 const state = {
   status: {
@@ -32,5 +32,18 @@ describe("overlay renderer model", () => {
       { label: "Incidents", value: "1" },
     ]);
     expect(model.edgeRail.badges).toContainEqual({ kind: "approval", count: 2 });
+  });
+
+  it("reads gateway settings from URL parameters before defaults", () => {
+    const settings = readOverlayGatewaySettings(
+      "?gatewayUrl=ws%3A%2F%2F127.0.0.1%3A18888&token=abc&password=secret",
+      null,
+    );
+
+    expect(settings).toEqual({
+      url: "ws://127.0.0.1:18888",
+      token: "abc",
+      password: "secret",
+    });
   });
 });
