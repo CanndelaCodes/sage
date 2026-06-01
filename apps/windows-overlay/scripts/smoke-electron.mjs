@@ -20,6 +20,7 @@ const recordedMethods = [];
 const gateway = await startMockGateway(recordedMethods);
 
 try {
+  const hotkeySmoke = await smokeDefaultHotkeyToggle(gateway.url);
   const fullSmoke = await smokeFullOverlay(gateway.url);
   await smokeHudOverlay(gateway.url);
   assertRecordedMethods(recordedMethods, [
@@ -38,6 +39,7 @@ try {
     JSON.stringify(
       {
         ok: true,
+        defaultHotkeyToggles: hotkeySmoke.defaultHotkeyToggles,
         passThroughProbeClicks: fullSmoke.passThroughProbeClicks,
         methods: recordedMethods.map((entry) => entry.method),
         screenshots: {
@@ -178,6 +180,33 @@ async function smokeHudOverlay(gatewayUrl) {
   }
 }
 
+async function smokeDefaultHotkeyToggle(gatewayUrl) {
+  const hotkey = "Ctrl+Alt+Space";
+  const app = await launchOverlay({
+    SAGEOS_OVERLAY_GATEWAY_URL: gatewayUrl,
+    SAGEOS_OVERLAY_HOTKEY: hotkey,
+    SAGEOS_OVERLAY_OPEN_MODE: "full",
+    SAGEOS_OVERLAY_OPEN_ON_LAUNCH: "0",
+    SAGEOS_OVERLAY_COLLAPSED_EDGE: "right",
+    SAGEOS_OVERLAY_ACTIVE_MONITOR: "auto",
+    SAGEOS_OVERLAY_PINNED_WIDGETS: "activeOperations,approvals,incidents",
+  });
+
+  try {
+    await waitForGlobalShortcut(app, hotkey);
+    await sendNativeHotkey(hotkey);
+    const page = await app.firstWindow({ timeout: 15_000 });
+    await page.waitForSelector(".overlay-shell--commandDeck", { timeout: 15_000 });
+    await waitForOverlayWindowVisible(app, page);
+
+    await sendNativeHotkey(hotkey);
+    await waitForOverlayWindowHidden(app);
+    return { defaultHotkeyToggles: 2 };
+  } finally {
+    await app.close().catch(() => {});
+  }
+}
+
 async function launchOverlay(env) {
   return electron.launch({
     executablePath: electronPath,
@@ -309,6 +338,56 @@ Start-Sleep -Milliseconds 60
   );
 }
 
+async function sendNativeHotkey(accelerator) {
+  if (process.platform !== "win32") {
+    throw new Error("SageOS hotkey smoke requires native Windows keyboard input");
+  }
+  const keyCodes = accelerator.split("+").map((key) => virtualKeyCode(key.trim()));
+  const keyDown = keyCodes
+    .map((keyCode) => `[SageOsKeyboardInput]::keybd_event(${keyCode}, 0, 0, [UIntPtr]::Zero)`)
+    .join("\n");
+  const keyUp = keyCodes
+    .toReversed()
+    .map((keyCode) => `[SageOsKeyboardInput]::keybd_event(${keyCode}, 0, 0x0002, [UIntPtr]::Zero)`)
+    .join("\n");
+  const script = `
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+
+public static class SageOsKeyboardInput {
+  [DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+}
+"@
+${keyDown}
+Start-Sleep -Milliseconds 80
+${keyUp}
+`;
+  await execFileAsync(
+    "powershell.exe",
+    ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
+    { windowsHide: true },
+  );
+}
+
+function virtualKeyCode(key) {
+  const normalized = key.toLowerCase();
+  const keyCodes = {
+    alt: 0x12,
+    control: 0x11,
+    ctrl: 0x11,
+    shift: 0x10,
+    space: 0x20,
+    f11: 0x7a,
+    f12: 0x7b,
+  };
+  const keyCode = keyCodes[normalized];
+  if (!keyCode) {
+    throw new Error(`Unsupported native hotkey key: ${key}`);
+  }
+  return keyCode;
+}
+
 async function waitForPassThroughProbeClick(probe, timeoutMs = 5_000) {
   await probe.page.waitForFunction(
     () => Number(document.body.dataset.clicks || "0") > 0,
@@ -316,6 +395,34 @@ async function waitForPassThroughProbeClick(probe, timeoutMs = 5_000) {
     { timeout: timeoutMs },
   );
   return probe.page.evaluate(() => Number(document.body.dataset.clicks || "0"));
+}
+
+async function waitForGlobalShortcut(app, accelerator, timeoutMs = 5_000) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    const registered = await app.evaluate(
+      ({ globalShortcut }, hotkey) => globalShortcut.isRegistered(hotkey),
+      accelerator,
+    );
+    if (registered) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error(`Timed out waiting for global shortcut registration: ${accelerator}`);
+}
+
+async function waitForOverlayWindowVisible(app, page, timeoutMs = 5_000) {
+  const browserWindow = await app.browserWindow(page);
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    const visible = await browserWindow.evaluate((window) => window.isVisible());
+    if (visible) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error("Timed out waiting for overlay BrowserWindow to become visible");
 }
 
 async function assertPreloadBridge(page) {

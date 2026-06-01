@@ -2,7 +2,7 @@
 
 Date: 2026-06-01
 Operator: Codex
-Build: native pass-through probe slice after 3382620003
+Build: native default-hotkey smoke slice after 26bd6bfbb6
 
 ## Preconditions
 
@@ -23,8 +23,8 @@ Build: native pass-through probe slice after 3382620003
   ```
 - [x] `-OpenOnLaunch` opens the full-screen translucent overlay without requiring a synthetic hotkey.
 - [x] The window controller fails startup explicitly if Electron cannot register the configured hotkey.
-- [ ] `Ctrl+Alt+Space` opens the full-screen translucent overlay.
-- [ ] `Ctrl+Alt+Space` closes the overlay.
+- [x] `Ctrl+Alt+Space` opens the full-screen translucent overlay.
+- [x] `Ctrl+Alt+Space` closes the overlay.
 - [x] `pnpm --dir apps/windows-overlay smoke:electron` verifies the packaged Electron overlay against a mock gateway.
 - [x] `SAGEOS_OVERLAY_ACTIVE_MONITOR=auto|primary|<display id>` routes the overlay to the active, primary, or configured monitor.
 - [x] `powershell -ExecutionPolicy Bypass -File scripts/sageos-windows-overlay.ps1 -OpenMode hud` starts HUD-first mode.
@@ -59,6 +59,9 @@ Build: native pass-through probe slice after 3382620003
   `SAGEOS_OVERLAY_COLLAPSED_EDGE=left`,
   `SAGEOS_OVERLAY_ACTIVE_MONITOR=auto`, and
   `SAGEOS_OVERLAY_PINNED_WIDGETS=memoryQueue,systemHealth,nightShift` reach the shell/renderer,
+  launches a default-hotkey overlay instance with `Ctrl+Alt+Space`, waits for Electron
+  `globalShortcut` registration, sends native Windows keyboard input, and reports
+  `defaultHotkeyToggles: 2` after the overlay opens and closes,
   enables `SAGEOS_OVERLAY_VOICE_ENABLED=1` with `SAGEOS_OVERLAY_VOICE_MODE=pushToTalk`,
   verifies the Voice button focuses the Universal Launcher,
   captures full Command Deck over a bright synthetic desktop, captures Edge Rail and pinned widgets
@@ -78,5 +81,4 @@ Build: native pass-through probe slice after 3382620003
   Electron reports hotkey registration failure, and active-monitor selection honors `primary` plus
   configured display IDs. The smoke now presses `Ctrl+K`, verifies launcher focus, presses
   `Escape`, and waits for the Electron BrowserWindow to hide through the close bridge. The smoke
-  emitted Electron's development CSP warning only; no renderer page errors were observed. Physical
-  hotkey open/close still needs physical/manual verification.
+  emitted Electron's development CSP warning only; no renderer page errors were observed.
