@@ -74,7 +74,11 @@ const state = {
       autonomyTier: "execute_scoped",
       responsibilities: ["memory"],
       allowedScopes: [{ kind: "memory", allow: ["capture"], risk: "low" }],
-      deniedScopes: [],
+      deniedScopes: [{ kind: "memory", deny: ["private_data_export"], risk: "critical" }],
+      tools: ["sage-memory"],
+      memoryScopes: ["capture_queue"],
+      schedules: ["gateway tick"],
+      risks: ["incorrect replay"],
     },
   ],
   tasks: [
@@ -394,6 +398,15 @@ describe("overlay renderer model", () => {
         { kind: "retireEmployee", label: "Retire", enabled: true },
       ],
     });
+    expect(employeeModel.workspace.facts).toEqual(
+      expect.arrayContaining([
+        { label: "Tools", value: "sage-memory" },
+        { label: "Memory", value: "capture_queue" },
+        { label: "Schedules", value: "gateway tick" },
+        { label: "Risks", value: "incorrect replay" },
+        { label: "Denied scopes", value: "memory:deny private_data_export (critical)" },
+      ]),
+    );
     expect(pausedEmployeeModel.workspace).toMatchObject({
       title: "Memory Steward",
       eyebrow: "Employee / paused",

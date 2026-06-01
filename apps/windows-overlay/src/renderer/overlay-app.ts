@@ -1129,7 +1129,12 @@ function buildWorkspaceModel(
         { label: "Role", value: employee.role },
         { label: "Autonomy", value: employee.autonomyTier },
         { label: "Responsibilities", value: employee.responsibilities?.join(", ") || "None" },
+        { label: "Tools", value: employee.tools?.join(", ") || "None" },
+        { label: "Memory", value: employee.memoryScopes?.join(", ") || "None" },
+        { label: "Schedules", value: employee.schedules?.join(", ") || "Manual" },
+        { label: "Risks", value: employee.risks?.join(", ") || "None" },
         { label: "Allowed scopes", value: formatPolicyScopes(employee.allowedScopes ?? []) },
+        { label: "Denied scopes", value: formatPolicyScopes(employee.deniedScopes ?? []) },
       ],
       actions: buildEmployeeWorkspaceActions(target, employee.status),
     };
@@ -1546,13 +1551,16 @@ function buildEmployeeWorkspaceActions(
 }
 
 function formatPolicyScopes(
-  scopes: { kind: string; allow?: string[]; risk?: string }[],
+  scopes: { kind: string; allow?: string[]; deny?: string[]; risk?: string }[],
 ): string {
   if (scopes.length === 0) {
     return "None";
   }
   return scopes
-    .map((scope) => `${scope.kind}:${scope.allow?.join("|") || "*"} (${scope.risk ?? "low"})`)
+    .map((scope) => {
+      const mode = scope.deny?.length ? `deny ${scope.deny.join("|")}` : scope.allow?.join("|") || "*";
+      return `${scope.kind}:${mode} (${scope.risk ?? "low"})`;
+    })
     .join(", ");
 }
 
