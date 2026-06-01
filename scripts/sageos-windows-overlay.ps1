@@ -6,6 +6,7 @@ param(
   [switch]$PassThroughDefault,
   [ValidateSet("left", "right", "top", "bottom")]
   [string]$CollapsedEdge = "right",
+  [string]$ActiveMonitor = "",
   [string[]]$PinnedWidgets = @("activeOperations", "approvals", "incidents"),
   [string]$GatewayUrl = "ws://127.0.0.1:18789",
   [string]$Token = "",
@@ -19,6 +20,11 @@ $env:SAGEOS_OVERLAY_OPEN_MODE = $OpenMode
 $env:SAGEOS_OVERLAY_HUD_EXPANDS_TO_FULL = if ($HudExpandsToFull) { "1" } else { "0" }
 $env:SAGEOS_OVERLAY_PASS_THROUGH_DEFAULT = if ($PassThroughDefault) { "1" } else { "0" }
 $env:SAGEOS_OVERLAY_COLLAPSED_EDGE = $CollapsedEdge
+if ($ActiveMonitor) {
+  $env:SAGEOS_OVERLAY_ACTIVE_MONITOR = $ActiveMonitor
+} else {
+  Remove-Item Env:SAGEOS_OVERLAY_ACTIVE_MONITOR -ErrorAction SilentlyContinue
+}
 $env:SAGEOS_OVERLAY_PINNED_WIDGETS = ($PinnedWidgets -join ",")
 $env:SAGEOS_OVERLAY_GATEWAY_URL = $GatewayUrl
 if ($Token) {

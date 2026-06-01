@@ -2,7 +2,7 @@
 
 Date: 2026-06-01
 Operator: Codex
-Build: overlay automated smoke slice after 89d6a180c9
+Build: overlay hotkey and active-monitor hardening slice after fff04fae50
 
 ## Preconditions
 
@@ -22,9 +22,11 @@ Build: overlay automated smoke slice after 89d6a180c9
     -GatewayUrl "ws://127.0.0.1:18789" -Token "overlay-smoke-token" -OpenOnLaunch
   ```
 - [x] `-OpenOnLaunch` opens the full-screen translucent overlay without requiring a synthetic hotkey.
+- [x] The window controller fails startup explicitly if Electron cannot register the configured hotkey.
 - [ ] `Ctrl+Alt+Space` opens the full-screen translucent overlay.
 - [ ] `Ctrl+Alt+Space` closes the overlay.
 - [x] `pnpm --dir apps/windows-overlay smoke:electron` verifies the packaged Electron overlay against a mock gateway.
+- [x] `SAGEOS_OVERLAY_ACTIVE_MONITOR=auto|primary|<display id>` routes the overlay to the active, primary, or configured monitor.
 - [x] `powershell -ExecutionPolicy Bypass -File scripts/sageos-windows-overlay.ps1 -OpenMode hud` starts HUD-first mode.
 - [x] HUD expands to full overlay.
 - [x] Edge Rail collapse keeps health, approval, and incident indicators visible.
@@ -42,11 +44,15 @@ Build: overlay automated smoke slice after 89d6a180c9
   now enforces the Vitreous Liquor token layer, focus states, reduced-motion handling, edge
   anchoring classes, and full-overlay pinned widget flow. The `smoke:electron` package script
   launches the packaged Electron overlay against a mock gateway, verifies that
-  `SAGEOS_OVERLAY_COLLAPSED_EDGE=left` and
-  `SAGEOS_OVERLAY_PINNED_WIDGETS=memoryQueue,systemHealth,nightShift` reach the renderer, renders
-  without pinned-widget overlap in the full Command Deck, exposes the preload IPC bridge as
-  `window.sageOsOverlay`, collapses to the left Edge Rail, launches HUD-first mode, expands HUD to
-  the full overlay, and records expected RPC calls for pause, resume, emergency stop, approve,
-  queue, cancel, and launcher send. The smoke emitted Electron's development CSP warning only; no
-  renderer page errors were observed. Physical hotkey open/close and real pass-through usability
-  over an underlying app still need physical/manual verification.
+  `SAGEOS_OVERLAY_COLLAPSED_EDGE=left`,
+  `SAGEOS_OVERLAY_ACTIVE_MONITOR=auto`, and
+  `SAGEOS_OVERLAY_PINNED_WIDGETS=memoryQueue,systemHealth,nightShift` reach the shell/renderer,
+  renders without pinned-widget overlap in the full Command Deck, exposes the preload IPC bridge
+  as `window.sageOsOverlay`, collapses to the left Edge Rail, launches HUD-first mode, expands HUD
+  to the full overlay, and records expected RPC calls for pause, resume, emergency stop, approve,
+  queue, cancel, and launcher send. Unit coverage now verifies the registered global hotkey
+  callback opens and closes the overlay, startup fails if Electron reports hotkey registration
+  failure, and active-monitor selection honors `primary` plus configured display IDs. The smoke
+  emitted Electron's development CSP warning only; no renderer page errors were observed.
+  Physical hotkey open/close and real pass-through usability over an underlying app still need
+  physical/manual verification.

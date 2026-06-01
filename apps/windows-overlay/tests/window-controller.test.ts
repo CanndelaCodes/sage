@@ -11,7 +11,7 @@ function fakeAdapter(): OverlayShellAdapter {
     showEdgeRail: vi.fn(),
     hideOverlay: vi.fn(),
     setPassThrough: vi.fn(),
-    registerHotkey: vi.fn(),
+    registerHotkey: vi.fn().mockReturnValue(true),
     setTrayState: vi.fn(),
   };
 }
@@ -31,6 +31,39 @@ describe("overlay window controller", () => {
     expect(adapter.registerHotkey).toHaveBeenCalledWith("Ctrl+Alt+Space", expect.any(Function));
     expect(adapter.showFullOverlay).toHaveBeenCalledTimes(1);
     expect(adapter.setPassThrough).toHaveBeenCalledWith(false);
+  });
+
+  it("opens and closes through the registered global hotkey callback", () => {
+    const adapter = fakeAdapter();
+    const controller = createOverlayWindowController(adapter, {
+      hotkey: "Ctrl+Alt+Space",
+      openMode: "full",
+      passThroughDefault: false,
+    });
+
+    controller.start();
+    const callback = vi.mocked(adapter.registerHotkey).mock.calls[0]?.[1];
+    expect(callback).toEqual(expect.any(Function));
+
+    callback?.();
+    callback?.();
+
+    expect(adapter.showFullOverlay).toHaveBeenCalledTimes(1);
+    expect(adapter.hideOverlay).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails startup when the requested global hotkey cannot be registered", () => {
+    const adapter = fakeAdapter();
+    vi.mocked(adapter.registerHotkey).mockReturnValue(false);
+    const controller = createOverlayWindowController(adapter, {
+      hotkey: "Ctrl+Alt+Space",
+      openMode: "full",
+      passThroughDefault: false,
+    });
+
+    expect(() => controller.start()).toThrow(
+      "SageOS overlay hotkey registration failed for Ctrl+Alt+Space",
+    );
   });
 
   it("opens HUD first when configured", () => {

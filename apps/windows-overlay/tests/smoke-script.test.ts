@@ -14,6 +14,7 @@ describe("Electron overlay smoke script", () => {
       "window.sageOsOverlay?.collapse",
       "window.sageOsOverlay?.expand",
       "SAGEOS_OVERLAY_COLLAPSED_EDGE",
+      "SAGEOS_OVERLAY_ACTIVE_MONITOR",
       "SAGEOS_OVERLAY_PINNED_WIDGETS",
       ".overlay-shell--hud .compact-hud",
       ".edge-rail--left",

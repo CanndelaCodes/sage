@@ -9,6 +9,7 @@ describe("overlay launch config", () => {
       SAGEOS_OVERLAY_HUD_EXPANDS_TO_FULL: "0",
       SAGEOS_OVERLAY_PASS_THROUGH_DEFAULT: "1",
       SAGEOS_OVERLAY_COLLAPSED_EDGE: "left",
+      SAGEOS_OVERLAY_ACTIVE_MONITOR: "primary",
       SAGEOS_OVERLAY_PINNED_WIDGETS: "nightShift,systemHealth",
       SAGEOS_OVERLAY_GATEWAY_URL: "ws://127.0.0.1:18888",
       SAGEOS_OVERLAY_TOKEN: "token-1",
@@ -21,6 +22,7 @@ describe("overlay launch config", () => {
     expect(config.shell.hudExpandsToFull).toBe(false);
     expect(config.shell.passThroughDefault).toBe(true);
     expect(config.shell.collapsedEdge).toBe("left");
+    expect(config.shell.activeMonitor).toBe("primary");
     expect(config.shell.pinnedWidgets).toEqual(["nightShift", "systemHealth"]);
     expect(config.openOnLaunch).toBe(true);
     expect(config.rendererQuery).toEqual({

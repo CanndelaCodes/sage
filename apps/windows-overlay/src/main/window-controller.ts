@@ -11,7 +11,7 @@ export type OverlayShellAdapter = {
   showEdgeRail: () => void;
   hideOverlay: () => void;
   setPassThrough: (enabled: boolean) => void;
-  registerHotkey: (hotkey: string, callback: () => void) => void;
+  registerHotkey: (hotkey: string, callback: () => void) => boolean;
   setTrayState: (state: SageOsOverlayState) => void;
 };
 
@@ -41,7 +41,11 @@ export function createOverlayWindowController(
 
   const controller = {
     start() {
-      adapter.registerHotkey(config.hotkey ?? "Ctrl+Alt+Space", () => controller.toggle());
+      const hotkey = config.hotkey ?? "Ctrl+Alt+Space";
+      const hotkeyRegistered = adapter.registerHotkey(hotkey, () => controller.toggle());
+      if (!hotkeyRegistered) {
+        throw new Error(`SageOS overlay hotkey registration failed for ${hotkey}`);
+      }
       adapter.setTrayState(state);
     },
     state() {

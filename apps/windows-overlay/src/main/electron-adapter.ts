@@ -1,4 +1,4 @@
-import { BrowserWindow, Tray, globalShortcut, nativeImage, screen } from "electron";
+import { BrowserWindow, Tray, globalShortcut, nativeImage, screen, type Display } from "electron";
 import path from "node:path";
 import type { SageOsOverlayState } from "../../../../src/sageos/overlay-state.js";
 import type { OverlayRendererQuery } from "./launch-config.js";
@@ -8,6 +8,7 @@ export function createElectronOverlayAdapter(params: {
   rendererHtmlPath: string;
   preloadPath: string;
   rendererQuery?: OverlayRendererQuery;
+  activeMonitor?: string;
 }): OverlayShellAdapter {
   let window: BrowserWindow | null = null;
   let tray: Tray | null = null;
@@ -17,7 +18,7 @@ export function createElectronOverlayAdapter(params: {
       return window;
     }
 
-    const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+    const display = selectOverlayDisplay(params.activeMonitor);
     window = new BrowserWindow({
       x: display.bounds.x,
       y: display.bounds.y,
@@ -78,7 +79,7 @@ export function createElectronOverlayAdapter(params: {
     },
     registerHotkey(hotkey, callback) {
       globalShortcut.unregister(hotkey);
-      globalShortcut.register(hotkey, callback);
+      return globalShortcut.register(hotkey, callback);
     },
     setTrayState(state: SageOsOverlayState) {
       ensureTray().setToolTip(
@@ -86,4 +87,24 @@ export function createElectronOverlayAdapter(params: {
       );
     },
   };
+}
+
+function selectOverlayDisplay(activeMonitor: string | undefined): Display {
+  const monitor = activeMonitor?.trim();
+  if (monitor === "primary") {
+    return screen.getPrimaryDisplay();
+  }
+
+  if (monitor && monitor !== "auto") {
+    const normalized = monitor.toLowerCase();
+    const configured = screen.getAllDisplays().find(
+      (display) =>
+        String(display.id) === monitor || display.label?.trim().toLowerCase() === normalized,
+    );
+    if (configured) {
+      return configured;
+    }
+  }
+
+  return screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
 }

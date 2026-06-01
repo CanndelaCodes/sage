@@ -55,6 +55,7 @@ async function smokeFullOverlay(gatewayUrl) {
     SAGEOS_OVERLAY_OPEN_MODE: "full",
     SAGEOS_OVERLAY_OPEN_ON_LAUNCH: "1",
     SAGEOS_OVERLAY_COLLAPSED_EDGE: "left",
+    SAGEOS_OVERLAY_ACTIVE_MONITOR: "auto",
     SAGEOS_OVERLAY_PINNED_WIDGETS: "memoryQueue,systemHealth,nightShift",
   });
 
@@ -109,6 +110,7 @@ async function smokeHudOverlay(gatewayUrl) {
     SAGEOS_OVERLAY_OPEN_MODE: "hud",
     SAGEOS_OVERLAY_OPEN_ON_LAUNCH: "1",
     SAGEOS_OVERLAY_COLLAPSED_EDGE: "right",
+    SAGEOS_OVERLAY_ACTIVE_MONITOR: "auto",
     SAGEOS_OVERLAY_PINNED_WIDGETS: "activeOperations,approvals,incidents",
   });
 

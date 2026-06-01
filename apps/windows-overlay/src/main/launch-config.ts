@@ -35,6 +35,7 @@ export function readOverlayLaunchConfig(
       hudExpandsToFull: booleanEnv(env.SAGEOS_OVERLAY_HUD_EXPANDS_TO_FULL, true),
       passThroughDefault: booleanEnv(env.SAGEOS_OVERLAY_PASS_THROUGH_DEFAULT, false),
       collapsedEdge,
+      activeMonitor: overlayActiveMonitorEnv(env.SAGEOS_OVERLAY_ACTIVE_MONITOR),
       pinnedWidgets,
     },
     rendererQuery: compactRendererQuery({
@@ -91,4 +92,9 @@ function overlayWidgetsEnv(value: string | undefined): SageOsOverlayWidgetId[] {
       SAGEOS_OVERLAY_WIDGET_IDS.includes(entry as SageOsOverlayWidgetId),
     );
   return widgets?.length ? widgets : ["activeOperations", "approvals", "incidents"];
+}
+
+function overlayActiveMonitorEnv(value: string | undefined): string | undefined {
+  const activeMonitor = value?.trim();
+  return activeMonitor || undefined;
 }

@@ -14,6 +14,7 @@ void app
         rendererHtmlPath: assetPaths.rendererHtmlPath,
         preloadPath: assetPaths.preloadPath,
         rendererQuery: launchConfig.rendererQuery,
+        activeMonitor: launchConfig.shell.activeMonitor,
       }),
       launchConfig.shell,
     );
