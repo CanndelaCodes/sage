@@ -1,4 +1,6 @@
 import type { Command } from "commander";
+import { spawn } from "node:child_process";
+import type { SageConfig } from "../config/types.js";
 import { loadConfig } from "../config/config.js";
 import { formatDoctorReport } from "../memory/sage-memory-doctor-format.js";
 import { defaultRuntime } from "../runtime.js";
@@ -54,6 +56,7 @@ import {
   type SageOsCodingReport,
   type SageOsCollaborationEvent,
   type SageOsObservation,
+  type SageOsOverlayWidgetId,
   type SageOsSkillRecord,
   type SageOsTaskSpec,
   type SageOsWorkflow,
@@ -78,8 +81,49 @@ export type SageOsCliDeps = {
   sendApprovalNotificationOnce?: typeof sendSageOsApprovalNotificationOnce;
   sendIncidentNotificationOnce?: typeof sendSageOsIncidentNotificationOnce;
   sendCompletionNotificationOnce?: typeof sendSageOsCompletionNotificationOnce;
+  launchWindowsOverlay?: typeof launchWindowsOverlay;
   loadConfig?: typeof loadConfig;
 };
+
+export type SageOsOverlayLaunchParams = {
+  env: Record<string, string>;
+  cwd?: string;
+};
+
+export type SageOsOverlayLaunchResult = {
+  pid?: number;
+  command: string[];
+};
+
+const DEFAULT_OVERLAY_WIDGETS: SageOsOverlayWidgetId[] = [
+  "activeOperations",
+  "approvals",
+  "incidents",
+];
+
+const DEFAULT_OVERLAY_GATEWAY_PORT = 18789;
+
+export async function launchWindowsOverlay(
+  params: SageOsOverlayLaunchParams,
+): Promise<SageOsOverlayLaunchResult> {
+  const command = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+  const args = ["--dir", "apps/windows-overlay", "dev"];
+  const child = spawn(command, args, {
+    cwd: params.cwd ?? process.cwd(),
+    detached: true,
+    env: { ...process.env, ...params.env },
+    stdio: "ignore",
+    windowsHide: true,
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    child.once("spawn", resolve);
+    child.once("error", reject);
+  });
+  child.unref();
+
+  return { pid: child.pid, command: [command, ...args] };
+}
 
 async function updateSupervisorState(
   state: "paused" | "running" | "stopped",
@@ -140,6 +184,49 @@ function commandOptions<T extends Record<string, unknown>>(input: T | { opts: ()
     merged.json = Boolean(parent.json || local.json);
   }
   return merged as T;
+}
+
+function boolEnv(value: boolean): string {
+  return value ? "1" : "0";
+}
+
+function firstNonBlank(...values: Array<string | undefined>): string | undefined {
+  return values.map((value) => value?.trim()).find((value): value is string => Boolean(value));
+}
+
+type OverlayLaunchCommandOptions = {
+  gatewayUrl?: string;
+  json?: boolean;
+  open?: boolean;
+  password?: string;
+  token?: string;
+};
+
+function buildSageOsOverlayLaunchEnv(
+  cfg: SageConfig,
+  opts: OverlayLaunchCommandOptions,
+): Record<string, string> {
+  const overlay = cfg.sageos?.overlay ?? {};
+  const gatewayUrl =
+    firstNonBlank(opts.gatewayUrl, cfg.gateway?.remote?.url) ??
+    `ws://127.0.0.1:${cfg.gateway?.port ?? DEFAULT_OVERLAY_GATEWAY_PORT}`;
+  const pinnedWidgets = overlay.pinnedWidgets?.length
+    ? overlay.pinnedWidgets
+    : DEFAULT_OVERLAY_WIDGETS;
+  const openMode = overlay.openMode === "hud" ? "hud" : "full";
+
+  return {
+    SAGEOS_OVERLAY_HOTKEY: overlay.hotkey?.trim() || "Ctrl+Alt+Space",
+    SAGEOS_OVERLAY_OPEN_MODE: openMode,
+    SAGEOS_OVERLAY_HUD_EXPANDS_TO_FULL: boolEnv(overlay.hudExpandsToFull ?? true),
+    SAGEOS_OVERLAY_PASS_THROUGH_DEFAULT: boolEnv(overlay.passThroughDefault ?? false),
+    SAGEOS_OVERLAY_COLLAPSED_EDGE: overlay.collapsedEdge ?? "right",
+    SAGEOS_OVERLAY_PINNED_WIDGETS: pinnedWidgets.join(","),
+    SAGEOS_OVERLAY_GATEWAY_URL: gatewayUrl,
+    SAGEOS_OVERLAY_TOKEN: firstNonBlank(opts.token, cfg.gateway?.auth?.token) ?? "",
+    SAGEOS_OVERLAY_PASSWORD: firstNonBlank(opts.password, cfg.gateway?.auth?.password) ?? "",
+    SAGEOS_OVERLAY_OPEN_ON_LAUNCH: boolEnv(Boolean(opts.open)),
+  };
 }
 
 function fail(message: string): never {
@@ -349,6 +436,27 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
       });
       defaultRuntime.log(
         opts.json ? JSON.stringify(snapshot, null, 2) : "SageOS emergency stop engaged",
+      );
+    });
+
+  const overlay = os.command("overlay").description("Launch and configure the SageOS overlay");
+  overlay
+    .command("launch")
+    .description("Launch the Windows overlay using sageos.overlay config")
+    .option("--open", "Open the overlay immediately after launch", false)
+    .option("--gateway-url <url>", "Override the gateway websocket URL")
+    .option("--token <token>", "Override gateway token auth for this launch")
+    .option("--password <password>", "Override gateway password auth for this launch")
+    .option("--json", "Output JSON", false)
+    .action(async (opts: OverlayLaunchCommandOptions, command: Command) => {
+      const cliOpts = commandOptions<OverlayLaunchCommandOptions>(command ?? opts);
+      const launcher = deps.launchWindowsOverlay ?? launchWindowsOverlay;
+      const env = buildSageOsOverlayLaunchEnv(loadSageConfig(), cliOpts);
+      const result = await launcher({ env, cwd: process.cwd() });
+      outputJsonOrText(cliOpts, { result }, () =>
+        result.pid
+          ? `SageOS overlay launched: pid ${result.pid}`
+          : "SageOS overlay launch requested",
       );
     });
 

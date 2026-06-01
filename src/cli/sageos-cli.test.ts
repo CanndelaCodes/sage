@@ -95,6 +95,44 @@ describe("sage os CLI", () => {
     expect(parsed.audit.eventLogPath).toContain("events.jsonl");
   });
 
+  it("launches the Windows overlay from SageOS overlay config", async () => {
+    const launchWindowsOverlay = vi.fn().mockResolvedValue({ pid: 4242 });
+    const program = makeProgram({
+      loadConfig: () => ({
+        gateway: { port: 18888 },
+        sageos: {
+          overlay: {
+            hotkey: "Ctrl+Shift+Space",
+            openMode: "hud",
+            hudExpandsToFull: false,
+            passThroughDefault: true,
+            collapsedEdge: "left",
+            pinnedWidgets: ["nightShift", "systemHealth"],
+          },
+        },
+      }),
+      launchWindowsOverlay,
+    } as unknown as SageOsCliDeps);
+
+    await program.parseAsync(["os", "overlay", "launch", "--open", "--json"], { from: "user" });
+
+    expect(launchWindowsOverlay).toHaveBeenCalledWith(
+      expect.objectContaining({
+        env: expect.objectContaining({
+          SAGEOS_OVERLAY_HOTKEY: "Ctrl+Shift+Space",
+          SAGEOS_OVERLAY_OPEN_MODE: "hud",
+          SAGEOS_OVERLAY_HUD_EXPANDS_TO_FULL: "0",
+          SAGEOS_OVERLAY_PASS_THROUGH_DEFAULT: "1",
+          SAGEOS_OVERLAY_COLLAPSED_EDGE: "left",
+          SAGEOS_OVERLAY_PINNED_WIDGETS: "nightShift,systemHealth",
+          SAGEOS_OVERLAY_GATEWAY_URL: "ws://127.0.0.1:18888",
+          SAGEOS_OVERLAY_OPEN_ON_LAUNCH: "1",
+        }),
+      }),
+    );
+    expect(lastJson()).toMatchObject({ result: { pid: 4242 } });
+  });
+
   it("pauses, resumes, and emergency-stops through durable state", async () => {
     const stateDir = process.env.SAGE_STATE_DIR!;
     const program = makeProgram();

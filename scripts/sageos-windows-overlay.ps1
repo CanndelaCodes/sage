@@ -2,6 +2,11 @@ param(
   [string]$Hotkey = "Ctrl+Alt+Space",
   [ValidateSet("full", "hud")]
   [string]$OpenMode = "full",
+  [bool]$HudExpandsToFull = $true,
+  [switch]$PassThroughDefault,
+  [ValidateSet("left", "right", "top", "bottom")]
+  [string]$CollapsedEdge = "right",
+  [string[]]$PinnedWidgets = @("activeOperations", "approvals", "incidents"),
   [string]$GatewayUrl = "ws://127.0.0.1:18789",
   [string]$Token = "",
   [string]$Password = "",
@@ -11,6 +16,10 @@ param(
 $ErrorActionPreference = "Stop"
 $env:SAGEOS_OVERLAY_HOTKEY = $Hotkey
 $env:SAGEOS_OVERLAY_OPEN_MODE = $OpenMode
+$env:SAGEOS_OVERLAY_HUD_EXPANDS_TO_FULL = if ($HudExpandsToFull) { "1" } else { "0" }
+$env:SAGEOS_OVERLAY_PASS_THROUGH_DEFAULT = if ($PassThroughDefault) { "1" } else { "0" }
+$env:SAGEOS_OVERLAY_COLLAPSED_EDGE = $CollapsedEdge
+$env:SAGEOS_OVERLAY_PINNED_WIDGETS = ($PinnedWidgets -join ",")
 $env:SAGEOS_OVERLAY_GATEWAY_URL = $GatewayUrl
 if ($Token) {
   $env:SAGEOS_OVERLAY_TOKEN = $Token
@@ -20,5 +29,7 @@ if ($Password) {
 }
 if ($OpenOnLaunch) {
   $env:SAGEOS_OVERLAY_OPEN_ON_LAUNCH = "1"
+} else {
+  $env:SAGEOS_OVERLAY_OPEN_ON_LAUNCH = "0"
 }
 pnpm --dir apps/windows-overlay dev
