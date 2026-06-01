@@ -4,6 +4,7 @@ import {
   loadSageOsOverlayStatus,
   pauseSageOs,
   queueSageOsTask,
+  runSageOsIncidentRepair,
 } from "../src/renderer/sageos-actions.js";
 
 describe("SageOS overlay actions", () => {
@@ -35,5 +36,53 @@ describe("SageOS overlay actions", () => {
       id: "task_1",
       reason: "windows-overlay",
     });
+  });
+
+  it("runs allowlisted incident repair actions and refreshes overlay state", async () => {
+    const refreshed = { status: { incidents: [] } };
+    const request = vi.fn().mockResolvedValueOnce({ result: { ok: true } }).mockResolvedValueOnce(refreshed);
+    const state = {
+      status: {
+        incidents: [
+          {
+            id: "incident_memory",
+            autoRepairSafe: true,
+            repairAction: {
+              gatewayMethod: "sageos.memory.replay",
+              approvalRequired: false,
+            },
+          },
+        ],
+      },
+    };
+
+    const result = await runSageOsIncidentRepair({ request }, state as never, "incident_memory");
+
+    expect(request).toHaveBeenNthCalledWith(1, "sageos.memory.replay", {});
+    expect(request).toHaveBeenNthCalledWith(2, "sageos.status", {});
+    expect(result).toBe(refreshed);
+  });
+
+  it("rejects incident repair methods that are not safe for the overlay", async () => {
+    const request = vi.fn();
+    const state = {
+      status: {
+        incidents: [
+          {
+            id: "incident_shell",
+            autoRepairSafe: true,
+            repairAction: {
+              gatewayMethod: "sageos.shell.exec",
+              approvalRequired: false,
+            },
+          },
+        ],
+      },
+    };
+
+    await expect(runSageOsIncidentRepair({ request }, state as never, "incident_shell")).rejects.toThrow(
+      "not allowlisted",
+    );
+    expect(request).not.toHaveBeenCalled();
   });
 });

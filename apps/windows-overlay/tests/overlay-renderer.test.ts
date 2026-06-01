@@ -7,7 +7,21 @@ const state = {
     supervisor: { state: "running", enabled: true, paused: false },
     approvals: { pending: 2 },
     tasks: { total: 3, active: 1, queued: 1, blocked: 1 },
-    incidents: [{ id: "incident_1", severity: "warning", title: "Memory queue backlog" }],
+    incidents: [
+      {
+        id: "incident_1",
+        severity: "warning",
+        title: "Memory queue backlog",
+        summary: "Memory queue has failed captures.",
+        autoRepairSafe: true,
+        repairAction: {
+          id: "repair_memory_replay",
+          label: "Replay memory queue",
+          gatewayMethod: "sageos.memory.replay",
+          approvalRequired: false,
+        },
+      },
+    ],
   },
   tasks: [
     { id: "task_1", title: "Night Shift report", objective: "Summarize coding work", state: "running" },
@@ -76,6 +90,8 @@ describe("overlay renderer model", () => {
       id: "incident_1",
       title: "Memory queue backlog",
       severity: "warning",
+      repairLabel: "Replay memory queue",
+      canRepair: true,
     });
   });
 

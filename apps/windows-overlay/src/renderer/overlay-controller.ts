@@ -8,6 +8,7 @@ import {
   pauseSageOs,
   queueSageOsTask,
   resumeSageOs,
+  runSageOsIncidentRepair,
   runNextSageOsTask,
   type SageOsOverlayStatusState,
 } from "./sageos-actions.js";
@@ -105,6 +106,15 @@ export class SageOsOverlayController {
 
   async runNextTask() {
     await this.runMutation(() => runNextSageOsTask(this.client));
+  }
+
+  async runIncidentRepair(id: string) {
+    await this.runMutation(() => {
+      if (!this.state.sageOsState) {
+        throw new Error("SageOS state is not loaded");
+      }
+      return runSageOsIncidentRepair(this.client, this.state.sageOsState, id);
+    });
   }
 
   private async runMutation(run: () => Promise<unknown>) {

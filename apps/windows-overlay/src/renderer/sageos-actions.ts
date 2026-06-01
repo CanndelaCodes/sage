@@ -1,5 +1,6 @@
 import type {
   SageOsApproval,
+  SageOsIncident,
   SageOsStatusSnapshot,
   SageOsTaskSpec,
 } from "../../../../src/sageos/types.js";
@@ -10,6 +11,13 @@ export type SageOsOverlayStatusState = {
   tasks?: SageOsTaskSpec[];
   approvals?: SageOsApproval[];
 } & Record<string, unknown>;
+
+const safeIncidentRepairMethods = new Set([
+  "sageos.memory.replay",
+  "sageos.memory.doctor",
+  "sageos.approvals.list",
+  "sageos.observations.list",
+]);
 
 export function loadSageOsOverlayStatus(client: OverlayGatewayClient) {
   return client.request<SageOsOverlayStatusState>("sageos.status", {});
@@ -65,4 +73,35 @@ export function runNextSageOsTask(client: OverlayGatewayClient) {
 
 export function cancelSageOsTask(client: OverlayGatewayClient, id: string) {
   return client.request("sageos.tasks.cancel", { id, reason: "windows-overlay" });
+}
+
+export function canRunSageOsIncidentRepair(incident: Pick<SageOsIncident, "autoRepairSafe" | "repairAction">) {
+  const gatewayMethod = incident.repairAction?.gatewayMethod?.trim();
+  return (
+    incident.autoRepairSafe &&
+    !incident.repairAction?.approvalRequired &&
+    Boolean(gatewayMethod && safeIncidentRepairMethods.has(gatewayMethod))
+  );
+}
+
+export async function runSageOsIncidentRepair(
+  client: OverlayGatewayClient,
+  state: SageOsOverlayStatusState,
+  incidentId: string,
+) {
+  const incident = state.status.incidents.find((entry) => entry.id === incidentId);
+  if (!incident) {
+    throw new Error(`SageOS incident not found: ${incidentId}`);
+  }
+
+  const gatewayMethod = incident.repairAction?.gatewayMethod?.trim();
+  if (!incident.autoRepairSafe || incident.repairAction?.approvalRequired || !gatewayMethod) {
+    throw new Error(`SageOS incident repair requires review: ${incidentId}`);
+  }
+  if (!safeIncidentRepairMethods.has(gatewayMethod)) {
+    throw new Error(`SageOS repair method is not allowlisted: ${gatewayMethod}`);
+  }
+
+  await client.request(gatewayMethod, {});
+  return loadSageOsOverlayStatus(client);
 }

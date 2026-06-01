@@ -7,6 +7,7 @@ import { renderPinnedWidgets } from "./components/pinned-widgets.js";
 import { renderUniversalLauncher } from "./components/universal-launcher.js";
 import { OverlayGatewayBrowserClient } from "./gateway-client.js";
 import { SageOsOverlayController } from "./overlay-controller.js";
+import { canRunSageOsIncidentRepair } from "./sageos-actions.js";
 import type { SageOsOverlayStatusState } from "./sageos-actions.js";
 
 export type OverlayCard = { title: string; value: string; detail: string };
@@ -31,6 +32,8 @@ export type OverlayIncidentRow = {
   title: string;
   detail: string;
   severity: string;
+  repairLabel?: string;
+  canRepair: boolean;
 };
 export type OverlayGatewaySettings = {
   url: string;
@@ -74,6 +77,8 @@ export function renderOverlayModel(state: SageOsOverlayStatusState) {
     title: incident.title,
     detail: incident.summary,
     severity: incident.severity,
+    repairLabel: incident.repairAction?.label,
+    canRepair: canRunSageOsIncidentRepair(incident),
   }));
 
   return {
@@ -302,6 +307,15 @@ export class SageOsOverlayApp extends LitElement {
                       <div class="overlay-row__title">${incident.title}</div>
                       <div class="overlay-row__detail">${incident.detail}</div>
                       <div class="overlay-row__meta">${incident.id} / ${incident.severity}</div>
+                    </div>
+                    <div class="overlay-row__actions">
+                      <button
+                        type="button"
+                        ?disabled=${!incident.canRepair}
+                        @click=${() => void this.controller?.runIncidentRepair(incident.id)}
+                      >
+                        ${incident.repairLabel ?? "Run repair"}
+                      </button>
                     </div>
                   </div>
                 `,

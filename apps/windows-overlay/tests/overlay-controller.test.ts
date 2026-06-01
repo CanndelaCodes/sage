@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import { SageOsOverlayController } from "../src/renderer/overlay-controller.js";
 
-function stateFixture(mode = "execute_scoped") {
+function stateFixture(mode = "execute_scoped", incidents: unknown[] = []) {
   return {
     status: {
       mode,
       supervisor: { state: "running", enabled: true, paused: false },
       approvals: { pending: 0 },
       tasks: { total: 0, active: 0, queued: 0, blocked: 0 },
-      incidents: [],
+      incidents,
     },
   };
 }
@@ -84,5 +84,31 @@ describe("SageOsOverlayController", () => {
       reason: "windows-overlay",
     });
     expect(request).toHaveBeenCalledWith("sageos.tasks.runNext", {});
+  });
+
+  it("runs safe incident repairs through the controller and refreshes status", async () => {
+    const refreshed = stateFixture("execute_scoped");
+    const request = vi.fn().mockResolvedValueOnce({ result: { ok: true } }).mockResolvedValueOnce(refreshed);
+    const controller = new SageOsOverlayController({ request });
+    controller.state = {
+      ...controller.state,
+      connected: true,
+      sageOsState: stateFixture("execute_scoped", [
+        {
+          id: "incident_memory",
+          autoRepairSafe: true,
+          repairAction: {
+            gatewayMethod: "sageos.memory.replay",
+            approvalRequired: false,
+          },
+        },
+      ]) as never,
+    };
+
+    await controller.runIncidentRepair("incident_memory");
+
+    expect(request).toHaveBeenNthCalledWith(1, "sageos.memory.replay", {});
+    expect(request).toHaveBeenNthCalledWith(2, "sageos.status", {});
+    expect(controller.state.sageOsState).toBe(refreshed);
   });
 });
