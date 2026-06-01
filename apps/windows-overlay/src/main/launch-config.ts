@@ -9,6 +9,7 @@ export type OverlayRendererQuery = {
 export type OverlayLaunchConfig = {
   shell: SageOsOverlayConfig;
   rendererQuery: OverlayRendererQuery;
+  openOnLaunch: boolean;
 };
 
 export function readOverlayLaunchConfig(
@@ -29,6 +30,7 @@ export function readOverlayLaunchConfig(
       token: env.SAGEOS_OVERLAY_TOKEN,
       password: env.SAGEOS_OVERLAY_PASSWORD,
     }),
+    openOnLaunch: isEnabled(env.SAGEOS_OVERLAY_OPEN_ON_LAUNCH),
   };
 }
 
@@ -38,4 +40,9 @@ function compactRendererQuery(query: OverlayRendererQuery): OverlayRendererQuery
       .map(([key, value]) => [key, value?.trim()] as const)
       .filter((entry): entry is [keyof OverlayRendererQuery, string] => Boolean(entry[1])),
   );
+}
+
+function isEnabled(value: string | undefined): boolean {
+  const normalized = value?.trim().toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes";
 }

@@ -76,7 +76,7 @@ describe("OverlayGatewayBrowserClient", () => {
         maxProtocol: 3,
         role: "operator",
         client: {
-          id: "sage-control-ui",
+          id: "sage-windows-overlay",
           mode: "ui",
           platform: "windows-overlay",
         },

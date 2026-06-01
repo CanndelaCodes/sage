@@ -5,6 +5,7 @@ export const GATEWAY_CLIENT_IDS = {
   CLI: "cli",
   GATEWAY_CLIENT: "gateway-client",
   MACOS_APP: "sage-macos",
+  WINDOWS_OVERLAY: "sage-windows-overlay",
   IOS_APP: "sage-ios",
   ANDROID_APP: "sage-android",
   NODE_HOST: "node-host",

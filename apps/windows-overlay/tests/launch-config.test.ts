@@ -9,10 +9,12 @@ describe("overlay launch config", () => {
       SAGEOS_OVERLAY_GATEWAY_URL: "ws://127.0.0.1:18888",
       SAGEOS_OVERLAY_TOKEN: "token-1",
       SAGEOS_OVERLAY_PASSWORD: "password-1",
+      SAGEOS_OVERLAY_OPEN_ON_LAUNCH: "1",
     });
 
     expect(config.shell.hotkey).toBe("Ctrl+Shift+Space");
     expect(config.shell.openMode).toBe("hud");
+    expect(config.openOnLaunch).toBe(true);
     expect(config.rendererQuery).toEqual({
       gatewayUrl: "ws://127.0.0.1:18888",
       token: "token-1",

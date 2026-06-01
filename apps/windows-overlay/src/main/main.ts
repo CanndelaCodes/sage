@@ -20,6 +20,9 @@ app.whenReady().then(() => {
   ipcMain.handle("sageos-overlay:close", () => controller.close());
 
   controller.start();
+  if (launchConfig.openOnLaunch) {
+    controller.toggle();
+  }
 });
 
 app.on("will-quit", () => {

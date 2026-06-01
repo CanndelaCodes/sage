@@ -1,3 +1,5 @@
+import { GATEWAY_CLIENT_IDS } from "../../../../src/gateway/protocol/client-info.js";
+
 export type OverlayGatewayEventFrame = {
   type: "event";
   event: string;
@@ -140,7 +142,7 @@ export class OverlayGatewayBrowserClient implements OverlayGatewayClient {
       minProtocol: 3,
       maxProtocol: 3,
       client: {
-        id: "sage-control-ui",
+        id: GATEWAY_CLIENT_IDS.WINDOWS_OVERLAY,
         version: this.opts.clientVersion ?? "dev",
         platform: this.opts.platform ?? "windows-overlay",
         mode: "ui",
