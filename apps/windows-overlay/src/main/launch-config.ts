@@ -13,6 +13,7 @@ export type OverlayRendererQuery = {
   token?: string;
   password?: string;
   surface?: string;
+  voice?: string;
 };
 
 export type OverlayLaunchConfig = {
@@ -26,6 +27,7 @@ export function readOverlayLaunchConfig(
 ): OverlayLaunchConfig {
   const collapsedEdge = overlayEdgeEnv(env.SAGEOS_OVERLAY_COLLAPSED_EDGE);
   const pinnedWidgets = overlayWidgetsEnv(env.SAGEOS_OVERLAY_PINNED_WIDGETS);
+  const voice = overlayVoiceEnv(env.SAGEOS_OVERLAY_VOICE_ENABLED, env.SAGEOS_OVERLAY_VOICE_MODE);
 
   return {
     shell: {
@@ -37,6 +39,7 @@ export function readOverlayLaunchConfig(
       collapsedEdge,
       activeMonitor: overlayActiveMonitorEnv(env.SAGEOS_OVERLAY_ACTIVE_MONITOR),
       pinnedWidgets,
+      ...(voice ? { voice } : {}),
     },
     rendererQuery: compactRendererQuery({
       collapsedEdge,
@@ -45,6 +48,7 @@ export function readOverlayLaunchConfig(
       token: env.SAGEOS_OVERLAY_TOKEN,
       password: env.SAGEOS_OVERLAY_PASSWORD,
       surface: env.SAGEOS_OVERLAY_OPEN_MODE === "hud" ? "hud" : undefined,
+      voice: voice?.mode,
     }),
     openOnLaunch: isEnabled(env.SAGEOS_OVERLAY_OPEN_ON_LAUNCH),
   };
@@ -97,4 +101,15 @@ function overlayWidgetsEnv(value: string | undefined): SageOsOverlayWidgetId[] {
 function overlayActiveMonitorEnv(value: string | undefined): string | undefined {
   const activeMonitor = value?.trim();
   return activeMonitor || undefined;
+}
+
+function overlayVoiceEnv(
+  enabled: string | undefined,
+  mode: string | undefined,
+): SageOsOverlayConfig["voice"] | undefined {
+  if (!isEnabled(enabled)) {
+    return undefined;
+  }
+
+  return mode?.trim() === "pushToTalk" ? { enabled: true, mode: "pushToTalk" } : undefined;
 }

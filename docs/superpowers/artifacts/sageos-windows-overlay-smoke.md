@@ -2,7 +2,7 @@
 
 Date: 2026-06-01
 Operator: Codex
-Build: overlay keyboard dismissal slice after e5c05118ac
+Build: overlay voice-entry config slice after 1ac765ddff
 
 ## Preconditions
 
@@ -31,6 +31,8 @@ Build: overlay keyboard dismissal slice after e5c05118ac
 - [x] HUD expands to full overlay.
 - [x] `Ctrl+K` focuses the Universal Launcher when the full overlay is active.
 - [x] `Escape` dismisses the overlay through the preload IPC close bridge.
+- [x] `SAGEOS_OVERLAY_VOICE_ENABLED=1` plus `SAGEOS_OVERLAY_VOICE_MODE=pushToTalk` exposes the Voice entry point.
+- [x] The Voice entry point is omitted when voice config is missing, disabled, or invalid.
 - [x] Edge Rail collapse keeps health, approval, and incident indicators visible.
 - [ ] Pinned widget mode leaves the underlying app usable outside active widget controls.
 - [x] Pause, resume, approve, deny, queue, cancel, run next, safe repair, and emergency stop controls call the expected `sageos.*` RPC methods.
@@ -49,6 +51,8 @@ Build: overlay keyboard dismissal slice after e5c05118ac
   `SAGEOS_OVERLAY_COLLAPSED_EDGE=left`,
   `SAGEOS_OVERLAY_ACTIVE_MONITOR=auto`, and
   `SAGEOS_OVERLAY_PINNED_WIDGETS=memoryQueue,systemHealth,nightShift` reach the shell/renderer,
+  enables `SAGEOS_OVERLAY_VOICE_ENABLED=1` with `SAGEOS_OVERLAY_VOICE_MODE=pushToTalk`,
+  verifies the Voice button focuses the Universal Launcher,
   renders without pinned-widget overlap in the full Command Deck, exposes the preload IPC bridge
   as `window.sageOsOverlay`, collapses to the left Edge Rail, launches HUD-first mode, expands HUD
   to the full overlay, and records expected RPC calls for pause, resume, emergency stop, approve,

@@ -4,6 +4,7 @@ import {
   handleOverlayKeyboardShortcut,
   readInitialOverlaySurface,
   readOverlayGatewaySettings,
+  readOverlayInteractionSettings,
   readOverlayLayoutSettings,
   renderOverlayModel,
   SageOsOverlayApp,
@@ -501,6 +502,21 @@ describe("overlay renderer model", () => {
     expect(readOverlayLayoutSettings("?collapsedEdge=center&pinnedWidgets=unknown")).toEqual({
       collapsedEdge: "right",
       pinnedWidgets: ["activeOperations", "approvals", "incidents"],
+    });
+  });
+
+  it("reads overlay interaction settings with voice disabled by default", () => {
+    expect(readOverlayInteractionSettings("")).toEqual({
+      voice: { enabled: false },
+    });
+    expect(readOverlayInteractionSettings("?voice=alwaysOn")).toEqual({
+      voice: { enabled: false },
+    });
+  });
+
+  it("enables push-to-talk voice entry from the renderer query", () => {
+    expect(readOverlayInteractionSettings("?voice=pushToTalk")).toEqual({
+      voice: { enabled: true, mode: "pushToTalk" },
     });
   });
 

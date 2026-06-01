@@ -8,6 +8,9 @@ param(
   [string]$CollapsedEdge = "right",
   [string]$ActiveMonitor = "",
   [string[]]$PinnedWidgets = @("activeOperations", "approvals", "incidents"),
+  [switch]$VoiceEnabled,
+  [ValidateSet("pushToTalk")]
+  [string]$VoiceMode = "pushToTalk",
   [string]$GatewayUrl = "ws://127.0.0.1:18789",
   [string]$Token = "",
   [string]$Password = "",
@@ -26,6 +29,13 @@ if ($ActiveMonitor) {
   Remove-Item Env:SAGEOS_OVERLAY_ACTIVE_MONITOR -ErrorAction SilentlyContinue
 }
 $env:SAGEOS_OVERLAY_PINNED_WIDGETS = ($PinnedWidgets -join ",")
+if ($VoiceEnabled) {
+  $env:SAGEOS_OVERLAY_VOICE_ENABLED = "1"
+  $env:SAGEOS_OVERLAY_VOICE_MODE = $VoiceMode
+} else {
+  $env:SAGEOS_OVERLAY_VOICE_ENABLED = "0"
+  Remove-Item Env:SAGEOS_OVERLAY_VOICE_MODE -ErrorAction SilentlyContinue
+}
 $env:SAGEOS_OVERLAY_GATEWAY_URL = $GatewayUrl
 if ($Token) {
   $env:SAGEOS_OVERLAY_TOKEN = $Token

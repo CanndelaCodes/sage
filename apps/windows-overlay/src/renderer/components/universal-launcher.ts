@@ -1,8 +1,9 @@
-import { html } from "lit";
+import { html, nothing } from "lit";
 
 export type UniversalLauncherProps = {
   value: string;
   disabled?: boolean;
+  voiceEnabled?: boolean;
   onInput: (value: string) => void;
   onRun: () => void;
   onVoice: () => void;
@@ -25,15 +26,19 @@ export function renderUniversalLauncher(props: UniversalLauncherProps) {
           props.onRun();
         }}
       />
-      <button
-        class="overlay-button"
-        type="button"
-        aria-label="Start voice command"
-        ?disabled=${props.disabled}
-        @click=${() => props.onVoice()}
-      >
-        Voice
-      </button>
+      ${props.voiceEnabled
+        ? html`
+            <button
+              class="overlay-button"
+              type="button"
+              aria-label="Start voice command"
+              ?disabled=${props.disabled}
+              @click=${() => props.onVoice()}
+            >
+              Voice
+            </button>
+          `
+        : nothing}
       <button
         class="overlay-button overlay-button--primary"
         type="button"

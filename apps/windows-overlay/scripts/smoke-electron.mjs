@@ -59,6 +59,8 @@ async function smokeFullOverlay(gatewayUrl) {
     SAGEOS_OVERLAY_COLLAPSED_EDGE: "left",
     SAGEOS_OVERLAY_ACTIVE_MONITOR: "auto",
     SAGEOS_OVERLAY_PINNED_WIDGETS: "memoryQueue,systemHealth,nightShift",
+    SAGEOS_OVERLAY_VOICE_ENABLED: "1",
+    SAGEOS_OVERLAY_VOICE_MODE: "pushToTalk",
   });
 
   try {
@@ -68,6 +70,10 @@ async function smokeFullOverlay(gatewayUrl) {
     });
     await page.waitForFunction(() => document.body.innerText.includes("Memory Queue"));
     await assertPreloadBridge(page);
+    await page.getByRole("button", { name: "Start voice command" }).click();
+    await page.waitForFunction(
+      () => document.activeElement?.getAttribute("aria-label") === "SageOS command",
+    );
 
     await page.screenshot({
       path: path.join(screenshotDir, "overlay-smoke-styled.png"),

@@ -16,6 +16,8 @@ describe("Electron overlay smoke script", () => {
       "SAGEOS_OVERLAY_COLLAPSED_EDGE",
       "SAGEOS_OVERLAY_ACTIVE_MONITOR",
       "SAGEOS_OVERLAY_PINNED_WIDGETS",
+      "SAGEOS_OVERLAY_VOICE_ENABLED",
+      "SAGEOS_OVERLAY_VOICE_MODE",
       ".overlay-shell--hud .compact-hud",
       ".edge-rail--left",
       "sageos.control",
@@ -34,6 +36,7 @@ describe("Electron overlay smoke script", () => {
       'waitForRecordedMethod("sageos.memory.replay")',
       'waitForRecordedMethod("sageos.tasks.runNext")',
       'page.keyboard.press("Control+K")',
+      'name: "Start voice command"',
       'page.keyboard.press("Escape")',
       'waitForOverlayWindowHidden(app)',
     ]) {

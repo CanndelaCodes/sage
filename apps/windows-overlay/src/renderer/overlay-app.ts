@@ -97,6 +97,12 @@ export type OverlayLayoutSettings = {
   collapsedEdge: SageOsOverlayEdge;
   pinnedWidgets: SageOsOverlayWidgetId[];
 };
+export type OverlayInteractionSettings = {
+  voice: {
+    enabled: boolean;
+    mode?: "pushToTalk";
+  };
+};
 export type RenderOverlayModelOptions = {
   workspaceTarget?: AgentWorkspaceTarget;
   pinnedWidgets?: SageOsOverlayWidgetId[];
@@ -235,6 +241,15 @@ export function readOverlayLayoutSettings(
   };
 }
 
+export function readOverlayInteractionSettings(
+  search = globalThis.location?.search ?? "",
+): OverlayInteractionSettings {
+  const params = new URLSearchParams(search);
+  return params.get("voice") === "pushToTalk"
+    ? { voice: { enabled: true, mode: "pushToTalk" } }
+    : { voice: { enabled: false } };
+}
+
 export function normalizeOverlaySurface(value: unknown): OverlaySurface {
   return value === "hud" || value === "edgeRail" ? value : "commandDeck";
 }
@@ -345,6 +360,7 @@ export class SageOsOverlayApp extends LitElement {
   private controller: SageOsOverlayController | null = null;
   private surface = readInitialOverlaySurface();
   private layout = readOverlayLayoutSettings();
+  private interaction = readOverlayInteractionSettings();
   private overlayConnected = false;
   private loading = false;
   private error: string | null = null;
@@ -499,6 +515,7 @@ export class SageOsOverlayApp extends LitElement {
     return renderUniversalLauncher({
       value: this.launcherCommand,
       disabled: this.loading || !this.overlayConnected,
+      voiceEnabled: this.interaction.voice.enabled,
       onInput: (value) => {
         this.launcherCommand = value;
       },
