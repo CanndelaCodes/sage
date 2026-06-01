@@ -26,6 +26,7 @@ export function renderUniversalLauncher(props: UniversalLauncherProps) {
         }}
       />
       <button
+        class="overlay-button"
         type="button"
         aria-label="Start voice command"
         ?disabled=${props.disabled}
@@ -34,6 +35,7 @@ export function renderUniversalLauncher(props: UniversalLauncherProps) {
         Voice
       </button>
       <button
+        class="overlay-button overlay-button--primary"
         type="button"
         ?disabled=${props.disabled || !props.value.trim()}
         @click=${() => props.onRun()}

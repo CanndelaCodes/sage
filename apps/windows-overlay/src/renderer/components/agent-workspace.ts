@@ -64,6 +64,7 @@ export function renderAgentWorkspace(
         ${workspace.actions.map(
           (action) => html`
             <button
+              class="overlay-button"
               type="button"
               ?disabled=${!action.enabled}
               @click=${() => opts.onAction?.(action)}

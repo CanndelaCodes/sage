@@ -319,8 +319,12 @@ export class SageOsOverlayApp extends LitElement {
       <main class=${`overlay-shell overlay-shell--${this.surface}`}>
         ${surfaceVisibility.toolbar ? this.renderToolbar() : nothing}
         <section class="overlay-content">
-          ${this.error ? html`<section class="overlay-callout">${this.error}</section>` : nothing}
-          ${this.loading ? html`<section class="overlay-callout">Loading SageOS state...</section>` : nothing}
+          ${this.error
+            ? html`<section class="overlay-callout overlay-callout--error">${this.error}</section>`
+            : nothing}
+          ${this.loading
+            ? html`<section class="overlay-callout overlay-callout--loading">Loading SageOS state...</section>`
+            : nothing}
           ${model
             ? html`
                 ${surfaceVisibility.launcher ? this.renderLauncher() : nothing}
@@ -340,7 +344,7 @@ export class SageOsOverlayApp extends LitElement {
                 ${surfaceVisibility.compactHud ? renderCompactHud(model.hud.badges) : nothing}
                 ${surfaceVisibility.edgeRail ? renderEdgeRail(model.edgeRail.badges) : nothing}
               `
-            : html`<section class="overlay-callout">Waiting for SageOS gateway state.</section>`}
+            : html`<section class="overlay-callout overlay-callout--empty">Waiting for SageOS gateway state.</section>`}
         </section>
       </main>
     `;
@@ -371,18 +375,34 @@ export class SageOsOverlayApp extends LitElement {
         <span class="overlay-connection">${this.overlayConnected ? "Connected" : "Connecting"}</span>
         ${isCommandDeck
           ? html`
-              <button type="button" @click=${() => void this.controller?.pause()}>Pause</button>
-              <button type="button" @click=${() => void this.controller?.resume()}>Resume</button>
-              <button type="button" @click=${() => void this.controller?.emergencyStop()}>
+              <button class="overlay-button" type="button" @click=${() => void this.controller?.pause()}>Pause</button>
+              <button
+                class="overlay-button overlay-button--primary"
+                type="button"
+                @click=${() => void this.controller?.resume()}
+              >
+                Resume
+              </button>
+              <button
+                class="overlay-button overlay-button--danger"
+                type="button"
+                @click=${() => void this.controller?.emergencyStop()}
+              >
                 Emergency stop
               </button>
             `
           : nothing}
-        <button type="button" @click=${() => window.sageOsOverlay?.expand()}>Full</button>
+        <button
+          class="overlay-button overlay-button--primary"
+          type="button"
+          @click=${() => window.sageOsOverlay?.expand()}
+        >
+          Full
+        </button>
         ${isCommandDeck
-          ? html`<button type="button" @click=${() => window.sageOsOverlay?.collapse()}>Rail</button>`
+          ? html`<button class="overlay-button" type="button" @click=${() => window.sageOsOverlay?.collapse()}>Rail</button>`
           : nothing}
-        <button type="button" @click=${() => window.sageOsOverlay?.close()}>Close</button>
+        <button class="overlay-button" type="button" @click=${() => window.sageOsOverlay?.close()}>Close</button>
       </nav>
     `;
   }
@@ -446,7 +466,13 @@ export class SageOsOverlayApp extends LitElement {
         <article class="overlay-panel">
           <div class="overlay-panel__header">
             <h2>Active Operations</h2>
-            <button type="button" @click=${() => void this.controller?.runNextTask()}>Run next</button>
+            <button
+              class="overlay-button overlay-button--primary"
+              type="button"
+              @click=${() => void this.controller?.runNextTask()}
+            >
+              Run next
+            </button>
           </div>
           ${commandDeck.tasks.length === 0
             ? html`<p class="overlay-muted">No tracked SageOS tasks.</p>`
@@ -460,12 +486,14 @@ export class SageOsOverlayApp extends LitElement {
                     </div>
                     <div class="overlay-row__actions">
                       <button
+                        class="overlay-button"
                         type="button"
                         @click=${() => this.openWorkspace({ kind: "task", id: task.id })}
                       >
                         Open
                       </button>
                       <button
+                        class="overlay-button overlay-button--primary"
                         type="button"
                         ?disabled=${!task.canQueue}
                         @click=${() => void this.controller?.queueTask(task.id)}
@@ -473,6 +501,7 @@ export class SageOsOverlayApp extends LitElement {
                         Queue
                       </button>
                       <button
+                        class="overlay-button"
                         type="button"
                         ?disabled=${!task.canCancel}
                         @click=${() => void this.controller?.cancelTask(task.id)}
@@ -501,6 +530,7 @@ export class SageOsOverlayApp extends LitElement {
                     </div>
                     <div class="overlay-row__actions">
                       <button
+                        class="overlay-button"
                         type="button"
                         @click=${() =>
                           this.openWorkspace({ kind: "approval", id: approval.id })}
@@ -508,12 +538,14 @@ export class SageOsOverlayApp extends LitElement {
                         Open
                       </button>
                       <button
+                        class="overlay-button overlay-button--primary"
                         type="button"
                         @click=${() => void this.controller?.approveApproval(approval.id)}
                       >
                         Approve
                       </button>
                       <button
+                        class="overlay-button"
                         type="button"
                         @click=${() => void this.controller?.denyApproval(approval.id)}
                       >
@@ -541,6 +573,7 @@ export class SageOsOverlayApp extends LitElement {
                     </div>
                     <div class="overlay-row__actions">
                       <button
+                        class="overlay-button"
                         type="button"
                         @click=${() =>
                           this.openWorkspace({ kind: "codingReport", id: report.id })}
@@ -569,6 +602,7 @@ export class SageOsOverlayApp extends LitElement {
                     </div>
                     <div class="overlay-row__actions">
                       <button
+                        class="overlay-button"
                         type="button"
                         @click=${() =>
                           this.openWorkspace({ kind: "incident", id: incident.id })}
@@ -576,6 +610,7 @@ export class SageOsOverlayApp extends LitElement {
                         Open
                       </button>
                       <button
+                        class=${`overlay-button ${incident.canRepair ? "overlay-button--primary" : ""}`}
                         type="button"
                         ?disabled=${!incident.canRepair}
                         @click=${() => void this.controller?.runIncidentRepair(incident.id)}
@@ -606,6 +641,7 @@ export class SageOsOverlayApp extends LitElement {
                     </div>
                     <div class="overlay-row__actions">
                       <button
+                        class="overlay-button"
                         type="button"
                         @click=${() =>
                           this.openWorkspace({ kind: resource.kind, id: resource.id })}
@@ -632,6 +668,7 @@ export class SageOsOverlayApp extends LitElement {
                 </div>
                 <div class="overlay-row__actions">
                   <button
+                    class="overlay-button"
                     type="button"
                     @click=${() => this.openWorkspace({ kind: "system", id: resource.id })}
                   >
