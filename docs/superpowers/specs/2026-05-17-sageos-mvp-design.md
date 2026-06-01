@@ -263,6 +263,30 @@ The MVP is complete when SageOS can run continuously as a local service and answ
 
 The MVP is not public beta-ready. It is a private operator system for Jason.
 
+## MVP Visual Experience Gate
+
+The Windows overlay is the primary SageOS product surface, so visual polish is not a post-MVP cosmetic task. The MVP is not complete until the overlay UI, UX, frontend implementation quality, and operator experience reach an enterprise-grade standard suitable for daily production use.
+
+SageOS should adopt a Sage-specific version of PeakHQ's Vitreus/Vitreous Liquor design language rather than copying PeakHQ branding directly. The authoritative reference is `C:\Users\jason\Desktop\PeakIQ-AI-Assistant\apps\intranet\src\PEAKHQ_DESIGN_LANGUAGE.md`. Portable design principles include:
+
+- Neutral charcoal and cool platinum surfaces, not a one-note blue/purple/cream theme.
+- Layered glass surfaces with restrained transparency, adaptive blur, rim highlights, and clear elevation levels.
+- Crisp borders, shadows, and status color accents that preserve contrast over arbitrary desktop backgrounds.
+- Desktop-first information density with scan-friendly tables, rows, badges, segmented controls, icon buttons, and predictable navigation.
+- A static depth pattern or equivalent texture only where it improves legibility and spatial orientation.
+- Spring-calibrated motion for surface transitions, hover/press states, focus changes, and command execution feedback.
+- Magnetic or spotlight interactions only where they improve targeting and never where they reduce precision.
+- WCAG 2.2 AA contrast, visible focus, complete keyboard paths, reduced-motion support, and no text overlap at supported viewport sizes.
+- Verified GUI behavior through screenshots, smoke flows, accessibility checks, and manual Windows overlay checks, not just unit tests.
+
+SageOS-specific adaptation:
+
+- Keep SageOS quieter and more operational than PeakHQ. It should feel like a command surface for active autonomy, not a marketing dashboard.
+- Use blue/cyan for normal primary actions, green for completed/safe status, amber for waiting or warning, and red only for urgent, destructive, incident, or stop states.
+- Every visible control must map to a real capability or a disabled state with clear reason. No ornamental panels that imply functionality without backing behavior.
+- Pinned widgets and HUD surfaces must remain legible above any underlying Windows app and must not block normal app use outside active controls.
+- The web Command Center may share tokens and components, but the release gate applies first to the native Windows overlay.
+
 ## Non-Goals
 
 - A new standalone OS, window manager, or desktop environment.

@@ -1620,11 +1620,122 @@ Run:
 & 'C:\Program Files\Git\bin\bash.exe' scripts/committer "SageOS: add overlay startup smoke path" apps/windows-overlay/package.json scripts/sageos-windows-overlay.ps1 docs/superpowers/artifacts/sageos-windows-overlay-smoke.md
 ```
 
-## Task 9: Final Verification And MVP Handoff
+## Task 9: Vitreous Liquor Visual Polish And Experience Gate
 
 **Files:**
 
-- All files changed by Tasks 1 through 8
+- Modify: `apps/windows-overlay/src/renderer/styles.css`
+- Modify: `apps/windows-overlay/src/renderer/overlay-app.ts`
+- Modify: `apps/windows-overlay/src/renderer/components/*.ts`
+- Modify/Create: `apps/windows-overlay/tests/overlay-visual-contract.test.ts`
+- Modify: `docs/superpowers/artifacts/sageos-windows-overlay-smoke.md`
+
+This is an MVP release gate, not a post-MVP cleanup task. The Windows overlay is the primary SageOS interface and must feel production-grade before MVP handoff.
+
+Reference PeakHQ's design language before implementation:
+
+```powershell
+Get-Content C:\Users\jason\Desktop\PeakIQ-AI-Assistant\apps\intranet\src\PEAKHQ_DESIGN_LANGUAGE.md
+Get-Content C:\Users\jason\Desktop\PeakIQ-AI-Assistant\apps\intranet\src\components\ui\glass-card.tsx
+Get-Content C:\Users\jason\Desktop\PeakIQ-AI-Assistant\apps\intranet\src\components\ui\glass-button.tsx
+Get-Content C:\Users\jason\Desktop\PeakIQ-AI-Assistant\apps\intranet\src\styles\tokens.css
+```
+
+SageOS should adopt a Sage-specific Vitreus/Vitreous Liquor system: neutral charcoal and cool platinum surfaces, layered glass elevation, crisp borders, rim highlights, restrained blur, scan-friendly operational density, and spring-calibrated motion. Do not copy PeakHQ branding directly.
+
+- [ ] **Step 1: Write visual contract tests**
+
+Add tests that assert the overlay stylesheet exposes SageOS material tokens and state classes:
+
+- `--sageos-bg`, `--sageos-surface-*`, `--sageos-glass-*`, `--sageos-border-*`, `--sageos-shadow-*`, `--sageos-accent-*`, `--sageos-motion-*`.
+- Surface classes for command deck, HUD, edge rail, pinned widgets, toolbar, launcher, panels, rows, buttons, focus states, loading, empty, error, degraded, success, warning, critical, and disabled states.
+- Reduced-motion media query.
+- Text overflow guards for rows, cards, badges, buttons, and pinned widgets.
+
+Run:
+
+```powershell
+pnpm --dir apps/windows-overlay test -- tests/overlay-visual-contract.test.ts
+```
+
+Expected: FAIL until the visual token layer and state classes exist.
+
+- [ ] **Step 2: Add SageOS Vitreous Liquor token layer**
+
+Refactor `styles.css` so visual constants live in a small token section:
+
+- Background: transparent overlay root, neutral charcoal command surfaces, cool platinum-compatible light fallback.
+- Glass: background alpha levels, opacity floors, blur scale, border colors, rim highlight colors.
+- Elevation: ambient, default, featured, modal/summit.
+- Status: primary, success, warning, danger, info.
+- Motion: fast, normal, slow, snappy, responsive, smooth, reduced-motion fallbacks.
+- Radius and spacing: compact system controls, 8px default cards, stable dimensions for buttons/badges/widgets.
+
+- [ ] **Step 3: Polish every overlay surface**
+
+Apply the token layer to:
+
+- Command Deck cards and overview groups.
+- Universal Launcher input, voice/run controls, command execution states.
+- Agent Workspace facts and action rows.
+- Active operation, approval, coding report, incident, resource, and system rows.
+- Compact HUD.
+- Edge Rail.
+- Pinned Widgets.
+- Loading, waiting, empty, error, disabled, disconnected, degraded, and success states.
+
+Every visible control must have hover, focus-visible, pressed, disabled, loading or pending, and success/error affordances where applicable.
+
+- [ ] **Step 4: Verify GUI/UX/CX/DX quality with screenshots**
+
+Run automated and manual visual checks:
+
+```powershell
+pnpm --dir apps/windows-overlay test
+pnpm --dir apps/windows-overlay typecheck
+pnpm --dir apps/windows-overlay build
+```
+
+Then run the overlay smoke script and capture screenshots for:
+
+- Full Command Deck over a dark desktop/app.
+- Full Command Deck over a bright desktop/app.
+- HUD mode.
+- Edge Rail.
+- Pinned Widgets.
+- Empty/loading/error/disconnected state where practical.
+
+Manual acceptance:
+
+- Text never overlaps or clips inside cards, rows, badges, or buttons.
+- Pinned widgets are legible over dark, light, text-heavy, browser, and IDE backgrounds.
+- Edge Rail is precise enough for mouse targeting and does not block underlying work outside controls.
+- Keyboard focus is visible and ordered.
+- Reduced motion is respected.
+- UI density is enterprise/operations-grade, not marketing-style.
+- No in-app explanatory filler text replaces actual controls.
+
+- [ ] **Step 5: Record visual evidence and commit**
+
+Update `docs/superpowers/artifacts/sageos-windows-overlay-smoke.md` with visual polish evidence:
+
+- Screenshot paths.
+- Build SHA.
+- Surfaces checked.
+- Accessibility and reduced-motion notes.
+- Known visual issues, if any.
+
+Run:
+
+```powershell
+& 'C:\Program Files\Git\bin\bash.exe' scripts/committer "SageOS: polish overlay visual system" apps/windows-overlay/src/renderer/styles.css apps/windows-overlay/src/renderer/overlay-app.ts apps/windows-overlay/src/renderer/components docs/superpowers/artifacts/sageos-windows-overlay-smoke.md apps/windows-overlay/tests/overlay-visual-contract.test.ts
+```
+
+## Task 10: Final Verification And MVP Handoff
+
+**Files:**
+
+- All files changed by Tasks 1 through 9
 
 - [ ] **Step 1: Run focused tests**
 
@@ -1677,6 +1788,7 @@ Manual expected result:
 - Edge Rail collapse works.
 - Pinned widgets do not block underlying app clicks outside widget controls.
 - Core controls invoke `sageos.*` RPC methods.
+- Vitreous Liquor visual pass meets the GUI/UX/CX/DX release gate from Task 9.
 
 Record the date, build, screenshot path, and notes in `docs/superpowers/artifacts/sageos-windows-overlay-smoke.md`.
 
@@ -1702,4 +1814,5 @@ Run:
 - Keyboard hotkey and dismissal: Tasks 4 and 7.
 - Voice command entry: Tasks 1 and 6 add push-to-talk launcher support behind overlay config.
 - Shared Command Center contract: Tasks 1, 5, and 6.
+- Enterprise-grade Vitreous Liquor visual/UX/frontend polish: Task 9.
 - Web Command Center remains supplemental: no task replaces the existing web UI as the source of product truth.
