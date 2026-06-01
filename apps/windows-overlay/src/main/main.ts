@@ -1,4 +1,4 @@
-import { app, globalShortcut } from "electron";
+import { app, globalShortcut, ipcMain } from "electron";
 import path from "node:path";
 import { createElectronOverlayAdapter } from "./electron-adapter.js";
 import { createOverlayWindowController } from "./window-controller.js";
@@ -19,6 +19,10 @@ app.whenReady().then(() => {
       pinnedWidgets: ["activeOperations", "approvals", "incidents"],
     },
   );
+
+  ipcMain.handle("sageos-overlay:expand", () => controller.expand());
+  ipcMain.handle("sageos-overlay:collapse", () => controller.collapse());
+  ipcMain.handle("sageos-overlay:close", () => controller.close());
 
   controller.start();
 });

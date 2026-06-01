@@ -29,6 +29,12 @@ input {
   gap: 16px;
 }
 
+.overlay-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .command-deck {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

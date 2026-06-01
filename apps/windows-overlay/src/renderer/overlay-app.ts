@@ -4,6 +4,17 @@ import type { SageOsOverlayStatusState } from "./sageos-actions.js";
 export type OverlayCard = { title: string; value: string; detail: string };
 export type OverlayBadge = { label: string; value: string };
 
+declare global {
+  interface Window {
+    sageOsOverlay?: {
+      expand(): Promise<void>;
+      collapse(): Promise<void>;
+      close(): Promise<void>;
+      onSurface(callback: (surface: string) => void): void;
+    };
+  }
+}
+
 export function renderOverlayModel(state: SageOsOverlayStatusState) {
   const status = state.status;
   const activeTasks = String(status.tasks.active);
@@ -52,7 +63,16 @@ export class SageOsOverlayApp extends LitElement {
   `;
 
   render() {
-    return html`<main class="overlay-shell"><slot></slot></main>`;
+    return html`
+      <main class="overlay-shell">
+        <nav class="overlay-toolbar" aria-label="SageOS overlay controls">
+          <button type="button" @click=${() => window.sageOsOverlay?.expand()}>Full</button>
+          <button type="button" @click=${() => window.sageOsOverlay?.collapse()}>Rail</button>
+          <button type="button" @click=${() => window.sageOsOverlay?.close()}>Close</button>
+        </nav>
+        <slot></slot>
+      </main>
+    `;
   }
 }
 
