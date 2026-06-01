@@ -15,6 +15,14 @@ body {
   background: transparent;
 }
 
+sageos-overlay-app {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(18, 20, 22, 0.72);
+  backdrop-filter: blur(16px);
+}
+
 button,
 input {
   font: inherit;

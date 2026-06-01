@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { readOverlayGatewaySettings, renderOverlayModel } from "../src/renderer/overlay-app.js";
+import {
+  readOverlayGatewaySettings,
+  renderOverlayModel,
+  SageOsOverlayApp,
+} from "../src/renderer/overlay-app.js";
 
 const state = {
   status: {
@@ -177,5 +181,16 @@ describe("overlay renderer model", () => {
       token: "abc",
       password: "secret",
     });
+  });
+
+  it("renders into light DOM so the packaged overlay stylesheet applies", () => {
+    const app = new SageOsOverlayApp();
+    const renderRoot = (
+      app as unknown as {
+        createRenderRoot(): Element | DocumentFragment;
+      }
+    ).createRenderRoot();
+
+    expect(renderRoot).toBe(app);
   });
 });

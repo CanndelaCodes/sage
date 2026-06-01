@@ -1,4 +1,4 @@
-import { LitElement, css, html, nothing } from "lit";
+import { LitElement, html, nothing } from "lit";
 import { renderAgentWorkspace } from "./components/agent-workspace.js";
 import { renderCommandDeck } from "./components/command-deck.js";
 import { renderCompactHud } from "./components/compact-hud.js";
@@ -145,22 +145,16 @@ export class SageOsOverlayApp extends LitElement {
     launcherCommand: { state: true },
   };
 
-  static styles = css`
-    :host {
-      display: block;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(18, 20, 22, 0.72);
-      backdrop-filter: blur(16px);
-    }
-  `;
-
   private controller: SageOsOverlayController | null = null;
   private overlayConnected = false;
   private loading = false;
   private error: string | null = null;
   private sageOsState: SageOsOverlayStatusState | null = null;
   private launcherCommand = "";
+
+  protected createRenderRoot() {
+    return this;
+  }
 
   connectedCallback() {
     super.connectedCallback();
