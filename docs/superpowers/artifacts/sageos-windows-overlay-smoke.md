@@ -2,7 +2,7 @@
 
 Date: 2026-06-01
 Operator: Codex
-Build: overlay voice-entry config slice after 1ac765ddff
+Build: Liquid Linear visual evidence slice after 2082a95859
 
 ## Preconditions
 
@@ -33,6 +33,8 @@ Build: overlay voice-entry config slice after 1ac765ddff
 - [x] `Escape` dismisses the overlay through the preload IPC close bridge.
 - [x] `SAGEOS_OVERLAY_VOICE_ENABLED=1` plus `SAGEOS_OVERLAY_VOICE_MODE=pushToTalk` exposes the Voice entry point.
 - [x] The Voice entry point is omitted when voice config is missing, disabled, or invalid.
+- [x] Liquid Linear material tokens cover ambient, command, focus, and summit glass elevations.
+- [x] Automated smoke captures the overlay over bright, text-heavy, and IDE-like visual backdrops.
 - [x] Edge Rail collapse keeps health, approval, and incident indicators visible.
 - [ ] Pinned widget mode leaves the underlying app usable outside active widget controls.
 - [x] Pause, resume, approve, deny, queue, cancel, run next, safe repair, and emergency stop controls call the expected `sageos.*` RPC methods.
@@ -41,18 +43,24 @@ Build: overlay voice-entry config slice after 1ac765ddff
 ## Evidence
 
 - Full overlay screenshot path: `apps/windows-overlay/dist/overlay-smoke-styled.png`
+- Bright backdrop full overlay screenshot path: `apps/windows-overlay/dist/overlay-smoke-full-bright.png`
 - Left edge rail screenshot path: `apps/windows-overlay/dist/overlay-smoke-edge-left.png`
+- Text-heavy backdrop edge rail screenshot path: `apps/windows-overlay/dist/overlay-smoke-edge-text-heavy.png`
 - HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud.png`
+- IDE-like backdrop HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud-ide.png`
 - Notes: Automated overlay package test, typecheck, build, `pnpm tsgo`, `pnpm lint`, and
   `git diff --check` passed on 2026-06-01 during the visual/layout pass. The visual contract
-  now enforces the Vitreous Liquor token layer, focus states, reduced-motion handling, edge
-  anchoring classes, and full-overlay pinned widget flow. The `smoke:electron` package script
+  now enforces the Liquid Linear command glass token layer, focus states, reduced-motion handling,
+  edge anchoring classes, state classes, text overflow guards, and full-overlay pinned widget flow.
+  The `smoke:electron` package script
   launches the packaged Electron overlay against a mock gateway, verifies that
   `SAGEOS_OVERLAY_COLLAPSED_EDGE=left`,
   `SAGEOS_OVERLAY_ACTIVE_MONITOR=auto`, and
   `SAGEOS_OVERLAY_PINNED_WIDGETS=memoryQueue,systemHealth,nightShift` reach the shell/renderer,
   enables `SAGEOS_OVERLAY_VOICE_ENABLED=1` with `SAGEOS_OVERLAY_VOICE_MODE=pushToTalk`,
   verifies the Voice button focuses the Universal Launcher,
+  captures full Command Deck over a bright synthetic desktop, captures Edge Rail and pinned widgets
+  over a text-heavy synthetic app, captures HUD over an IDE-like dark surface,
   renders without pinned-widget overlap in the full Command Deck, exposes the preload IPC bridge
   as `window.sageOsOverlay`, collapses to the left Edge Rail, launches HUD-first mode, expands HUD
   to the full overlay, and records expected RPC calls for pause, resume, emergency stop, approve,

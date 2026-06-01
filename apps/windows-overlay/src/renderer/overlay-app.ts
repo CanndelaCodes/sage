@@ -545,7 +545,7 @@ export class SageOsOverlayApp extends LitElement {
       <section class="overview-grid">
         ${groups.map(
           (group) => html`
-            <article class="overlay-panel overview-panel">
+            <article class="overlay-panel overlay-panel--focus overview-panel">
               <div class="overlay-panel__header">
                 <h2>${group.title}</h2>
               </div>
@@ -568,7 +568,7 @@ export class SageOsOverlayApp extends LitElement {
   private renderOperationalRows(commandDeck: ReturnType<typeof renderOverlayModel>["commandDeck"]) {
     return html`
       <section class="operational-grid">
-        <article class="overlay-panel">
+        <article class="overlay-panel overlay-panel--focus">
           <div class="overlay-panel__header">
             <h2>Active Operations</h2>
             <button
@@ -619,7 +619,7 @@ export class SageOsOverlayApp extends LitElement {
               )}
         </article>
 
-        <article class="overlay-panel">
+        <article class="overlay-panel overlay-panel--summit">
           <div class="overlay-panel__header">
             <h2>Approvals</h2>
           </div>
@@ -662,7 +662,7 @@ export class SageOsOverlayApp extends LitElement {
               )}
         </article>
 
-        <article class="overlay-panel">
+        <article class="overlay-panel overlay-panel--focus">
           <div class="overlay-panel__header">
             <h2>Night Shift</h2>
           </div>
@@ -691,7 +691,7 @@ export class SageOsOverlayApp extends LitElement {
               )}
         </article>
 
-        <article class="overlay-panel">
+        <article class="overlay-panel overlay-panel--summit">
           <div class="overlay-panel__header">
             <h2>Incidents</h2>
           </div>
@@ -728,7 +728,7 @@ export class SageOsOverlayApp extends LitElement {
               )}
         </article>
 
-        <article class="overlay-panel">
+        <article class="overlay-panel overlay-panel--focus">
           <div class="overlay-panel__header">
             <h2>Resources</h2>
           </div>
@@ -759,7 +759,7 @@ export class SageOsOverlayApp extends LitElement {
               )}
         </article>
 
-        <article class="overlay-panel">
+        <article class="overlay-panel overlay-panel--focus">
           <div class="overlay-panel__header">
             <h2>System</h2>
           </div>

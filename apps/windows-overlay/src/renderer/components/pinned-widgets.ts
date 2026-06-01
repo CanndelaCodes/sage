@@ -19,7 +19,7 @@ export function renderPinnedWidgets(
     <aside class=${`pinned-widgets pinned-widgets--${edge}`} aria-label="Pinned SageOS widgets">
       ${widgets.map(
         (widget) => html`
-          <section class="pinned-widget">
+          <section class="pinned-widget pinned-widget--ambient">
             <div class="pinned-widget__title">${widget.title}</div>
             <div class="pinned-widget__value">${widget.value}</div>
             <div class="pinned-widget__detail">${widget.detail}</div>

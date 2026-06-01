@@ -38,8 +38,11 @@ try {
         methods: recordedMethods.map((entry) => entry.method),
         screenshots: {
           full: path.join(screenshotDir, "overlay-smoke-styled.png"),
+          fullBright: path.join(screenshotDir, "overlay-smoke-full-bright.png"),
           edgeLeft: path.join(screenshotDir, "overlay-smoke-edge-left.png"),
+          edgeTextHeavy: path.join(screenshotDir, "overlay-smoke-edge-text-heavy.png"),
           hud: path.join(screenshotDir, "overlay-smoke-hud.png"),
+          hudIde: path.join(screenshotDir, "overlay-smoke-hud-ide.png"),
         },
       },
       null,
@@ -79,6 +82,11 @@ async function smokeFullOverlay(gatewayUrl) {
       path: path.join(screenshotDir, "overlay-smoke-styled.png"),
       animations: "disabled",
     });
+    await setVisualBackdrop(page, "bright");
+    await page.screenshot({
+      path: path.join(screenshotDir, "overlay-smoke-full-bright.png"),
+      animations: "disabled",
+    });
 
     await page.getByRole("button", { name: "Pause" }).click();
     await waitForRecordedMethod("sageos.control");
@@ -107,6 +115,11 @@ async function smokeFullOverlay(gatewayUrl) {
     await page.waitForSelector(".edge-rail--left", { timeout: 5_000 });
     await page.screenshot({
       path: path.join(screenshotDir, "overlay-smoke-edge-left.png"),
+      animations: "disabled",
+    });
+    await setVisualBackdrop(page, "text-heavy");
+    await page.screenshot({
+      path: path.join(screenshotDir, "overlay-smoke-edge-text-heavy.png"),
       animations: "disabled",
     });
 
@@ -142,6 +155,11 @@ async function smokeHudOverlay(gatewayUrl) {
       path: path.join(screenshotDir, "overlay-smoke-hud.png"),
       animations: "disabled",
     });
+    await setVisualBackdrop(page, "ide");
+    await page.screenshot({
+      path: path.join(screenshotDir, "overlay-smoke-hud-ide.png"),
+      animations: "disabled",
+    });
 
     await page.evaluate(() => window.sageOsOverlay?.expand());
     await page.waitForSelector(".overlay-shell--commandDeck", { timeout: 5_000 });
@@ -171,6 +189,93 @@ async function assertPreloadBridge(page) {
   assertEqual(api.collapse, "function", "window.sageOsOverlay?.collapse is exposed");
   assertEqual(api.expand, "function", "window.sageOsOverlay?.expand is exposed");
   assertEqual(api.close, "function", "window.sageOsOverlay?.close is exposed");
+}
+
+async function setVisualBackdrop(page, kind) {
+  await ensureVisualBackdropStyle(page);
+  await page.evaluate((backdropKind) => {
+    let backdrop = document.getElementById("overlay-smoke-visual-backdrop");
+    if (!backdrop) {
+      backdrop = document.createElement("div");
+      backdrop.id = "overlay-smoke-visual-backdrop";
+      document.body.prepend(backdrop);
+    }
+    backdrop.className = `overlay-smoke-visual-backdrop overlay-smoke-visual-backdrop--${backdropKind}`;
+    backdrop.textContent =
+      backdropKind === "text-heavy"
+        ? Array.from({ length: 80 }, (_, index) => `Log ${index + 1}: Gateway event / task queue / memory status`).join(
+            "\n",
+          )
+        : "";
+  }, kind);
+}
+
+async function ensureVisualBackdropStyle(page) {
+  if (await page.evaluate(() => Boolean(document.getElementById("overlay-smoke-visual-backdrop-style")))) {
+    return;
+  }
+
+  await page.addStyleTag({
+    content: `
+      body {
+        position: relative;
+      }
+
+      sageos-overlay-app {
+        position: relative;
+        z-index: 1;
+      }
+
+      .overlay-smoke-visual-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        overflow: hidden;
+        pointer-events: none;
+        white-space: pre-wrap;
+        font: 13px/1.45 Consolas, "Cascadia Mono", monospace;
+      }
+
+      .overlay-smoke-visual-backdrop--bright {
+        background:
+          linear-gradient(90deg, rgba(15, 23, 42, 0.08) 1px, transparent 1px) 0 0 / 32px 32px,
+          linear-gradient(180deg, #f8fafc 0%, #dbeafe 100%);
+      }
+
+      .overlay-smoke-visual-backdrop--text-heavy {
+        background: #f8fafc;
+        color: rgba(15, 23, 42, 0.72);
+        padding: 18px;
+      }
+
+      .overlay-smoke-visual-backdrop--ide {
+        background:
+          linear-gradient(90deg, #111827 0 68px, #0f172a 68px 100%),
+          linear-gradient(180deg, #111827 0%, #020617 100%);
+      }
+
+      .overlay-smoke-visual-backdrop--ide::before {
+        position: absolute;
+        inset: 22px 22px 22px 92px;
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        background:
+          repeating-linear-gradient(
+            180deg,
+            rgba(56, 189, 248, 0.14) 0 1px,
+            transparent 1px 24px
+          ),
+          linear-gradient(90deg, rgba(34, 197, 94, 0.12), transparent 42%),
+          #020617;
+        content: "";
+      }
+    `,
+  });
+  await page.evaluate(() => {
+    const style = [...document.querySelectorAll("style")].at(-1);
+    if (style) {
+      style.id = "overlay-smoke-visual-backdrop-style";
+    }
+  });
 }
 
 async function waitForOverlayWindowHidden(app, timeoutMs = 5_000) {
