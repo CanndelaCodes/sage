@@ -1,9 +1,14 @@
 import type {
   SageOsApproval,
+  SageOsAppCandidate,
   SageOsCodingReport,
+  SageOsCollaborationEvent,
   SageOsIncident,
+  SageOsObservation,
+  SageOsSkillRecord,
   SageOsStatusSnapshot,
   SageOsTaskSpec,
+  SageOsWorkflow,
 } from "../../../../src/sageos/types.js";
 import type { OverlayGatewayClient } from "./gateway-client.js";
 
@@ -12,6 +17,11 @@ export type SageOsOverlayStatusState = {
   tasks?: SageOsTaskSpec[];
   approvals?: SageOsApproval[];
   codingReports?: SageOsCodingReport[];
+  workflows?: SageOsWorkflow[];
+  skills?: SageOsSkillRecord[];
+  apps?: SageOsAppCandidate[];
+  observations?: SageOsObservation[];
+  collaborations?: SageOsCollaborationEvent[];
 } & Record<string, unknown>;
 
 const safeIncidentRepairMethods = new Set([

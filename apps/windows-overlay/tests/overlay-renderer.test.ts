@@ -85,6 +85,62 @@ const state = {
       diff: { changedFiles: ["README.md"] },
     },
   ],
+  workflows: [
+    {
+      id: "workflow_1",
+      name: "Review repeated Code focus",
+      state: "candidate",
+      observedPattern: "app_focus:code",
+      trigger: "Repeated Code focus observations",
+      inputs: ["window title"],
+      outputs: ["workflow candidate"],
+      sourceObservationIds: ["obs_1"],
+    },
+  ],
+  skills: [
+    {
+      id: "skill_1",
+      name: "Skill: Review repeated Code focus",
+      state: "draft",
+      workflowId: "workflow_1",
+      provenance: ["workflow_1", "obs_1"],
+      tests: ["obs_1"],
+      triggerConditions: ["Repeated Code focus observations"],
+    },
+  ],
+  apps: [
+    {
+      id: "app_1",
+      name: "Code Focus Widget",
+      state: "draft",
+      targetSurface: "widget",
+      purpose: "Summarize repeated Code focus observations.",
+      previewCommand: "sage os apps preview app_1",
+      artifactRefs: ["apps/code-focus"],
+    },
+  ],
+  observations: [
+    {
+      id: "obs_1",
+      source: "app_focus",
+      state: "captured",
+      title: "Code: SageOS",
+      text: "Active app focus: Code - SageOS",
+      observedAt: "2026-06-01T12:55:00.000Z",
+    },
+  ],
+  collaborations: [
+    {
+      id: "collab_1",
+      kind: "handoff",
+      fromAgentId: "employee_memory",
+      toAgentId: "employee_reviewer",
+      title: "Review memory queue",
+      summary: "Review failed capture replay evidence.",
+      artifactRefs: ["coding_report_task_1"],
+      state: "open",
+    },
+  ],
 };
 
 describe("overlay renderer model", () => {
@@ -150,6 +206,13 @@ describe("overlay renderer model", () => {
         outcome: "succeeded",
       },
     ]);
+    expect(model.commandDeck.resources.map((resource) => resource.title)).toEqual([
+      "Review repeated Code focus",
+      "Skill: Review repeated Code focus",
+      "Code Focus Widget",
+      "Code: SageOS",
+      "Review memory queue",
+    ]);
   });
 
   it("maps the full SageOS contract into overview groups", () => {
@@ -205,6 +268,21 @@ describe("overlay renderer model", () => {
     const codingReportModel = renderOverlayModel(state as never, {
       workspaceTarget: { kind: "codingReport", id: "coding_report_task_1" },
     });
+    const workflowModel = renderOverlayModel(state as never, {
+      workspaceTarget: { kind: "workflow", id: "workflow_1" },
+    });
+    const skillModel = renderOverlayModel(state as never, {
+      workspaceTarget: { kind: "skill", id: "skill_1" },
+    });
+    const appModel = renderOverlayModel(state as never, {
+      workspaceTarget: { kind: "app", id: "app_1" },
+    });
+    const observationModel = renderOverlayModel(state as never, {
+      workspaceTarget: { kind: "observation", id: "obs_1" },
+    });
+    const collaborationModel = renderOverlayModel(state as never, {
+      workspaceTarget: { kind: "collaboration", id: "collab_1" },
+    });
 
     expect(taskModel.workspace).toMatchObject({
       title: "Night Shift report",
@@ -236,6 +314,26 @@ describe("overlay renderer model", () => {
     expect(codingReportModel.workspace.facts).toContainEqual({
       label: "Tests",
       value: "node test.js: 0",
+    });
+    expect(workflowModel.workspace).toMatchObject({
+      title: "Review repeated Code focus",
+      eyebrow: "Workflow / candidate",
+    });
+    expect(skillModel.workspace).toMatchObject({
+      title: "Skill: Review repeated Code focus",
+      eyebrow: "Skill / draft",
+    });
+    expect(appModel.workspace).toMatchObject({
+      title: "Code Focus Widget",
+      eyebrow: "App / draft",
+    });
+    expect(observationModel.workspace).toMatchObject({
+      title: "Code: SageOS",
+      eyebrow: "Observation / app_focus",
+    });
+    expect(collaborationModel.workspace).toMatchObject({
+      title: "Review memory queue",
+      eyebrow: "Collaboration / handoff",
     });
   });
 

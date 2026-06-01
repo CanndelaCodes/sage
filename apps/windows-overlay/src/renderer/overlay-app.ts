@@ -61,6 +61,19 @@ export type OverlayCodingReportRow = {
   detail: string;
   outcome: string;
 };
+export type OverlayResourceKind =
+  | "workflow"
+  | "skill"
+  | "app"
+  | "observation"
+  | "collaboration";
+export type OverlayResourceRow = {
+  id: string;
+  kind: OverlayResourceKind;
+  title: string;
+  detail: string;
+  state: string;
+};
 export type OverlayGatewaySettings = {
   url: string;
   token?: string;
@@ -122,6 +135,7 @@ export function renderOverlayModel(
     ].join(" / "),
     outcome: report.outcome,
   }));
+  const resourceRows = buildResourceRows(state);
 
   return {
     commandDeck: {
@@ -139,6 +153,7 @@ export function renderOverlayModel(
       approvals: approvalRows satisfies OverlayApprovalRow[],
       incidents: incidentRows satisfies OverlayIncidentRow[],
       codingReports: codingReportRows satisfies OverlayCodingReportRow[],
+      resources: resourceRows satisfies OverlayResourceRow[],
     },
     overview: buildOverviewGroups(status),
     workspace: buildWorkspaceModel(state, opts.workspaceTarget),
@@ -562,6 +577,36 @@ export class SageOsOverlayApp extends LitElement {
                 `,
               )}
         </article>
+
+        <article class="overlay-panel">
+          <div class="overlay-panel__header">
+            <h2>Resources</h2>
+          </div>
+          ${commandDeck.resources.length === 0
+            ? html`<p class="overlay-muted">No SageOS resources yet.</p>`
+            : commandDeck.resources.map(
+                (resource) => html`
+                  <div class="overlay-row">
+                    <div>
+                      <div class="overlay-row__title">${resource.title}</div>
+                      <div class="overlay-row__detail">${resource.detail}</div>
+                      <div class="overlay-row__meta">
+                        ${resource.kind} / ${resource.state}
+                      </div>
+                    </div>
+                    <div class="overlay-row__actions">
+                      <button
+                        type="button"
+                        @click=${() =>
+                          this.openWorkspace({ kind: resource.kind, id: resource.id })}
+                      >
+                        Open
+                      </button>
+                    </div>
+                  </div>
+                `,
+              )}
+        </article>
       </section>
     `;
   }
@@ -705,6 +750,46 @@ function countUrgentIncidents(status: SageOsOverlayStatusState["status"]): numbe
   ).length;
 }
 
+function buildResourceRows(state: SageOsOverlayStatusState): OverlayResourceRow[] {
+  return [
+    ...(state.workflows ?? []).map((workflow) => ({
+      id: workflow.id,
+      kind: "workflow" as const,
+      title: workflow.name,
+      detail: workflow.trigger,
+      state: workflow.state,
+    })),
+    ...(state.skills ?? []).map((skill) => ({
+      id: skill.id,
+      kind: "skill" as const,
+      title: skill.name,
+      detail: skill.triggerConditions?.join(", ") || skill.workflowId || "No trigger",
+      state: skill.state,
+    })),
+    ...(state.apps ?? []).map((app) => ({
+      id: app.id,
+      kind: "app" as const,
+      title: app.name,
+      detail: app.purpose,
+      state: app.state,
+    })),
+    ...(state.observations ?? []).map((observation) => ({
+      id: observation.id,
+      kind: "observation" as const,
+      title: observation.title,
+      detail: observation.text,
+      state: observation.state,
+    })),
+    ...(state.collaborations ?? []).map((collaboration) => ({
+      id: collaboration.id,
+      kind: "collaboration" as const,
+      title: collaboration.title,
+      detail: collaboration.summary,
+      state: collaboration.state,
+    })),
+  ];
+}
+
 function buildWorkspaceModel(
   state: SageOsOverlayStatusState,
   target: AgentWorkspaceTarget | undefined,
@@ -806,6 +891,104 @@ function buildWorkspaceModel(
           value: tests.map((test) => `${test.command}: ${test.exitCode}`).join(", ") || "None",
         },
         { label: "Blockers", value: blockers.join("; ") || "None" },
+      ],
+      actions: [],
+    };
+  }
+
+  if (target.kind === "workflow") {
+    const workflow = state.workflows?.find((entry) => entry.id === target.id);
+    if (!workflow) {
+      return missingWorkspaceTarget(target);
+    }
+    return {
+      title: workflow.name,
+      eyebrow: `Workflow / ${workflow.state}`,
+      detail: workflow.trigger,
+      facts: [
+        { label: "Pattern", value: workflow.observedPattern },
+        { label: "Inputs", value: workflow.inputs?.join(", ") || "None" },
+        { label: "Outputs", value: workflow.outputs?.join(", ") || "None" },
+        {
+          label: "Observations",
+          value: workflow.sourceObservationIds?.join(", ") || "None",
+        },
+      ],
+      actions: [],
+    };
+  }
+
+  if (target.kind === "skill") {
+    const skill = state.skills?.find((entry) => entry.id === target.id);
+    if (!skill) {
+      return missingWorkspaceTarget(target);
+    }
+    return {
+      title: skill.name,
+      eyebrow: `Skill / ${skill.state}`,
+      detail: skill.triggerConditions?.join(", ") || "No trigger conditions",
+      facts: [
+        { label: "Workflow", value: skill.workflowId ?? "None" },
+        { label: "Provenance", value: skill.provenance?.join(", ") || "None" },
+        { label: "Tests", value: skill.tests?.join(", ") || "None" },
+        { label: "Rollback", value: skill.rollbackRef ?? "None" },
+      ],
+      actions: [],
+    };
+  }
+
+  if (target.kind === "app") {
+    const app = state.apps?.find((entry) => entry.id === target.id);
+    if (!app) {
+      return missingWorkspaceTarget(target);
+    }
+    return {
+      title: app.name,
+      eyebrow: `App / ${app.state}`,
+      detail: app.purpose,
+      facts: [
+        { label: "Surface", value: app.targetSurface },
+        { label: "Preview", value: app.previewCommand ?? "None" },
+        { label: "Artifacts", value: app.artifactRefs?.join(", ") || "None" },
+        { label: "Sources", value: app.sourceObservationIds?.join(", ") || "None" },
+      ],
+      actions: [],
+    };
+  }
+
+  if (target.kind === "observation") {
+    const observation = state.observations?.find((entry) => entry.id === target.id);
+    if (!observation) {
+      return missingWorkspaceTarget(target);
+    }
+    return {
+      title: observation.title,
+      eyebrow: `Observation / ${observation.source}`,
+      detail: observation.text,
+      facts: [
+        { label: "State", value: observation.state },
+        { label: "Observed", value: observation.observedAt },
+        { label: "Sensitivity", value: observation.sensitivity ?? "Unknown" },
+        { label: "Reason", value: observation.reason ?? "None" },
+      ],
+      actions: [],
+    };
+  }
+
+  if (target.kind === "collaboration") {
+    const collaboration = state.collaborations?.find((entry) => entry.id === target.id);
+    if (!collaboration) {
+      return missingWorkspaceTarget(target);
+    }
+    return {
+      title: collaboration.title,
+      eyebrow: `Collaboration / ${collaboration.kind}`,
+      detail: collaboration.summary,
+      facts: [
+        { label: "State", value: collaboration.state },
+        { label: "From", value: collaboration.fromAgentId },
+        { label: "To", value: collaboration.toAgentId ?? "None" },
+        { label: "Artifacts", value: collaboration.artifactRefs?.join(", ") || "None" },
       ],
       actions: [],
     };
