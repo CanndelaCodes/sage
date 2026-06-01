@@ -39,11 +39,14 @@ export type SageOsSupervisorWorkLoopDeps = {
   collectStatus?: typeof collectSageOsStatus;
 };
 
+export type SageOsSupervisorTaskResult = Awaited<ReturnType<typeof runNextSageOsTaskOnce>>;
+
 export type SageOsSupervisorWorkLoopResult = {
   appFocus?: Awaited<ReturnType<typeof observeAppFocusOnce>>;
   system?: Awaited<ReturnType<typeof observeSystemStatusOnce>>;
   memory?: Awaited<ReturnType<typeof runSageOsMemoryStewardOnce>>;
-  task: Awaited<ReturnType<typeof runNextSageOsTaskOnce>>;
+  task: SageOsSupervisorTaskResult;
+  tasks: SageOsSupervisorTaskResult[];
   status: SageOsStatusSnapshot;
 };
 
@@ -93,12 +96,23 @@ export async function runSageOsSupervisorWorkLoopOnce(params: {
     });
   }
 
-  result.task = await (deps.runNextTaskOnce ?? runNextSageOsTaskOnce)({
-    stateDir: params.stateDir,
-    requestedBy: params.requestedBy ?? "sageos.supervisor",
-    notify: sageos.notifications?.telegram?.enabled === true,
-    cfg: sageos,
-  });
+  const runNextTask = deps.runNextTaskOnce ?? runNextSageOsTaskOnce;
+  const taskLimit = normalizeMaxConcurrentTasks(sageos.supervisor?.maxConcurrentTasks);
+  const taskResults: SageOsSupervisorTaskResult[] = [];
+  for (let index = 0; index < taskLimit; index += 1) {
+    const taskResult = await runNextTask({
+      stateDir: params.stateDir,
+      requestedBy: params.requestedBy ?? "sageos.supervisor",
+      notify: sageos.notifications?.telegram?.enabled === true,
+      cfg: sageos,
+    });
+    taskResults.push(taskResult);
+    if (taskResult.outcome === "idle") {
+      break;
+    }
+  }
+  result.tasks = taskResults;
+  result.task = taskResults[0]!;
   result.status = await (deps.collectStatus ?? collectSageOsStatus)({
     stateDir: params.stateDir,
     agentId,
@@ -356,4 +370,8 @@ function hasEnabledSystemSource(cfg: SageOsConfig): boolean {
     sources.disk,
     sources.processStatus,
   ].some((enabled) => enabled === true);
+}
+
+function normalizeMaxConcurrentTasks(value: number | undefined): number {
+  return Number.isFinite(value) && value && value > 0 ? Math.floor(value) : 1;
 }

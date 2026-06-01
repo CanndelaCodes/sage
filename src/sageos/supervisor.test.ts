@@ -255,6 +255,38 @@ describe("SageOS supervisor skeleton", () => {
     });
   });
 
+  it("runs queued task work up to the configured per-loop concurrency limit", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-supervisor-task-limit-"));
+    const status = createSageOsStatusSnapshot();
+    const runNextTaskOnce = vi
+      .fn()
+      .mockResolvedValueOnce({
+        outcome: "completed",
+        task: { id: "task_a" },
+        run: { id: "run_task_a_1" },
+        status,
+      })
+      .mockResolvedValueOnce({
+        outcome: "completed",
+        task: { id: "task_b" },
+        run: { id: "run_task_b_1" },
+        status,
+      })
+      .mockResolvedValueOnce({ outcome: "idle", status });
+    const collectStatus = vi.fn().mockResolvedValue(status);
+
+    const result = await runSageOsSupervisorWorkLoopOnce({
+      cfg: { sageos: { supervisor: { maxConcurrentTasks: 2 } } },
+      stateDir: root,
+      requestedBy: "sageos.test",
+      deps: { runNextTaskOnce, collectStatus },
+    });
+
+    expect(runNextTaskOnce).toHaveBeenCalledTimes(2);
+    expect(result.tasks.map((entry) => entry.outcome)).toEqual(["completed", "completed"]);
+    expect(result.task).toMatchObject({ outcome: "completed", task: { id: "task_a" } });
+  });
+
   it("preserves task and run resources across concurrent status writes", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "sageos-state-concurrent-"));
     const store = createSageOsStateStore({ stateDir: root });
