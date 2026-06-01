@@ -26,7 +26,7 @@ export async function startGatewaySageOsSupervisor(params: {
     return null;
   }
 
-  const options: SageOsSupervisorOptions = {};
+  const options: SageOsSupervisorOptions = { config: params.cfg };
   if (sageos?.mode) {
     options.mode = sageos.mode;
   }

@@ -40,6 +40,7 @@ describe("startGatewaySageOsSupervisor", () => {
 
     expect(result).toBe(supervisor);
     expect(createSupervisor).toHaveBeenCalledWith({
+      config: { sageos: { mode: "execute_scoped", supervisor: { intervalSeconds: 2 } } },
       mode: "execute_scoped",
       intervalMs: 2000,
     });

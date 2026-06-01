@@ -1,7 +1,7 @@
 import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { appendSageOsEvent, createSageOsEventLog, readSageOsEvents } from "./event-log.js";
 import {
   createSageOsControlStore,
@@ -16,7 +16,7 @@ import {
   writeSageOsControl,
   writeSageOsState,
 } from "./state-store.js";
-import { createSageOsSupervisor } from "./supervisor.js";
+import { createSageOsSupervisor, runSageOsSupervisorWorkLoopOnce } from "./supervisor.js";
 import { createSageOsStatusSnapshot } from "./types.js";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -91,6 +91,133 @@ describe("SageOS supervisor skeleton", () => {
 
     await writeSageOsControl(controlStore, { state: "stopped" });
     await waitForSupervisorState(supervisor, "stopped");
+  });
+
+  it("runs configured background work on running ticks and persists the resulting status", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-supervisor-work-loop-"));
+    const status = createSageOsStatusSnapshot({
+      tasks: { total: 1, active: 0, queued: 0, blocked: 0 },
+      memory: {
+        status: "ok",
+        backend: "sage-memory",
+        canonical: "sage-memory",
+        captureQueue: { total: 2, pending: 0, failed: 0 },
+      },
+    });
+    const runWorkLoopOnce = vi.fn().mockResolvedValue({ status });
+    const supervisor = createSageOsSupervisor({
+      stateDir: root,
+      intervalMs: 5,
+      runWorkLoopOnce,
+    });
+
+    await supervisor.start();
+    const deadline = Date.now() + 500;
+    while (Date.now() < deadline && runWorkLoopOnce.mock.calls.length === 0) {
+      await wait(5);
+    }
+    await supervisor.stop("test");
+
+    expect(runWorkLoopOnce).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stateDir: root,
+        requestedBy: "sageos.supervisor",
+      }),
+    );
+    await expect(
+      readSageOsState(createSageOsStateStore({ stateDir: root })),
+    ).resolves.toMatchObject({
+      status: {
+        supervisor: { state: "stopped" },
+        tasks: { total: 1 },
+        memory: { captureQueue: { total: 2 } },
+      },
+    });
+  });
+
+  it("routes enabled observation, memory replay, and queued task work through one supervisor work loop", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-supervisor-work-routes-"));
+    const now = new Date("2026-06-01T15:00:00.000Z");
+    const status = createSageOsStatusSnapshot({
+      generatedAt: now.toISOString(),
+      tasks: { total: 1, active: 0, queued: 0, blocked: 0 },
+    });
+    const observeAppFocusOnce = vi
+      .fn()
+      .mockResolvedValue({ status: "skipped", reason: "empty-result" });
+    const observeSystemStatusOnce = vi.fn().mockResolvedValue({ status: "recorded" });
+    const runMemoryStewardOnce = vi.fn().mockResolvedValue({ status });
+    const runNextTaskOnce = vi.fn().mockResolvedValue({ outcome: "idle", status });
+    const collectStatus = vi.fn().mockResolvedValue(status);
+
+    const result = await runSageOsSupervisorWorkLoopOnce({
+      cfg: {
+        sageos: {
+          sources: { appFocus: true, system: true },
+          memory: { replayQueues: true },
+          notifications: { telegram: { enabled: true, target: "telegram:123" } },
+        },
+      },
+      stateDir: root,
+      agentId: "main",
+      requestedBy: "sageos.test",
+      deps: {
+        observeAppFocusOnce,
+        observeSystemStatusOnce,
+        runMemoryStewardOnce,
+        runNextTaskOnce,
+        collectStatus,
+      },
+    });
+
+    expect(result.status).toBe(status);
+    expect(observeAppFocusOnce).toHaveBeenCalledWith({
+      cfg: {
+        sources: { appFocus: true, system: true },
+        memory: { replayQueues: true },
+        notifications: { telegram: { enabled: true, target: "telegram:123" } },
+      },
+      stateDir: root,
+      agentId: "main",
+    });
+    expect(observeSystemStatusOnce).toHaveBeenCalledWith({
+      cfg: {
+        sources: { appFocus: true, system: true },
+        memory: { replayQueues: true },
+        notifications: { telegram: { enabled: true, target: "telegram:123" } },
+      },
+      stateDir: root,
+    });
+    expect(runMemoryStewardOnce).toHaveBeenCalledWith({
+      cfg: {
+        sageos: {
+          sources: { appFocus: true, system: true },
+          memory: { replayQueues: true },
+          notifications: { telegram: { enabled: true, target: "telegram:123" } },
+        },
+      },
+      agentId: "main",
+      stateDir: root,
+    });
+    expect(runNextTaskOnce).toHaveBeenCalledWith({
+      stateDir: root,
+      requestedBy: "sageos.test",
+      notify: true,
+      cfg: {
+        sources: { appFocus: true, system: true },
+        memory: { replayQueues: true },
+        notifications: { telegram: { enabled: true, target: "telegram:123" } },
+      },
+    });
+    expect(collectStatus).toHaveBeenCalledWith({
+      stateDir: root,
+      agentId: "main",
+      cfg: {
+        sources: { appFocus: true, system: true },
+        memory: { replayQueues: true },
+        notifications: { telegram: { enabled: true, target: "telegram:123" } },
+      },
+    });
   });
 
   it("preserves task and run resources across concurrent status writes", async () => {
