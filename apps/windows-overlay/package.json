@@ -7,6 +7,7 @@
     "build": "tsdown --config tsdown.config.ts && node scripts/copy-renderer-assets.mjs",
     "dev": "pnpm build && electron .",
     "smoke": "powershell -ExecutionPolicy Bypass -File ../../scripts/sageos-windows-overlay.ps1",
+    "smoke:electron": "node scripts/smoke-electron.mjs",
     "test": "vitest run --config vitest.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
