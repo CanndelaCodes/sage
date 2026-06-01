@@ -3,6 +3,7 @@ packages:
   - ui
   - packages/*
   - extensions/*
+  - apps/windows-overlay
 
 onlyBuiltDependencies:
   - "@whiskeysockets/baileys"
@@ -10,6 +11,7 @@ onlyBuiltDependencies:
   - "@matrix-org/matrix-sdk-crypto-nodejs"
   - authenticate-pam
   - esbuild
+  - electron
   - protobufjs
   - sharp
   - "@napi-rs/canvas"
