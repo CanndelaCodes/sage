@@ -1,9 +1,48 @@
-import { mkdtemp, readFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
 import { createSageOsStateStore, readSageOsState, upsertSageOsTask } from "./state-store.js";
 import { runNextSageOsTaskOnce } from "./task-runner.js";
+
+const execFileAsync = promisify(execFile);
+
+async function git(cwd: string, args: string[]): Promise<void> {
+  await execFileAsync("git", args, { cwd });
+}
+
+async function createFixtureRepo(prefix: string): Promise<string> {
+  const repo = await mkdtemp(path.join(tmpdir(), prefix));
+  await writeFile(path.join(repo, "README.md"), "# Fixture\n", "utf8");
+  await writeFile(
+    path.join(repo, "test.js"),
+    [
+      "const { readFileSync } = require('node:fs');",
+      "const text = readFileSync('README.md', 'utf8');",
+      "if (!text.includes('night shift')) {",
+      "  console.error('marker missing');",
+      "  process.exit(1);",
+      "}",
+      "console.log('ok');",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+  await git(repo, ["init"]);
+  await git(repo, ["add", "README.md", "test.js"]);
+  await git(repo, [
+    "-c",
+    "user.email=sageos@example.test",
+    "-c",
+    "user.name=SageOS Test",
+    "commit",
+    "-m",
+    "init",
+  ]);
+  return repo;
+}
 
 describe("SageOS task runner", () => {
   it("runs the next queued task with the dry-run executor", async () => {
@@ -51,6 +90,100 @@ describe("SageOS task runner", () => {
     const log = await readFile(path.join(root, "sageos", "events.jsonl"), "utf8");
     expect(log).toContain("task_run_started");
     expect(log).toContain("task_completed");
+  });
+
+  it("dispatches queued coding execution plans through the Night Shift runner", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-task-runner-coding-"));
+    const repo = await createFixtureRepo("sageos-task-runner-coding-repo-");
+    const store = createSageOsStateStore({ stateDir: root });
+    const now = "2026-06-01T18:00:00.000Z";
+    await upsertSageOsTask(store, {
+      id: "task_coding_plan",
+      title: "Run scoped coding plan",
+      objective: "Append a fixture marker and run the fixture test.",
+      state: "queued",
+      requestedBy: "sageos.overlay",
+      autonomyTier: "execute_scoped",
+      policyScopes: [{ kind: "repo", allow: [repo], risk: "low" }],
+      execution: {
+        kind: "coding",
+        append: { relativePath: "README.md", text: "\nnight shift\n" },
+        testCommand: "node test.js",
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const result = await runNextSageOsTaskOnce({
+      stateDir: root,
+      requestedBy: "sageos.supervisor",
+      cfg: { coding: { enabled: true, allowedRepos: [repo], requireCleanGit: true } },
+      now: () => new Date(now),
+    });
+
+    expect(result).toMatchObject({
+      outcome: "completed",
+      task: { id: "task_coding_plan", state: "completed" },
+      run: { id: "run_task_coding_plan_1", state: "succeeded" },
+    });
+    await expect(readFile(path.join(repo, "README.md"), "utf8")).resolves.toContain("night shift");
+    await expect(readSageOsState(store)).resolves.toMatchObject({
+      codingReports: [
+        {
+          id: "coding_report_task_coding_plan_1",
+          taskId: "task_coding_plan",
+          outcome: "succeeded",
+          tests: [{ command: "node test.js", exitCode: 0 }],
+        },
+      ],
+    });
+    const log = await readFile(path.join(root, "sageos", "events.jsonl"), "utf8");
+    expect(log).toContain("coding_task_completed");
+  });
+
+  it("records coding dispatch preflight failures as failed task runs", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-task-runner-coding-disabled-"));
+    const store = createSageOsStateStore({ stateDir: root });
+    const now = "2026-06-01T18:05:00.000Z";
+    await upsertSageOsTask(store, {
+      id: "task_coding_disabled",
+      title: "Run disabled coding plan",
+      objective: "Do not leave a coding plan queued forever when coding is disabled.",
+      state: "queued",
+      requestedBy: "sageos.overlay",
+      autonomyTier: "execute_scoped",
+      policyScopes: [{ kind: "repo", allow: ["C:\\repo"], risk: "low" }],
+      execution: {
+        kind: "coding",
+        testCommand: "node test.js",
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const result = await runNextSageOsTaskOnce({
+      stateDir: root,
+      requestedBy: "sageos.supervisor",
+      cfg: { coding: { enabled: false, allowedRepos: ["C:\\repo"] } },
+      now: () => new Date(now),
+    });
+
+    expect(result).toMatchObject({
+      outcome: "failed",
+      task: { id: "task_coding_disabled", state: "failed" },
+      run: {
+        id: "run_task_coding_disabled_1",
+        state: "failed",
+        error: "SageOS coding is disabled.",
+      },
+    });
+    await expect(readSageOsState(store)).resolves.toMatchObject({
+      tasks: [{ id: "task_coding_disabled", state: "failed" }],
+      runs: [{ id: "run_task_coding_disabled_1", state: "failed" }],
+    });
+    const log = await readFile(path.join(root, "sageos", "events.jsonl"), "utf8");
+    expect(log).toContain("task_failed");
+    expect(log).toContain("SageOS coding is disabled.");
   });
 
   it("records failed executor runs without losing run history", async () => {

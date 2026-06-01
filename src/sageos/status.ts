@@ -35,12 +35,14 @@ export type CollectSageOsStatusOptions = {
   memoryCaptureQueuePath?: string;
   learningActivityQueuePath?: string;
   cfg?: SageOsConfig;
+  now?: () => Date;
 };
 
 export async function collectSageOsStatus(
   opts: CollectSageOsStatusOptions = {},
 ): Promise<SageOsStatusSnapshot> {
   const agentId = opts.agentId ?? "main";
+  const collectedAt = opts.now?.() ?? new Date();
   const store = createSageOsStateStore({ stateDir: opts.stateDir });
   const state = await readSageOsState(store);
   const eventLog = createSageOsEventLog({ stateDir: opts.stateDir });
@@ -101,7 +103,7 @@ export async function collectSageOsStatus(
 
   const snapshot = createSageOsStatusSnapshot({
     ...state.status,
-    generatedAt: new Date().toISOString(),
+    generatedAt: collectedAt.toISOString(),
     employees: summarizeAgents(state.agents),
     tasks: summarizeTasks(state.tasks),
     runs: summarizeRuns(state.runs),
@@ -111,7 +113,7 @@ export async function collectSageOsStatus(
     approvals: {
       pending: pendingApprovals.length,
     },
-    observations: summarizeObservations(state.observations),
+    observations: summarizeObservations(state.observations, collectedAt.getTime()),
     memory: {
       status: memoryCaptureQueue.failed > 0 ? "degraded" : "ok",
       backend: "sage-memory",
@@ -168,8 +170,8 @@ export function applySageOsMemoryDoctorSummary(
 
 function summarizeObservations(
   observations: SageOsObservation[],
+  now: number,
 ): SageOsStatusSnapshot["observations"] {
-  const now = Date.now();
   const recentWindowMs = 24 * 60 * 60 * 1000;
   return {
     total: observations.length,

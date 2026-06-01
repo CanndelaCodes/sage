@@ -314,10 +314,20 @@ export type SageOsTaskSpec = {
   requestedBy: string;
   autonomyTier: SageOsAutonomyMode;
   policyScopes: SageOsPolicyScope[];
+  execution?: SageOsTaskExecutionPlan;
   rollback?: string;
   createdAt: string;
   updatedAt: string;
   expiresAt?: string;
+};
+
+export type SageOsTaskExecutionPlan = {
+  kind: "coding";
+  append?: {
+    relativePath: string;
+    text: string;
+  };
+  testCommand?: string;
 };
 
 export type SageOsRun = {

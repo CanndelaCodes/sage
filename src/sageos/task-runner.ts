@@ -1,4 +1,5 @@
 import type { SageOsConfig, SageOsRun, SageOsStatusSnapshot, SageOsTaskSpec } from "./types.js";
+import { runSageOsNightShiftTask } from "./coding/night-shift.js";
 import { appendSageOsEvent, createSageOsEventLog } from "./event-log.js";
 import { sendSageOsTaskNotificationOnce } from "./notifications.js";
 import {
@@ -23,7 +24,7 @@ export type SageOsTaskRunnerResult =
       status: SageOsStatusSnapshot;
     }
   | {
-      outcome: "completed" | "failed";
+      outcome: "completed" | "failed" | "blocked";
       task: SageOsTaskSpec;
       run: SageOsRun;
       status: SageOsStatusSnapshot;
@@ -56,6 +57,60 @@ export async function runNextSageOsTaskOnce(
     state.runs
       .filter((run) => run.taskId === task.id)
       .reduce((max, run) => Math.max(max, run.attempt), 0) + 1;
+  if (!params.executor && task.execution?.kind === "coding") {
+    try {
+      const result = await runSageOsNightShiftTask({
+        taskId: task.id,
+        stateDir: params.stateDir,
+        stateStore: store,
+        cfg: params.cfg,
+        append: task.execution.append,
+        testCommand: task.execution.testCommand,
+        requestedBy,
+        now: params.now,
+      });
+      await maybeSendTaskNotification(params, result.task, result.run);
+      return {
+        outcome:
+          result.outcome === "succeeded"
+            ? "completed"
+            : result.outcome === "blocked"
+              ? "blocked"
+              : "failed",
+        task: result.task,
+        run: result.run,
+        status: result.status,
+      };
+    } catch (err) {
+      const error = err instanceof Error ? err.message : String(err);
+      const failedTask: SageOsTaskSpec = { ...task, state: "failed", updatedAt: now };
+      const failedRun: SageOsRun = {
+        id: `run_${safeId(task.id)}_${attempt}`,
+        taskId: task.id,
+        attempt,
+        state: "failed",
+        traceId: `trace_run_${safeId(task.id)}_${attempt}`,
+        startedAt: now,
+        finishedAt: now,
+        error,
+      };
+      await upsertSageOsTask(store, failedTask);
+      await upsertSageOsRun(store, failedRun);
+      await appendSageOsEvent(createSageOsEventLog({ stateDir: params.stateDir }), {
+        type: "task_failed",
+        actor: requestedBy,
+        summary: `Failed SageOS task ${task.id}: ${error}`,
+        taskId: task.id,
+        runId: failedRun.id,
+        traceId: failedRun.traceId,
+      });
+      await maybeSendTaskNotification(params, failedTask, failedRun);
+      const status = await collectSageOsStatus({ stateDir: params.stateDir, cfg: params.cfg });
+      await writeSageOsState(store, status);
+      return { outcome: "failed", task: failedTask, run: failedRun, status };
+    }
+  }
+
   const run: SageOsRun = {
     id: `run_${safeId(task.id)}_${attempt}`,
     taskId: task.id,

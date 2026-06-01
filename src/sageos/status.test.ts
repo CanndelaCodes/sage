@@ -273,6 +273,7 @@ describe("SageOS status collector", () => {
       agentId: "main",
       memoryCaptureQueuePath: memoryQueuePath,
       learningActivityQueuePath: learningQueuePath,
+      now: () => new Date(now),
     });
     const persisted = await readSageOsState(store);
 

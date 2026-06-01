@@ -516,7 +516,7 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
 
   tasks
     .command("run-next")
-    .description("Run the next queued SageOS task with the dry-run worker")
+    .description("Run the next queued SageOS task")
     .option("--notify", "Send a Telegram task result notification", false)
     .option("--json", "Output JSON", false)
     .action(async (opts: { notify?: boolean; json?: boolean }, command?: Command) => {
