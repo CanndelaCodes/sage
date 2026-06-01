@@ -1114,6 +1114,15 @@ function buildWorkspaceModel(
         { label: "Autonomy", value: task.autonomyTier ?? "Unknown" },
         { label: "Requested by", value: task.requestedBy ?? "Unknown" },
         { label: "Policy scope", value: formatPolicyScopes(task.policyScopes ?? []) },
+        { label: "Risk", value: task.riskClass ?? riskFromPolicyScopes(task.policyScopes ?? []) },
+        { label: "Tool profile", value: task.toolProfile ?? "Unknown" },
+        { label: "Budget", value: formatTaskBudget(task.budget) },
+        { label: "Expected output", value: task.expectedOutput ?? "Not specified" },
+        { label: "Verification", value: formatList(task.verificationPlan ?? []) },
+        { label: "Rollback", value: task.rollback ?? "Not specified" },
+        { label: "Evidence", value: formatList(task.evidenceRefs ?? []) },
+        { label: "Notify", value: formatNotificationPolicy(task.notificationPolicy) },
+        { label: "Sensitivity", value: task.sensitivity ?? "normal" },
       ],
       actions: [
         ...(canQueue
@@ -1629,6 +1638,39 @@ function formatPolicyScopes(
       return `${scope.kind}:${mode} (${scope.risk ?? "low"})`;
     })
     .join(", ");
+}
+
+function riskFromPolicyScopes(scopes: { risk?: string }[]): string {
+  const order = ["low", "medium", "high", "critical"];
+  return scopes.reduce((highest, scope) => {
+    const risk = scope.risk ?? "low";
+    return order.indexOf(risk) > order.indexOf(highest) ? risk : highest;
+  }, "low");
+}
+
+function formatTaskBudget(budget: { maxMinutes?: number; maxToolCalls?: number; maxCostUsd?: number } | undefined): string {
+  if (!budget) {
+    return "Not specified";
+  }
+  const parts = [
+    budget.maxMinutes ? `${budget.maxMinutes} min` : undefined,
+    budget.maxToolCalls ? `${budget.maxToolCalls} tool calls` : undefined,
+    budget.maxCostUsd ? `$${budget.maxCostUsd}` : undefined,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(" / ") : "Not specified";
+}
+
+function formatList(values: string[]): string {
+  return values.length > 0 ? values.join(", ") : "None";
+}
+
+function formatNotificationPolicy(
+  policy: { channels?: string[]; notifyOn?: string[] } | undefined,
+): string {
+  if (!policy) {
+    return "Not specified";
+  }
+  return `${formatList(policy.channels ?? [])} / ${formatList(policy.notifyOn ?? [])}`;
 }
 
 function summaryRow(

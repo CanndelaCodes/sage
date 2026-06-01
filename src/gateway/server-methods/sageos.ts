@@ -121,6 +121,37 @@ function stringArrayParam(value: unknown): string[] {
   return typeof value === "string" && value.trim() ? [value.trim()] : [];
 }
 
+function positiveNumberParam(value: unknown): number | undefined {
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number.parseInt(value, 10)
+        : Number.NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function taskBudgetParam(
+  value: unknown,
+): { maxMinutes?: number; maxToolCalls?: number; maxCostUsd?: number } | undefined {
+  if (typeof value !== "object" || value === null) {
+    return undefined;
+  }
+  const record = value as Record<string, unknown>;
+  const budget = {
+    ...(positiveNumberParam(record.maxMinutes)
+      ? { maxMinutes: positiveNumberParam(record.maxMinutes) }
+      : {}),
+    ...(positiveNumberParam(record.maxToolCalls)
+      ? { maxToolCalls: positiveNumberParam(record.maxToolCalls) }
+      : {}),
+    ...(positiveNumberParam(record.maxCostUsd)
+      ? { maxCostUsd: positiveNumberParam(record.maxCostUsd) }
+      : {}),
+  };
+  return Object.keys(budget).length > 0 ? budget : undefined;
+}
+
 function policyScopesParam(value: unknown): SageOsPolicyScope[] | undefined {
   if (!Array.isArray(value)) {
     return undefined;
@@ -470,6 +501,11 @@ export const sageOsHandlers: GatewayRequestHandlers = {
       autonomyTier: stringParam(params, "autonomyTier") || undefined,
       requestedBy: "sageos.gateway",
       policyScopes: policyScopesParam(params.policyScopes),
+      evidenceRefs: stringArrayParam(params.evidenceRefs),
+      expectedOutput: stringParam(params, "expectedOutput") || undefined,
+      verificationPlan: stringArrayParam(params.verificationPlan),
+      budget: taskBudgetParam(params.budget),
+      toolProfile: stringParam(params, "toolProfile") || undefined,
     });
     if (result.outcome === "invalid_owner") {
       respond(

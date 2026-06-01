@@ -191,6 +191,15 @@ function commandOptions<T extends Record<string, unknown>>(input: T | { opts: ()
   return merged as T;
 }
 
+function collectOption(value: string, previous: string[] = []): string[] {
+  return [...previous, value];
+}
+
+function positiveIntegerOption(value: unknown): number | undefined {
+  const parsed = typeof value === "string" ? Number.parseInt(value, 10) : Number.NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
 function boolEnv(value: boolean): string {
   return value ? "1" : "0";
 }
@@ -613,11 +622,28 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
     .requiredOption("--objective <objective>", "Task objective")
     .option("--employee <id>", "Assign the task to a SageOS employee")
     .option("--tier <mode>", "Autonomy tier for the task")
+    .option("--expected-output <text>", "Expected task output")
+    .option("--evidence <ref>", "Evidence reference for the task", collectOption, [])
+    .option("--verify <step>", "Verification step for the task", collectOption, [])
+    .option("--budget-minutes <minutes>", "Maximum task budget in minutes")
+    .option("--budget-tool-calls <count>", "Maximum task tool-call budget")
+    .option("--tool-profile <profile>", "Tool profile for the task")
     .option("--json", "Output JSON", false)
     .action(
       async (
         title: string,
-        opts: { objective?: string; employee?: string; tier?: string; json?: boolean },
+        opts: {
+          budgetMinutes?: string;
+          budgetToolCalls?: string;
+          employee?: string;
+          evidence?: string[];
+          expectedOutput?: string;
+          json?: boolean;
+          objective?: string;
+          tier?: string;
+          toolProfile?: string;
+          verify?: string[];
+        },
         command?: Command,
       ) => {
         const cliOpts = commandOptions(command ?? opts);
@@ -626,6 +652,14 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
           objective: cliOpts.objective ?? "",
           ownerAgentId: cliOpts.employee,
           autonomyTier: cliOpts.tier,
+          evidenceRefs: cliOpts.evidence,
+          expectedOutput: cliOpts.expectedOutput,
+          verificationPlan: cliOpts.verify,
+          budget: {
+            maxMinutes: positiveIntegerOption(cliOpts.budgetMinutes),
+            maxToolCalls: positiveIntegerOption(cliOpts.budgetToolCalls),
+          },
+          toolProfile: cliOpts.toolProfile,
           requestedBy: "sageos.cli",
         });
         if (result.outcome === "invalid_owner") {

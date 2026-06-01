@@ -56,6 +56,18 @@ describe("SageOS task creation", () => {
         ownerAgentId: "employee_memory_steward",
         requestedBy: "sageos.test",
         autonomyTier: "suggest",
+        evidenceRefs: [],
+        toolProfile: "sageos.default",
+        budget: { maxMinutes: 30, maxToolCalls: 50 },
+        expectedOutput: "Summary of task outcome, evidence, blockers, and next steps.",
+        verificationPlan: ["Confirm the task outcome with available local evidence."],
+        rollback: "Cancel before execution or review generated artifacts before applying changes.",
+        notificationPolicy: {
+          channels: ["overlay"],
+          notifyOn: ["completed", "failed", "blocked"],
+        },
+        sensitivity: "normal",
+        riskClass: "low",
         policyScopes: [{ kind: "memory", allow: ["sage_memory"], risk: "low" }],
       },
       status: { tasks: { total: 1, queued: 1 } },
@@ -86,6 +98,7 @@ describe("SageOS task creation", () => {
     expect(first).toMatchObject({
       task: {
         id: "task_send_digest",
+        riskClass: "high",
         policyScopes: [{ kind: "channel", allow: ["external_message"], risk: "high" }],
       },
     });

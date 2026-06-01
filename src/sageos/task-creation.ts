@@ -1,7 +1,10 @@
 import type {
   SageOsAutonomyMode,
   SageOsPolicyScope,
+  SageOsSensitivity,
   SageOsStatusSnapshot,
+  SageOsTaskBudget,
+  SageOsTaskNotificationPolicy,
   SageOsTaskSpec,
 } from "./types.js";
 import { appendSageOsEvent, createSageOsEventLog } from "./event-log.js";
@@ -34,6 +37,15 @@ export async function createSageOsTask(params: {
   requestedBy?: string;
   autonomyTier?: string;
   policyScopes?: SageOsPolicyScope[];
+  evidenceRefs?: string[];
+  riskClass?: SageOsTaskSpec["riskClass"];
+  toolProfile?: string;
+  budget?: SageOsTaskBudget;
+  expectedOutput?: string;
+  verificationPlan?: string[];
+  rollback?: string;
+  notificationPolicy?: SageOsTaskNotificationPolicy;
+  sensitivity?: SageOsSensitivity;
   id?: string;
   now?: () => Date;
   stateDir?: string;
@@ -61,6 +73,10 @@ export async function createSageOsTask(params: {
   }
 
   const now = (params.now?.() ?? new Date()).toISOString();
+  const policyScopes =
+    params.policyScopes && params.policyScopes.length > 0
+      ? clonePolicyScopes(params.policyScopes)
+      : inferTaskPolicyScopes(`${title} ${objective}`);
   const task: SageOsTaskSpec = {
     id: nextTaskId(params.id?.trim() || `task_${safeId(title)}`, state.tasks),
     title,
@@ -69,10 +85,22 @@ export async function createSageOsTask(params: {
     ...(ownerAgentId ? { ownerAgentId } : {}),
     requestedBy,
     autonomyTier: resolveAutonomyTier(params.autonomyTier),
-    policyScopes:
-      params.policyScopes && params.policyScopes.length > 0
-        ? clonePolicyScopes(params.policyScopes)
-        : inferTaskPolicyScopes(`${title} ${objective}`),
+    policyScopes,
+    evidenceRefs: uniqueStrings(params.evidenceRefs ?? []),
+    riskClass: params.riskClass ?? highestRisk(policyScopes),
+    toolProfile: params.toolProfile?.trim() || "sageos.default",
+    budget: normalizeBudget(params.budget),
+    expectedOutput:
+      params.expectedOutput?.trim() ||
+      "Summary of task outcome, evidence, blockers, and next steps.",
+    verificationPlan: uniqueStrings(
+      params.verificationPlan ?? ["Confirm the task outcome with available local evidence."],
+    ),
+    rollback:
+      params.rollback?.trim() ||
+      "Cancel before execution or review generated artifacts before applying changes.",
+    notificationPolicy: normalizeNotificationPolicy(params.notificationPolicy),
+    sensitivity: params.sensitivity ?? "normal",
     createdAt: now,
     updatedAt: now,
   };
@@ -126,6 +154,39 @@ function inferTaskPolicyScopes(text: string): SageOsPolicyScope[] {
     : [{ kind: "tool", allow: ["sage"], risk: "low" }];
 }
 
+function highestRisk(policyScopes: SageOsPolicyScope[]): NonNullable<SageOsTaskSpec["riskClass"]> {
+  const order = ["low", "medium", "high", "critical"] as const;
+  return policyScopes.reduce<NonNullable<SageOsTaskSpec["riskClass"]>>((highest, scope) => {
+    const risk = scope.risk ?? "low";
+    return order.indexOf(risk) > order.indexOf(highest) ? risk : highest;
+  }, "low");
+}
+
+function normalizeBudget(budget: SageOsTaskBudget | undefined): SageOsTaskBudget {
+  return {
+    maxMinutes: positiveNumber(budget?.maxMinutes) ?? 30,
+    maxToolCalls: positiveNumber(budget?.maxToolCalls) ?? 50,
+    ...(positiveNumber(budget?.maxCostUsd) !== undefined
+      ? { maxCostUsd: positiveNumber(budget?.maxCostUsd) }
+      : {}),
+  };
+}
+
+function normalizeNotificationPolicy(
+  policy: SageOsTaskNotificationPolicy | undefined,
+): SageOsTaskNotificationPolicy {
+  return {
+    channels: uniqueStrings(policy?.channels?.length ? policy.channels : ["overlay"]),
+    notifyOn: policy?.notifyOn?.length
+      ? [...new Set(policy.notifyOn)]
+      : ["completed", "failed", "blocked"],
+  };
+}
+
+function positiveNumber(value: number | undefined): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
 function uniquePolicyScopes(scopes: SageOsPolicyScope[]): SageOsPolicyScope[] {
   const seen = new Set<string>();
   const unique: SageOsPolicyScope[] = [];
@@ -166,6 +227,10 @@ function nextTaskId(baseId: string, tasks: SageOsTaskSpec[]): string {
 function titleFromObjective(objective: string): string {
   const words = objective.split(/\s+/).filter(Boolean).slice(0, 6);
   return words.map((word) => word.slice(0, 1).toUpperCase() + word.slice(1)).join(" ");
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
 
 function safeId(value: string): string {

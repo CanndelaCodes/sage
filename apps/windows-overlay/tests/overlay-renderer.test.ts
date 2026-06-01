@@ -88,6 +88,18 @@ const state = {
       objective: "Summarize coding work",
       state: "running",
       ownerAgentId: "employee_memory",
+      evidenceRefs: ["memory:node_1"],
+      toolProfile: "sageos.coding-worker",
+      budget: { maxMinutes: 45, maxToolCalls: 80 },
+      expectedOutput: "Implementation report with tests.",
+      verificationPlan: ["Run focused tests", "Review changed files"],
+      rollback: "Revert the scoped branch.",
+      notificationPolicy: {
+        channels: ["overlay", "telegram"],
+        notifyOn: ["completed", "failed"],
+      },
+      sensitivity: "normal",
+      riskClass: "medium",
     },
     { id: "task_2", title: "Memory replay", objective: "Replay queued memory captures", state: "proposed" },
   ],
@@ -380,6 +392,19 @@ describe("overlay renderer model", () => {
       label: "Owner",
       value: "Memory Steward",
     });
+    expect(taskModel.workspace.facts).toEqual(
+      expect.arrayContaining([
+        { label: "Risk", value: "medium" },
+        { label: "Tool profile", value: "sageos.coding-worker" },
+        { label: "Budget", value: "45 min / 80 tool calls" },
+        { label: "Expected output", value: "Implementation report with tests." },
+        { label: "Verification", value: "Run focused tests, Review changed files" },
+        { label: "Rollback", value: "Revert the scoped branch." },
+        { label: "Evidence", value: "memory:node_1" },
+        { label: "Notify", value: "overlay, telegram / completed, failed" },
+        { label: "Sensitivity", value: "normal" },
+      ]),
+    );
     expect(approvalModel.workspace).toMatchObject({
       title: "Approve repair",
       eyebrow: "Approval / pending",

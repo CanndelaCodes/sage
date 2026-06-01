@@ -314,11 +314,30 @@ export type SageOsTaskSpec = {
   requestedBy: string;
   autonomyTier: SageOsAutonomyMode;
   policyScopes: SageOsPolicyScope[];
+  evidenceRefs?: string[];
+  riskClass?: "low" | "medium" | "high" | "critical";
+  toolProfile?: string;
+  budget?: SageOsTaskBudget;
+  expectedOutput?: string;
+  verificationPlan?: string[];
   execution?: SageOsTaskExecutionPlan;
   rollback?: string;
+  notificationPolicy?: SageOsTaskNotificationPolicy;
+  sensitivity?: SageOsSensitivity;
   createdAt: string;
   updatedAt: string;
   expiresAt?: string;
+};
+
+export type SageOsTaskBudget = {
+  maxMinutes?: number;
+  maxToolCalls?: number;
+  maxCostUsd?: number;
+};
+
+export type SageOsTaskNotificationPolicy = {
+  channels: string[];
+  notifyOn: Array<"queued" | "started" | "completed" | "failed" | "blocked">;
 };
 
 export type SageOsTaskExecutionPlan = {

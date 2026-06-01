@@ -797,6 +797,11 @@ describe("SageOS gateway methods", () => {
       title: "Review memory queue",
       objective: "Replay failed memory captures and summarize blockers.",
       ownerAgentId: "employee_memory_steward",
+      expectedOutput: "Replay report",
+      evidenceRefs: ["memory:queue"],
+      verificationPlan: ["Confirm replay result is logged"],
+      budget: { maxMinutes: 20, maxToolCalls: 12 },
+      toolProfile: "sageos.memory-steward",
     });
 
     expect(response?.ok).toBe(true);
@@ -807,6 +812,11 @@ describe("SageOS gateway methods", () => {
           id: "task_review_memory_queue",
           state: "proposed",
           ownerAgentId: "employee_memory_steward",
+          expectedOutput: "Replay report",
+          evidenceRefs: ["memory:queue"],
+          verificationPlan: ["Confirm replay result is logged"],
+          budget: { maxMinutes: 20, maxToolCalls: 12 },
+          toolProfile: "sageos.memory-steward",
         },
       },
     });
