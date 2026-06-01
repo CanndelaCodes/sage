@@ -40,8 +40,8 @@ Build: overlay automated smoke slice after 89d6a180c9
 - Notes: Automated overlay package test, typecheck, build, `pnpm tsgo`, `pnpm lint`, and
   `git diff --check` passed on 2026-06-01 during the visual/layout pass. The visual contract
   now enforces the Vitreous Liquor token layer, focus states, reduced-motion handling, edge
-  anchoring classes, and full-overlay pinned widget flow. `pnpm --dir apps/windows-overlay
-smoke:electron` launches the packaged Electron overlay against a mock gateway, verifies that
+  anchoring classes, and full-overlay pinned widget flow. The `smoke:electron` package script
+  launches the packaged Electron overlay against a mock gateway, verifies that
   `SAGEOS_OVERLAY_COLLAPSED_EDGE=left` and
   `SAGEOS_OVERLAY_PINNED_WIDGETS=memoryQueue,systemHealth,nightShift` reach the renderer, renders
   without pinned-widget overlap in the full Command Deck, exposes the preload IPC bridge as
