@@ -827,7 +827,16 @@ export class SageOsOverlayApp extends LitElement {
   }
 
   private async runWorkspaceAction(action: AgentWorkspaceAction) {
-    if (!this.controller || !action.enabled) {
+    if (!action.enabled) {
+      return;
+    }
+
+    if (action.kind === "assignEmployeeTask" && action.target.kind === "employee") {
+      this.prefillEmployeeTaskAssignment(action.target.id);
+      return;
+    }
+
+    if (!this.controller) {
       return;
     }
 
@@ -850,6 +859,13 @@ export class SageOsOverlayApp extends LitElement {
     } else if (action.kind === "runIncidentRepair" && action.target.kind === "incident") {
       await this.controller.runIncidentRepair(action.target.id);
     }
+  }
+
+  private prefillEmployeeTaskAssignment(employeeId: string) {
+    const employee = this.sageOsState?.agents?.find((entry) => entry.id === employeeId);
+    this.launcherCommand = `Assign ${employee?.name ?? labelFromId(employeeId)} to `;
+    this.requestUpdate();
+    void this.updateComplete.then(() => this.focusLauncher());
   }
 }
 
@@ -1522,24 +1538,42 @@ function missingWorkspaceTarget(target: AgentWorkspaceTarget): AgentWorkspaceVie
   };
 }
 
+function labelFromId(id: string): string {
+  return id
+    .replace(/^employee_/, "")
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 function buildEmployeeWorkspaceActions(
   target: AgentWorkspaceTarget,
   status: NonNullable<SageOsOverlayStatusState["agents"]>[number]["status"],
 ): AgentWorkspaceAction[] {
+  const assignAction = {
+    kind: "assignEmployeeTask",
+    label: "Assign task",
+    enabled: status !== "retired" && status !== "disabled",
+    target,
+  } satisfies AgentWorkspaceAction;
   if (status === "active") {
     return [
+      assignAction,
       { kind: "pauseEmployee", label: "Pause", enabled: true, target },
       { kind: "retireEmployee", label: "Retire", enabled: true, target },
     ];
   }
   if (status === "paused") {
     return [
+      assignAction,
       { kind: "resumeEmployee", label: "Resume", enabled: true, target },
       { kind: "retireEmployee", label: "Retire", enabled: true, target },
     ];
   }
   if (status === "draft") {
     return [
+      assignAction,
       { kind: "activateEmployee", label: "Activate", enabled: true, target },
       { kind: "retireEmployee", label: "Retire", enabled: true, target },
     ];

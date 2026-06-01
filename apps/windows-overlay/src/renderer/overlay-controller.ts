@@ -3,6 +3,7 @@ import {
   activateSageOsEmployee,
   approveSageOsApproval,
   cancelSageOsTask,
+  createSageOsTask,
   denySageOsApproval,
   emergencyStopSageOs,
   loadSageOsOverlayStatus,
@@ -103,6 +104,10 @@ export class SageOsOverlayController {
 
   async queueTask(id: string) {
     await this.runMutation(() => queueSageOsTask(this.client, id));
+  }
+
+  async createTask(task: { title: string; objective: string; ownerAgentId?: string; autonomyTier?: string }) {
+    await this.runMutation(() => createSageOsTask(this.client, task));
   }
 
   async cancelTask(id: string) {

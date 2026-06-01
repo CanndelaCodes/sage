@@ -362,40 +362,67 @@ describe("sage os CLI", () => {
     expect(rawEvents).toContain("employee_retired");
   });
 
-  it("lists, inspects, and cancels tasks", async () => {
+  it("creates, lists, inspects, and cancels tasks", async () => {
     const stateDir = process.env.SAGE_STATE_DIR!;
     const store = createSageOsStateStore();
-    const now = "2026-05-27T13:05:00.000Z";
-    await upsertSageOsTask(store, {
-      id: "task_review",
-      title: "Review task",
-      objective: "Review a completed artifact.",
-      state: "queued",
-      requestedBy: "jason",
+    await upsertSageOsAgent(store, {
+      id: "employee_reviewer",
+      name: "Reviewer",
+      role: "reviewer",
+      mission: "Review completed work.",
+      status: "active",
       autonomyTier: "suggest",
-      policyScopes: [],
-      createdAt: now,
-      updatedAt: now,
+      responsibilities: ["review"],
+      allowedScopes: [],
+      deniedScopes: [],
+      createdAt: "2026-05-27T13:05:00.000Z",
+      updatedAt: "2026-05-27T13:05:00.000Z",
     });
 
     const program = makeProgram();
-    await program.parseAsync(["os", "tasks", "--json"], { from: "user" });
-    expect(lastJson()).toMatchObject({ tasks: [{ id: "task_review", state: "queued" }] });
-
-    await program.parseAsync(["os", "tasks", "inspect", "task_review", "--json"], {
-      from: "user",
-    });
-    expect(lastJson()).toMatchObject({ task: { id: "task_review", title: "Review task" } });
-
     await program.parseAsync(
-      ["os", "tasks", "cancel", "task_review", "--reason", "not needed", "--json"],
+      [
+        "os",
+        "tasks",
+        "create",
+        "Review task",
+        "--objective",
+        "Review a completed artifact.",
+        "--employee",
+        "employee_reviewer",
+        "--json",
+      ],
       { from: "user" },
     );
-    expect(lastJson()).toMatchObject({ task: { id: "task_review", state: "cancelled" } });
+    expect(lastJson()).toMatchObject({
+      result: {
+        outcome: "created",
+        task: {
+          id: "task_review_task",
+          state: "proposed",
+          ownerAgentId: "employee_reviewer",
+        },
+      },
+    });
+
+    await program.parseAsync(["os", "tasks", "--json"], { from: "user" });
+    expect(lastJson()).toMatchObject({ tasks: [{ id: "task_review_task", state: "proposed" }] });
+
+    await program.parseAsync(["os", "tasks", "inspect", "task_review_task", "--json"], {
+      from: "user",
+    });
+    expect(lastJson()).toMatchObject({ task: { id: "task_review_task", title: "Review task" } });
+
+    await program.parseAsync(
+      ["os", "tasks", "cancel", "task_review_task", "--reason", "not needed", "--json"],
+      { from: "user" },
+    );
+    expect(lastJson()).toMatchObject({ task: { id: "task_review_task", state: "cancelled" } });
     await expect(readSageOsState(store)).resolves.toMatchObject({
-      tasks: [{ id: "task_review", state: "cancelled" }],
+      tasks: [{ id: "task_review_task", state: "cancelled" }],
     });
     const rawEvents = await readFile(path.join(stateDir, "sageos", "events.jsonl"), "utf8");
+    expect(rawEvents).toContain("task_created");
     expect(rawEvents).toContain("task_cancelled");
   });
 

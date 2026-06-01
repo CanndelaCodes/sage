@@ -48,15 +48,36 @@ import {
 } from "../../sageos/state-store.js";
 import { collectSageOsStatus } from "../../sageos/status.js";
 import { observeSystemStatusOnce } from "../../sageos/system-observer.js";
+import { createSageOsTask } from "../../sageos/task-creation.js";
 import { queueSageOsTask } from "../../sageos/task-queue.js";
 import { runNextSageOsTaskOnce } from "../../sageos/task-runner.js";
-import { createSageOsStatusSnapshot, type SageOsSupervisorStatus } from "../../sageos/types.js";
+import {
+  createSageOsStatusSnapshot,
+  type SageOsPolicyScope,
+  type SageOsSupervisorStatus,
+} from "../../sageos/types.js";
 import { discoverSageOsWorkflowCandidates } from "../../sageos/workflow-compiler.js";
 import { dryRunSageOsWorkflow } from "../../sageos/workflow-runner.js";
 import { ErrorCodes, errorShape } from "../protocol/index.js";
 
 const CONTROL_STATES = new Set(["paused", "running", "stopped"]);
 const APPROVAL_DECISIONS = new Set(["approved", "denied"]);
+const POLICY_SCOPE_KINDS = new Set<SageOsPolicyScope["kind"]>([
+  "tool",
+  "file",
+  "repo",
+  "app",
+  "channel",
+  "memory",
+  "network",
+  "system",
+]);
+const POLICY_SCOPE_RISKS = new Set<NonNullable<SageOsPolicyScope["risk"]>>([
+  "low",
+  "medium",
+  "high",
+  "critical",
+]);
 
 type SageOsControlState = "paused" | "running" | "stopped";
 type ResolvedSageOsApproval = Extract<
@@ -98,6 +119,42 @@ function stringArrayParam(value: unknown): string[] {
     );
   }
   return typeof value === "string" && value.trim() ? [value.trim()] : [];
+}
+
+function policyScopesParam(value: unknown): SageOsPolicyScope[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const scopes = value
+    .map((entry) => {
+      if (typeof entry !== "object" || entry === null) {
+        return null;
+      }
+      const record = entry as Record<string, unknown>;
+      const kind =
+        typeof record.kind === "string" &&
+        POLICY_SCOPE_KINDS.has(record.kind as SageOsPolicyScope["kind"])
+          ? (record.kind as SageOsPolicyScope["kind"])
+          : undefined;
+      if (!kind) {
+        return null;
+      }
+      const risk =
+        typeof record.risk === "string" &&
+        POLICY_SCOPE_RISKS.has(record.risk as NonNullable<SageOsPolicyScope["risk"]>)
+          ? (record.risk as NonNullable<SageOsPolicyScope["risk"]>)
+          : undefined;
+      const allow = stringArrayParam(record.allow);
+      const deny = stringArrayParam(record.deny);
+      return {
+        kind,
+        ...(allow.length > 0 ? { allow } : {}),
+        ...(deny.length > 0 ? { deny } : {}),
+        ...(risk ? { risk } : {}),
+      } satisfies SageOsPolicyScope;
+    })
+    .filter((entry): entry is SageOsPolicyScope => Boolean(entry));
+  return scopes.length > 0 ? scopes : undefined;
 }
 
 function supervisorStatusForControl(
@@ -391,6 +448,43 @@ export const sageOsHandlers: GatewayRequestHandlers = {
   "sageos.tasks.list": async ({ respond }) => {
     const state = await readSageOsState(createSageOsStateStore());
     respond(true, { tasks: state.tasks }, undefined);
+  },
+  "sageos.tasks.create": async ({ params, respond, context }) => {
+    const title = stringParam(params, "title");
+    const objective = stringParam(params, "objective");
+    if (!title || !objective) {
+      respond(
+        false,
+        undefined,
+        errorShape(
+          ErrorCodes.INVALID_REQUEST,
+          "invalid sageos.tasks.create params: title and objective required",
+        ),
+      );
+      return;
+    }
+    const result = await createSageOsTask({
+      title,
+      objective,
+      ownerAgentId: stringParam(params, "ownerAgentId") || stringParam(params, "employeeId"),
+      autonomyTier: stringParam(params, "autonomyTier") || undefined,
+      requestedBy: "sageos.gateway",
+      policyScopes: policyScopesParam(params.policyScopes),
+    });
+    if (result.outcome === "invalid_owner") {
+      respond(
+        false,
+        undefined,
+        errorShape(
+          ErrorCodes.INVALID_REQUEST,
+          `SageOS employee is not available: ${result.ownerAgentId}`,
+        ),
+      );
+      return;
+    }
+    const state = await readSageOsState(createSageOsStateStore());
+    context.broadcast("sageos", state, { dropIfSlow: true });
+    respond(true, { result, state }, undefined);
   },
   "sageos.tasks.queue": async ({ params, respond, context }) => {
     const id = typeof params.id === "string" ? params.id.trim() : "";

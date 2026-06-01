@@ -111,6 +111,7 @@ const WRITE_METHODS = new Set([
   "sageos.agents.retire",
   "sageos.collaboration.handoff",
   "sageos.collaboration.requestReview",
+  "sageos.tasks.create",
   "sageos.tasks.queue",
   "sageos.tasks.runNext",
   "sageos.tasks.cancel",

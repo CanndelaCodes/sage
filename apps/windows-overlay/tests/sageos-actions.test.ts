@@ -3,6 +3,7 @@ import {
   activateSageOsEmployee,
   approveSageOsApproval,
   pauseSageOsEmployee,
+  createSageOsTask,
   loadSageOsOverlayStatus,
   pauseSageOs,
   queueSageOsTask,
@@ -27,6 +28,11 @@ describe("SageOS overlay actions", () => {
     await pauseSageOs({ request });
     await approveSageOsApproval({ request }, "approval_1");
     await queueSageOsTask({ request }, "task_1");
+    await createSageOsTask({ request }, {
+      title: "Review queue",
+      objective: "Review failed captures.",
+      ownerAgentId: "employee_memory",
+    });
 
     expect(request).toHaveBeenCalledWith("sageos.control", {
       state: "paused",
@@ -41,6 +47,11 @@ describe("SageOS overlay actions", () => {
     expect(request).toHaveBeenCalledWith("sageos.tasks.queue", {
       id: "task_1",
       reason: "windows-overlay",
+    });
+    expect(request).toHaveBeenCalledWith("sageos.tasks.create", {
+      title: "Review queue",
+      objective: "Review failed captures.",
+      ownerAgentId: "employee_memory",
     });
   });
 
@@ -151,6 +162,24 @@ describe("SageOS overlay actions", () => {
 
     expect(request).toHaveBeenNthCalledWith(1, "sageos.agents.create", {
       description: "Create a Security Sentinel that watches Defender and reports daily",
+    });
+    expect(request).toHaveBeenNthCalledWith(2, "sageos.status", {});
+    expect(result).toBe(refreshed);
+  });
+
+  it("routes task assignment launcher commands through SageOS task creation", async () => {
+    const refreshed = { status: { tasks: { total: 1 } } };
+    const request = vi.fn().mockResolvedValueOnce({ result: { outcome: "created" } }).mockResolvedValueOnce(refreshed);
+
+    const result = await runSageOsLauncherCommand(
+      { request },
+      "Assign Memory Steward to replay capture queue",
+    );
+
+    expect(request).toHaveBeenNthCalledWith(1, "sageos.tasks.create", {
+      title: "Replay Capture Queue",
+      objective: "replay capture queue",
+      ownerAgentId: "employee_memory_steward",
     });
     expect(request).toHaveBeenNthCalledWith(2, "sageos.status", {});
     expect(result).toBe(refreshed);

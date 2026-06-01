@@ -20,6 +20,7 @@ const BASE_METHODS = [
   "sageos.collaboration.handoff",
   "sageos.collaboration.requestReview",
   "sageos.tasks.list",
+  "sageos.tasks.create",
   "sageos.tasks.queue",
   "sageos.tasks.runNext",
   "sageos.tasks.cancel",

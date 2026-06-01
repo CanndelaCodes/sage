@@ -61,6 +61,11 @@ describe("SageOsOverlayController", () => {
 
     await controller.approveApproval("approval_1");
     await controller.denyApproval("approval_2");
+    await controller.createTask({
+      title: "Review queue",
+      objective: "Review failed captures.",
+      ownerAgentId: "employee_memory",
+    });
     await controller.queueTask("task_1");
     await controller.cancelTask("task_2");
     await controller.runNextTask();
@@ -74,6 +79,11 @@ describe("SageOsOverlayController", () => {
       id: "approval_2",
       decision: "denied",
       reason: "windows-overlay",
+    });
+    expect(request).toHaveBeenCalledWith("sageos.tasks.create", {
+      title: "Review queue",
+      objective: "Review failed captures.",
+      ownerAgentId: "employee_memory",
     });
     expect(request).toHaveBeenCalledWith("sageos.tasks.queue", {
       id: "task_1",
@@ -162,6 +172,22 @@ describe("SageOsOverlayController", () => {
 
     expect(request).toHaveBeenNthCalledWith(1, "sageos.agents.create", {
       description: "Create a Security Sentinel that watches Defender",
+    });
+    expect(request).toHaveBeenNthCalledWith(2, "sageos.status", {});
+    expect(controller.state.sageOsState).toBe(refreshed);
+  });
+
+  it("creates assigned tasks from Universal Launcher task commands", async () => {
+    const refreshed = stateFixture("execute_scoped");
+    const request = vi.fn().mockResolvedValueOnce({ result: { outcome: "created" } }).mockResolvedValueOnce(refreshed);
+    const controller = new SageOsOverlayController({ request });
+
+    await controller.sendLauncherCommand("Assign Memory Steward to replay capture queue");
+
+    expect(request).toHaveBeenNthCalledWith(1, "sageos.tasks.create", {
+      title: "Replay Capture Queue",
+      objective: "replay capture queue",
+      ownerAgentId: "employee_memory_steward",
     });
     expect(request).toHaveBeenNthCalledWith(2, "sageos.status", {});
     expect(controller.state.sageOsState).toBe(refreshed);

@@ -50,6 +50,7 @@ import {
 import { renderSageOsStatus } from "../sageos/status-renderer.js";
 import { collectSageOsStatus } from "../sageos/status.js";
 import { observeSystemStatusOnce } from "../sageos/system-observer.js";
+import { createSageOsTask } from "../sageos/task-creation.js";
 import { queueSageOsTask } from "../sageos/task-queue.js";
 import { runNextSageOsTaskOnce } from "../sageos/task-runner.js";
 import {
@@ -605,6 +606,38 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
     const state = await readSageOsState(createSageOsStateStore());
     outputJsonOrText(opts, { tasks: state.tasks }, () => renderTasks(state.tasks));
   });
+
+  tasks
+    .command("create <title>")
+    .description("Create a proposed SageOS task")
+    .requiredOption("--objective <objective>", "Task objective")
+    .option("--employee <id>", "Assign the task to a SageOS employee")
+    .option("--tier <mode>", "Autonomy tier for the task")
+    .option("--json", "Output JSON", false)
+    .action(
+      async (
+        title: string,
+        opts: { objective?: string; employee?: string; tier?: string; json?: boolean },
+        command?: Command,
+      ) => {
+        const cliOpts = commandOptions(command ?? opts);
+        const result = await createSageOsTask({
+          title,
+          objective: cliOpts.objective ?? "",
+          ownerAgentId: cliOpts.employee,
+          autonomyTier: cliOpts.tier,
+          requestedBy: "sageos.cli",
+        });
+        if (result.outcome === "invalid_owner") {
+          fail(`SageOS employee is not available: ${result.ownerAgentId}`);
+        }
+        outputJsonOrText(
+          cliOpts,
+          { result },
+          () => `Created: ${result.task.id}\t${result.task.title}`,
+        );
+      },
+    );
 
   tasks
     .command("inspect <id>")

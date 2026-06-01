@@ -394,6 +394,7 @@ describe("overlay renderer model", () => {
       title: "Memory Steward",
       eyebrow: "Employee / active",
       actions: [
+        { kind: "assignEmployeeTask", label: "Assign task", enabled: true },
         { kind: "pauseEmployee", label: "Pause", enabled: true },
         { kind: "retireEmployee", label: "Retire", enabled: true },
       ],
@@ -411,6 +412,7 @@ describe("overlay renderer model", () => {
       title: "Memory Steward",
       eyebrow: "Employee / paused",
       actions: [
+        { kind: "assignEmployeeTask", label: "Assign task", enabled: true },
         { kind: "resumeEmployee", label: "Resume", enabled: true },
         { kind: "retireEmployee", label: "Retire", enabled: true },
       ],
@@ -419,6 +421,7 @@ describe("overlay renderer model", () => {
       title: "Memory Steward",
       eyebrow: "Employee / draft",
       actions: [
+        { kind: "assignEmployeeTask", label: "Assign task", enabled: true },
         { kind: "activateEmployee", label: "Activate", enabled: true },
         { kind: "retireEmployee", label: "Retire", enabled: true },
       ],

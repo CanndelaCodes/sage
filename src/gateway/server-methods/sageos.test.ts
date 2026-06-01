@@ -166,6 +166,7 @@ describe("SageOS gateway methods", () => {
     expect(listGatewayMethods()).toContain("sageos.collaboration.handoff");
     expect(listGatewayMethods()).toContain("sageos.collaboration.requestReview");
     expect(listGatewayMethods()).toContain("sageos.tasks.list");
+    expect(listGatewayMethods()).toContain("sageos.tasks.create");
     expect(listGatewayMethods()).toContain("sageos.tasks.queue");
     expect(listGatewayMethods()).toContain("sageos.tasks.runNext");
     expect(listGatewayMethods()).toContain("sageos.tasks.cancel");
@@ -220,6 +221,7 @@ describe("SageOS gateway methods", () => {
       "sageos.agents.retire",
       "sageos.collaboration.handoff",
       "sageos.collaboration.requestReview",
+      "sageos.tasks.create",
       "sageos.tasks.queue",
       "sageos.tasks.runNext",
       "sageos.tasks.cancel",
@@ -771,6 +773,66 @@ describe("SageOS gateway methods", () => {
 
   it("rejects coding runs without a task id", async () => {
     const { response } = await invoke("sageos.coding.run", {});
+    expect(response?.ok).toBe(false);
+    expect(response?.error).toMatchObject({ code: "INVALID_REQUEST" });
+  });
+
+  it("creates proposed tasks through gateway controls", async () => {
+    const store = createSageOsStateStore();
+    await upsertSageOsAgent(store, {
+      id: "employee_memory_steward",
+      name: "Memory Steward",
+      role: "memory",
+      mission: "Keep memory queues healthy.",
+      status: "active",
+      autonomyTier: "execute_scoped",
+      responsibilities: ["memory"],
+      allowedScopes: [],
+      deniedScopes: [],
+      createdAt: "2026-06-01T14:30:00.000Z",
+      updatedAt: "2026-06-01T14:30:00.000Z",
+    });
+
+    const { response, broadcast } = await invoke("sageos.tasks.create", {
+      title: "Review memory queue",
+      objective: "Replay failed memory captures and summarize blockers.",
+      ownerAgentId: "employee_memory_steward",
+    });
+
+    expect(response?.ok).toBe(true);
+    expect(response?.payload).toMatchObject({
+      result: {
+        outcome: "created",
+        task: {
+          id: "task_review_memory_queue",
+          state: "proposed",
+          ownerAgentId: "employee_memory_steward",
+        },
+      },
+    });
+    expect(broadcast).toHaveBeenCalledWith(
+      "sageos",
+      expect.objectContaining({
+        tasks: expect.arrayContaining([
+          expect.objectContaining({ id: "task_review_memory_queue", state: "proposed" }),
+        ]),
+      }),
+      { dropIfSlow: true },
+    );
+    const eventLog = await readFile(
+      path.join(process.env.SAGE_STATE_DIR ?? "", "sageos", "events.jsonl"),
+      "utf8",
+    );
+    expect(eventLog).toContain("task_created");
+  });
+
+  it("rejects gateway task creation for unavailable employees", async () => {
+    const { response } = await invoke("sageos.tasks.create", {
+      title: "Review memory queue",
+      objective: "Replay failed memory captures.",
+      ownerAgentId: "employee_missing",
+    });
+
     expect(response?.ok).toBe(false);
     expect(response?.error).toMatchObject({ code: "INVALID_REQUEST" });
   });

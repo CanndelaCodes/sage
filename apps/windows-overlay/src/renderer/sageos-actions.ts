@@ -83,6 +83,18 @@ export function queueSageOsTask(client: OverlayGatewayClient, id: string) {
   return client.request("sageos.tasks.queue", { id, reason: "windows-overlay" });
 }
 
+export function createSageOsTask(
+  client: OverlayGatewayClient,
+  task: { title: string; objective: string; ownerAgentId?: string; autonomyTier?: string },
+) {
+  return client.request("sageos.tasks.create", {
+    title: task.title,
+    objective: task.objective,
+    ...(task.ownerAgentId ? { ownerAgentId: task.ownerAgentId } : {}),
+    ...(task.autonomyTier ? { autonomyTier: task.autonomyTier } : {}),
+  });
+}
+
 export function runNextSageOsTask(client: OverlayGatewayClient) {
   return client.request("sageos.tasks.runNext", {});
 }
@@ -120,6 +132,12 @@ export async function runSageOsLauncherCommand(
   const employeeDescription = parseEmployeeDraftLauncherCommand(trimmed);
   if (employeeDescription) {
     await client.request("sageos.agents.create", { description: employeeDescription });
+    return loadSageOsOverlayStatus(client);
+  }
+
+  const task = parseTaskCreationLauncherCommand(trimmed);
+  if (task) {
+    await createSageOsTask(client, task);
     return loadSageOsOverlayStatus(client);
   }
 
@@ -162,6 +180,74 @@ function parseEmployeeDraftLauncherCommand(message: string): string | null {
     "reviewer",
   ];
   return employeeHints.some((hint) => normalized.includes(hint)) ? message : null;
+}
+
+function parseTaskCreationLauncherCommand(
+  message: string,
+): { title: string; objective: string; ownerAgentId?: string } | null {
+  const assignTaskMatch = message.match(
+    /^(?:assign)\s+(?:a\s+)?task\s+to\s+(.+?)\s+to\s+(.+)$/i,
+  );
+  if (assignTaskMatch) {
+    return taskIntent(assignTaskMatch[2], assignTaskMatch[1]);
+  }
+
+  const assignEmployeeMatch = message.match(/^(?:assign|ask)\s+(.+?)\s+to\s+(.+)$/i);
+  if (assignEmployeeMatch) {
+    return taskIntent(assignEmployeeMatch[2], assignEmployeeMatch[1]);
+  }
+
+  const createTaskForMatch = message.match(
+    /^(?:create|draft|add)\s+(?:a\s+)?task\s+for\s+(.+?)\s+to\s+(.+)$/i,
+  );
+  if (createTaskForMatch) {
+    return taskIntent(createTaskForMatch[2], createTaskForMatch[1]);
+  }
+
+  const createTaskMatch = message.match(
+    /^(?:create|draft|add)\s+(?:a\s+)?task(?:\s+to|\s*:)?\s+(.+)$/i,
+  );
+  return createTaskMatch ? taskIntent(createTaskMatch[1]) : null;
+}
+
+function taskIntent(objectiveValue: string | undefined, ownerValue?: string) {
+  const objective = objectiveValue?.trim();
+  if (!objective) {
+    return null;
+  }
+  const ownerAgentId = ownerValue ? employeeIdFromLauncherOwner(ownerValue) : undefined;
+  return {
+    title: titleFromObjective(objective),
+    objective,
+    ...(ownerAgentId ? { ownerAgentId } : {}),
+  };
+}
+
+function employeeIdFromLauncherOwner(value: string): string {
+  const cleaned = value
+    .trim()
+    .replace(/^(?:the|a|an)\s+/i, "")
+    .replace(/\s+(?:employee|agent)$/i, "");
+  return cleaned.startsWith("employee_") ? cleaned : `employee_${slugify(cleaned)}`;
+}
+
+function titleFromObjective(objective: string): string {
+  return objective
+    .replace(/[.!?]+$/g, "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 6)
+    .map((word) => word.slice(0, 1).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function slugify(value: string): string {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return slug || "employee";
 }
 
 export function canRunSageOsIncidentRepair(

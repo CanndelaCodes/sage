@@ -28,6 +28,7 @@ try {
     "sageos.status",
     "sageos.control",
     "sageos.approvals.resolve",
+    "sageos.tasks.create",
     "sageos.tasks.queue",
     "sageos.tasks.cancel",
     "sageos.tasks.runNext",
@@ -113,6 +114,9 @@ async function smokeFullOverlay(gatewayUrl) {
     await waitForRecordedMethod("sageos.tasks.queue");
     await memoryReplayRow.getByRole("button", { name: "Cancel" }).click();
     await waitForRecordedMethod("sageos.tasks.cancel");
+    await page.getByLabel("SageOS command").fill("Assign Memory Steward to replay capture queue");
+    await page.getByRole("button", { name: "Run", exact: true }).click();
+    await waitForRecordedMethod("sageos.tasks.create");
     await page.getByLabel("SageOS command").fill("Summarize SageOS overlay smoke");
     await page.getByRole("button", { name: "Run", exact: true }).click();
     await waitForRecordedMethod("chat.send");
@@ -571,6 +575,7 @@ async function startMockGateway(recorded) {
                   "sageos.status",
                   "sageos.control",
                   "sageos.approvals.resolve",
+                  "sageos.tasks.create",
                   "sageos.tasks.queue",
                   "sageos.tasks.cancel",
                   "sageos.tasks.runNext",
