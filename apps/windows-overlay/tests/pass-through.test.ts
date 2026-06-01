@@ -11,6 +11,7 @@ describe("overlay pass-through behavior", () => {
       setPassThrough: vi.fn(),
       registerHotkey: vi.fn(),
       setTrayState: vi.fn(),
+      setTrayActions: vi.fn(),
     };
     const controller = createOverlayWindowController(adapter, {
       hotkey: "Ctrl+Alt+Space",
@@ -35,6 +36,7 @@ describe("overlay pass-through behavior", () => {
       setPassThrough: vi.fn(),
       registerHotkey: vi.fn(),
       setTrayState: vi.fn(),
+      setTrayActions: vi.fn(),
     };
     const controller = createOverlayWindowController(adapter, {
       hotkey: "Ctrl+Alt+Space",

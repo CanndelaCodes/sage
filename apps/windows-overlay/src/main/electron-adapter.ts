@@ -1,8 +1,17 @@
-import { BrowserWindow, Tray, globalShortcut, nativeImage, screen, type Display } from "electron";
+import {
+  BrowserWindow,
+  Menu,
+  Tray,
+  globalShortcut,
+  nativeImage,
+  screen,
+  type Display,
+  type MenuItemConstructorOptions,
+} from "electron";
 import path from "node:path";
 import type { SageOsOverlayState } from "../../../../src/sageos/overlay-state.js";
 import type { OverlayRendererQuery } from "./launch-config.js";
-import type { OverlayShellAdapter } from "./window-controller.js";
+import type { OverlayShellAdapter, OverlayTrayActions } from "./window-controller.js";
 
 export function createElectronOverlayAdapter(params: {
   rendererHtmlPath: string;
@@ -12,6 +21,14 @@ export function createElectronOverlayAdapter(params: {
 }): OverlayShellAdapter {
   let window: BrowserWindow | null = null;
   let tray: Tray | null = null;
+  let trayState: SageOsOverlayState | null = null;
+  let trayActions: OverlayTrayActions = {
+    open: () => {},
+    showHud: () => {},
+    collapse: () => {},
+    hide: () => {},
+    quit: () => {},
+  };
 
   const ensureWindow = () => {
     if (window) {
@@ -53,6 +70,10 @@ export function createElectronOverlayAdapter(params: {
     return tray;
   };
 
+  const applyTrayMenu = () => {
+    ensureTray().setContextMenu(Menu.buildFromTemplate(buildTrayMenu(trayActions, trayState)));
+  };
+
   return {
     showFullOverlay() {
       const overlay = ensureWindow();
@@ -82,11 +103,34 @@ export function createElectronOverlayAdapter(params: {
       return globalShortcut.register(hotkey, callback);
     },
     setTrayState(state: SageOsOverlayState) {
-      ensureTray().setToolTip(
+      trayState = state;
+      const overlayTray = ensureTray();
+      overlayTray.setToolTip(
         state.visible ? `SageOS overlay: ${state.surface}` : "SageOS overlay hidden",
       );
+      applyTrayMenu();
+    },
+    setTrayActions(actions: OverlayTrayActions) {
+      trayActions = actions;
+      applyTrayMenu();
     },
   };
+}
+
+function buildTrayMenu(
+  actions: OverlayTrayActions,
+  state: SageOsOverlayState | null,
+): MenuItemConstructorOptions[] {
+  const visible = Boolean(state?.visible);
+  return [
+    { label: "Open SageOS", click: actions.open },
+    { label: "Show HUD", click: actions.showHud },
+    { label: "Collapse to Edge Rail", click: actions.collapse },
+    { type: "separator" },
+    { label: "Hide Overlay", enabled: visible, click: actions.hide },
+    { type: "separator" },
+    { label: "Quit SageOS Overlay", click: actions.quit },
+  ];
 }
 
 function selectOverlayDisplay(activeMonitor: string | undefined): Display {

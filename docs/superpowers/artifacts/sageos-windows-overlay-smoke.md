@@ -2,7 +2,7 @@
 
 Date: 2026-06-01
 Operator: Codex
-Build: interactive pass-through bridge slice after 3e34cf2f08
+Build: tray controls slice after 021e7d9dab
 
 ## Preconditions
 
@@ -29,6 +29,7 @@ Build: interactive pass-through bridge slice after 3e34cf2f08
 - [x] `SAGEOS_OVERLAY_ACTIVE_MONITOR=auto|primary|<display id>` routes the overlay to the active, primary, or configured monitor.
 - [x] `powershell -ExecutionPolicy Bypass -File scripts/sageos-windows-overlay.ps1 -OpenMode hud` starts HUD-first mode.
 - [x] HUD expands to full overlay.
+- [x] Tray menu exposes Open SageOS, Show HUD, Collapse to Edge Rail, Hide Overlay, and Quit SageOS Overlay mouse-first controls.
 - [x] `Ctrl+K` focuses the Universal Launcher when the full overlay is active.
 - [x] `Escape` dismisses the overlay through the preload IPC close bridge.
 - [x] `SAGEOS_OVERLAY_VOICE_ENABLED=1` plus `SAGEOS_OVERLAY_VOICE_MODE=pushToTalk` exposes the Voice entry point.
@@ -64,6 +65,8 @@ Build: interactive pass-through bridge slice after 3e34cf2f08
   over a text-heavy synthetic app, captures HUD over an IDE-like dark surface,
   verifies the `sageos-overlay:interactive-pointer` preload bridge and exercises temporary pointer
   capture while Edge Rail is active,
+  verifies the tray menu exposes mouse-first open, HUD, collapse, hide, and quit controls wired to
+  the overlay controller,
   renders without pinned-widget overlap in the full Command Deck, exposes the preload IPC bridge
   as `window.sageOsOverlay`, collapses to the left Edge Rail, launches HUD-first mode, expands HUD
   to the full overlay, and records expected RPC calls for pause, resume, emergency stop, approve,

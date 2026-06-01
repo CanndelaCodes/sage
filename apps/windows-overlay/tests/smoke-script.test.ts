@@ -51,4 +51,19 @@ describe("Electron overlay smoke script", () => {
       expect(script).toContain(expected);
     }
   });
+
+  it("wires mouse-first tray commands in the main process", () => {
+    const main = readFileSync(new URL("../src/main/main.ts", import.meta.url), "utf8");
+
+    for (const expected of [
+      "adapter.setTrayActions",
+      "open: () => controller.expand()",
+      "showHud: () => controller.showHud()",
+      "collapse: () => controller.collapse()",
+      "hide: () => controller.close()",
+      "quit: () => app.quit()",
+    ]) {
+      expect(main).toContain(expected);
+    }
+  });
 });

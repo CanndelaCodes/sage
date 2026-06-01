@@ -32,6 +32,7 @@ export type SageOsOverlayAction =
   | { type: "close" }
   | { type: "expand" }
   | { type: "collapse" }
+  | { type: "showHud" }
   | { type: "showLauncher" }
   | { type: "showCommandDeck" }
   | { type: "showWorkspace"; target: SageOsOverlayWorkspaceTarget }
@@ -73,6 +74,8 @@ export function reduceSageOsOverlayState(
       return { ...state, visible: true, surface: "commandDeck", pointerMode: "focused" };
     case "collapse":
       return { ...state, visible: true, surface: "edgeRail", pointerMode: "passThrough" };
+    case "showHud":
+      return { ...state, visible: true, surface: "hud", pointerMode: "passThrough" };
     case "showLauncher":
       return { ...state, visible: true, surface: "launcher", pointerMode: "focused" };
     case "showWorkspace":

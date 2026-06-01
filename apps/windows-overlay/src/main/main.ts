@@ -9,15 +9,20 @@ void app
   .then(() => {
     const launchConfig = readOverlayLaunchConfig();
     const assetPaths = getOverlayAssetPaths(app.getAppPath());
-    const controller = createOverlayWindowController(
-      createElectronOverlayAdapter({
-        rendererHtmlPath: assetPaths.rendererHtmlPath,
-        preloadPath: assetPaths.preloadPath,
-        rendererQuery: launchConfig.rendererQuery,
-        activeMonitor: launchConfig.shell.activeMonitor,
-      }),
-      launchConfig.shell,
-    );
+    const adapter = createElectronOverlayAdapter({
+      rendererHtmlPath: assetPaths.rendererHtmlPath,
+      preloadPath: assetPaths.preloadPath,
+      rendererQuery: launchConfig.rendererQuery,
+      activeMonitor: launchConfig.shell.activeMonitor,
+    });
+    const controller = createOverlayWindowController(adapter, launchConfig.shell);
+    adapter.setTrayActions({
+      open: () => controller.expand(),
+      showHud: () => controller.showHud(),
+      collapse: () => controller.collapse(),
+      hide: () => controller.close(),
+      quit: () => app.quit(),
+    });
 
     ipcMain.handle("sageos-overlay:expand", () => controller.expand());
     ipcMain.handle("sageos-overlay:collapse", () => controller.collapse());

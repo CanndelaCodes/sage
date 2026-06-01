@@ -13,6 +13,7 @@ function fakeAdapter(): OverlayShellAdapter {
     setPassThrough: vi.fn(),
     registerHotkey: vi.fn().mockReturnValue(true),
     setTrayState: vi.fn(),
+    setTrayActions: vi.fn(),
   };
 }
 
@@ -76,6 +77,20 @@ describe("overlay window controller", () => {
     });
 
     controller.toggle();
+
+    expect(adapter.showHud).toHaveBeenCalledTimes(1);
+    expect(adapter.setPassThrough).toHaveBeenCalledWith(true);
+  });
+
+  it("can show HUD directly for mouse-first tray commands", () => {
+    const adapter = fakeAdapter();
+    const controller = createOverlayWindowController(adapter, {
+      hotkey: "Ctrl+Alt+Space",
+      openMode: "full",
+      passThroughDefault: false,
+    });
+
+    controller.showHud();
 
     expect(adapter.showHud).toHaveBeenCalledTimes(1);
     expect(adapter.setPassThrough).toHaveBeenCalledWith(true);

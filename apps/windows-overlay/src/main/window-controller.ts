@@ -5,6 +5,14 @@ import {
 } from "../../../../src/sageos/overlay-state.js";
 import type { SageOsOverlayConfig } from "../../../../src/sageos/types.js";
 
+export type OverlayTrayActions = {
+  open: () => void;
+  showHud: () => void;
+  collapse: () => void;
+  hide: () => void;
+  quit: () => void;
+};
+
 export type OverlayShellAdapter = {
   showFullOverlay: () => void;
   showHud: () => void;
@@ -13,6 +21,7 @@ export type OverlayShellAdapter = {
   setPassThrough: (enabled: boolean) => void;
   registerHotkey: (hotkey: string, callback: () => void) => boolean;
   setTrayState: (state: SageOsOverlayState) => void;
+  setTrayActions: (actions: OverlayTrayActions) => void;
 };
 
 export function createOverlayWindowController(
@@ -61,6 +70,10 @@ export function createOverlayWindowController(
     },
     collapse() {
       state = reduceSageOsOverlayState(state, { type: "collapse" });
+      render();
+    },
+    showHud() {
+      state = reduceSageOsOverlayState(state, { type: "showHud" });
       render();
     },
     setInteractivePointer(active: boolean) {

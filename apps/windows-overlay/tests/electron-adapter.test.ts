@@ -9,6 +9,10 @@ const electronMocks = vi.hoisted(() => {
     focus: ReturnType<typeof vi.fn>;
     webContents: { send: ReturnType<typeof vi.fn> };
   }> = [];
+  const trays: Array<{
+    setContextMenu: ReturnType<typeof vi.fn>;
+    setToolTip: ReturnType<typeof vi.fn>;
+  }> = [];
   const displays = [
     { id: 1, label: "Primary", bounds: { x: 0, y: 0, width: 1280, height: 720 } },
     { id: 2, label: "Side", bounds: { x: 1280, y: 0, width: 1920, height: 1080 } },
@@ -16,6 +20,7 @@ const electronMocks = vi.hoisted(() => {
 
   return {
     windows,
+    trays,
     displays,
     BrowserWindow: vi.fn().mockImplementation(function BrowserWindow(
       this: unknown,
@@ -35,7 +40,14 @@ const electronMocks = vi.hoisted(() => {
       windows.push(window);
       return window;
     }),
-    Tray: vi.fn().mockImplementation(() => ({ setToolTip: vi.fn() })),
+    Tray: vi.fn().mockImplementation(function Tray() {
+      const tray = { setContextMenu: vi.fn(), setToolTip: vi.fn() };
+      trays.push(tray);
+      return tray;
+    }),
+    Menu: {
+      buildFromTemplate: vi.fn((template: unknown) => template),
+    },
     globalShortcut: {
       unregister: vi.fn(),
       register: vi.fn().mockReturnValue(true),
@@ -59,6 +71,7 @@ vi.mock("electron", () => electronMocks);
 describe("Electron overlay adapter", () => {
   beforeEach(() => {
     electronMocks.windows.length = 0;
+    electronMocks.trays.length = 0;
     vi.clearAllMocks();
     electronMocks.globalShortcut.register.mockReturnValue(true);
   });
@@ -97,5 +110,58 @@ describe("Electron overlay adapter", () => {
       width: 1920,
       height: 1080,
     });
+  });
+
+  it("adds mouse-first tray commands for overlay control", async () => {
+    const { createElectronOverlayAdapter } = await import("../src/main/electron-adapter.js");
+    const adapter = createElectronOverlayAdapter({
+      rendererHtmlPath: "renderer.html",
+      preloadPath: "preload.cjs",
+    });
+    const actions = {
+      open: vi.fn(),
+      showHud: vi.fn(),
+      collapse: vi.fn(),
+      hide: vi.fn(),
+      quit: vi.fn(),
+    };
+
+    adapter.setTrayActions(actions);
+    adapter.setTrayState({
+      visible: true,
+      surface: "edgeRail",
+      pointerMode: "passThrough",
+      collapsedEdge: "right",
+      pinnedWidgets: ["activeOperations"],
+    });
+
+    const template = electronMocks.Menu.buildFromTemplate.mock.calls.at(-1)?.[0] as Array<{
+      click?: () => void;
+      enabled?: boolean;
+      label?: string;
+      type?: string;
+    }>;
+    expect(template.map((item) => item.label ?? item.type)).toEqual([
+      "Open SageOS",
+      "Show HUD",
+      "Collapse to Edge Rail",
+      "separator",
+      "Hide Overlay",
+      "separator",
+      "Quit SageOS Overlay",
+    ]);
+
+    template[0]?.click?.();
+    template[1]?.click?.();
+    template[2]?.click?.();
+    template[4]?.click?.();
+    template[6]?.click?.();
+
+    expect(actions.open).toHaveBeenCalledTimes(1);
+    expect(actions.showHud).toHaveBeenCalledTimes(1);
+    expect(actions.collapse).toHaveBeenCalledTimes(1);
+    expect(actions.hide).toHaveBeenCalledTimes(1);
+    expect(actions.quit).toHaveBeenCalledTimes(1);
+    expect(electronMocks.trays[0]?.setContextMenu).toHaveBeenCalledWith(template);
   });
 });
