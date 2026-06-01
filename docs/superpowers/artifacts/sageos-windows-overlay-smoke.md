@@ -2,12 +2,12 @@
 
 Date: 2026-06-01
 Operator: Codex
-Build: 50b7537bb3
+Build: a98348ab11
 
 ## Preconditions
 
-- [ ] Windows desktop session is active.
-- [ ] Sage gateway is running locally.
+- [x] Windows desktop session is active.
+- [x] Sage gateway is running locally.
 - [x] `pnpm install` has completed.
 
 ## Checks
@@ -15,7 +15,8 @@ Build: 50b7537bb3
 - [x] `pnpm --dir apps/windows-overlay typecheck` passes.
 - [x] `pnpm --dir apps/windows-overlay test` passes.
 - [x] `pnpm --dir apps/windows-overlay build` passes.
-- [x] `powershell -ExecutionPolicy Bypass -File scripts/sageos-windows-overlay.ps1 -Hotkey "Ctrl+Alt+Space" -OpenMode full -GatewayUrl "ws://127.0.0.1:18789"` starts the overlay.
+- [x] `powershell -ExecutionPolicy Bypass -File scripts/sageos-windows-overlay.ps1 -Hotkey "Ctrl+Alt+Space" -OpenMode full -GatewayUrl "ws://127.0.0.1:18789" -Token "overlay-smoke-token" -OpenOnLaunch` starts the overlay.
+- [x] `-OpenOnLaunch` opens the full-screen translucent overlay without requiring a synthetic hotkey.
 - [ ] `Ctrl+Alt+Space` opens the full-screen translucent overlay.
 - [ ] `Ctrl+Alt+Space` closes the overlay.
 - [ ] `powershell -ExecutionPolicy Bypass -File scripts/sageos-windows-overlay.ps1 -OpenMode hud` starts HUD-first mode.
@@ -27,5 +28,5 @@ Build: 50b7537bb3
 
 ## Evidence
 
-- Screenshot path:
-- Notes: Automated root overlay config/state tests plus overlay package typecheck, test, and build passed on 2026-06-01. `pnpm tsgo` and `pnpm build` passed; root build emitted existing plugin timing warnings only. Launch script started Electron overlay processes on 2026-06-01 and they were stopped after verification. Connected gateway smoke was blocked because `sage gateway run --bind loopback --port 18789 --force` exited with missing `gateway.mode=local`; retrying with `--allow-unconfigured` produced the same config error. Hotkey open/close, HUD mode, and connected renderer control smoke still need a configured local gateway session.
+- Screenshot path: `apps/windows-overlay/dist/overlay-smoke-virtual.png`
+- Notes: Automated overlay package typecheck, test, and build passed on 2026-06-01. `pnpm tsgo` passed after adding the native `sage-windows-overlay` gateway client id. `pnpm sage gateway --allow-unconfigured --port 18789 --bind loopback --token overlay-smoke-token` started a local gateway; it rebuilt stale root output and emitted existing plugin timing warnings only. Launching the overlay with `-Token "overlay-smoke-token" -OpenOnLaunch` rendered the full overlay on the virtual desktop screenshot with status `Connected`. The earlier connected-smoke blockers were resolved by bundling renderer Lit dependencies for Electron `file://` loading and by identifying the overlay as a native Windows overlay client instead of the web Control UI. Gateway output had no rejection or renderer-origin errors after the final restart. Hotkey open/close, HUD mode, edge rail, pass-through widgets, and manual button-click RPC smoke still need physical/manual verification.
