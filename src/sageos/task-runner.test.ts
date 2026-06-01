@@ -87,6 +87,21 @@ describe("SageOS task runner", () => {
           summary: "dry-run executor accepted task_build",
           refs: [],
         },
+        budgetUsed: { elapsedMinutes: 0, toolCalls: 1 },
+        timeline: [
+          {
+            at: now,
+            label: "Started SageOS task task_build",
+            state: "running",
+            ref: "run_task_build_1",
+          },
+          {
+            at: now,
+            label: "Completed SageOS task task_build",
+            state: "succeeded",
+            ref: "run_task_build_1",
+          },
+        ],
         startedAt: now,
         finishedAt: now,
       },
@@ -102,6 +117,11 @@ describe("SageOS task runner", () => {
           id: "run_task_build_1",
           state: "succeeded",
           workerSessionId: "worker_task_build_1",
+          budgetUsed: { elapsedMinutes: 0, toolCalls: 1 },
+          timeline: [
+            { label: "Started SageOS task task_build" },
+            { label: "Completed SageOS task task_build" },
+          ],
           verificationResult: { outcome: "passed" },
         },
       ],
@@ -157,6 +177,11 @@ describe("SageOS task runner", () => {
         summary: "node test.js: passed",
         refs: ["test:node test.js"],
       },
+      budgetUsed: { elapsedMinutes: 0, toolCalls: 2 },
+      timeline: [
+        { label: "Started SageOS coding task task_coding_plan", state: "running" },
+        { label: "Completed SageOS coding task task_coding_plan", state: "succeeded" },
+      ],
     });
     await expect(readFile(path.join(repo, "README.md"), "utf8")).resolves.toContain("night shift");
     await expect(readSageOsState(store)).resolves.toMatchObject({
@@ -218,6 +243,21 @@ describe("SageOS task runner", () => {
           summary: "SageOS coding is disabled.",
           refs: [],
         },
+        budgetUsed: { elapsedMinutes: 0, toolCalls: 0 },
+        timeline: [
+          {
+            at: now,
+            label: "Started SageOS task task_coding_disabled",
+            state: "running",
+            ref: "run_task_coding_disabled_1",
+          },
+          {
+            at: now,
+            label: "Failed SageOS task task_coding_disabled",
+            state: "failed",
+            ref: "run_task_coding_disabled_1",
+          },
+        ],
       },
     });
     await expect(readSageOsState(store)).resolves.toMatchObject({
@@ -274,6 +314,21 @@ describe("SageOS task runner", () => {
           summary: "executor failed",
           refs: [],
         },
+        budgetUsed: { elapsedMinutes: 0, toolCalls: 1 },
+        timeline: [
+          {
+            at: now,
+            label: "Started SageOS task task_fail",
+            state: "running",
+            ref: "run_task_fail_1",
+          },
+          {
+            at: now,
+            label: "Failed SageOS task task_fail",
+            state: "failed",
+            ref: "run_task_fail_1",
+          },
+        ],
       },
     });
     expect(result.status.runs).toMatchObject({ total: 1, active: 0, failed: 1 });

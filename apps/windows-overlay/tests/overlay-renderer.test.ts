@@ -111,6 +111,22 @@ const state = {
       state: "running",
       traceId: "trace_task_1",
       workerSessionId: "worker_task_1_1",
+      currentToolCall: "node test.js",
+      budgetUsed: { elapsedMinutes: 12, toolCalls: 9, costUsd: 0.02 },
+      timeline: [
+        {
+          at: "2026-06-01T12:50:00.000Z",
+          label: "Started run",
+          state: "running",
+          ref: "run_task_1",
+        },
+        {
+          at: "2026-06-01T12:55:00.000Z",
+          label: "Ran tests",
+          state: "running",
+          ref: "test:node test.js",
+        },
+      ],
       logs: ["Started SageOS task task_1 run run_task_1"],
       artifacts: ["coding_report_task_1"],
       verificationResult: {
@@ -231,6 +247,7 @@ describe("overlay renderer model", () => {
         detail: "Summarize coding work",
         state: "running",
         owner: "Memory Steward",
+        progress: "node test.js / 12 min / 9 tool calls",
         canQueue: false,
         canCancel: true,
       },
@@ -240,6 +257,7 @@ describe("overlay renderer model", () => {
         detail: "Replay queued memory captures",
         state: "proposed",
         owner: "Unassigned",
+        progress: "No run yet",
         canQueue: true,
         canCancel: true,
       },
@@ -480,7 +498,13 @@ describe("overlay renderer model", () => {
       expect.arrayContaining([
         { label: "Worker", value: "worker_task_1_1" },
         { label: "Trace", value: "trace_task_1" },
+        { label: "Current tool", value: "node test.js" },
+        { label: "Budget used", value: "12 min / 9 tool calls / $0.02" },
         { label: "Verification", value: "passed / Tests passed / test:node test.js" },
+        {
+          label: "Timeline",
+          value: "Started run (running) -> run_task_1, Ran tests (running) -> test:node test.js",
+        },
         { label: "Logs", value: "Started SageOS task task_1 run run_task_1" },
         { label: "Artifacts", value: "coding_report_task_1" },
       ]),

@@ -147,6 +147,7 @@ export async function runSageOsNightShiftTask(params: {
   await upsertSageOsCodingReport(store, report);
 
   const completionSummary = blockers[0] ?? `${diff.changedFiles.length} file(s) changed`;
+  const finalRunState = outcome === "succeeded" ? "succeeded" : "failed";
   const finalTask: SageOsTaskSpec = {
     ...runningTask,
     state: outcome === "succeeded" ? "completed" : outcome === "blocked" ? "blocked" : "failed",
@@ -154,14 +155,28 @@ export async function runSageOsNightShiftTask(params: {
   };
   const finalRun: SageOsRun = {
     ...run,
-    state: outcome === "succeeded" ? "succeeded" : "failed",
+    state: finalRunState,
     finishedAt,
     error: blockers.length > 0 ? blockers.join("; ") : undefined,
+    currentToolCall: undefined,
     logs: [
       ...(run.logs ?? []),
       `${outcome === "succeeded" ? "Completed" : outcome === "blocked" ? "Blocked" : "Failed"} SageOS coding task ${task.id}: ${completionSummary}`,
     ],
     artifacts: [report.id],
+    budgetUsed: {
+      elapsedMinutes: elapsedMinutes(startedAt, finishedAt),
+      toolCalls: (params.append && blockers.length === 0 ? 1 : 0) + tests.length,
+    },
+    timeline: [
+      ...(run.timeline ?? []),
+      {
+        at: finishedAt,
+        label: `${outcome === "succeeded" ? "Completed" : outcome === "blocked" ? "Blocked" : "Failed"} SageOS coding task ${task.id}`,
+        state: finalRunState,
+        ref: report.id,
+      },
+    ],
     verificationResult: {
       outcome: outcome === "succeeded" ? "passed" : "failed",
       summary: formatCodingVerificationSummary(tests, completionSummary),
@@ -198,6 +213,16 @@ function createCodingRun(task: SageOsTaskSpec, attempt: number, startedAt: strin
     state: "running",
     traceId: `trace_coding_${slug}_${attempt}`,
     workerSessionId: `worker_${slug}_${attempt}`,
+    currentToolCall: "coding preflight",
+    budgetUsed: { elapsedMinutes: 0, toolCalls: 0 },
+    timeline: [
+      {
+        at: startedAt,
+        label: `Started SageOS coding task ${task.id}`,
+        state: "running",
+        ref: id,
+      },
+    ],
     logs: [`Started SageOS coding task ${task.id} run ${id}`],
     artifacts: [],
     verificationResult: {
@@ -219,6 +244,15 @@ function formatCodingVerificationSummary(
   return tests
     .map((test) => `${test.command}: ${test.exitCode === 0 ? "passed" : "failed"}`)
     .join(", ");
+}
+
+function elapsedMinutes(startedAt: string, finishedAt: string): number {
+  const started = Date.parse(startedAt);
+  const finished = Date.parse(finishedAt);
+  if (!Number.isFinite(started) || !Number.isFinite(finished)) {
+    return 0;
+  }
+  return Math.max(0, Math.ceil((finished - started) / 60_000));
 }
 
 async function runTestCommand(

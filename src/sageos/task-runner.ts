@@ -1,6 +1,8 @@
 import type {
   SageOsConfig,
   SageOsRun,
+  SageOsRunBudgetUsage,
+  SageOsRunTimelineEvent,
   SageOsRunVerificationResult,
   SageOsStatusSnapshot,
   SageOsTaskSpec,
@@ -23,6 +25,10 @@ export type SageOsTaskExecutorResult = {
   logs?: string[];
   artifacts?: string[];
   verificationResult?: SageOsRunVerificationResult;
+  budgetUsed?: SageOsRunBudgetUsage;
+  timeline?: SageOsRunTimelineEvent[];
+  toolCalls?: number;
+  costUsd?: number;
 };
 
 export type SageOsTaskExecutor = (ctx: {
@@ -97,7 +103,9 @@ export async function runNextSageOsTaskOnce(
     } catch (err) {
       const error = err instanceof Error ? err.message : String(err);
       const failedTask: SageOsTaskSpec = { ...task, state: "failed", updatedAt: now };
-      const failedRun = failRun(createTaskRun(task, attempt, now), task, now, error);
+      const failedRun = failRun(createTaskRun(task, attempt, now), task, now, error, {
+        toolCalls: 0,
+      });
       await upsertSageOsTask(store, failedTask);
       await upsertSageOsRun(store, failedRun);
       await appendSageOsEvent(createSageOsEventLog({ stateDir: params.stateDir }), {
@@ -187,6 +195,16 @@ function createTaskRun(task: SageOsTaskSpec, attempt: number, startedAt: string)
     state: "running",
     traceId: `trace_run_${slug}_${attempt}`,
     workerSessionId: `worker_${slug}_${attempt}`,
+    currentToolCall: "dry-run executor",
+    budgetUsed: { elapsedMinutes: 0, toolCalls: 0 },
+    timeline: [
+      {
+        at: startedAt,
+        label: `Started SageOS task ${task.id}`,
+        state: "running",
+        ref: id,
+      },
+    ],
     logs: [`Started SageOS task ${task.id} run ${id}`],
     artifacts: [],
     verificationResult: {
@@ -209,12 +227,28 @@ function completeRun(
     ...run,
     state: "succeeded",
     finishedAt,
+    currentToolCall: undefined,
     logs: [
       ...(run.logs ?? []),
       ...(execution?.logs ?? []),
       `Completed SageOS task ${task.id}: ${summary}`,
     ],
     artifacts: uniqueStrings(execution?.artifacts ?? task.evidenceRefs ?? []),
+    budgetUsed: runBudgetUsage(run, finishedAt, {
+      ...execution?.budgetUsed,
+      toolCalls: execution?.budgetUsed?.toolCalls ?? execution?.toolCalls ?? 1,
+      costUsd: execution?.budgetUsed?.costUsd ?? execution?.costUsd,
+    }),
+    timeline: [
+      ...(run.timeline ?? []),
+      ...(execution?.timeline ?? []),
+      {
+        at: finishedAt,
+        label: `Completed SageOS task ${task.id}`,
+        state: "succeeded",
+        ref: run.id,
+      },
+    ],
     verificationResult:
       execution?.verificationResult ??
       ({
@@ -230,14 +264,26 @@ function failRun(
   task: SageOsTaskSpec,
   finishedAt: string,
   error: string,
+  usage: Pick<SageOsRunBudgetUsage, "toolCalls" | "costUsd"> = { toolCalls: 1 },
 ): SageOsRun {
   return {
     ...run,
     state: "failed",
     finishedAt,
     error,
+    currentToolCall: undefined,
     logs: [...(run.logs ?? []), `Failed SageOS task ${task.id}: ${error}`],
     artifacts: run.artifacts ?? [],
+    budgetUsed: runBudgetUsage(run, finishedAt, usage),
+    timeline: [
+      ...(run.timeline ?? []),
+      {
+        at: finishedAt,
+        label: `Failed SageOS task ${task.id}`,
+        state: "failed",
+        ref: run.id,
+      },
+    ],
     verificationResult: {
       outcome: "failed",
       summary: error,
@@ -284,4 +330,25 @@ function safeId(value: string): string {
 
 function uniqueStrings(values: string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function runBudgetUsage(
+  run: SageOsRun,
+  finishedAt: string,
+  usage: Pick<SageOsRunBudgetUsage, "toolCalls" | "costUsd"> = {},
+): SageOsRunBudgetUsage {
+  return {
+    elapsedMinutes: elapsedMinutes(run.startedAt, finishedAt),
+    toolCalls: usage.toolCalls ?? run.budgetUsed?.toolCalls ?? 0,
+    ...(usage.costUsd !== undefined ? { costUsd: usage.costUsd } : {}),
+  };
+}
+
+function elapsedMinutes(startedAt: string | undefined, finishedAt: string): number {
+  const started = Date.parse(startedAt ?? finishedAt);
+  const finished = Date.parse(finishedAt);
+  if (!Number.isFinite(started) || !Number.isFinite(finished)) {
+    return 0;
+  }
+  return Math.max(0, Math.ceil((finished - started) / 60_000));
 }

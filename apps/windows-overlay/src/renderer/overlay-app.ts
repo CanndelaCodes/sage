@@ -44,6 +44,7 @@ export type OverlayTaskRow = {
   detail: string;
   state: string;
   owner: string;
+  progress: string;
   canQueue: boolean;
   canCancel: boolean;
 };
@@ -108,6 +109,7 @@ export type RenderOverlayModelOptions = {
   workspaceTarget?: AgentWorkspaceTarget;
   pinnedWidgets?: SageOsOverlayWidgetId[];
 };
+type OverlayRunRecord = NonNullable<SageOsOverlayStatusState["runs"]>[number];
 
 const DEFAULT_PINNED_WIDGETS = [
   "activeOperations",
@@ -139,12 +141,14 @@ export function renderOverlayModel(
   const pendingApprovals = String(status.approvals.pending);
   const incidents = String(status.incidents.length);
   const employeeNames = new Map((state.agents ?? []).map((agent) => [agent.id, agent.name]));
+  const runs = state.runs ?? [];
   const taskRows = (state.tasks ?? []).map((task) => ({
     id: task.id,
     title: task.title,
     detail: task.objective,
     state: task.state,
     owner: ownerLabel(task.ownerAgentId, employeeNames),
+    progress: formatRunProgress(latestRunForTask(runs, task.id)),
     canQueue: task.state === "proposed" || task.state === "waiting_for_policy",
     canCancel: !["completed", "failed", "cancelled", "expired"].includes(task.state),
   }));
@@ -613,6 +617,7 @@ export class SageOsOverlayApp extends LitElement {
                       <div class="overlay-row__title">${task.title}</div>
                       <div class="overlay-row__detail">${task.detail}</div>
                       <div class="overlay-row__meta">${task.id} / ${task.state} / ${task.owner}</div>
+                      <div class="overlay-row__meta">Progress: ${task.progress}</div>
                     </div>
                     <div class="overlay-row__actions">
                       <button
@@ -1184,9 +1189,12 @@ function buildWorkspaceModel(
         { label: "Attempt", value: String(run.attempt) },
         { label: "Worker", value: run.workerSessionId ?? "Unknown" },
         { label: "Trace", value: run.traceId },
+        { label: "Current tool", value: run.currentToolCall ?? "None" },
+        { label: "Budget used", value: formatRunBudgetUsage(run.budgetUsed) },
         { label: "Started", value: run.startedAt ?? "Not started" },
         { label: "Finished", value: run.finishedAt ?? "Not finished" },
         { label: "Verification", value: formatRunVerification(run.verificationResult) },
+        { label: "Timeline", value: formatRunTimeline(run.timeline ?? []) },
         { label: "Logs", value: formatList(run.logs ?? []) },
         { label: "Artifacts", value: formatList(run.artifacts ?? []) },
         { label: "Error", value: run.error ?? "None" },
@@ -1663,6 +1671,58 @@ function formatTaskBudget(budget: { maxMinutes?: number; maxToolCalls?: number; 
     budget.maxCostUsd ? `$${budget.maxCostUsd}` : undefined,
   ].filter(Boolean);
   return parts.length > 0 ? parts.join(" / ") : "Not specified";
+}
+
+function latestRunForTask(runs: OverlayRunRecord[], taskId: string): OverlayRunRecord | undefined {
+  const candidates = runs
+    .filter((run) => run.taskId === taskId)
+    .toSorted((a, b) => b.attempt - a.attempt);
+  return (
+    candidates.find((run) => run.state === "running" || run.state === "queued") ?? candidates[0]
+  );
+}
+
+function formatRunProgress(run: OverlayRunRecord | undefined): string {
+  if (!run) {
+    return "No run yet";
+  }
+  const budget = formatRunBudgetUsage(run.budgetUsed, { includeCost: false });
+  return run.currentToolCall ? `${run.currentToolCall} / ${budget}` : budget;
+}
+
+function formatRunBudgetUsage(
+  budget: { elapsedMinutes?: number; toolCalls?: number; costUsd?: number } | undefined,
+  opts: { includeCost?: boolean } = {},
+): string {
+  if (!budget) {
+    return "Not tracked";
+  }
+  const includeCost = opts.includeCost ?? true;
+  const parts = [
+    budget.elapsedMinutes !== undefined ? `${budget.elapsedMinutes} min` : undefined,
+    budget.toolCalls !== undefined ? `${budget.toolCalls} tool calls` : undefined,
+    includeCost && budget.costUsd !== undefined ? formatUsd(budget.costUsd) : undefined,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(" / ") : "Not tracked";
+}
+
+function formatRunTimeline(
+  events: Array<{ label: string; state?: string; ref?: string }>,
+): string {
+  if (events.length === 0) {
+    return "No timeline";
+  }
+  return events
+    .map((event) => {
+      const state = event.state ? ` (${event.state})` : "";
+      const ref = event.ref ? ` -> ${event.ref}` : "";
+      return `${event.label}${state}${ref}`;
+    })
+    .join(", ");
+}
+
+function formatUsd(value: number): string {
+  return `$${value.toFixed(2)}`;
 }
 
 function formatList(values: string[]): string {

@@ -78,7 +78,16 @@ describe("SageOS Night Shift coding runner", () => {
     expect(result).toMatchObject({
       outcome: "succeeded",
       task: { id: "task_fixture_fix", state: "completed" },
-      run: { id: "run_task_fixture_fix_1", state: "succeeded" },
+      run: {
+        id: "run_task_fixture_fix_1",
+        state: "succeeded",
+        workerSessionId: "worker_task_fixture_fix_1",
+        budgetUsed: { elapsedMinutes: 0, toolCalls: 2 },
+        timeline: [
+          { label: "Started SageOS coding task task_fixture_fix", state: "running" },
+          { label: "Completed SageOS coding task task_fixture_fix", state: "succeeded" },
+        ],
+      },
       report: {
         taskId: "task_fixture_fix",
         repoPath: repo,
@@ -143,6 +152,12 @@ describe("SageOS Night Shift coding runner", () => {
         id: "run_task_dirty_repo_1",
         state: "failed",
         error: expect.stringContaining("dirty"),
+        workerSessionId: "worker_task_dirty_repo_1",
+        budgetUsed: { elapsedMinutes: 0, toolCalls: 0 },
+        timeline: [
+          { label: "Started SageOS coding task task_dirty_repo", state: "running" },
+          { label: "Blocked SageOS coding task task_dirty_repo", state: "failed" },
+        ],
       },
       report: {
         outcome: "blocked",

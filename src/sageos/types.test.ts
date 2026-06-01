@@ -120,6 +120,16 @@ describe("SageOS shared types", () => {
       state: "queued",
       traceId: "trc_1",
       workerSessionId: "worker_task_1_1",
+      currentToolCall: "powershell Get-MpComputerStatus",
+      budgetUsed: { elapsedMinutes: 2, toolCalls: 1, costUsd: 0 },
+      timeline: [
+        {
+          at: "2026-05-18T00:00:00.000Z",
+          label: "Queued run_1",
+          state: "queued",
+          ref: "task_1",
+        },
+      ],
       logs: ["Queued run_1"],
       artifacts: ["artifact://run_1/report"],
       verificationResult: {

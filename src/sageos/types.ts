@@ -355,6 +355,19 @@ export type SageOsRunVerificationResult = {
   refs?: string[];
 };
 
+export type SageOsRunBudgetUsage = {
+  elapsedMinutes?: number;
+  toolCalls?: number;
+  costUsd?: number;
+};
+
+export type SageOsRunTimelineEvent = {
+  at: string;
+  label: string;
+  state?: "queued" | "running" | "succeeded" | "failed" | "cancelled" | "timed_out";
+  ref?: string;
+};
+
 export type SageOsRun = {
   id: string;
   taskId: string;
@@ -362,6 +375,9 @@ export type SageOsRun = {
   state: "queued" | "running" | "succeeded" | "failed" | "cancelled" | "timed_out";
   traceId: string;
   workerSessionId?: string;
+  currentToolCall?: string;
+  budgetUsed?: SageOsRunBudgetUsage;
+  timeline?: SageOsRunTimelineEvent[];
   logs?: string[];
   artifacts?: string[];
   verificationResult?: SageOsRunVerificationResult;
