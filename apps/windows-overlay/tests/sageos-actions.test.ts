@@ -5,6 +5,7 @@ import {
   pauseSageOs,
   queueSageOsTask,
   runSageOsIncidentRepair,
+  sendSageOsLauncherCommand,
 } from "../src/renderer/sageos-actions.js";
 
 describe("SageOS overlay actions", () => {
@@ -84,5 +85,21 @@ describe("SageOS overlay actions", () => {
       "not allowlisted",
     );
     expect(request).not.toHaveBeenCalled();
+  });
+
+  it("sends launcher commands through chat.send on the main session", async () => {
+    const request = vi.fn().mockResolvedValue({ runId: "run_1", status: "started" });
+
+    const result = await sendSageOsLauncherCommand({ request }, "  summarize my active work  ", {
+      idempotencyKey: "overlay-run-1",
+    });
+
+    expect(request).toHaveBeenCalledWith("chat.send", {
+      sessionKey: "main",
+      message: "summarize my active work",
+      deliver: false,
+      idempotencyKey: "overlay-run-1",
+    });
+    expect(result).toEqual({ runId: "run_1", status: "started" });
   });
 });

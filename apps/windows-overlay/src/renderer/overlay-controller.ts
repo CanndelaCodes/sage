@@ -10,6 +10,7 @@ import {
   resumeSageOs,
   runSageOsIncidentRepair,
   runNextSageOsTask,
+  sendSageOsLauncherCommand,
   type SageOsOverlayStatusState,
 } from "./sageos-actions.js";
 
@@ -115,6 +116,12 @@ export class SageOsOverlayController {
       }
       return runSageOsIncidentRepair(this.client, this.state.sageOsState, id);
     });
+  }
+
+  async sendLauncherCommand(message: string, idempotencyKey?: string) {
+    await this.runMutation(() =>
+      sendSageOsLauncherCommand(this.client, message, { idempotencyKey }),
+    );
   }
 
   private async runMutation(run: () => Promise<unknown>) {

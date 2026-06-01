@@ -111,4 +111,18 @@ describe("SageOsOverlayController", () => {
     expect(request).toHaveBeenNthCalledWith(2, "sageos.status", {});
     expect(controller.state.sageOsState).toBe(refreshed);
   });
+
+  it("sends Universal Launcher commands to the main chat session", async () => {
+    const request = vi.fn().mockResolvedValue({ runId: "run_1", status: "started" });
+    const controller = new SageOsOverlayController({ request });
+
+    await controller.sendLauncherCommand("  check SageOS health  ", "overlay-run-1");
+
+    expect(request).toHaveBeenCalledWith("chat.send", {
+      sessionKey: "main",
+      message: "check SageOS health",
+      deliver: false,
+      idempotencyKey: "overlay-run-1",
+    });
+  });
 });

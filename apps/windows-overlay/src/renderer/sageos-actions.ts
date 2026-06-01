@@ -75,7 +75,26 @@ export function cancelSageOsTask(client: OverlayGatewayClient, id: string) {
   return client.request("sageos.tasks.cancel", { id, reason: "windows-overlay" });
 }
 
-export function canRunSageOsIncidentRepair(incident: Pick<SageOsIncident, "autoRepairSafe" | "repairAction">) {
+export function sendSageOsLauncherCommand(
+  client: OverlayGatewayClient,
+  message: string,
+  opts: { idempotencyKey?: string; sessionKey?: string } = {},
+) {
+  const trimmed = message.trim();
+  if (!trimmed) {
+    throw new Error("SageOS launcher command is required");
+  }
+  return client.request("chat.send", {
+    sessionKey: opts.sessionKey ?? "main",
+    message: trimmed,
+    deliver: false,
+    idempotencyKey: opts.idempotencyKey ?? createLauncherCommandId(),
+  });
+}
+
+export function canRunSageOsIncidentRepair(
+  incident: Pick<SageOsIncident, "autoRepairSafe" | "repairAction">,
+) {
   const gatewayMethod = incident.repairAction?.gatewayMethod?.trim();
   return (
     incident.autoRepairSafe &&
@@ -104,4 +123,9 @@ export async function runSageOsIncidentRepair(
 
   await client.request(gatewayMethod, {});
   return loadSageOsOverlayStatus(client);
+}
+
+function createLauncherCommandId() {
+  const cryptoApi = globalThis.crypto as { randomUUID?: () => string } | undefined;
+  return `windows-overlay-${cryptoApi?.randomUUID?.() ?? Date.now().toString(36)}`;
 }

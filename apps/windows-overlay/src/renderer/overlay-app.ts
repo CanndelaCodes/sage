@@ -142,6 +142,7 @@ export class SageOsOverlayApp extends LitElement {
     loading: { state: true },
     error: { state: true },
     sageOsState: { state: true },
+    launcherCommand: { state: true },
   };
 
   static styles = css`
@@ -159,6 +160,7 @@ export class SageOsOverlayApp extends LitElement {
   private loading = false;
   private error: string | null = null;
   private sageOsState: SageOsOverlayStatusState | null = null;
+  private launcherCommand = "";
 
   connectedCallback() {
     super.connectedCallback();
@@ -208,7 +210,15 @@ export class SageOsOverlayApp extends LitElement {
           ${this.loading ? html`<section class="overlay-callout">Loading SageOS state...</section>` : nothing}
           ${model
             ? html`
-                ${renderUniversalLauncher()}
+                ${renderUniversalLauncher({
+                  value: this.launcherCommand,
+                  disabled: this.loading || !this.overlayConnected,
+                  onInput: (value) => {
+                    this.launcherCommand = value;
+                  },
+                  onRun: () => void this.runLauncherCommand(),
+                  onVoice: () => this.focusLauncher(),
+                })}
                 ${renderCommandDeck(model.commandDeck.cards)}
                 ${this.renderOverviewGroups(model.overview)}
                 ${this.renderOperationalRows(model.commandDeck)}
@@ -224,6 +234,22 @@ export class SageOsOverlayApp extends LitElement {
         </section>
       </main>
     `;
+  }
+
+  private async runLauncherCommand() {
+    const command = this.launcherCommand.trim();
+    if (!command || !this.controller) {
+      return;
+    }
+    await this.controller.sendLauncherCommand(command);
+    if (!this.controller.state.error) {
+      this.launcherCommand = "";
+    }
+    this.requestUpdate();
+  }
+
+  private focusLauncher() {
+    this.renderRoot.querySelector<HTMLInputElement>('input[aria-label="SageOS command"]')?.focus();
   }
 
   private renderOverviewGroups(groups: ReturnType<typeof renderOverlayModel>["overview"]) {
