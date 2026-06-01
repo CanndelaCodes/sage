@@ -7,7 +7,9 @@ import {
 } from "../../../../src/sageos/types.js";
 
 export type OverlayRendererQuery = {
+  collapsedEdge?: string;
   gatewayUrl?: string;
+  pinnedWidgets?: string;
   token?: string;
   password?: string;
   surface?: string;
@@ -22,6 +24,9 @@ export type OverlayLaunchConfig = {
 export function readOverlayLaunchConfig(
   env: Record<string, string | undefined> = process.env,
 ): OverlayLaunchConfig {
+  const collapsedEdge = overlayEdgeEnv(env.SAGEOS_OVERLAY_COLLAPSED_EDGE);
+  const pinnedWidgets = overlayWidgetsEnv(env.SAGEOS_OVERLAY_PINNED_WIDGETS);
+
   return {
     shell: {
       enabled: true,
@@ -29,11 +34,13 @@ export function readOverlayLaunchConfig(
       openMode: env.SAGEOS_OVERLAY_OPEN_MODE === "hud" ? "hud" : "full",
       hudExpandsToFull: booleanEnv(env.SAGEOS_OVERLAY_HUD_EXPANDS_TO_FULL, true),
       passThroughDefault: booleanEnv(env.SAGEOS_OVERLAY_PASS_THROUGH_DEFAULT, false),
-      collapsedEdge: overlayEdgeEnv(env.SAGEOS_OVERLAY_COLLAPSED_EDGE),
-      pinnedWidgets: overlayWidgetsEnv(env.SAGEOS_OVERLAY_PINNED_WIDGETS),
+      collapsedEdge,
+      pinnedWidgets,
     },
     rendererQuery: compactRendererQuery({
+      collapsedEdge,
       gatewayUrl: env.SAGEOS_OVERLAY_GATEWAY_URL,
+      pinnedWidgets: pinnedWidgets.join(","),
       token: env.SAGEOS_OVERLAY_TOKEN,
       password: env.SAGEOS_OVERLAY_PASSWORD,
       surface: env.SAGEOS_OVERLAY_OPEN_MODE === "hud" ? "hud" : undefined,

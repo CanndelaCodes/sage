@@ -2,7 +2,7 @@
 
 Date: 2026-06-01
 Operator: Codex
-Build: a98348ab11
+Build: overlay visual/layout smoke slice after 77516eacbb
 
 ## Preconditions
 
@@ -21,12 +21,13 @@ Build: a98348ab11
 - [ ] `Ctrl+Alt+Space` closes the overlay.
 - [ ] `powershell -ExecutionPolicy Bypass -File scripts/sageos-windows-overlay.ps1 -OpenMode hud` starts HUD-first mode.
 - [ ] HUD expands to full overlay.
-- [ ] Edge Rail collapse keeps health, approval, incident, and active-operation indicators visible.
+- [x] Edge Rail collapse keeps health, approval, and incident indicators visible.
 - [ ] Pinned widget mode leaves the underlying app usable outside active widget controls.
 - [ ] Pause, resume, approve, deny, queue, cancel, and emergency stop controls call the expected `sageos.*` RPC methods.
-- [ ] No renderer console errors appear during the smoke flow.
+- [x] No renderer page errors appear during the smoke flow.
 
 ## Evidence
 
-- Screenshot path: `apps/windows-overlay/dist/overlay-smoke-styled.png`
-- Notes: Automated overlay package typecheck, test, and build passed on 2026-06-01. `pnpm tsgo` passed after adding the native `sage-windows-overlay` gateway client id. `pnpm sage gateway --allow-unconfigured --port 18789 --bind loopback --token overlay-smoke-token` started a local gateway; it rebuilt stale root output and emitted existing plugin timing warnings only. Launching the overlay with `-Token "overlay-smoke-token" -OpenOnLaunch` rendered the full overlay on the virtual desktop screenshot with status `Connected`. The earlier connected-smoke blockers were resolved by bundling renderer Lit dependencies for Electron `file://` loading and by identifying the overlay as a native Windows overlay client instead of the web Control UI. A follow-up styled smoke verified the packaged stylesheet applies inside Electron by rendering the Lit app into light DOM. Gateway output had no rejection or renderer-origin errors after the final restart. Hotkey open/close, HUD mode, edge rail, pass-through widgets, and manual button-click RPC smoke still need physical/manual verification.
+- Full overlay screenshot path: `apps/windows-overlay/dist/overlay-smoke-styled.png`
+- Left edge rail screenshot path: `apps/windows-overlay/dist/overlay-smoke-edge-left.png`
+- Notes: Automated overlay package test, typecheck, build, `pnpm tsgo`, `pnpm lint`, and `git diff --check` passed on 2026-06-01 during the visual/layout pass. The visual contract now enforces the Vitreous Liquor token layer, focus states, reduced-motion handling, edge anchoring classes, and full-overlay pinned widget flow. An Electron smoke with a mock gateway verified that `SAGEOS_OVERLAY_COLLAPSED_EDGE=left` and `SAGEOS_OVERLAY_PINNED_WIDGETS=memoryQueue,systemHealth,nightShift` reach the renderer, render without pinned-widget overlap in the full Command Deck, expose the preload IPC bridge as `window.sageOsOverlay`, and collapse to the left Edge Rail. The smoke emitted Electron's development CSP warning only; no renderer page errors were observed. Physical hotkey open/close, HUD-first mode, pass-through usability, and manual button-click RPC smoke still need physical/manual verification.

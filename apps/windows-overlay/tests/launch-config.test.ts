@@ -24,7 +24,9 @@ describe("overlay launch config", () => {
     expect(config.shell.pinnedWidgets).toEqual(["nightShift", "systemHealth"]);
     expect(config.openOnLaunch).toBe(true);
     expect(config.rendererQuery).toEqual({
+      collapsedEdge: "left",
       gatewayUrl: "ws://127.0.0.1:18888",
+      pinnedWidgets: "nightShift,systemHealth",
       token: "token-1",
       password: "password-1",
       surface: "hud",
@@ -41,6 +43,9 @@ describe("overlay launch config", () => {
       hudExpandsToFull: true,
       collapsedEdge: "right",
     });
-    expect(config.rendererQuery).toEqual({});
+    expect(config.rendererQuery).toEqual({
+      collapsedEdge: "right",
+      pinnedWidgets: "activeOperations,approvals,incidents",
+    });
   });
 });

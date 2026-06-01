@@ -1,4 +1,10 @@
 import { LitElement, html, nothing } from "lit";
+import {
+  SAGEOS_OVERLAY_EDGES,
+  SAGEOS_OVERLAY_WIDGET_IDS,
+  type SageOsOverlayEdge,
+  type SageOsOverlayWidgetId,
+} from "../../../../src/sageos/types.js";
 import { renderAgentWorkspace } from "./components/agent-workspace.js";
 import type {
   AgentWorkspaceAction,
@@ -87,9 +93,20 @@ export type OverlayGatewaySettings = {
   token?: string;
   password?: string;
 };
+export type OverlayLayoutSettings = {
+  collapsedEdge: SageOsOverlayEdge;
+  pinnedWidgets: SageOsOverlayWidgetId[];
+};
 export type RenderOverlayModelOptions = {
   workspaceTarget?: AgentWorkspaceTarget;
+  pinnedWidgets?: SageOsOverlayWidgetId[];
 };
+
+const DEFAULT_PINNED_WIDGETS = [
+  "activeOperations",
+  "approvals",
+  "incidents",
+] as const satisfies SageOsOverlayWidgetId[];
 
 declare global {
   interface Window {
@@ -167,7 +184,7 @@ export function renderOverlayModel(
     },
     overview: buildOverviewGroups(status),
     workspace: buildWorkspaceModel(state, opts.workspaceTarget),
-    pinnedWidgets: buildPinnedWidgets(status),
+    pinnedWidgets: buildPinnedWidgets(status, opts.pinnedWidgets),
     hud: {
       badges: [
         { label: "Tasks", value: activeTasks },
@@ -208,8 +225,39 @@ export function readInitialOverlaySurface(search = globalThis.location?.search ?
   return normalizeOverlaySurface(new URLSearchParams(search).get("surface"));
 }
 
+export function readOverlayLayoutSettings(
+  search = globalThis.location?.search ?? "",
+): OverlayLayoutSettings {
+  const params = new URLSearchParams(search);
+  return {
+    collapsedEdge: normalizeOverlayEdge(params.get("collapsedEdge")),
+    pinnedWidgets: normalizePinnedWidgets(params.get("pinnedWidgets")),
+  };
+}
+
 export function normalizeOverlaySurface(value: unknown): OverlaySurface {
   return value === "hud" || value === "edgeRail" ? value : "commandDeck";
+}
+
+function normalizeOverlayEdge(value: unknown): SageOsOverlayEdge {
+  return typeof value === "string" && SAGEOS_OVERLAY_EDGES.includes(value as SageOsOverlayEdge)
+    ? (value as SageOsOverlayEdge)
+    : "right";
+}
+
+function normalizePinnedWidgets(value: unknown): SageOsOverlayWidgetId[] {
+  if (typeof value !== "string") {
+    return [...DEFAULT_PINNED_WIDGETS];
+  }
+
+  const widgets = value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry): entry is SageOsOverlayWidgetId =>
+      SAGEOS_OVERLAY_WIDGET_IDS.includes(entry as SageOsOverlayWidgetId),
+    );
+  const uniqueWidgets = [...new Set(widgets)];
+  return uniqueWidgets.length ? uniqueWidgets : [...DEFAULT_PINNED_WIDGETS];
 }
 
 export function getOverlaySurfaceVisibility(surface: OverlaySurface): OverlaySurfaceVisibility {
@@ -267,6 +315,7 @@ export class SageOsOverlayApp extends LitElement {
 
   private controller: SageOsOverlayController | null = null;
   private surface = readInitialOverlaySurface();
+  private layout = readOverlayLayoutSettings();
   private overlayConnected = false;
   private loading = false;
   private error: string | null = null;
@@ -311,6 +360,7 @@ export class SageOsOverlayApp extends LitElement {
     const model = this.sageOsState
       ? renderOverlayModel(this.sageOsState, {
           workspaceTarget: this.workspaceTarget ?? undefined,
+          pinnedWidgets: this.layout.pinnedWidgets,
         })
       : null;
     const surfaceVisibility = getOverlaySurfaceVisibility(this.surface);
@@ -328,6 +378,9 @@ export class SageOsOverlayApp extends LitElement {
           ${model
             ? html`
                 ${surfaceVisibility.launcher ? this.renderLauncher() : nothing}
+                ${surfaceVisibility.pinnedWidgets
+                  ? renderPinnedWidgets(model.pinnedWidgets, this.layout.collapsedEdge)
+                  : nothing}
                 ${surfaceVisibility.commandDeck ? renderCommandDeck(model.commandDeck.cards) : nothing}
                 ${surfaceVisibility.overview ? this.renderOverviewGroups(model.overview) : nothing}
                 ${surfaceVisibility.operationalRows
@@ -338,11 +391,10 @@ export class SageOsOverlayApp extends LitElement {
                       onAction: (action) => void this.runWorkspaceAction(action),
                     })
                   : nothing}
-                ${surfaceVisibility.pinnedWidgets
-                  ? renderPinnedWidgets(model.pinnedWidgets)
-                  : nothing}
                 ${surfaceVisibility.compactHud ? renderCompactHud(model.hud.badges) : nothing}
-                ${surfaceVisibility.edgeRail ? renderEdgeRail(model.edgeRail.badges) : nothing}
+                ${surfaceVisibility.edgeRail
+                  ? renderEdgeRail(model.edgeRail.badges, this.layout.collapsedEdge)
+                  : nothing}
               `
             : html`<section class="overlay-callout overlay-callout--empty">Waiting for SageOS gateway state.</section>`}
         </section>
@@ -1200,31 +1252,61 @@ function buildWorkspaceModel(
   };
 }
 
-function buildPinnedWidgets(status: SageOsOverlayStatusState["status"]): PinnedWidgetView[] {
+function buildPinnedWidgets(
+  status: SageOsOverlayStatusState["status"],
+  pinnedWidgets: readonly SageOsOverlayWidgetId[] = DEFAULT_PINNED_WIDGETS,
+): PinnedWidgetView[] {
   const urgentIncidents = countUrgentIncidents(status);
   const warningIncidents = status.incidents.filter(
     (incident) => incident.severity === "warning",
   ).length;
-  return [
-    {
+  const failingSources = status.sources.failing.length;
+  const widgetCatalog: Record<SageOsOverlayWidgetId, PinnedWidgetView> = {
+    activeOperations: {
       id: "activeOperations",
       title: "Active Operations",
       value: String(status.tasks.active),
       detail: `${status.tasks.queued} queued / ${status.tasks.blocked} blocked`,
     },
-    {
+    approvals: {
       id: "approvals",
       title: "Approvals",
       value: String(status.approvals.pending),
       detail: "Pending decisions",
     },
-    {
+    incidents: {
       id: "incidents",
       title: "Incidents",
       value: String(status.incidents.length),
       detail: `${urgentIncidents} urgent / ${warningIncidents} warning`,
     },
-  ];
+    memoryQueue: {
+      id: "memoryQueue",
+      title: "Memory Queue",
+      value: String(status.memory.captureQueue.pending),
+      detail: `${status.memory.captureQueue.failed} failed / ${status.memory.captureQueue.total} total`,
+    },
+    nightShift: {
+      id: "nightShift",
+      title: "Night Shift",
+      value: `${status.coding.reports.queued} queued`,
+      detail: `${status.coding.reports.active} active / ${status.coding.reports.blocked} blocked`,
+    },
+    systemHealth: {
+      id: "systemHealth",
+      title: "System Health",
+      value: failingSources > 0 || urgentIncidents > 0 ? "Degraded" : "OK",
+      detail: `${failingSources} failing source / ${urgentIncidents} urgent incidents`,
+    },
+    appPreview: {
+      id: "appPreview",
+      title: "App Preview",
+      value: `${status.apps.active} active`,
+      detail: `${status.apps.total} total / ${status.apps.blocked} blocked`,
+    },
+  };
+
+  return pinnedWidgets.map((widget) => widgetCatalog[widget]);
 }
 
 function systemWorkspaceModel(

@@ -3,6 +3,7 @@ import {
   getOverlaySurfaceVisibility,
   readInitialOverlaySurface,
   readOverlayGatewaySettings,
+  readOverlayLayoutSettings,
   renderOverlayModel,
   SageOsOverlayApp,
 } from "../src/renderer/overlay-app.js";
@@ -435,6 +436,39 @@ describe("overlay renderer model", () => {
     ]);
   });
 
+  it("uses configured pinned widget order to shape live summaries", () => {
+    const model = renderOverlayModel(state as never, {
+      pinnedWidgets: ["memoryQueue", "systemHealth", "nightShift", "appPreview"],
+    });
+
+    expect(model.pinnedWidgets).toEqual([
+      {
+        id: "memoryQueue",
+        title: "Memory Queue",
+        value: "2",
+        detail: "1 failed / 6 total",
+      },
+      {
+        id: "systemHealth",
+        title: "System Health",
+        value: "Degraded",
+        detail: "1 failing source / 0 urgent incidents",
+      },
+      {
+        id: "nightShift",
+        title: "Night Shift",
+        value: "1 queued",
+        detail: "0 active / 0 blocked",
+      },
+      {
+        id: "appPreview",
+        title: "App Preview",
+        value: "1 active",
+        detail: "2 total / 0 blocked",
+      },
+    ]);
+  });
+
   it("reads gateway settings from URL parameters before defaults", () => {
     const settings = readOverlayGatewaySettings(
       "?gatewayUrl=ws%3A%2F%2F127.0.0.1%3A18888&token=abc&password=secret",
@@ -452,6 +486,21 @@ describe("overlay renderer model", () => {
     expect(readInitialOverlaySurface("?surface=hud")).toBe("hud");
     expect(readInitialOverlaySurface("?surface=edgeRail")).toBe("edgeRail");
     expect(readInitialOverlaySurface("?surface=unexpected")).toBe("commandDeck");
+  });
+
+  it("reads and normalizes overlay layout settings from URL parameters", () => {
+    expect(
+      readOverlayLayoutSettings(
+        "?collapsedEdge=left&pinnedWidgets=nightShift,systemHealth,unknown,nightShift",
+      ),
+    ).toEqual({
+      collapsedEdge: "left",
+      pinnedWidgets: ["nightShift", "systemHealth"],
+    });
+    expect(readOverlayLayoutSettings("?collapsedEdge=center&pinnedWidgets=unknown")).toEqual({
+      collapsedEdge: "right",
+      pinnedWidgets: ["activeOperations", "approvals", "incidents"],
+    });
   });
 
   it("keeps full overlay, HUD, and edge rail sections mutually exclusive", () => {

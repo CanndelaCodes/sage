@@ -542,19 +542,50 @@ input::placeholder {
 
 .edge-rail {
   position: fixed;
-  right: 0;
-  top: 20vh;
   z-index: 3;
   display: grid;
   gap: 8px;
   padding: 8px;
   border: 1px solid var(--sageos-border-subtle);
-  border-right: 0;
-  border-radius: var(--sageos-radius-card) 0 0 var(--sageos-radius-card);
   background: var(--sageos-bg-overlay-strong);
   box-shadow: var(--sageos-shadow-ambient);
   backdrop-filter: blur(var(--sageos-glass-blur-sm));
   pointer-events: auto;
+}
+
+.edge-rail--right {
+  right: 0;
+  top: 50%;
+  border-right: 0;
+  border-radius: var(--sageos-radius-card) 0 0 var(--sageos-radius-card);
+  transform: translateY(-50%);
+}
+
+.edge-rail--left {
+  left: 0;
+  top: 50%;
+  border-left: 0;
+  border-radius: 0 var(--sageos-radius-card) var(--sageos-radius-card) 0;
+  transform: translateY(-50%);
+}
+
+.edge-rail--top,
+.edge-rail--bottom {
+  left: 50%;
+  grid-auto-flow: column;
+  transform: translateX(-50%);
+}
+
+.edge-rail--top {
+  top: 0;
+  border-top: 0;
+  border-radius: 0 0 var(--sageos-radius-card) var(--sageos-radius-card);
+}
+
+.edge-rail--bottom {
+  bottom: 0;
+  border-bottom: 0;
+  border-radius: var(--sageos-radius-card) var(--sageos-radius-card) 0 0;
 }
 
 .edge-rail button {
@@ -563,13 +594,44 @@ input::placeholder {
 
 .pinned-widgets {
   position: fixed;
-  right: 18px;
-  top: 18px;
   z-index: 2;
   display: grid;
   gap: 10px;
   width: min(360px, calc(100vw - 32px));
   pointer-events: auto;
+}
+
+.overlay-shell--commandDeck .pinned-widgets {
+  position: static;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  width: 100%;
+  transform: none;
+}
+
+.pinned-widgets--right {
+  right: 18px;
+  top: 18px;
+}
+
+.pinned-widgets--left {
+  left: 18px;
+  top: 18px;
+}
+
+.pinned-widgets--top {
+  top: 18px;
+  left: 50%;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  width: min(840px, calc(100vw - 36px));
+  transform: translateX(-50%);
+}
+
+.pinned-widgets--bottom {
+  bottom: 18px;
+  left: 50%;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  width: min(840px, calc(100vw - 36px));
+  transform: translateX(-50%);
 }
 
 .pinned-widget {

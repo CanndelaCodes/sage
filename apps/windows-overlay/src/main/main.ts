@@ -1,5 +1,5 @@
 import { app, globalShortcut, ipcMain } from "electron";
-import path from "node:path";
+import { getOverlayAssetPaths } from "./asset-paths.js";
 import { createElectronOverlayAdapter } from "./electron-adapter.js";
 import { readOverlayLaunchConfig } from "./launch-config.js";
 import { createOverlayWindowController } from "./window-controller.js";
@@ -8,10 +8,11 @@ void app
   .whenReady()
   .then(() => {
     const launchConfig = readOverlayLaunchConfig();
+    const assetPaths = getOverlayAssetPaths(app.getAppPath());
     const controller = createOverlayWindowController(
       createElectronOverlayAdapter({
-        rendererHtmlPath: path.join(app.getAppPath(), "dist", "renderer", "index.html"),
-        preloadPath: path.join(app.getAppPath(), "dist", "preload", "preload.js"),
+        rendererHtmlPath: assetPaths.rendererHtmlPath,
+        preloadPath: assetPaths.preloadPath,
         rendererQuery: launchConfig.rendererQuery,
       }),
       launchConfig.shell,

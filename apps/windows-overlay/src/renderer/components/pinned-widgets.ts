@@ -1,5 +1,8 @@
 import { html } from "lit";
-import type { SageOsOverlayWidgetId } from "../../../../../src/sageos/types.js";
+import type {
+  SageOsOverlayEdge,
+  SageOsOverlayWidgetId,
+} from "../../../../../src/sageos/types.js";
 
 export type PinnedWidgetView = {
   id: SageOsOverlayWidgetId;
@@ -8,9 +11,12 @@ export type PinnedWidgetView = {
   detail: string;
 };
 
-export function renderPinnedWidgets(widgets: PinnedWidgetView[]) {
+export function renderPinnedWidgets(
+  widgets: PinnedWidgetView[],
+  edge: SageOsOverlayEdge = "right",
+) {
   return html`
-    <aside class="pinned-widgets">
+    <aside class=${`pinned-widgets pinned-widgets--${edge}`} aria-label="Pinned SageOS widgets">
       ${widgets.map(
         (widget) => html`
           <section class="pinned-widget">
