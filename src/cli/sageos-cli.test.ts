@@ -135,13 +135,23 @@ describe("sage os CLI", () => {
 
   it("pauses, resumes, and emergency-stops through durable state", async () => {
     const stateDir = process.env.SAGE_STATE_DIR!;
-    const program = makeProgram();
+    const program = makeProgram({
+      loadConfig: () => ({
+        sageos: {
+          notifications: { telegram: { enabled: true, target: "telegram:status" } },
+        },
+      }),
+    } as SageOsCliDeps);
     await program.parseAsync(["os", "pause", "--json"], { from: "user" });
     const paused = JSON.parse(runtimeLogs.at(-1) ?? "{}");
     expect(paused.supervisor.state).toBe("paused");
     expect(paused.supervisor.enabled).toBe(true);
     expect(paused.audit.recentEvents).toBe(1);
     expect(paused.memory.canonical).toBe("sage-memory");
+    expect(paused.notifications.telegram).toMatchObject({
+      enabled: true,
+      target: "telegram:status",
+    });
 
     await program.parseAsync(["os", "resume", "--json"], { from: "user" });
     const running = JSON.parse(runtimeLogs.at(-1) ?? "{}");
@@ -1601,7 +1611,13 @@ describe("sage os CLI", () => {
     await appendSageOsEvent(log, { type: "older", actor: "test", summary: "older" });
     await appendSageOsEvent(log, { type: "newer", actor: "test", summary: "newer" });
 
-    const program = makeProgram();
+    const program = makeProgram({
+      loadConfig: () => ({
+        sageos: {
+          notifications: { telegram: { enabled: true, target: "telegram:doctor" } },
+        },
+      }),
+    } as SageOsCliDeps);
     await program.parseAsync(["os", "incidents", "--json"], { from: "user" });
     expect(lastJson()).toMatchObject({ incidents: [{ id: "incident_memory" }] });
 
@@ -1611,7 +1627,10 @@ describe("sage os CLI", () => {
     await program.parseAsync(["os", "doctor", "--json"], { from: "user" });
     expect(lastJson()).toMatchObject({
       ok: false,
-      status: { incidents: [{ id: "incident_memory" }] },
+      status: {
+        incidents: [{ id: "incident_memory" }],
+        notifications: { telegram: { enabled: true, target: "telegram:doctor" } },
+      },
     });
   });
 });

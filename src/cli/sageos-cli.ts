@@ -134,7 +134,7 @@ export async function launchWindowsOverlay(
 
 async function updateSupervisorState(
   state: "paused" | "running" | "stopped",
-  opts: { reason?: string; emergency?: boolean } = {},
+  opts: { reason?: string; emergency?: boolean; cfg?: SageConfig["sageos"] } = {},
 ) {
   const store = createSageOsStateStore();
   const controlStore = createSageOsControlStore();
@@ -172,7 +172,7 @@ async function updateSupervisorState(
   });
   await writeSageOsState(store, status);
   await writeSageOsControl(controlStore, { state, reason: opts.reason, emergency: opts.emergency });
-  return await collectSageOsStatus();
+  return await collectSageOsStatus({ cfg: opts.cfg });
 }
 
 function outputJsonOrText(opts: { json?: boolean }, payload: unknown, render: () => string) {
@@ -405,7 +405,10 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
     .option("--reason <reason>", "Reason for audit log")
     .option("--json", "Output JSON", false)
     .action(async (opts: { reason?: string; json?: boolean }) => {
-      const snapshot = await updateSupervisorState("paused", { reason: opts.reason });
+      const snapshot = await updateSupervisorState("paused", {
+        reason: opts.reason,
+        cfg: loadSageConfig().sageos,
+      });
       defaultRuntime.log(opts.json ? JSON.stringify(snapshot, null, 2) : "SageOS paused");
     });
 
@@ -414,7 +417,10 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
     .option("--reason <reason>", "Reason for audit log")
     .option("--json", "Output JSON", false)
     .action(async (opts: { reason?: string; json?: boolean }) => {
-      const snapshot = await updateSupervisorState("running", { reason: opts.reason });
+      const snapshot = await updateSupervisorState("running", {
+        reason: opts.reason,
+        cfg: loadSageConfig().sageos,
+      });
       defaultRuntime.log(opts.json ? JSON.stringify(snapshot, null, 2) : "SageOS resumed");
     });
 
@@ -423,7 +429,10 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
     .option("--reason <reason>", "Reason for audit log")
     .option("--json", "Output JSON", false)
     .action(async (opts: { reason?: string; json?: boolean }) => {
-      const snapshot = await updateSupervisorState("stopped", { reason: opts.reason });
+      const snapshot = await updateSupervisorState("stopped", {
+        reason: opts.reason,
+        cfg: loadSageConfig().sageos,
+      });
       defaultRuntime.log(opts.json ? JSON.stringify(snapshot, null, 2) : "SageOS stopped");
     });
 
@@ -435,6 +444,7 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
       const snapshot = await updateSupervisorState("stopped", {
         reason: opts.reason,
         emergency: true,
+        cfg: loadSageConfig().sageos,
       });
       defaultRuntime.log(
         opts.json ? JSON.stringify(snapshot, null, 2) : "SageOS emergency stop engaged",
@@ -1341,7 +1351,7 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
     .description("List SageOS incidents")
     .option("--json", "Output JSON", false)
     .action(async (opts: { json?: boolean }) => {
-      const status = await collectSageOsStatus();
+      const status = await collectSageOsStatus({ cfg: loadSageConfig().sageos });
       outputJsonOrText(opts, { incidents: status.incidents }, () =>
         status.incidents.length === 0
           ? "No SageOS incidents."
@@ -1370,7 +1380,7 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
     .description("Check SageOS health")
     .option("--json", "Output JSON", false)
     .action(async (opts: { json?: boolean }) => {
-      const status = await collectSageOsStatus();
+      const status = await collectSageOsStatus({ cfg: loadSageConfig().sageos });
       const ok = status.incidents.length === 0 && status.supervisor.state !== "degraded";
       outputJsonOrText(opts, { ok, status }, () =>
         ok ? "SageOS doctor: ok" : `SageOS doctor: ${status.incidents.length} incident(s)`,
