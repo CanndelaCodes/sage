@@ -97,6 +97,8 @@ export async function readSystemStatusSnapshot(
   checks.push(await startupCheck(execJson));
   checks.push(await diskCheck(execJson));
   checks.push(await servicesCheck(execJson));
+  checks.push(await processesCheck(execJson));
+  checks.push(await portsCheck(execJson));
   return { platform, checkedAt, checks };
 }
 
@@ -342,6 +344,59 @@ async function servicesCheck(
     };
   } catch (err) {
     return unavailableCheck("services", "Services", err);
+  }
+}
+
+async function processesCheck(
+  execJson: (command: string) => Promise<unknown>,
+): Promise<SageOsSystemCheck> {
+  try {
+    const rows = asArray(
+      await execJson(
+        "@(Get-Process | Sort-Object CPU -Descending | Select-Object -First 15 ProcessName,Id,CPU,WorkingSet64) | ConvertTo-Json -Compress",
+      ),
+    ).map(asRecord);
+    const samples = rows.map((row) => ({
+      name: readString(row.ProcessName),
+      pid: readNumber(row.Id),
+      cpuSeconds: readNumber(row.CPU),
+      workingSetBytes: readNumber(row.WorkingSet64),
+    }));
+    return {
+      id: "processes",
+      label: "Processes",
+      status: samples.length > 0 ? "ok" : "warning",
+      summary: `${samples.length} top process(es) sampled.`,
+      details: { samples },
+    };
+  } catch (err) {
+    return unavailableCheck("processes", "Processes", err);
+  }
+}
+
+async function portsCheck(
+  execJson: (command: string) => Promise<unknown>,
+): Promise<SageOsSystemCheck> {
+  try {
+    const rows = asArray(
+      await execJson(
+        "@(Get-NetTCPConnection -State Listen | Select-Object -First 50 LocalAddress,LocalPort,OwningProcess) | ConvertTo-Json -Compress",
+      ),
+    ).map(asRecord);
+    const listeners = rows.map((row) => ({
+      localAddress: readString(row.LocalAddress),
+      localPort: readNumber(row.LocalPort),
+      owningProcess: readNumber(row.OwningProcess),
+    }));
+    return {
+      id: "ports",
+      label: "Listening Ports",
+      status: listeners.length > 40 ? "warning" : "ok",
+      summary: `${listeners.length} listening TCP port(s) visible.`,
+      details: { listeners },
+    };
+  } catch (err) {
+    return unavailableCheck("ports", "Listening Ports", err);
   }
 }
 

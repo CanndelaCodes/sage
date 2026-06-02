@@ -248,6 +248,18 @@ describe("SageOS system observer", () => {
         if (command.includes("Get-Service")) {
           return 42;
         }
+        if (command.includes("Get-Process")) {
+          return [
+            { ProcessName: "Code", Id: 101, CPU: 12.5, WorkingSet64: 200_000_000 },
+            { ProcessName: "sage", Id: 202, CPU: 2, WorkingSet64: 50_000_000 },
+          ];
+        }
+        if (command.includes("Get-NetTCPConnection")) {
+          return [
+            { LocalAddress: "127.0.0.1", LocalPort: 18789, OwningProcess: 202 },
+            { LocalAddress: "0.0.0.0", LocalPort: 443, OwningProcess: 101 },
+          ];
+        }
         throw new Error(`unexpected command: ${command}`);
       },
     });
@@ -260,9 +272,23 @@ describe("SageOS system observer", () => {
         expect.objectContaining({ id: "startup", status: "ok" }),
         expect.objectContaining({ id: "disk", status: "warning" }),
         expect.objectContaining({ id: "services", status: "ok" }),
+        expect.objectContaining({ id: "processes", status: "ok" }),
+        expect.objectContaining({ id: "ports", status: "ok" }),
       ]),
     });
     const startup = snapshot.checks.find((check) => check.id === "startup");
+    const processes = snapshot.checks.find((check) => check.id === "processes");
+    const ports = snapshot.checks.find((check) => check.id === "ports");
     expect(JSON.stringify(startup)).not.toContain("not selected");
+    expect(processes?.summary).toBe("2 top process(es) sampled.");
+    expect((processes?.details as { samples?: unknown[] } | undefined)?.samples).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: "Code", pid: 101 })]),
+    );
+    expect(ports?.summary).toBe("2 listening TCP port(s) visible.");
+    expect((ports?.details as { listeners?: unknown[] } | undefined)?.listeners).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ localAddress: "127.0.0.1", localPort: 18789 }),
+      ]),
+    );
   });
 });
