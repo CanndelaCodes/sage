@@ -2,7 +2,7 @@
 
 Date: 2026-06-02
 Operator: Codex
-Build: Windows overlay MVP shell verification after employee edit control pass
+Build: Windows overlay MVP shell verification after employee activity fact pass
 
 ## Preconditions
 
@@ -42,6 +42,7 @@ Build: Windows overlay MVP shell verification after employee edit control pass
 - [x] Active-operation launcher-prefill controls remain available while the gateway is disconnected.
 - [x] Employee Agent Workspace controls expose assign task, edit, lifecycle, and retire actions.
 - [x] Employee edit launcher-prefill control remains available while the gateway is disconnected.
+- [x] Employee Agent Workspace exposes current task, last activity, recent outputs, and related incidents.
 - [x] Liquid Linear material tokens cover ambient, command, focus, and summit glass elevations.
 - [x] Liquid Linear command glass tokens cover refraction, specular highlights, platinum tint, command/focus/control shadows, runway highlights, and spring motion.
 - [x] Command Deck opens on active run telemetry when a live run exists, including worker session, current tool, budget used, verification, timeline, logs, and artifacts.
@@ -65,7 +66,7 @@ Build: Windows overlay MVP shell verification after employee edit control pass
 - HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud.png`
 - IDE-like backdrop HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud-ide.png`
 - Current verification update: `pnpm --dir apps/windows-overlay smoke:electron` passed on
-  2026-06-02 after the employee edit control pass. The packaged overlay reported `ok: true`,
+  2026-06-02 after the employee activity fact pass. The packaged overlay reported `ok: true`,
   `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, no renderer page errors,
   four `sageos.control` calls for pause, resume, stop, and emergency stop, verified the
   availability-aware Voice entry state, and refreshed the full, bright, edge-left, text-heavy edge,
@@ -125,7 +126,8 @@ src/telegram/bot.test.ts` passed with 28 files
   configured display IDs. Unit coverage also verifies explicit connected/loading/reconnecting/error
   state labels, stale-state callouts, gateway-backed control disabled reasons, Edge Rail drill-down
   targets, explicit Security and PC Management system resources, active-operation launcher-prefill
-  controls, employee edit launcher-prefill controls, and Universal Launcher disabled reasons for gateway and empty-command states. The smoke
+  controls, employee edit launcher-prefill controls, employee current task/activity/output/incident
+  facts, and Universal Launcher disabled reasons for gateway and empty-command states. The smoke
   now presses `Ctrl+K`, verifies launcher focus, presses
   `Escape`, and waits for the Electron BrowserWindow to hide through the close bridge. The smoke
   emitted Electron's development CSP warning only; no renderer page errors were observed.

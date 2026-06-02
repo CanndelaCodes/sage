@@ -580,6 +580,10 @@ describe("overlay renderer model", () => {
     });
     expect(employeeModel.workspace.facts).toEqual(
       expect.arrayContaining([
+        { label: "Current task", value: "Night Shift report (running)" },
+        { label: "Last activity", value: "2026-06-01T12:50:00.000Z" },
+        { label: "Recent outputs", value: "Summarize coding work (succeeded)" },
+        { label: "Incidents", value: "Memory queue backlog (warning)" },
         { label: "Assigned tasks", value: "Night Shift report (running)" },
         { label: "Tools", value: "sage-memory" },
         { label: "Memory", value: "capture_queue" },

@@ -1644,6 +1644,9 @@ function buildWorkspaceModel(
     if (!employee) {
       return missingWorkspaceTarget(target);
     }
+    const assignedTasks = assignedTasksForEmployee(state.tasks ?? [], employee.id);
+    const assignedRuns = runsForTasks(state.runs ?? [], assignedTasks);
+    const assignedReports = codingReportsForTasks(state.codingReports ?? [], assignedTasks);
     return {
       title: employee.name,
       eyebrow: `Employee / ${employee.status}`,
@@ -1652,7 +1655,11 @@ function buildWorkspaceModel(
         { label: "Role", value: employee.role },
         { label: "Autonomy", value: employee.autonomyTier },
         { label: "Responsibilities", value: employee.responsibilities?.join(", ") || "None" },
-        { label: "Assigned tasks", value: assignedTasksSummary(state.tasks ?? [], employee.id) },
+        { label: "Current task", value: currentEmployeeTaskSummary(assignedTasks) },
+        { label: "Last activity", value: employeeLastActivitySummary(employee, assignedTasks, assignedRuns, assignedReports) },
+        { label: "Recent outputs", value: employeeRecentOutputsSummary(assignedReports) },
+        { label: "Incidents", value: employeeIncidentSummary(employee, state.status.incidents) },
+        { label: "Assigned tasks", value: assignedTasksSummary(assignedTasks) },
         { label: "Tools", value: employee.tools?.join(", ") || "None" },
         { label: "Memory", value: employee.memoryScopes?.join(", ") || "None" },
         { label: "Schedules", value: employee.schedules?.join(", ") || "Manual" },
@@ -2178,11 +2185,16 @@ function ownerLabel(ownerAgentId: string | undefined, employeeNames: Map<string,
   return employeeNames.get(ownerAgentId) ?? ownerAgentId;
 }
 
-function assignedTasksSummary(
-  tasks: NonNullable<SageOsOverlayStatusState["tasks"]>,
-  employeeId: string,
-): string {
-  const assigned = tasks.filter((task) => task.ownerAgentId === employeeId);
+type OverlayEmployeeRecord = NonNullable<SageOsOverlayStatusState["agents"]>[number];
+type OverlayTaskRecord = NonNullable<SageOsOverlayStatusState["tasks"]>[number];
+type OverlayRunRecordForState = NonNullable<SageOsOverlayStatusState["runs"]>[number];
+type OverlayCodingReportRecord = NonNullable<SageOsOverlayStatusState["codingReports"]>[number];
+
+function assignedTasksForEmployee(tasks: OverlayTaskRecord[], employeeId: string): OverlayTaskRecord[] {
+  return tasks.filter((task) => task.ownerAgentId === employeeId);
+}
+
+function assignedTasksSummary(assigned: OverlayTaskRecord[]): string {
   if (assigned.length === 0) {
     return "None";
   }
@@ -2190,6 +2202,74 @@ function assignedTasksSummary(
   return assigned.length > visible.length
     ? `${visible.join(", ")}, +${assigned.length - visible.length} more`
     : visible.join(", ");
+}
+
+function currentEmployeeTaskSummary(assigned: OverlayTaskRecord[]): string {
+  const current =
+    assigned.find((task) => task.state === "running") ??
+    assigned.find((task) => !["completed", "failed", "cancelled", "expired"].includes(task.state)) ??
+    assigned[0];
+  return current ? `${current.title} (${current.state})` : "None";
+}
+
+function runsForTasks(runs: OverlayRunRecordForState[], tasks: OverlayTaskRecord[]): OverlayRunRecordForState[] {
+  const taskIds = new Set(tasks.map((task) => task.id));
+  return runs.filter((run) => taskIds.has(run.taskId));
+}
+
+function codingReportsForTasks(
+  reports: OverlayCodingReportRecord[],
+  tasks: OverlayTaskRecord[],
+): OverlayCodingReportRecord[] {
+  const taskIds = new Set(tasks.map((task) => task.id));
+  return reports.filter((report) => taskIds.has(report.taskId));
+}
+
+function employeeLastActivitySummary(
+  employee: OverlayEmployeeRecord,
+  tasks: OverlayTaskRecord[],
+  runs: OverlayRunRecordForState[],
+  reports: OverlayCodingReportRecord[],
+): string {
+  const timestamps = [
+    employee.updatedAt,
+    employee.activatedAt,
+    employee.createdAt,
+    ...tasks.flatMap((task) => [task.updatedAt, task.createdAt]),
+    ...runs.flatMap((run) => [run.finishedAt, run.startedAt]),
+    ...reports.flatMap((report) => [report.updatedAt, report.finishedAt, report.startedAt, report.createdAt]),
+  ].filter((value): value is string => typeof value === "string" && value.length > 0);
+  return timestamps.length > 0 ? timestamps.toSorted().at(-1) ?? "Unknown" : "Unknown";
+}
+
+function employeeRecentOutputsSummary(reports: OverlayCodingReportRecord[]): string {
+  if (reports.length === 0) {
+    return "None";
+  }
+  return reports
+    .slice(0, 3)
+    .map((report) => `${report.objective} (${report.outcome})`)
+    .join(", ");
+}
+
+function employeeIncidentSummary(
+  employee: OverlayEmployeeRecord,
+  incidents: SageOsOverlayStatusState["status"]["incidents"],
+): string {
+  const tokens = [employee.id, employee.name, employee.role, ...(employee.responsibilities ?? [])]
+    .map((value) => value.toLowerCase())
+    .filter((value) => value.length > 2);
+  const related = incidents.filter((incident) => {
+    const haystack = [incident.category, incident.title, incident.summary].join(" ").toLowerCase();
+    return tokens.some((token) => haystack.includes(token));
+  });
+  if (related.length === 0) {
+    return "None";
+  }
+  return related
+    .slice(0, 3)
+    .map((incident) => `${incident.title} (${incident.severity})`)
+    .join(", ");
 }
 
 function labelFromId(id: string): string {
