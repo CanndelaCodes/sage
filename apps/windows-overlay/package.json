@@ -8,6 +8,9 @@
     "dev": "pnpm build && electron .",
     "smoke": "powershell -ExecutionPolicy Bypass -File ../../scripts/sageos-windows-overlay.ps1",
     "smoke:electron": "node scripts/smoke-electron.mjs",
+    "startup:install": "powershell -ExecutionPolicy Bypass -File ../../scripts/sageos-windows-overlay-startup.ps1 -Action install",
+    "startup:status": "powershell -ExecutionPolicy Bypass -File ../../scripts/sageos-windows-overlay-startup.ps1 -Action status",
+    "startup:uninstall": "powershell -ExecutionPolicy Bypass -File ../../scripts/sageos-windows-overlay-startup.ps1 -Action uninstall",
     "test": "vitest run --config vitest.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
