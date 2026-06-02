@@ -146,9 +146,11 @@ export type SageOsTelegramBatchFlushResult =
     }
   | {
       outcome: "skipped";
-      reason: "empty" | "telegram_disabled" | "missing_target";
+      reason: "empty" | "telegram_disabled" | "missing_target" | "not_due" | "batch_disabled";
       count: number;
       notification?: SageOsNotificationMessage;
+      oldestCreatedAt?: string;
+      dueAt?: string;
     }
   | {
       outcome: "failed";
@@ -365,6 +367,58 @@ export async function flushSageOsTelegramNotificationBatchOnce(
     });
     return { outcome: "failed", target, count: summary.entries.length, notification, error };
   }
+}
+
+export async function flushDueSageOsTelegramNotificationBatchOnce(
+  params: {
+    stateDir?: string;
+    queuePath?: string;
+    cfg?: SageOsConfig;
+    target?: string;
+    sender?: SageOsTelegramSender;
+    now?: () => Date;
+  } = {},
+): Promise<SageOsTelegramBatchFlushResult> {
+  const queuePath = params.queuePath ?? resolveSageOsNotificationBatchPath(params);
+  const summary = await listSageOsNotificationBatch({ queuePath });
+  if (summary.entries.length === 0) {
+    return { outcome: "skipped", reason: "empty", count: 0 };
+  }
+
+  const batchWindowMinutes = telegramBatchWindowMinutes(params.cfg);
+  if (batchWindowMinutes <= 0) {
+    return { outcome: "skipped", reason: "batch_disabled", count: summary.entries.length };
+  }
+
+  const oldest = summary.entries[0];
+  const oldestTime = Date.parse(oldest.createdAt);
+  const dueAtTime = (Number.isFinite(oldestTime) ? oldestTime : 0) + batchWindowMinutes * 60_000;
+  const dueAt = new Date(dueAtTime).toISOString();
+  if (dueAtTime > (params.now?.() ?? new Date()).getTime()) {
+    return {
+      outcome: "skipped",
+      reason: "not_due",
+      count: summary.entries.length,
+      oldestCreatedAt: oldest.createdAt,
+      dueAt,
+    };
+  }
+
+  if (!params.cfg?.notifications?.telegram?.enabled) {
+    return { outcome: "skipped", reason: "telegram_disabled", count: summary.entries.length };
+  }
+  const target = params.target ?? oldest.target ?? telegramTarget(params.cfg);
+  if (!target) {
+    return { outcome: "skipped", reason: "missing_target", count: summary.entries.length };
+  }
+
+  return flushSageOsTelegramNotificationBatchOnce({
+    stateDir: params.stateDir,
+    queuePath,
+    cfg: params.cfg,
+    target,
+    sender: params.sender,
+  });
 }
 
 export function buildSageOsTaskNotification(params: {

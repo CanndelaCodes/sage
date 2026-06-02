@@ -1,6 +1,7 @@
 import type { SageConfig } from "../config/types.sage.js";
 import { createSageOsEventLog, appendSageOsEvent, type SageOsEventLog } from "./event-log.js";
 import { runSageOsMemoryStewardOnce } from "./memory-steward.js";
+import { flushDueSageOsTelegramNotificationBatchOnce } from "./notifications.js";
 import { observeAppFocusOnce } from "./observations.js";
 import {
   createSageOsControlStore,
@@ -36,6 +37,7 @@ export type SageOsSupervisorWorkLoopDeps = {
   observeSystemStatusOnce?: typeof observeSystemStatusOnce;
   runMemoryStewardOnce?: typeof runSageOsMemoryStewardOnce;
   runNextTaskOnce?: typeof runNextSageOsTaskOnce;
+  flushDueNotificationBatchOnce?: typeof flushDueSageOsTelegramNotificationBatchOnce;
   collectStatus?: typeof collectSageOsStatus;
 };
 
@@ -47,6 +49,7 @@ export type SageOsSupervisorWorkLoopResult = {
   memory?: Awaited<ReturnType<typeof runSageOsMemoryStewardOnce>>;
   task: SageOsSupervisorTaskResult;
   tasks: SageOsSupervisorTaskResult[];
+  notificationBatch?: Awaited<ReturnType<typeof flushDueSageOsTelegramNotificationBatchOnce>>;
   status: SageOsStatusSnapshot;
 };
 
@@ -113,6 +116,14 @@ export async function runSageOsSupervisorWorkLoopOnce(params: {
   }
   result.tasks = taskResults;
   result.task = taskResults[0]!;
+  if (hasNotificationBatchWindow(sageos)) {
+    result.notificationBatch = await (
+      deps.flushDueNotificationBatchOnce ?? flushDueSageOsTelegramNotificationBatchOnce
+    )({
+      stateDir: params.stateDir,
+      cfg: sageos,
+    });
+  }
   result.status = await (deps.collectStatus ?? collectSageOsStatus)({
     stateDir: params.stateDir,
     agentId,
@@ -374,4 +385,9 @@ function hasEnabledSystemSource(cfg: SageOsConfig): boolean {
 
 function normalizeMaxConcurrentTasks(value: number | undefined): number {
   return Number.isFinite(value) && value && value > 0 ? Math.floor(value) : 1;
+}
+
+function hasNotificationBatchWindow(cfg: SageOsConfig): boolean {
+  const value = cfg.notifications?.telegram?.batchWindowMinutes;
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
 }

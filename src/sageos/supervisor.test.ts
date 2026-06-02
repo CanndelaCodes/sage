@@ -183,6 +183,9 @@ describe("SageOS supervisor skeleton", () => {
     const observeSystemStatusOnce = vi.fn().mockResolvedValue({ status: "recorded" });
     const runMemoryStewardOnce = vi.fn().mockResolvedValue({ status });
     const runNextTaskOnce = vi.fn().mockResolvedValue({ outcome: "idle", status });
+    const flushDueNotificationBatchOnce = vi
+      .fn()
+      .mockResolvedValue({ outcome: "skipped", reason: "not_due", count: 1 });
     const collectStatus = vi.fn().mockResolvedValue(status);
 
     const result = await runSageOsSupervisorWorkLoopOnce({
@@ -190,7 +193,9 @@ describe("SageOS supervisor skeleton", () => {
         sageos: {
           sources: { appFocus: true, system: true },
           memory: { replayQueues: true },
-          notifications: { telegram: { enabled: true, target: "telegram:123" } },
+          notifications: {
+            telegram: { enabled: true, target: "telegram:123", batchWindowMinutes: 15 },
+          },
         },
       },
       stateDir: root,
@@ -201,6 +206,7 @@ describe("SageOS supervisor skeleton", () => {
         observeSystemStatusOnce,
         runMemoryStewardOnce,
         runNextTaskOnce,
+        flushDueNotificationBatchOnce,
         collectStatus,
       },
     });
@@ -210,7 +216,9 @@ describe("SageOS supervisor skeleton", () => {
       cfg: {
         sources: { appFocus: true, system: true },
         memory: { replayQueues: true },
-        notifications: { telegram: { enabled: true, target: "telegram:123" } },
+        notifications: {
+          telegram: { enabled: true, target: "telegram:123", batchWindowMinutes: 15 },
+        },
       },
       stateDir: root,
       agentId: "main",
@@ -219,7 +227,9 @@ describe("SageOS supervisor skeleton", () => {
       cfg: {
         sources: { appFocus: true, system: true },
         memory: { replayQueues: true },
-        notifications: { telegram: { enabled: true, target: "telegram:123" } },
+        notifications: {
+          telegram: { enabled: true, target: "telegram:123", batchWindowMinutes: 15 },
+        },
       },
       stateDir: root,
     });
@@ -228,7 +238,9 @@ describe("SageOS supervisor skeleton", () => {
         sageos: {
           sources: { appFocus: true, system: true },
           memory: { replayQueues: true },
-          notifications: { telegram: { enabled: true, target: "telegram:123" } },
+          notifications: {
+            telegram: { enabled: true, target: "telegram:123", batchWindowMinutes: 15 },
+          },
         },
       },
       agentId: "main",
@@ -241,8 +253,25 @@ describe("SageOS supervisor skeleton", () => {
       cfg: {
         sources: { appFocus: true, system: true },
         memory: { replayQueues: true },
-        notifications: { telegram: { enabled: true, target: "telegram:123" } },
+        notifications: {
+          telegram: { enabled: true, target: "telegram:123", batchWindowMinutes: 15 },
+        },
       },
+    });
+    expect(flushDueNotificationBatchOnce).toHaveBeenCalledWith({
+      stateDir: root,
+      cfg: {
+        sources: { appFocus: true, system: true },
+        memory: { replayQueues: true },
+        notifications: {
+          telegram: { enabled: true, target: "telegram:123", batchWindowMinutes: 15 },
+        },
+      },
+    });
+    expect(result.notificationBatch).toMatchObject({
+      outcome: "skipped",
+      reason: "not_due",
+      count: 1,
     });
     expect(collectStatus).toHaveBeenCalledWith({
       stateDir: root,
@@ -250,7 +279,9 @@ describe("SageOS supervisor skeleton", () => {
       cfg: {
         sources: { appFocus: true, system: true },
         memory: { replayQueues: true },
-        notifications: { telegram: { enabled: true, target: "telegram:123" } },
+        notifications: {
+          telegram: { enabled: true, target: "telegram:123", batchWindowMinutes: 15 },
+        },
       },
     });
   });

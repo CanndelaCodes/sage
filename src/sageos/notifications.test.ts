@@ -10,6 +10,7 @@ import {
   buildSageOsIncidentNotification,
   buildSageOsLifecycleNotification,
   buildSageOsTaskNotification,
+  flushDueSageOsTelegramNotificationBatchOnce,
   flushSageOsTelegramNotificationBatchOnce,
   listSageOsNotificationBatch,
   sendSageOsApprovalNotificationOnce,
@@ -373,6 +374,81 @@ describe("SageOS notifications", () => {
     const logPath = createSageOsEventLog({ stateDir: root }).path;
     await expect(readFile(logPath, "utf8")).resolves.toContain("notification_batched");
     await expect(readFile(logPath, "utf8")).resolves.toContain("notification_sent");
+  });
+
+  it("flushes batched notifications only after the configured window elapses", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-task-notification-batch-due-"));
+    const createdAt = "2026-05-28T02:45:00.000Z";
+    const task = {
+      id: "task_batch_due",
+      title: "Summarize workspace",
+      objective: "Summarize the local workspace changes.",
+      state: "completed" as const,
+      requestedBy: "sageos.task_runner",
+      autonomyTier: "execute_scoped" as const,
+      policyScopes: [{ kind: "repo" as const, allow: ["C:/repo"], risk: "low" as const }],
+      createdAt,
+      updatedAt: createdAt,
+    };
+    const run = {
+      id: "run_task_batch_due_1",
+      taskId: task.id,
+      attempt: 1,
+      state: "succeeded" as const,
+      traceId: "trace_task_batch_due",
+      startedAt: createdAt,
+      finishedAt: createdAt,
+    };
+    const cfg = {
+      notifications: {
+        telegram: {
+          enabled: true,
+          target: "telegram:123",
+          batchWindowMinutes: 15,
+        },
+      },
+    };
+    const sender = vi.fn(async () => ({ messageId: "due-batch", chatId: "123" }));
+
+    await sendSageOsTaskNotificationOnce({
+      stateDir: root,
+      cfg,
+      task,
+      run,
+      sender,
+      now: () => new Date(createdAt),
+    });
+
+    await expect(
+      flushDueSageOsTelegramNotificationBatchOnce({
+        stateDir: root,
+        cfg,
+        sender,
+        now: () => new Date("2026-05-28T02:59:59.000Z"),
+      }),
+    ).resolves.toMatchObject({
+      outcome: "skipped",
+      reason: "not_due",
+      count: 1,
+      dueAt: "2026-05-28T03:00:00.000Z",
+    });
+    expect(sender).not.toHaveBeenCalled();
+    await expect(listSageOsNotificationBatch({ stateDir: root })).resolves.toMatchObject({
+      counts: { total: 1, pending: 1 },
+    });
+
+    await expect(
+      flushDueSageOsTelegramNotificationBatchOnce({
+        stateDir: root,
+        cfg,
+        sender,
+        now: () => new Date("2026-05-28T03:00:00.000Z"),
+      }),
+    ).resolves.toMatchObject({ outcome: "sent", target: "telegram:123", count: 1 });
+    expect(sender).toHaveBeenCalledTimes(1);
+    await expect(listSageOsNotificationBatch({ stateDir: root })).resolves.toMatchObject({
+      counts: { total: 0, pending: 0 },
+    });
   });
 
   it("builds and sends startup lifecycle notifications with audit evidence", async () => {
