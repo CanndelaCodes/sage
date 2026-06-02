@@ -1433,7 +1433,7 @@ function buildResourceRows(state: SageOsOverlayStatusState): OverlayResourceRow[
       id: observation.id,
       kind: "observation" as const,
       title: observation.title,
-      detail: observation.text,
+      detail: formatObservationText(observation),
       state: observation.state,
     })),
     ...(state.collaborations ?? []).map((collaboration) => ({
@@ -1744,7 +1744,7 @@ function buildWorkspaceModel(
     return {
       title: observation.title,
       eyebrow: `Observation / ${observation.source}`,
-      detail: observation.text,
+      detail: formatObservationText(observation),
       facts: [
         { label: "State", value: observation.state },
         { label: "Observed", value: observation.observedAt },
@@ -2204,6 +2204,21 @@ function formatUsd(value: number): string {
 
 function formatList(values: string[]): string {
   return values.length > 0 ? values.join(", ") : "None";
+}
+
+function formatObservationText(observation: { text?: string; sensitivity?: string }): string {
+  if (observation.sensitivity === "private" || observation.sensitivity === "secret") {
+    return "Private observation text redacted";
+  }
+  return previewInlineText(observation.text ?? "No observation text");
+}
+
+function previewInlineText(value: string): string {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= 180) {
+    return normalized;
+  }
+  return `${normalized.slice(0, 177)}...`;
 }
 
 function formatNotificationPolicy(

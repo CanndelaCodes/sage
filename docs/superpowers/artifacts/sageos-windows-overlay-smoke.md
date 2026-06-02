@@ -2,7 +2,7 @@
 
 Date: 2026-06-02
 Operator: Codex
-Build: Windows overlay MVP shell verification after Security and PC Management resource pass
+Build: Windows overlay MVP shell verification after observation privacy pass
 
 ## Preconditions
 
@@ -42,6 +42,7 @@ Build: Windows overlay MVP shell verification after Security and PC Management r
 - [x] Liquid Linear command glass tokens cover refraction, specular highlights, platinum tint, command/focus/control shadows, runway highlights, and spring motion.
 - [x] Command Deck opens on active run telemetry when a live run exists, including worker session, current tool, budget used, verification, timeline, logs, and artifacts.
 - [x] Command Deck exposes first-class Security and PC Management system resources with Agent Workspace drill-downs.
+- [x] Private and secret observation bodies are redacted in Command Deck resource rows and Agent Workspace detail.
 - [x] Automated smoke captures the overlay over bright, text-heavy, and IDE-like visual backdrops.
 - [x] Edge Rail collapse keeps health, approval, and incident indicators visible.
 - [x] Edge Rail health, approval, and incident badges carry drill-down targets and expand to the relevant workspace.
@@ -59,13 +60,13 @@ Build: Windows overlay MVP shell verification after Security and PC Management r
 - HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud.png`
 - IDE-like backdrop HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud-ide.png`
 - Current verification update: `pnpm --dir apps/windows-overlay smoke:electron` passed on
-  2026-06-02 after the Security and PC Management resource pass. The packaged overlay reported `ok: true`,
+  2026-06-02 after the observation privacy pass. The packaged overlay reported `ok: true`,
   `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, no renderer page errors,
   four `sageos.control` calls for pause, resume, stop, and emergency stop, verified the
   availability-aware Voice entry state, and refreshed the full, bright, edge-left, text-heavy edge,
   HUD, and IDE HUD screenshots above.
 - Current package gates after the latest verification sweep: `pnpm --dir apps/windows-overlay test`
-  passed with 13 files and 81 tests, `pnpm --dir apps/windows-overlay typecheck` passed, and
+  passed with 13 files and 82 tests, `pnpm --dir apps/windows-overlay typecheck` passed, and
   `pnpm --dir apps/windows-overlay build` passed.
 - Current shared SageOS/control-surface gate after the latest policy hardening sweep:
   `pnpm exec vitest run --config vitest.unit.config.ts src/sageos src/cli/sageos-cli.test.ts

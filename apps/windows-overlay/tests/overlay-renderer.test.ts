@@ -662,6 +662,42 @@ describe("overlay renderer model", () => {
     });
   });
 
+  it("redacts private and secret observation bodies in overlay summaries and workspace", () => {
+    const privateState = {
+      ...state,
+      observations: [
+        ...state.observations,
+        {
+          id: "obs_secret",
+          source: "app_focus",
+          state: "captured",
+          title: "Secret app focus",
+          text: "Sensitive window title with a private token",
+          sensitivity: "secret",
+          observedAt: "2026-06-01T12:56:00.000Z",
+        },
+      ],
+    };
+
+    const model = renderOverlayModel(privateState as never, {
+      workspaceTarget: { kind: "observation", id: "obs_secret" },
+    });
+
+    expect(
+      model.commandDeck.resources.find((resource) => resource.id === "obs_secret"),
+    ).toMatchObject({
+      title: "Secret app focus",
+      detail: "Private observation text redacted",
+      state: "captured",
+    });
+    expect(model.workspace).toMatchObject({
+      title: "Secret app focus",
+      eyebrow: "Observation / app_focus",
+      detail: "Private observation text redacted",
+    });
+    expect(model.workspace.facts).toContainEqual({ label: "Sensitivity", value: "secret" });
+  });
+
   it("maps pinned widgets into live status summaries", () => {
     const model = renderOverlayModel(state as never);
 
