@@ -843,9 +843,11 @@ export class SageOsOverlayApp extends LitElement {
   }
 
   private renderLauncher() {
+    const launcherAction = this.gatewayActionState(true);
     return renderUniversalLauncher({
       value: this.launcherCommand,
-      disabled: this.loading || !this.overlayConnected,
+      disabled: !launcherAction.enabled,
+      disabledReason: launcherAction.disabledReason,
       voiceEnabled: this.interaction.voice.enabled,
       voiceAvailable: this.voiceAvailable,
       voiceListening: this.voiceListening,

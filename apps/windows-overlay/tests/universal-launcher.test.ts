@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { getUniversalLauncherVoiceState } from "../src/renderer/components/universal-launcher.js";
+import {
+  getUniversalLauncherRunState,
+  getUniversalLauncherVoiceState,
+} from "../src/renderer/components/universal-launcher.js";
 
 describe("Universal Launcher voice control", () => {
   it("omits the voice button when voice entry is not configured", () => {
@@ -34,5 +37,37 @@ describe("Universal Launcher voice control", () => {
         launcherDisabled: false,
       }),
     ).toEqual({ visible: true, disabled: false, title: undefined });
+  });
+
+  it("explains why voice and run controls are disabled", () => {
+    expect(
+      getUniversalLauncherVoiceState({
+        voiceEnabled: true,
+        voiceAvailable: true,
+        launcherDisabled: true,
+        disabledReason: "Gateway unavailable",
+      }),
+    ).toEqual({
+      visible: true,
+      disabled: true,
+      title: "Gateway unavailable",
+    });
+    expect(getUniversalLauncherRunState({ value: "", launcherDisabled: false })).toEqual({
+      disabled: true,
+      title: "Enter a SageOS command.",
+    });
+    expect(
+      getUniversalLauncherRunState({
+        value: "check SageOS health",
+        launcherDisabled: true,
+        disabledReason: "Gateway request in progress",
+      }),
+    ).toEqual({
+      disabled: true,
+      title: "Gateway request in progress",
+    });
+    expect(
+      getUniversalLauncherRunState({ value: "check SageOS health", launcherDisabled: false }),
+    ).toEqual({ disabled: false, title: undefined });
   });
 });
