@@ -28,6 +28,7 @@ export type AgentWorkspaceActionKind =
   | "approveApproval"
   | "denyApproval"
   | "assignEmployeeTask"
+  | "editEmployee"
   | "activateEmployee"
   | "pauseEmployee"
   | "resumeEmployee"

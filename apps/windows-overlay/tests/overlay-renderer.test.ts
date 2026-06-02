@@ -9,6 +9,7 @@ import {
   getOverlayConnectionState,
   getOverlayStateCallouts,
   applyOverlayWorkspaceAvailability,
+  buildEmployeeOperatorLauncherCommand,
   buildTaskOperatorLauncherCommand,
   readInitialOverlaySurface,
   readOverlayGatewaySettings,
@@ -572,6 +573,7 @@ describe("overlay renderer model", () => {
       eyebrow: "Employee / active",
       actions: [
         { kind: "assignEmployeeTask", label: "Assign task", enabled: true },
+        { kind: "editEmployee", label: "Edit", enabled: true },
         { kind: "pauseEmployee", label: "Pause", enabled: true },
         { kind: "retireEmployee", label: "Retire", enabled: true },
       ],
@@ -591,6 +593,7 @@ describe("overlay renderer model", () => {
       eyebrow: "Employee / paused",
       actions: [
         { kind: "assignEmployeeTask", label: "Assign task", enabled: true },
+        { kind: "editEmployee", label: "Edit", enabled: true },
         { kind: "resumeEmployee", label: "Resume", enabled: true },
         { kind: "retireEmployee", label: "Retire", enabled: true },
       ],
@@ -600,6 +603,7 @@ describe("overlay renderer model", () => {
       eyebrow: "Employee / draft",
       actions: [
         { kind: "assignEmployeeTask", label: "Assign task", enabled: true },
+        { kind: "editEmployee", label: "Edit", enabled: true },
         { kind: "activateEmployee", label: "Activate", enabled: true },
         { kind: "retireEmployee", label: "Retire", enabled: true },
       ],
@@ -980,6 +984,7 @@ describe("overlay renderer model", () => {
 
     expect(employeeWorkspace.actions).toEqual([
       { kind: "assignEmployeeTask", label: "Assign task", enabled: true, target: expect.any(Object) },
+      { kind: "editEmployee", label: "Edit", enabled: true, target: expect.any(Object) },
       {
         kind: "pauseEmployee",
         label: "Pause",
@@ -1026,6 +1031,12 @@ describe("overlay renderer model", () => {
     );
     expect(buildTaskOperatorLauncherCommand(state as never, "task_1", "requestTaskReview")).toBe(
       "Ask Reviewer to review Night Shift report",
+    );
+  });
+
+  it("builds launcher prompts for local employee edit controls", () => {
+    expect(buildEmployeeOperatorLauncherCommand(state as never, "employee_memory", "editEmployee")).toBe(
+      "Edit employee Memory Steward: ",
     );
   });
 

@@ -215,6 +215,7 @@ export type TaskOperatorActionKind = Extract<
   AgentWorkspaceActionKind,
   "pauseTask" | "askTaskUpdate" | "increaseTaskBudget" | "reassignTask" | "requestTaskReview"
 >;
+export type EmployeeOperatorActionKind = Extract<AgentWorkspaceActionKind, "editEmployee">;
 
 export function renderOverlayModel(
   state: SageOsOverlayStatusState,
@@ -610,7 +611,8 @@ function isOverlayLocalWorkspaceAction(kind: AgentWorkspaceActionKind): boolean 
     kind === "askTaskUpdate" ||
     kind === "increaseTaskBudget" ||
     kind === "reassignTask" ||
-    kind === "requestTaskReview"
+    kind === "requestTaskReview" ||
+    kind === "editEmployee"
   );
 }
 
@@ -1267,6 +1269,11 @@ export class SageOsOverlayApp extends LitElement {
       return;
     }
 
+    if (action.kind === "editEmployee" && action.target.kind === "employee") {
+      this.prefillEmployeeOperatorAction(action.target.id, action.kind);
+      return;
+    }
+
     if (isTaskOperatorAction(action.kind) && action.target.kind === "task") {
       this.prefillTaskOperatorAction(action.target.id, action.kind);
       return;
@@ -1300,6 +1307,19 @@ export class SageOsOverlayApp extends LitElement {
   private prefillEmployeeTaskAssignment(employeeId: string) {
     const employee = this.sageOsState?.agents?.find((entry) => entry.id === employeeId);
     this.launcherCommand = `Assign ${employee?.name ?? labelFromId(employeeId)} to `;
+    this.requestUpdate();
+    void this.updateComplete.then(() => this.focusLauncher());
+  }
+
+  private prefillEmployeeOperatorAction(employeeId: string, actionKind: EmployeeOperatorActionKind) {
+    if (!this.sageOsState) {
+      return;
+    }
+    this.launcherCommand = buildEmployeeOperatorLauncherCommand(
+      this.sageOsState,
+      employeeId,
+      actionKind,
+    );
     this.requestUpdate();
     void this.updateComplete.then(() => this.focusLauncher());
   }
@@ -2138,6 +2158,19 @@ function reviewerLabelForState(state: SageOsOverlayStatusState): string {
   return reviewer?.name ?? "Reviewer";
 }
 
+export function buildEmployeeOperatorLauncherCommand(
+  state: SageOsOverlayStatusState,
+  employeeId: string,
+  actionKind: EmployeeOperatorActionKind,
+): string {
+  const employee = state.agents?.find((entry) => entry.id === employeeId);
+  const employeeLabel = employee?.name ?? labelFromId(employeeId);
+  switch (actionKind) {
+    case "editEmployee":
+      return `Edit employee ${employeeLabel}: `;
+  }
+}
+
 function ownerLabel(ownerAgentId: string | undefined, employeeNames: Map<string, string>): string {
   if (!ownerAgentId) {
     return "Unassigned";
@@ -2178,9 +2211,16 @@ function buildEmployeeWorkspaceActions(
     enabled: status !== "retired" && status !== "disabled",
     target,
   } satisfies AgentWorkspaceAction;
+  const editAction = {
+    kind: "editEmployee",
+    label: "Edit",
+    enabled: status !== "retired",
+    target,
+  } satisfies AgentWorkspaceAction;
   if (status === "active") {
     return [
       assignAction,
+      editAction,
       { kind: "pauseEmployee", label: "Pause", enabled: true, target },
       { kind: "retireEmployee", label: "Retire", enabled: true, target },
     ];
@@ -2188,6 +2228,7 @@ function buildEmployeeWorkspaceActions(
   if (status === "paused") {
     return [
       assignAction,
+      editAction,
       { kind: "resumeEmployee", label: "Resume", enabled: true, target },
       { kind: "retireEmployee", label: "Retire", enabled: true, target },
     ];
@@ -2195,12 +2236,13 @@ function buildEmployeeWorkspaceActions(
   if (status === "draft") {
     return [
       assignAction,
+      editAction,
       { kind: "activateEmployee", label: "Activate", enabled: true, target },
       { kind: "retireEmployee", label: "Retire", enabled: true, target },
     ];
   }
   if (status === "disabled") {
-    return [{ kind: "retireEmployee", label: "Retire", enabled: true, target }];
+    return [editAction, { kind: "retireEmployee", label: "Retire", enabled: true, target }];
   }
   return [];
 }
