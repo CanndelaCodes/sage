@@ -13,6 +13,14 @@ describe("SageOS status renderer", () => {
       workflows: { total: 2, active: 1, queued: 1, blocked: 0 },
       skills: { total: 2, active: 1, queued: 1, blocked: 0 },
       apps: { total: 2, active: 1, queued: 1, blocked: 0 },
+      collaboration: {
+        total: 4,
+        open: 2,
+        handoffs: 1,
+        reviewRequests: 1,
+        incidentEscalations: 1,
+        sharedArtifacts: 1,
+      },
       observations: { total: 5, recent: 3, redacted: 1, failed: 1 },
       memory: {
         status: "degraded",
@@ -91,6 +99,9 @@ describe("SageOS status renderer", () => {
     expect(output).toContain("Workflows: 1 active, 1 candidate, 0 blocked, 2 total");
     expect(output).toContain("Skills: 1 active, 1 draft, 0 blocked, 2 total");
     expect(output).toContain("Apps: 1 active, 1 draft, 0 blocked, 2 total");
+    expect(output).toContain(
+      "Collaboration: 2 open, 1 handoff, 1 review, 1 incident escalation, 1 shared artifact, 4 total",
+    );
     expect(output).toContain("Observations: 3 recent, 1 redacted, 1 failed, 5 total");
     expect(output).toContain(
       "Memory: degraded, backend sage-memory, capture queue 0 pending / 1 failed, doctor fail, wiki exports 1",

@@ -39,6 +39,14 @@ describe("SageOS shared types", () => {
     expect(snapshot.workflows.total).toBe(0);
     expect(snapshot.skills.total).toBe(0);
     expect(snapshot.apps.total).toBe(0);
+    expect(snapshot.collaboration).toEqual({
+      total: 0,
+      open: 0,
+      handoffs: 0,
+      reviewRequests: 0,
+      incidentEscalations: 0,
+      sharedArtifacts: 0,
+    });
     expect(snapshot.employees.total).toBe(0);
     expect(snapshot.incidents).toEqual([]);
   });

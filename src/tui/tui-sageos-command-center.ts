@@ -22,6 +22,7 @@ export function formatSageOsCommandCenterForTui(state: SageOsPersistedState): st
     `Workflows: ${status.workflows.active} active, ${status.workflows.queued} candidate, ${status.workflows.blocked} blocked, ${status.workflows.total} total`,
     `Skills: ${status.skills.active} active, ${status.skills.queued} draft, ${status.skills.blocked} blocked, ${status.skills.total} total`,
     `Apps: ${status.apps.active} active, ${status.apps.queued} draft, ${status.apps.blocked} blocked, ${status.apps.total} total`,
+    renderCollaborationLine(status),
     `Coding: ${status.coding.enabled ? "enabled" : "disabled"}, ${status.coding.allowedRepos.length} repo(s), ${status.coding.reports.total} report(s), restrictions ${listOrNone(status.coding.restrictions)}`,
     `Notifications: Telegram ${
       status.notifications.telegram.enabled ? "enabled" : "disabled"
@@ -314,6 +315,18 @@ function renderAuditLine(status: SageOsStatusSnapshot): string {
     : `Audit: ${status.audit.recentEvents} recent event(s)`;
 }
 
+function renderCollaborationLine(status: SageOsStatusSnapshot): string {
+  const collaboration = status.collaboration;
+  return [
+    `Collaboration: ${collaboration.open} open`,
+    countLabel(collaboration.handoffs, "handoff"),
+    countLabel(collaboration.reviewRequests, "review request"),
+    countLabel(collaboration.incidentEscalations, "incident escalation"),
+    countLabel(collaboration.sharedArtifacts, "shared artifact"),
+    `${collaboration.total} total`,
+  ].join(", ");
+}
+
 function formatTaskLine(task: SageOsTaskSpec): string {
   return `- ${task.id} | ${task.state} | ${task.title}`;
 }
@@ -357,6 +370,10 @@ function formatScopes(scopes: SageOsPolicyScope[]): string {
 
 function listOrNone(values: string[]): string {
   return values.length > 0 ? values.join(", ") : "none";
+}
+
+function countLabel(count: number, singular: string): string {
+  return `${count} ${singular}${count === 1 ? "" : "s"}`;
 }
 
 function previewText(value: string): string {

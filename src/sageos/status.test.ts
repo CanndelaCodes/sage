@@ -16,6 +16,7 @@ import {
   upsertSageOsAgent,
   upsertSageOsAppCandidate,
   upsertSageOsCodingReport,
+  upsertSageOsCollaboration,
   upsertSageOsObservation,
   upsertSageOsRun,
   upsertSageOsSkill,
@@ -139,6 +140,19 @@ describe("SageOS status collector", () => {
       blockers: [],
       verificationRefs: ["test:node test.js"],
       rollback: "Review git diff and revert changed files if needed.",
+      createdAt: now,
+      updatedAt: now,
+    });
+    await upsertSageOsCollaboration(store, {
+      id: "collaboration_memory_review",
+      kind: "review_request",
+      fromAgentId: "agent_memory",
+      toAgentId: "agent_reviewer",
+      taskId: "task_running",
+      title: "Review memory queue",
+      summary: "Memory steward requested review of the capture queue repair.",
+      artifactRefs: ["coding_report_task_running_1"],
+      state: "open",
       createdAt: now,
       updatedAt: now,
     });
@@ -349,6 +363,14 @@ describe("SageOS status collector", () => {
     expect(snapshot.workflows).toMatchObject({ total: 1, active: 0, queued: 1, blocked: 0 });
     expect(snapshot.skills).toMatchObject({ total: 1, active: 0, queued: 1, blocked: 0 });
     expect(snapshot.apps).toMatchObject({ total: 1, active: 0, queued: 1, blocked: 0 });
+    expect(snapshot.collaboration).toMatchObject({
+      total: 1,
+      open: 1,
+      handoffs: 0,
+      reviewRequests: 1,
+      incidentEscalations: 0,
+      sharedArtifacts: 0,
+    });
     expect(snapshot.coding).toMatchObject({
       reports: { total: 1, active: 1, blocked: 0 },
       lastReportId: "coding_report_task_running_1",

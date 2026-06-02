@@ -11,6 +11,7 @@ export function renderSageOsStatus(snapshot: SageOsStatusSnapshot): string {
     `Workflows: ${snapshot.workflows.active} active, ${snapshot.workflows.queued} candidate, ${snapshot.workflows.blocked} blocked, ${snapshot.workflows.total} total`,
     `Skills: ${snapshot.skills.active} active, ${snapshot.skills.queued} draft, ${snapshot.skills.blocked} blocked, ${snapshot.skills.total} total`,
     `Apps: ${snapshot.apps.active} active, ${snapshot.apps.queued} draft, ${snapshot.apps.blocked} blocked, ${snapshot.apps.total} total`,
+    renderCollaborationLine(snapshot),
     `Approvals: ${snapshot.approvals.pending} pending`,
     `Observations: ${snapshot.observations.recent} recent, ${snapshot.observations.redacted} redacted, ${snapshot.observations.failed} failed, ${snapshot.observations.total} total`,
     renderMemoryLine(snapshot),
@@ -33,6 +34,18 @@ export function renderSageOsStatus(snapshot: SageOsStatusSnapshot): string {
     lines.push(`Audit: ${snapshot.audit.recentEvents} recent events`);
   }
   return lines.join("\n");
+}
+
+function renderCollaborationLine(snapshot: SageOsStatusSnapshot): string {
+  const collaboration = snapshot.collaboration;
+  return [
+    `Collaboration: ${collaboration.open} open`,
+    countLabel(collaboration.handoffs, "handoff"),
+    countLabel(collaboration.reviewRequests, "review"),
+    countLabel(collaboration.incidentEscalations, "incident escalation"),
+    countLabel(collaboration.sharedArtifacts, "shared artifact"),
+    `${collaboration.total} total`,
+  ].join(", ");
 }
 
 function renderNotificationLine(snapshot: SageOsStatusSnapshot): string {
@@ -97,4 +110,8 @@ function renderMemoryLine(snapshot: SageOsStatusSnapshot): string {
 
 function listOrNone(values: string[]): string {
   return values.length > 0 ? values.join(", ") : "none";
+}
+
+function countLabel(count: number, singular: string): string {
+  return `${count} ${singular}${count === 1 ? "" : "s"}`;
 }

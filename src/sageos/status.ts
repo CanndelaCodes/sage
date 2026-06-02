@@ -24,6 +24,7 @@ import {
   type SageOsAgentSpec,
   type SageOsAppCandidate,
   type SageOsCodingReport,
+  type SageOsCollaborationEvent,
   type SageOsIncident,
   type SageOsMemoryDoctorSummary,
   type SageOsObservation,
@@ -135,6 +136,7 @@ export async function collectSageOsStatus(
     workflows: summarizeWorkflows(state.workflows),
     skills: summarizeSkills(state.skills),
     apps: summarizeApps(state.apps),
+    collaboration: summarizeCollaborations(state.collaborations),
     approvals: {
       pending: pendingApprovals.length,
     },
@@ -277,6 +279,25 @@ function summarizeApps(apps: SageOsAppCandidate[]): SageOsSummary {
     active: apps.filter((app) => app.state === "preview_ready" || app.state === "enabled").length,
     queued: apps.filter((app) => app.state === "draft").length,
     blocked: apps.filter((app) => app.state === "blocked" || app.state === "retired").length,
+  };
+}
+
+function summarizeCollaborations(
+  collaborations: SageOsCollaborationEvent[],
+): SageOsStatusSnapshot["collaboration"] {
+  return {
+    total: collaborations.length,
+    open: collaborations.filter((collaboration) => collaboration.state === "open").length,
+    handoffs: collaborations.filter((collaboration) => collaboration.kind === "handoff").length,
+    reviewRequests: collaborations.filter(
+      (collaboration) => collaboration.kind === "review_request",
+    ).length,
+    incidentEscalations: collaborations.filter(
+      (collaboration) => collaboration.kind === "incident_escalation",
+    ).length,
+    sharedArtifacts: collaborations.filter(
+      (collaboration) => collaboration.kind === "shared_artifact",
+    ).length,
   };
 }
 

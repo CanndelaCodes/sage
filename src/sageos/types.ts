@@ -120,6 +120,15 @@ export type SageOsRunSummary = {
   failed: number;
 };
 
+export type SageOsCollaborationSummary = {
+  total: number;
+  open: number;
+  handoffs: number;
+  reviewRequests: number;
+  incidentEscalations: number;
+  sharedArtifacts: number;
+};
+
 export type SageOsQueueSummary = {
   total: number;
   pending: number;
@@ -174,6 +183,7 @@ export type SageOsStatusSnapshot = {
   workflows: SageOsSummary;
   skills: SageOsSummary;
   apps: SageOsSummary;
+  collaboration: SageOsCollaborationSummary;
   approvals: { pending: number };
   observations: { total: number; recent: number; redacted: number; failed: number };
   memory: {
@@ -247,6 +257,14 @@ export type SageOsStatusSnapshot = {
 
 const emptySummary = (): SageOsSummary => ({ total: 0, active: 0, queued: 0, blocked: 0 });
 const emptyRunSummary = (): SageOsRunSummary => ({ total: 0, active: 0, queued: 0, failed: 0 });
+const emptyCollaborationSummary = (): SageOsCollaborationSummary => ({
+  total: 0,
+  open: 0,
+  handoffs: 0,
+  reviewRequests: 0,
+  incidentEscalations: 0,
+  sharedArtifacts: 0,
+});
 const emptyQueueSummary = (): SageOsQueueSummary => ({ total: 0, pending: 0, failed: 0 });
 
 export function createSageOsStatusSnapshot(
@@ -268,6 +286,7 @@ export function createSageOsStatusSnapshot(
     workflows: overrides.workflows ?? emptySummary(),
     skills: overrides.skills ?? emptySummary(),
     apps: overrides.apps ?? emptySummary(),
+    collaboration: overrides.collaboration ?? emptyCollaborationSummary(),
     approvals: overrides.approvals ?? { pending: 0 },
     observations: overrides.observations ?? { total: 0, recent: 0, redacted: 0, failed: 0 },
     memory: overrides.memory ?? {

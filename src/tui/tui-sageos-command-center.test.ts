@@ -36,6 +36,7 @@ describe("TUI SageOS Command Center formatter", () => {
         "Workflows: 1 active, 1 candidate, 0 blocked, 2 total",
         "Skills: 1 active, 1 draft, 0 blocked, 2 total",
         "Apps: 1 active, 1 draft, 0 blocked, 2 total",
+        "Collaboration: 1 open, 0 handoffs, 1 review request, 0 incident escalations, 0 shared artifacts, 1 total",
         "Coding: enabled, 1 repo(s), 1 report(s), restrictions no_release",
         "Notifications: Telegram enabled, urgent pending 1",
         "Policy: execute_scoped, approvals destructive, external_writes",
@@ -181,6 +182,14 @@ function commandCenterState(): SageOsPersistedState {
       workflows: { total: 2, active: 1, queued: 1, blocked: 0 },
       skills: { total: 2, active: 1, queued: 1, blocked: 0 },
       apps: { total: 2, active: 1, queued: 1, blocked: 0 },
+      collaboration: {
+        total: 1,
+        open: 1,
+        handoffs: 0,
+        reviewRequests: 1,
+        incidentEscalations: 0,
+        sharedArtifacts: 0,
+      },
       approvals: { pending: 1 },
       observations: { total: 4, recent: 2, redacted: 1, failed: 1 },
       memory: {
