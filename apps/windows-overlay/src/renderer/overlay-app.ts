@@ -1568,6 +1568,12 @@ function buildSystemResourceRows(state: SageOsOverlayStatusState): OverlaySystem
       detail: status.audit.eventLogPath ?? "Event log pending",
       state: `${status.audit.recentEvents} events`,
     },
+    {
+      id: "settings",
+      title: "Settings",
+      detail: `${status.policy.mode} / ${status.sources.enabled.length} enabled source`,
+      state: status.policy.mode,
+    },
   ];
 }
 
@@ -2211,6 +2217,26 @@ function systemWorkspaceModel(
     };
   }
 
+  if (id === "settings") {
+    return {
+      title: "Settings",
+      eyebrow: `System / ${status.policy.mode}`,
+      detail: "Runtime configuration summary for autonomy, sources, notifications, and overlay launch settings.",
+      facts: [
+        { label: "Autonomy mode", value: status.policy.mode },
+        { label: "Default tier", value: status.policy.defaultTier },
+        {
+          label: "Approval gates",
+          value: status.policy.approvalsRequired.join(", ") || "No extra approvals",
+        },
+        { label: "Sources", value: formatSourceSettings(status.sources) },
+        { label: "Notifications", value: formatNotificationSettings(status.notifications) },
+        { label: "Overlay config", value: "Launch environment and URL parameters" },
+      ],
+      actions: [],
+    };
+  }
+
   return missingWorkspaceTarget({ kind: "system", id });
 }
 
@@ -2541,6 +2567,22 @@ function formatNotificationPolicy(
 }
 
 type OverlayNotifications = SageOsOverlayStatusState["status"]["notifications"];
+type OverlaySources = SageOsOverlayStatusState["status"]["sources"];
+
+function formatSourceSettings(sources: OverlaySources): string {
+  return [
+    `${formatList(sources.enabled)} enabled`,
+    `${formatList(sources.disabled)} disabled`,
+    `${formatList(sources.failing)} failing`,
+  ].join(" / ");
+}
+
+function formatNotificationSettings(notifications: OverlayNotifications): string {
+  return [
+    notifications.telegram.enabled ? "Telegram enabled" : "Telegram disabled",
+    `target ${notifications.telegram.target ?? "None"}`,
+  ].join(" / ");
+}
 
 function formatNotificationStatusDetail(notifications: OverlayNotifications): string {
   const parts = [notifications.telegram.enabled ? "Telegram enabled" : "Telegram disabled"];

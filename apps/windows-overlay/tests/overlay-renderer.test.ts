@@ -379,6 +379,7 @@ describe("overlay renderer model", () => {
       "Policy",
       "Notifications",
       "Audit",
+      "Settings",
     ]);
   });
 
@@ -500,6 +501,9 @@ describe("overlay renderer model", () => {
     });
     const auditModel = renderOverlayModel(state as never, {
       workspaceTarget: { kind: "system", id: "audit" },
+    });
+    const settingsModel = renderOverlayModel(state as never, {
+      workspaceTarget: { kind: "system", id: "settings" },
     });
 
     expect(taskModel.workspace).toMatchObject({
@@ -721,6 +725,20 @@ describe("overlay renderer model", () => {
       title: "Audit",
       eyebrow: "System / events",
     });
+    expect(settingsModel.workspace).toMatchObject({
+      title: "Settings",
+      eyebrow: "System / execute_scoped",
+    });
+    expect(settingsModel.workspace.facts).toEqual(
+      expect.arrayContaining([
+        { label: "Autonomy mode", value: "execute_scoped" },
+        { label: "Default tier", value: "execute_scoped" },
+        { label: "Approval gates", value: "destructive, external_writes" },
+        { label: "Sources", value: "apps, clipboard enabled / audio disabled / screen failing" },
+        { label: "Notifications", value: "Telegram enabled / target Jason" },
+        { label: "Overlay config", value: "Launch environment and URL parameters" },
+      ]),
+    );
   });
 
   it("redacts private and secret observation bodies in overlay summaries and workspace", () => {
