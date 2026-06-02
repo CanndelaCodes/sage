@@ -395,8 +395,12 @@ describe("overlay renderer model", () => {
       "Supervisor",
       "Security",
       "PC Management",
+      "Observations",
       "Files",
       "Coding",
+      "Workflows",
+      "Skills",
+      "Apps & Widgets",
       "Memory",
       "Learning",
       "Sources",
@@ -511,11 +515,23 @@ describe("overlay renderer model", () => {
     const pcManagementModel = renderOverlayModel(state as never, {
       workspaceTarget: { kind: "system", id: "pc-management" },
     });
+    const observationsModel = renderOverlayModel(state as never, {
+      workspaceTarget: { kind: "system", id: "observations" },
+    });
     const filesModel = renderOverlayModel(state as never, {
       workspaceTarget: { kind: "system", id: "files" },
     });
     const codingModel = renderOverlayModel(state as never, {
       workspaceTarget: { kind: "system", id: "coding" },
+    });
+    const workflowsModel = renderOverlayModel(state as never, {
+      workspaceTarget: { kind: "system", id: "workflows" },
+    });
+    const skillsModel = renderOverlayModel(state as never, {
+      workspaceTarget: { kind: "system", id: "skills" },
+    });
+    const appsModel = renderOverlayModel(state as never, {
+      workspaceTarget: { kind: "system", id: "apps" },
     });
     const memoryModel = renderOverlayModel(state as never, {
       workspaceTarget: { kind: "system", id: "memory" },
@@ -708,6 +724,24 @@ describe("overlay renderer model", () => {
         { label: "Redacted observations", value: "2" },
       ]),
     );
+    expect(observationsModel.workspace).toMatchObject({
+      title: "Observations",
+      eyebrow: "System / observing",
+    });
+    expect(observationsModel.workspace.facts).toEqual(
+      expect.arrayContaining([
+        { label: "Recent", value: "4" },
+        { label: "Total", value: "20" },
+        { label: "Failed", value: "1" },
+        { label: "Redacted", value: "2" },
+        { label: "Enabled sources", value: "apps, clipboard" },
+        { label: "Disabled sources", value: "audio" },
+        { label: "Failing sources", value: "screen" },
+        { label: "Latest observation", value: "Code: SageOS (captured)" },
+        { label: "Latest source", value: "app_focus" },
+        { label: "Latest observed", value: "2026-06-01T12:55:00.000Z" },
+      ]),
+    );
     expect(filesModel.workspace).toMatchObject({
       title: "Files",
       eyebrow: "System / observing",
@@ -738,6 +772,51 @@ describe("overlay renderer model", () => {
         { label: "Latest diff", value: "README.md" },
         { label: "Latest tests", value: "node test.js: 0" },
         { label: "Latest blockers", value: "None" },
+      ]),
+    );
+    expect(workflowsModel.workspace).toMatchObject({
+      title: "Workflows",
+      eyebrow: "System / 5 total",
+    });
+    expect(workflowsModel.workspace.facts).toEqual(
+      expect.arrayContaining([
+        { label: "Queue", value: "1 queued / 2 active / 0 blocked" },
+        { label: "Latest workflow", value: "Review repeated Code focus (candidate)" },
+        { label: "Observed patterns", value: "app_focus:code" },
+        { label: "Triggers", value: "Repeated Code focus observations" },
+        { label: "Inputs", value: "window title" },
+        { label: "Outputs", value: "workflow candidate" },
+        { label: "Source observations", value: "obs_1" },
+      ]),
+    );
+    expect(skillsModel.workspace).toMatchObject({
+      title: "Skills",
+      eyebrow: "System / 9 total",
+    });
+    expect(skillsModel.workspace.facts).toEqual(
+      expect.arrayContaining([
+        { label: "Queue", value: "0 queued / 1 active / 0 blocked" },
+        { label: "Latest skill", value: "Skill: Review repeated Code focus (draft)" },
+        { label: "Workflow links", value: "workflow_1" },
+        { label: "Trigger conditions", value: "Repeated Code focus observations" },
+        { label: "Provenance", value: "workflow_1, obs_1" },
+        { label: "Tests", value: "obs_1" },
+        { label: "Rollback", value: "None" },
+      ]),
+    );
+    expect(appsModel.workspace).toMatchObject({
+      title: "Apps & Widgets",
+      eyebrow: "System / 2 total",
+    });
+    expect(appsModel.workspace.facts).toEqual(
+      expect.arrayContaining([
+        { label: "Queue", value: "0 queued / 1 active / 0 blocked" },
+        { label: "Latest app", value: "Code Focus Widget (draft)" },
+        { label: "Target surfaces", value: "widget" },
+        { label: "Purpose", value: "Summarize repeated Code focus observations." },
+        { label: "Preview commands", value: "sage os apps preview app_1" },
+        { label: "Artifacts", value: "apps/code-focus" },
+        { label: "Sources", value: "None" },
       ]),
     );
     expect(memoryModel.workspace).toMatchObject({

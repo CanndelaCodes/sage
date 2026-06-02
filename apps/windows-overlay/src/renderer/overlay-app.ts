@@ -1551,6 +1551,12 @@ function buildSystemResourceRows(state: SageOsOverlayStatusState): OverlaySystem
       state: "observing",
     },
     {
+      id: "observations",
+      title: "Observations",
+      detail: `${status.observations.recent} recent / ${status.observations.failed} failed / ${status.observations.redacted} redacted`,
+      state: "observing",
+    },
+    {
       id: "files",
       title: "Files",
       detail: `${files.changedFileCount} changed / ${files.cleanupPlanCount} cleanup / ${files.deleteApprovalCount} delete approvals`,
@@ -1561,6 +1567,24 @@ function buildSystemResourceRows(state: SageOsOverlayStatusState): OverlaySystem
       title: "Coding",
       detail: `${status.coding.reports.total} reports / ${status.coding.allowedRepos.length} allowed repos`,
       state: status.coding.enabled ? "enabled" : "disabled",
+    },
+    {
+      id: "workflows",
+      title: "Workflows",
+      detail: `${status.workflows.total} total / ${status.workflows.queued} queued / ${status.workflows.blocked} blocked`,
+      state: `${status.workflows.active} active`,
+    },
+    {
+      id: "skills",
+      title: "Skills",
+      detail: `${status.skills.total} total / ${status.skills.queued} queued / ${status.skills.blocked} blocked`,
+      state: `${status.skills.active} active`,
+    },
+    {
+      id: "apps",
+      title: "Apps & Widgets",
+      detail: `${status.apps.total} total / ${status.apps.queued} queued / ${status.apps.blocked} blocked`,
+      state: `${status.apps.active} active`,
     },
     {
       id: "memory",
@@ -2121,6 +2145,10 @@ function formatCodingReportQueue(summary: { active: number; queued: number; bloc
   return `${summary.queued} queued / ${summary.active} active / ${summary.blocked} blocked`;
 }
 
+function formatSummaryQueue(summary: { active: number; queued: number; blocked: number }): string {
+  return `${summary.queued} queued / ${summary.active} active / ${summary.blocked} blocked`;
+}
+
 function runningWorkerSummary(state: SageOsOverlayStatusState): string {
   const workers = uniqueStrings(
     (state.runs ?? [])
@@ -2146,6 +2174,63 @@ function codingReportTimestamp(report: OverlayCodingReportRecord): number {
 
 function latestCodingReportSummary(report: OverlayCodingReportRecord | undefined): string {
   return report ? `${report.objective} (${report.outcome})` : "None";
+}
+
+function latestWorkflowRecord(state: SageOsOverlayStatusState): OverlayWorkflowRecord | undefined {
+  return latestByTimestamp(
+    state.workflows ?? [],
+    (workflow) => workflow.updatedAt ?? workflow.createdAt,
+  );
+}
+
+function latestWorkflowSummary(workflow: OverlayWorkflowRecord | undefined): string {
+  return workflow ? `${workflow.name} (${workflow.state})` : "None";
+}
+
+function latestSkillRecord(state: SageOsOverlayStatusState): OverlaySkillRecord | undefined {
+  return latestByTimestamp(state.skills ?? [], (skill) => skill.updatedAt ?? skill.createdAt);
+}
+
+function latestSkillSummary(skill: OverlaySkillRecord | undefined): string {
+  return skill ? `${skill.name} (${skill.state})` : "None";
+}
+
+function latestAppRecord(state: SageOsOverlayStatusState): OverlayAppRecord | undefined {
+  return latestByTimestamp(state.apps ?? [], (app) => app.updatedAt ?? app.createdAt);
+}
+
+function latestAppSummary(app: OverlayAppRecord | undefined): string {
+  return app ? `${app.name} (${app.state})` : "None";
+}
+
+function latestObservationRecord(
+  state: SageOsOverlayStatusState,
+): OverlayObservationRecord | undefined {
+  return latestByTimestamp(
+    state.observations ?? [],
+    (observation) => observation.observedAt ?? observation.updatedAt ?? observation.createdAt,
+  );
+}
+
+function latestObservationSummary(observation: OverlayObservationRecord | undefined): string {
+  return observation ? `${observation.title} (${observation.state})` : "None";
+}
+
+function latestByTimestamp<T>(
+  records: readonly T[],
+  timestampForRecord: (record: T) => string | undefined,
+): T | undefined {
+  return records
+    .toSorted((a, b) => timestampSortValue(timestampForRecord(b)) - timestampSortValue(timestampForRecord(a)))
+    .at(0);
+}
+
+function timestampSortValue(value: string | undefined): number {
+  if (!value) {
+    return 0;
+  }
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 type AuditTimelineEntry = {
@@ -2381,6 +2466,30 @@ function systemWorkspaceModel(
     };
   }
 
+  if (id === "observations") {
+    const latestObservation = latestObservationRecord(state);
+    return {
+      title: "Observations",
+      eyebrow: "System / observing",
+      detail: "Approved observation coverage, redaction posture, source failures, and latest captured signal.",
+      facts: [
+        { label: "Recent", value: String(status.observations.recent) },
+        { label: "Total", value: String(status.observations.total) },
+        { label: "Failed", value: String(status.observations.failed) },
+        { label: "Redacted", value: String(status.observations.redacted) },
+        { label: "Enabled sources", value: formatList(status.sources.enabled) },
+        { label: "Disabled sources", value: formatList(status.sources.disabled) },
+        { label: "Failing sources", value: formatList(status.sources.failing) },
+        { label: "Latest observation", value: latestObservationSummary(latestObservation) },
+        { label: "Latest source", value: latestObservation?.source ?? "None" },
+        { label: "Latest observed", value: latestObservation?.observedAt ?? "None" },
+        { label: "Latest sensitivity", value: latestObservation?.sensitivity ?? "Unknown" },
+        { label: "Latest reason", value: latestObservation?.reason ?? "None" },
+      ],
+      actions: [],
+    };
+  }
+
   if (id === "files") {
     const files = fileWorkspaceSummary(state);
     return {
@@ -2417,6 +2526,75 @@ function systemWorkspaceModel(
         { label: "Latest diff", value: formatList(latestReport?.diff?.changedFiles ?? []) },
         { label: "Latest tests", value: formatCodingReportTests(latestReport?.tests ?? []) || "None" },
         { label: "Latest blockers", value: formatList(latestReport?.blockers ?? []) },
+      ],
+      actions: [],
+    };
+  }
+
+  if (id === "workflows") {
+    const workflow = latestWorkflowRecord(state);
+    return {
+      title: "Workflows",
+      eyebrow: `System / ${status.workflows.total} total`,
+      detail: "Workflow candidate readiness from repeated observations, trigger patterns, policy scope, dry-run refs, and implementation refs.",
+      facts: [
+        { label: "Queue", value: formatSummaryQueue(status.workflows) },
+        { label: "Total", value: String(status.workflows.total) },
+        { label: "Latest workflow", value: latestWorkflowSummary(workflow) },
+        { label: "Observed patterns", value: formatList((state.workflows ?? []).map((entry) => entry.observedPattern)) },
+        { label: "Triggers", value: formatList((state.workflows ?? []).map((entry) => entry.trigger)) },
+        { label: "Inputs", value: formatList(workflow?.inputs ?? []) },
+        { label: "Outputs", value: formatList(workflow?.outputs ?? []) },
+        { label: "Source observations", value: formatList(workflow?.sourceObservationIds ?? []) },
+        { label: "Policy scopes", value: formatPolicyScopes(workflow?.policyScopes ?? []) },
+        { label: "Implementation refs", value: formatList(workflow?.implementationRefs ?? []) },
+        { label: "Eval refs", value: formatList(workflow?.evalRefs ?? []) },
+      ],
+      actions: [],
+    };
+  }
+
+  if (id === "skills") {
+    const skill = latestSkillRecord(state);
+    return {
+      title: "Skills",
+      eyebrow: `System / ${status.skills.total} total`,
+      detail: "Skill library readiness from drafted and active skills, workflow links, provenance, tests, scopes, and rollback refs.",
+      facts: [
+        { label: "Queue", value: formatSummaryQueue(status.skills) },
+        { label: "Total", value: String(status.skills.total) },
+        { label: "Latest skill", value: latestSkillSummary(skill) },
+        { label: "Workflow links", value: formatList(uniqueStrings((state.skills ?? []).flatMap((entry) => entry.workflowId ? [entry.workflowId] : []))) },
+        { label: "Trigger conditions", value: formatList(skill?.triggerConditions ?? []) },
+        { label: "Provenance", value: formatList(skill?.provenance ?? []) },
+        { label: "Tests", value: formatList(skill?.tests ?? []) },
+        { label: "Allowed scopes", value: formatPolicyScopes(skill?.allowedScopes ?? []) },
+        { label: "Rollback", value: skill?.rollbackRef ?? "None" },
+      ],
+      actions: [],
+    };
+  }
+
+  if (id === "apps") {
+    const app = latestAppRecord(state);
+    return {
+      title: "Apps & Widgets",
+      eyebrow: `System / ${status.apps.total} total`,
+      detail: "Generated app and widget readiness from observed needs, preview commands, artifacts, policy scope, and rollback refs.",
+      facts: [
+        { label: "Queue", value: formatSummaryQueue(status.apps) },
+        { label: "Total", value: String(status.apps.total) },
+        { label: "Latest app", value: latestAppSummary(app) },
+        { label: "Target surfaces", value: formatList(uniqueStrings((state.apps ?? []).map((entry) => entry.targetSurface))) },
+        { label: "Purpose", value: app?.purpose ?? "None" },
+        { label: "Preview commands", value: formatList(uniqueStrings((state.apps ?? []).flatMap((entry) => entry.previewCommand ? [entry.previewCommand] : []))) },
+        { label: "Artifacts", value: formatList(app?.artifactRefs ?? []) },
+        { label: "Sources", value: formatList(app?.sourceObservationIds ?? []) },
+        { label: "Provenance", value: formatList(app?.provenance ?? []) },
+        { label: "Inputs", value: formatList(app?.inputs ?? []) },
+        { label: "Outputs", value: formatList(app?.outputs ?? []) },
+        { label: "Policy scopes", value: formatPolicyScopes(app?.policyScopes ?? []) },
+        { label: "Rollback", value: app?.rollbackRef ?? "None" },
       ],
       actions: [],
     };
@@ -2587,6 +2765,10 @@ type OverlayEmployeeRecord = NonNullable<SageOsOverlayStatusState["agents"]>[num
 type OverlayTaskRecord = NonNullable<SageOsOverlayStatusState["tasks"]>[number];
 type OverlayRunRecordForState = NonNullable<SageOsOverlayStatusState["runs"]>[number];
 type OverlayCodingReportRecord = NonNullable<SageOsOverlayStatusState["codingReports"]>[number];
+type OverlayWorkflowRecord = NonNullable<SageOsOverlayStatusState["workflows"]>[number];
+type OverlaySkillRecord = NonNullable<SageOsOverlayStatusState["skills"]>[number];
+type OverlayAppRecord = NonNullable<SageOsOverlayStatusState["apps"]>[number];
+type OverlayObservationRecord = NonNullable<SageOsOverlayStatusState["observations"]>[number];
 
 function assignedTasksForEmployee(tasks: OverlayTaskRecord[], employeeId: string): OverlayTaskRecord[] {
   return tasks.filter((task) => task.ownerAgentId === employeeId);
