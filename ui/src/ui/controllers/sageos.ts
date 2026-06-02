@@ -9,6 +9,9 @@ const safeIncidentRepairMethods = new Set([
   "sageos.memory.doctor",
   "sageos.approvals.list",
   "sageos.observations.list",
+  "sageos.notifications.digest",
+  "sageos.runs.list",
+  "sageos.tasks.list",
 ]);
 
 export type SageOsUiState = {

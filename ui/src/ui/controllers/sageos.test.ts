@@ -76,6 +76,51 @@ describe("SageOS controller", () => {
     expect(state.sageOsError).toBeNull();
     expect(requestUpdate).toHaveBeenCalledTimes(2);
   });
+
+  it.each([
+    ["incident_notification_failed", "sageos.notifications.digest"],
+    ["incident_worker_failed", "sageos.runs.list"],
+    ["incident_budget_exhausted", "sageos.tasks.list"],
+    ["incident_security_finding", "sageos.observations.list"],
+  ])("runs generated %s repair through %s", async (incidentId, gatewayMethod) => {
+    const incident: SageOsIncident = {
+      id: incidentId,
+      severity: "warning",
+      category: "generated",
+      title: "Generated incident",
+      summary: "Generated incident needs review.",
+      firstSeenAt: "2026-06-02T10:00:00.000Z",
+      lastSeenAt: "2026-06-02T10:00:00.000Z",
+      autoRepairSafe: true,
+      repairAction: {
+        id: `repair_${incidentId}`,
+        label: "Inspect incident",
+        gatewayMethod,
+        risk: "low",
+        approvalRequired: false,
+      },
+    };
+    const refreshedState = makeState("running", []);
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce({ result: "ok" })
+      .mockResolvedValueOnce(refreshedState);
+    const state: SageOsUiState = {
+      client: { request } as unknown as GatewayBrowserClient,
+      connected: true,
+      sageOsLoading: false,
+      sageOsBusy: null,
+      sageOsError: null,
+      sageOsState: makeState("running", [incident]),
+    };
+
+    await runSageOsIncidentRepair(state, incidentId);
+
+    expect(request).toHaveBeenNthCalledWith(1, gatewayMethod, {});
+    expect(request).toHaveBeenNthCalledWith(2, "sageos.status", {});
+    expect(state.sageOsState).toBe(refreshedState);
+    expect(state.sageOsError).toBeNull();
+  });
 });
 
 function makeState(
