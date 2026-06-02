@@ -9,6 +9,7 @@ import {
   getOverlayConnectionState,
   getOverlayStateCallouts,
   applyOverlayWorkspaceAvailability,
+  buildTaskOperatorLauncherCommand,
   readInitialOverlaySurface,
   readOverlayGatewaySettings,
   readOverlayInteractionSettings,
@@ -499,7 +500,14 @@ describe("overlay renderer model", () => {
     expect(taskModel.workspace).toMatchObject({
       title: "Night Shift report",
       eyebrow: "Task / running",
-      actions: [{ kind: "cancelTask", label: "Cancel", enabled: true }],
+      actions: [
+        { kind: "cancelTask", label: "Cancel", enabled: true },
+        { kind: "pauseTask", label: "Pause", enabled: true },
+        { kind: "askTaskUpdate", label: "Ask for update", enabled: true },
+        { kind: "increaseTaskBudget", label: "Increase budget", enabled: true },
+        { kind: "reassignTask", label: "Reassign", enabled: true },
+        { kind: "requestTaskReview", label: "Request review", enabled: true },
+      ],
     });
     expect(taskModel.workspace.facts).toContainEqual({
       label: "Objective",
@@ -955,15 +963,22 @@ describe("overlay renderer model", () => {
   });
 
   it("disables gateway-backed workspace actions while keeping local prefill actions available", () => {
-    const model = renderOverlayModel(state as never, {
+    const employeeModel = renderOverlayModel(state as never, {
       workspaceTarget: { kind: "employee", id: "employee_memory" },
     });
-    const workspace = applyOverlayWorkspaceAvailability(model.workspace, {
+    const employeeWorkspace = applyOverlayWorkspaceAvailability(employeeModel.workspace, {
+      connected: false,
+      loading: false,
+    });
+    const taskModel = renderOverlayModel(state as never, {
+      workspaceTarget: { kind: "task", id: "task_1" },
+    });
+    const taskWorkspace = applyOverlayWorkspaceAvailability(taskModel.workspace, {
       connected: false,
       loading: false,
     });
 
-    expect(workspace.actions).toEqual([
+    expect(employeeWorkspace.actions).toEqual([
       { kind: "assignEmployeeTask", label: "Assign task", enabled: true, target: expect.any(Object) },
       {
         kind: "pauseEmployee",
@@ -980,6 +995,38 @@ describe("overlay renderer model", () => {
         target: expect.any(Object),
       },
     ]);
+    expect(taskWorkspace.actions).toEqual([
+      {
+        kind: "cancelTask",
+        label: "Cancel",
+        enabled: false,
+        disabledReason: "Gateway unavailable",
+        target: expect.any(Object),
+      },
+      { kind: "pauseTask", label: "Pause", enabled: true, target: expect.any(Object) },
+      { kind: "askTaskUpdate", label: "Ask for update", enabled: true, target: expect.any(Object) },
+      { kind: "increaseTaskBudget", label: "Increase budget", enabled: true, target: expect.any(Object) },
+      { kind: "reassignTask", label: "Reassign", enabled: true, target: expect.any(Object) },
+      { kind: "requestTaskReview", label: "Request review", enabled: true, target: expect.any(Object) },
+    ]);
+  });
+
+  it("builds launcher prompts for local active-operation controls", () => {
+    expect(buildTaskOperatorLauncherCommand(state as never, "task_1", "askTaskUpdate")).toBe(
+      "Ask Memory Steward for an update on Night Shift report",
+    );
+    expect(buildTaskOperatorLauncherCommand(state as never, "task_1", "increaseTaskBudget")).toBe(
+      "Increase budget for Night Shift report to ",
+    );
+    expect(buildTaskOperatorLauncherCommand(state as never, "task_1", "pauseTask")).toBe(
+      "Pause Night Shift report",
+    );
+    expect(buildTaskOperatorLauncherCommand(state as never, "task_1", "reassignTask")).toBe(
+      "Reassign Night Shift report to ",
+    );
+    expect(buildTaskOperatorLauncherCommand(state as never, "task_1", "requestTaskReview")).toBe(
+      "Ask Reviewer to review Night Shift report",
+    );
   });
 
   it("labels connection states explicitly for production overlay operation", () => {

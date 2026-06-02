@@ -8,6 +8,7 @@ import {
 import { renderAgentWorkspace } from "./components/agent-workspace.js";
 import type {
   AgentWorkspaceAction,
+  AgentWorkspaceActionKind,
   AgentWorkspaceTarget,
   AgentWorkspaceView,
 } from "./components/agent-workspace.js";
@@ -202,6 +203,18 @@ declare global {
 
 const OVERLAY_INTERACTIVE_SELECTOR =
   'button, input, textarea, select, a, [role="button"], [data-overlay-interactive="true"]';
+const TASK_OPERATOR_ACTIONS = [
+  { kind: "pauseTask", label: "Pause" },
+  { kind: "askTaskUpdate", label: "Ask for update" },
+  { kind: "increaseTaskBudget", label: "Increase budget" },
+  { kind: "reassignTask", label: "Reassign" },
+  { kind: "requestTaskReview", label: "Request review" },
+] satisfies { kind: TaskOperatorActionKind; label: string }[];
+
+export type TaskOperatorActionKind = Extract<
+  AgentWorkspaceActionKind,
+  "pauseTask" | "askTaskUpdate" | "increaseTaskBudget" | "reassignTask" | "requestTaskReview"
+>;
 
 export function renderOverlayModel(
   state: SageOsOverlayStatusState,
@@ -575,7 +588,7 @@ export function applyOverlayWorkspaceAvailability(
   return {
     ...workspace,
     actions: workspace.actions.map((action) => {
-      if (action.kind === "assignEmployeeTask") {
+      if (isOverlayLocalWorkspaceAction(action.kind)) {
         return action;
       }
       return {
@@ -588,6 +601,17 @@ export function applyOverlayWorkspaceAvailability(
       };
     }),
   };
+}
+
+function isOverlayLocalWorkspaceAction(kind: AgentWorkspaceActionKind): boolean {
+  return (
+    kind === "assignEmployeeTask" ||
+    kind === "pauseTask" ||
+    kind === "askTaskUpdate" ||
+    kind === "increaseTaskBudget" ||
+    kind === "reassignTask" ||
+    kind === "requestTaskReview"
+  );
 }
 
 function withToolbarAvailability(
@@ -1243,6 +1267,11 @@ export class SageOsOverlayApp extends LitElement {
       return;
     }
 
+    if (isTaskOperatorAction(action.kind) && action.target.kind === "task") {
+      this.prefillTaskOperatorAction(action.target.id, action.kind);
+      return;
+    }
+
     if (!this.controller) {
       return;
     }
@@ -1271,6 +1300,15 @@ export class SageOsOverlayApp extends LitElement {
   private prefillEmployeeTaskAssignment(employeeId: string) {
     const employee = this.sageOsState?.agents?.find((entry) => entry.id === employeeId);
     this.launcherCommand = `Assign ${employee?.name ?? labelFromId(employeeId)} to `;
+    this.requestUpdate();
+    void this.updateComplete.then(() => this.focusLauncher());
+  }
+
+  private prefillTaskOperatorAction(taskId: string, actionKind: TaskOperatorActionKind) {
+    if (!this.sageOsState) {
+      return;
+    }
+    this.launcherCommand = buildTaskOperatorLauncherCommand(this.sageOsState, taskId, actionKind);
     this.requestUpdate();
     void this.updateComplete.then(() => this.focusLauncher());
   }
@@ -1569,6 +1607,14 @@ function buildWorkspaceModel(
           enabled: canCancel,
           target,
         },
+        ...TASK_OPERATOR_ACTIONS.map(
+          (action) =>
+            ({
+              ...action,
+              enabled: canCancel,
+              target,
+            }) satisfies AgentWorkspaceAction,
+        ),
       ],
     };
   }
@@ -2057,6 +2103,39 @@ function ownerLabelForState(state: SageOsOverlayStatusState, ownerAgentId: strin
     ownerAgentId,
     new Map((state.agents ?? []).map((agent) => [agent.id, agent.name])),
   );
+}
+
+function isTaskOperatorAction(kind: AgentWorkspaceActionKind): kind is TaskOperatorActionKind {
+  return TASK_OPERATOR_ACTIONS.some((action) => action.kind === kind);
+}
+
+export function buildTaskOperatorLauncherCommand(
+  state: SageOsOverlayStatusState,
+  taskId: string,
+  actionKind: TaskOperatorActionKind,
+): string {
+  const task = state.tasks?.find((entry) => entry.id === taskId);
+  const taskTitle = task?.title?.trim() || labelFromId(taskId);
+  if (actionKind === "pauseTask") {
+    return `Pause ${taskTitle}`;
+  }
+  if (actionKind === "askTaskUpdate") {
+    return `Ask ${ownerLabelForState(state, task?.ownerAgentId)} for an update on ${taskTitle}`;
+  }
+  if (actionKind === "increaseTaskBudget") {
+    return `Increase budget for ${taskTitle} to `;
+  }
+  if (actionKind === "reassignTask") {
+    return `Reassign ${taskTitle} to `;
+  }
+  return `Ask ${reviewerLabelForState(state)} to review ${taskTitle}`;
+}
+
+function reviewerLabelForState(state: SageOsOverlayStatusState): string {
+  const reviewer = state.agents?.find(
+    (agent) => agent.id === "employee_reviewer" || agent.role.toLowerCase().includes("review"),
+  );
+  return reviewer?.name ?? "Reviewer";
 }
 
 function ownerLabel(ownerAgentId: string | undefined, employeeNames: Map<string, string>): string {

@@ -2,7 +2,7 @@
 
 Date: 2026-06-02
 Operator: Codex
-Build: Windows overlay MVP shell verification after approval decision-detail pass
+Build: Windows overlay MVP shell verification after active-operation control pass
 
 ## Preconditions
 
@@ -38,6 +38,8 @@ Build: Windows overlay MVP shell verification after approval decision-detail pas
 - [x] Universal Launcher disabled input, run, and voice states expose operator-facing reasons.
 - [x] Gateway disconnected, reconnecting, loading, refreshing, and error states render explicit overlay callouts and toolbar labels.
 - [x] Gateway-backed toolbar, row, and Agent Workspace actions disable with reasons when the gateway is unavailable or busy.
+- [x] Agent Workspace active-operation controls expose cancel, pause, ask for update, increase budget, reassign, and request review actions.
+- [x] Active-operation launcher-prefill controls remain available while the gateway is disconnected.
 - [x] Liquid Linear material tokens cover ambient, command, focus, and summit glass elevations.
 - [x] Liquid Linear command glass tokens cover refraction, specular highlights, platinum tint, command/focus/control shadows, runway highlights, and spring motion.
 - [x] Command Deck opens on active run telemetry when a live run exists, including worker session, current tool, budget used, verification, timeline, logs, and artifacts.
@@ -61,13 +63,13 @@ Build: Windows overlay MVP shell verification after approval decision-detail pas
 - HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud.png`
 - IDE-like backdrop HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud-ide.png`
 - Current verification update: `pnpm --dir apps/windows-overlay smoke:electron` passed on
-  2026-06-02 after the approval decision-detail pass. The packaged overlay reported `ok: true`,
+  2026-06-02 after the active-operation control pass. The packaged overlay reported `ok: true`,
   `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, no renderer page errors,
   four `sageos.control` calls for pause, resume, stop, and emergency stop, verified the
   availability-aware Voice entry state, and refreshed the full, bright, edge-left, text-heavy edge,
   HUD, and IDE HUD screenshots above.
 - Current package gates after the latest verification sweep: `pnpm --dir apps/windows-overlay test`
-  passed with 13 files and 82 tests, `pnpm --dir apps/windows-overlay typecheck` passed, and
+  passed with 13 files and 83 tests, `pnpm --dir apps/windows-overlay typecheck` passed, and
   `pnpm --dir apps/windows-overlay build` passed.
 - Current shared SageOS/control-surface gate after the latest policy hardening sweep:
   `pnpm exec vitest run --config vitest.unit.config.ts src/sageos src/cli/sageos-cli.test.ts
@@ -78,8 +80,9 @@ src/telegram/bot.test.ts` passed with 28 files
 - Current gateway SageOS method gate after the latest policy hardening sweep:
   `pnpm exec vitest run --config vitest.config.ts src/gateway/server-methods/sageos.test.ts`
   passed with 1 file and 35 tests.
-- Current static gates after the latest overlay resource pass: `pnpm exec tsgo --noEmit` passed,
-  and `pnpm exec oxlint --type-aware` passed with 0 warnings and 0 errors.
+- Current static gates after the latest active-operation control pass: `pnpm exec tsgo --noEmit`
+  passed, `pnpm exec oxlint --type-aware` passed with 0 warnings and 0 errors, `pnpm build`
+  passed, and `git diff --check` passed.
 - Notes: Automated overlay package test, focused config/state tests, overlay typecheck, overlay build,
   root `pnpm tsgo`, root `pnpm build`, exact `pnpm oxfmt --check` plan targets, and
   `git diff --check` passed on 2026-06-01 during the final overlay MVP verification pass.
@@ -119,7 +122,8 @@ src/telegram/bot.test.ts` passed with 28 files
   Electron reports hotkey registration failure, and active-monitor selection honors `primary` plus
   configured display IDs. Unit coverage also verifies explicit connected/loading/reconnecting/error
   state labels, stale-state callouts, gateway-backed control disabled reasons, Edge Rail drill-down
-  targets, explicit Security and PC Management system resources, and Universal Launcher disabled reasons for gateway and empty-command states. The smoke
+  targets, explicit Security and PC Management system resources, active-operation launcher-prefill
+  controls, and Universal Launcher disabled reasons for gateway and empty-command states. The smoke
   now presses `Ctrl+K`, verifies launcher focus, presses
   `Escape`, and waits for the Electron BrowserWindow to hide through the close bridge. The smoke
   emitted Electron's development CSP warning only; no renderer page errors were observed.

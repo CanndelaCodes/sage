@@ -20,6 +20,11 @@ export type AgentWorkspaceTarget = {
 export type AgentWorkspaceActionKind =
   | "queueTask"
   | "cancelTask"
+  | "pauseTask"
+  | "askTaskUpdate"
+  | "increaseTaskBudget"
+  | "reassignTask"
+  | "requestTaskReview"
   | "approveApproval"
   | "denyApproval"
   | "assignEmployeeTask"
