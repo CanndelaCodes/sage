@@ -111,6 +111,8 @@ export type OverlayGatewaySettings = {
 export type OverlayLayoutSettings = {
   collapsedEdge: SageOsOverlayEdge;
   pinnedWidgets: SageOsOverlayWidgetId[];
+  showApprovalBadge: boolean;
+  showIncidentBadge: boolean;
 };
 export type OverlayInteractionSettings = {
   voice: {
@@ -135,6 +137,8 @@ type OverlaySpeechRecognition = {
 export type RenderOverlayModelOptions = {
   workspaceTarget?: AgentWorkspaceTarget;
   pinnedWidgets?: SageOsOverlayWidgetId[];
+  showApprovalBadge?: boolean;
+  showIncidentBadge?: boolean;
 };
 type OverlayRunRecord = NonNullable<SageOsOverlayStatusState["runs"]>[number];
 
@@ -167,6 +171,8 @@ export function renderOverlayModel(
   const activeTasks = String(status.tasks.active);
   const pendingApprovals = String(status.approvals.pending);
   const incidents = String(status.incidents.length);
+  const showApprovalBadge = opts.showApprovalBadge !== false;
+  const showIncidentBadge = opts.showIncidentBadge !== false;
   const employeeNames = new Map((state.agents ?? []).map((agent) => [agent.id, agent.name]));
   const runs = state.runs ?? [];
   const taskRows = (state.tasks ?? []).map((task) => ({
@@ -206,6 +212,20 @@ export function renderOverlayModel(
   }));
   const resourceRows = buildResourceRows(state);
   const systemResourceRows = buildSystemResourceRows(status);
+  const hudBadges: OverlayBadge[] = [{ label: "Tasks", value: activeTasks }];
+  if (showApprovalBadge) {
+    hudBadges.push({ label: "Approvals", value: pendingApprovals });
+  }
+  if (showIncidentBadge) {
+    hudBadges.push({ label: "Incidents", value: incidents });
+  }
+  const edgeRailBadges = [{ kind: "health", count: status.supervisor.state === "running" ? 0 : 1 }];
+  if (showApprovalBadge) {
+    edgeRailBadges.push({ kind: "approval", count: status.approvals.pending });
+  }
+  if (showIncidentBadge) {
+    edgeRailBadges.push({ kind: "incident", count: status.incidents.length });
+  }
 
   return {
     commandDeck: {
@@ -230,18 +250,10 @@ export function renderOverlayModel(
     workspace: buildWorkspaceModel(state, opts.workspaceTarget ?? defaultWorkspaceTarget(state)),
     pinnedWidgets: buildPinnedWidgets(status, opts.pinnedWidgets),
     hud: {
-      badges: [
-        { label: "Tasks", value: activeTasks },
-        { label: "Approvals", value: pendingApprovals },
-        { label: "Incidents", value: incidents },
-      ] satisfies OverlayBadge[],
+      badges: hudBadges,
     },
     edgeRail: {
-      badges: [
-        { kind: "health", count: status.supervisor.state === "running" ? 0 : 1 },
-        { kind: "approval", count: status.approvals.pending },
-        { kind: "incident", count: status.incidents.length },
-      ],
+      badges: edgeRailBadges,
     },
   };
 }
@@ -276,6 +288,8 @@ export function readOverlayLayoutSettings(
   return {
     collapsedEdge: normalizeOverlayEdge(params.get("collapsedEdge")),
     pinnedWidgets: normalizePinnedWidgets(params.get("pinnedWidgets")),
+    showApprovalBadge: normalizeOverlayBoolean(params.get("showApprovalBadge"), true),
+    showIncidentBadge: normalizeOverlayBoolean(params.get("showIncidentBadge"), true),
   };
 }
 
@@ -317,6 +331,21 @@ function normalizePinnedWidgets(value: unknown): SageOsOverlayWidgetId[] {
     );
   const uniqueWidgets = [...new Set(widgets)];
   return uniqueWidgets.length ? uniqueWidgets : [...DEFAULT_PINNED_WIDGETS];
+}
+
+function normalizeOverlayBoolean(value: unknown, fallback: boolean): boolean {
+  if (typeof value !== "string" || !value.trim()) {
+    return fallback;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+  return fallback;
 }
 
 export function getOverlaySurfaceVisibility(surface: OverlaySurface): OverlaySurfaceVisibility {
@@ -493,6 +522,8 @@ export class SageOsOverlayApp extends LitElement {
       ? renderOverlayModel(this.sageOsState, {
           workspaceTarget: this.workspaceTarget ?? undefined,
           pinnedWidgets: this.layout.pinnedWidgets,
+          showApprovalBadge: this.layout.showApprovalBadge,
+          showIncidentBadge: this.layout.showIncidentBadge,
         })
       : null;
     const surfaceVisibility = getOverlaySurfaceVisibility(this.surface);

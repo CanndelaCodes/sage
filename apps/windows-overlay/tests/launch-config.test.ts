@@ -11,6 +11,8 @@ describe("overlay launch config", () => {
       SAGEOS_OVERLAY_COLLAPSED_EDGE: "left",
       SAGEOS_OVERLAY_ACTIVE_MONITOR: "primary",
       SAGEOS_OVERLAY_PINNED_WIDGETS: "nightShift,systemHealth",
+      SAGEOS_OVERLAY_SHOW_APPROVAL_BADGE: "0",
+      SAGEOS_OVERLAY_SHOW_INCIDENT_BADGE: "false",
       SAGEOS_OVERLAY_VOICE_ENABLED: "1",
       SAGEOS_OVERLAY_VOICE_MODE: "pushToTalk",
       SAGEOS_OVERLAY_GATEWAY_URL: "ws://127.0.0.1:18888",
@@ -26,12 +28,16 @@ describe("overlay launch config", () => {
     expect(config.shell.collapsedEdge).toBe("left");
     expect(config.shell.activeMonitor).toBe("primary");
     expect(config.shell.pinnedWidgets).toEqual(["nightShift", "systemHealth"]);
+    expect(config.shell.showApprovalBadge).toBe(false);
+    expect(config.shell.showIncidentBadge).toBe(false);
     expect(config.shell.voice).toEqual({ enabled: true, mode: "pushToTalk" });
     expect(config.openOnLaunch).toBe(true);
     expect(config.rendererQuery).toEqual({
       collapsedEdge: "left",
       gatewayUrl: "ws://127.0.0.1:18888",
       pinnedWidgets: "nightShift,systemHealth",
+      showApprovalBadge: "0",
+      showIncidentBadge: "0",
       token: "token-1",
       password: "password-1",
       surface: "hud",
@@ -48,6 +54,8 @@ describe("overlay launch config", () => {
       openMode: "full",
       hudExpandsToFull: true,
       collapsedEdge: "right",
+      showApprovalBadge: true,
+      showIncidentBadge: true,
     });
     expect(config.rendererQuery).toEqual({
       collapsedEdge: "right",

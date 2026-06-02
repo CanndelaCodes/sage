@@ -10,6 +10,8 @@ param(
   [string]$CollapsedEdge = "right",
   [string]$ActiveMonitor = "",
   [string[]]$PinnedWidgets = @("activeOperations", "approvals", "incidents"),
+  [bool]$ShowApprovalBadge = $true,
+  [bool]$ShowIncidentBadge = $true,
   [switch]$VoiceEnabled,
   [ValidateSet("pushToTalk")]
   [string]$VoiceMode = "pushToTalk",
@@ -63,6 +65,10 @@ function Get-ShortcutArguments {
     (ConvertTo-ShortcutArgument ([string]$HudExpandsToFull)),
     "-CollapsedEdge",
     (ConvertTo-ShortcutArgument $CollapsedEdge),
+    "-ShowApprovalBadge",
+    (ConvertTo-ShortcutArgument ([string]$ShowApprovalBadge)),
+    "-ShowIncidentBadge",
+    (ConvertTo-ShortcutArgument ([string]$ShowIncidentBadge)),
     "-GatewayUrl",
     (ConvertTo-ShortcutArgument $GatewayUrl)
   )

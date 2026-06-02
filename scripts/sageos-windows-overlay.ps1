@@ -8,6 +8,8 @@ param(
   [string]$CollapsedEdge = "right",
   [string]$ActiveMonitor = "",
   [string[]]$PinnedWidgets = @("activeOperations", "approvals", "incidents"),
+  [bool]$ShowApprovalBadge = $true,
+  [bool]$ShowIncidentBadge = $true,
   [switch]$VoiceEnabled,
   [ValidateSet("pushToTalk")]
   [string]$VoiceMode = "pushToTalk",
@@ -29,6 +31,8 @@ if ($ActiveMonitor) {
   Remove-Item Env:SAGEOS_OVERLAY_ACTIVE_MONITOR -ErrorAction SilentlyContinue
 }
 $env:SAGEOS_OVERLAY_PINNED_WIDGETS = ($PinnedWidgets -join ",")
+$env:SAGEOS_OVERLAY_SHOW_APPROVAL_BADGE = if ($ShowApprovalBadge) { "1" } else { "0" }
+$env:SAGEOS_OVERLAY_SHOW_INCIDENT_BADGE = if ($ShowIncidentBadge) { "1" } else { "0" }
 if ($VoiceEnabled) {
   $env:SAGEOS_OVERLAY_VOICE_ENABLED = "1"
   $env:SAGEOS_OVERLAY_VOICE_MODE = $VoiceMode

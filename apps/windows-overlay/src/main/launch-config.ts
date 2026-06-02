@@ -14,6 +14,8 @@ export type OverlayRendererQuery = {
   password?: string;
   surface?: string;
   voice?: string;
+  showApprovalBadge?: string;
+  showIncidentBadge?: string;
 };
 
 export type OverlayLaunchConfig = {
@@ -28,6 +30,8 @@ export function readOverlayLaunchConfig(
   const collapsedEdge = overlayEdgeEnv(env.SAGEOS_OVERLAY_COLLAPSED_EDGE);
   const pinnedWidgets = overlayWidgetsEnv(env.SAGEOS_OVERLAY_PINNED_WIDGETS);
   const voice = overlayVoiceEnv(env.SAGEOS_OVERLAY_VOICE_ENABLED, env.SAGEOS_OVERLAY_VOICE_MODE);
+  const showApprovalBadge = booleanEnv(env.SAGEOS_OVERLAY_SHOW_APPROVAL_BADGE, true);
+  const showIncidentBadge = booleanEnv(env.SAGEOS_OVERLAY_SHOW_INCIDENT_BADGE, true);
 
   return {
     shell: {
@@ -39,6 +43,8 @@ export function readOverlayLaunchConfig(
       collapsedEdge,
       activeMonitor: overlayActiveMonitorEnv(env.SAGEOS_OVERLAY_ACTIVE_MONITOR),
       pinnedWidgets,
+      showApprovalBadge,
+      showIncidentBadge,
       ...(voice ? { voice } : {}),
     },
     rendererQuery: compactRendererQuery({
@@ -49,6 +55,8 @@ export function readOverlayLaunchConfig(
       password: env.SAGEOS_OVERLAY_PASSWORD,
       surface: env.SAGEOS_OVERLAY_OPEN_MODE === "hud" ? "hud" : undefined,
       voice: voice?.mode,
+      showApprovalBadge: booleanRendererQuery(env.SAGEOS_OVERLAY_SHOW_APPROVAL_BADGE, true),
+      showIncidentBadge: booleanRendererQuery(env.SAGEOS_OVERLAY_SHOW_INCIDENT_BADGE, true),
     }),
     openOnLaunch: isEnabled(env.SAGEOS_OVERLAY_OPEN_ON_LAUNCH),
   };
@@ -79,6 +87,14 @@ function booleanEnv(value: string | undefined, fallback: boolean): boolean {
     return false;
   }
   return fallback;
+}
+
+function booleanRendererQuery(value: string | undefined, fallback: boolean): string | undefined {
+  if (!value?.trim()) {
+    return undefined;
+  }
+
+  return booleanEnv(value, fallback) ? "1" : "0";
 }
 
 function overlayEdgeEnv(value: string | undefined): SageOsOverlayEdge {

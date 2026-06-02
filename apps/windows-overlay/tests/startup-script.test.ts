@@ -31,6 +31,8 @@ describe("Windows overlay startup installer", () => {
       "powershell.exe",
       "-WindowStyle Hidden",
       "scripts\\sageos-windows-overlay.ps1",
+      "-ShowApprovalBadge",
+      "-ShowIncidentBadge",
       "$shortcut.TargetPath",
       "$shortcut.Arguments",
       "$shortcut.WorkingDirectory",

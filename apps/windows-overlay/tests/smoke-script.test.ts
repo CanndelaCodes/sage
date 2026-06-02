@@ -74,6 +74,22 @@ describe("Electron overlay smoke script", () => {
     }
   });
 
+  it("launch script exposes badge visibility environment controls", () => {
+    const script = readFileSync(
+      new URL("../../../scripts/sageos-windows-overlay.ps1", import.meta.url),
+      "utf8",
+    );
+
+    for (const expected of [
+      "[bool]$ShowApprovalBadge = $true",
+      "[bool]$ShowIncidentBadge = $true",
+      "$env:SAGEOS_OVERLAY_SHOW_APPROVAL_BADGE",
+      "$env:SAGEOS_OVERLAY_SHOW_INCIDENT_BADGE",
+    ]) {
+      expect(script).toContain(expected);
+    }
+  });
+
   it("wires mouse-first tray commands in the main process", () => {
     const main = readFileSync(new URL("../src/main/main.ts", import.meta.url), "utf8");
 

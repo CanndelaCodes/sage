@@ -268,6 +268,16 @@ describe("overlay renderer model", () => {
     expect(model.edgeRail.badges).toContainEqual({ kind: "approval", count: 2 });
   });
 
+  it("honors badge visibility settings for HUD and Edge Rail", () => {
+    const model = renderOverlayModel(state as never, {
+      showApprovalBadge: false,
+      showIncidentBadge: false,
+    });
+
+    expect(model.hud.badges).toEqual([{ label: "Tasks", value: "1" }]);
+    expect(model.edgeRail.badges).toEqual([{ kind: "health", count: 0 }]);
+  });
+
   it("maps tasks, approvals, and incidents into operational rows", () => {
     const model = renderOverlayModel(state as never);
 
@@ -697,10 +707,20 @@ describe("overlay renderer model", () => {
     ).toEqual({
       collapsedEdge: "left",
       pinnedWidgets: ["nightShift", "systemHealth"],
+      showApprovalBadge: true,
+      showIncidentBadge: true,
     });
     expect(readOverlayLayoutSettings("?collapsedEdge=center&pinnedWidgets=unknown")).toEqual({
       collapsedEdge: "right",
       pinnedWidgets: ["activeOperations", "approvals", "incidents"],
+      showApprovalBadge: true,
+      showIncidentBadge: true,
+    });
+    expect(readOverlayLayoutSettings("?showApprovalBadge=0&showIncidentBadge=false")).toEqual({
+      collapsedEdge: "right",
+      pinnedWidgets: ["activeOperations", "approvals", "incidents"],
+      showApprovalBadge: false,
+      showIncidentBadge: false,
     });
   });
 
