@@ -371,6 +371,10 @@ describe("SageOS task runner", () => {
     });
 
     expect(result.outcome).toBe("completed");
+    expect(result.status.notifications.telegram).toMatchObject({
+      enabled: true,
+      target: "telegram:123",
+    });
     expect(notificationCalls).toHaveLength(1);
     expect(notificationCalls[0]).toMatchObject({
       cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },

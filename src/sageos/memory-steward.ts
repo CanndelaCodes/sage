@@ -92,6 +92,7 @@ export async function runSageOsMemoryStewardOnce(
     agentId,
     memoryCaptureQueuePath,
     learningActivityQueuePath,
+    cfg: params.cfg.sageos,
   });
   await writeSageOsState(createSageOsStateStore({ stateDir: params.stateDir }), status);
   return { memory, learning, status };
@@ -134,6 +135,7 @@ export async function runSageOsMemoryDoctorOnce(
     agentId,
     memoryCaptureQueuePath,
     learningActivityQueuePath: params.learningActivityQueuePath,
+    cfg: params.cfg.sageos,
   });
   const status = applySageOsMemoryDoctorSummary(collected, summary);
   await writeSageOsState(createSageOsStateStore({ stateDir: params.stateDir }), status);

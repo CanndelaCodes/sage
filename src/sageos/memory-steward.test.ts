@@ -17,7 +17,10 @@ const cfg = {
       defaultNamespace: "sage.activity",
     },
   },
-  sageos: { memory: { replayQueues: true } },
+  sageos: {
+    memory: { replayQueues: true },
+    notifications: { telegram: { enabled: true, target: "telegram:memory" } },
+  },
 } as const;
 
 describe("SageOS memory steward", () => {
@@ -79,6 +82,10 @@ describe("SageOS memory steward", () => {
       counts: { total: 0, pending: 0, failed: 0 },
     });
     expect(result.status.learning.activityQueue).toMatchObject({ total: 0, failed: 0 });
+    expect(result.status.notifications.telegram).toMatchObject({
+      enabled: true,
+      target: "telegram:memory",
+    });
     const events = await readFile(path.join(root, "sageos", "events.jsonl"), "utf8");
     expect(events).toContain("memory_steward_replayed");
   });
@@ -167,6 +174,10 @@ describe("SageOS memory steward", () => {
         diagnosticNamespace: "sage.sessions.diagnostics",
         sessionNodePath: "sage-memory/node_doctor",
       },
+    });
+    expect(result.status.notifications.telegram).toMatchObject({
+      enabled: true,
+      target: "telegram:memory",
     });
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatchObject({

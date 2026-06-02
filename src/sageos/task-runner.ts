@@ -65,7 +65,7 @@ export async function runNextSageOsTaskOnce(
   const state = await readSageOsState(store);
   const task = state.tasks.find((entry) => entry.state === "queued");
   if (!task) {
-    const status = await collectSageOsStatus({ stateDir: params.stateDir });
+    const status = await collectSageOsStatus({ stateDir: params.stateDir, cfg: params.cfg });
     await writeSageOsState(store, status);
     return { outcome: "idle", status };
   }
@@ -160,7 +160,7 @@ export async function runNextSageOsTaskOnce(
       traceId: run.traceId,
     });
     await maybeSendTaskNotification(params, completedTask, completedRun);
-    const status = await collectSageOsStatus({ stateDir: params.stateDir });
+    const status = await collectSageOsStatus({ stateDir: params.stateDir, cfg: params.cfg });
     await writeSageOsState(store, status);
     return { outcome: "completed", task: completedTask, run: completedRun, status };
   } catch (err) {
@@ -179,7 +179,7 @@ export async function runNextSageOsTaskOnce(
       traceId: run.traceId,
     });
     await maybeSendTaskNotification(params, failedTask, failedRun);
-    const status = await collectSageOsStatus({ stateDir: params.stateDir });
+    const status = await collectSageOsStatus({ stateDir: params.stateDir, cfg: params.cfg });
     await writeSageOsState(store, status);
     return { outcome: "failed", task: failedTask, run: failedRun, status };
   }
