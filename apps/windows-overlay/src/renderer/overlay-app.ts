@@ -1640,8 +1640,18 @@ function buildWorkspaceModel(
       facts: [
         { label: "Action", value: approval.proposedAction },
         { label: "Risk", value: approval.riskClass },
+        { label: "Scope", value: approval.scope ?? "Unknown" },
         { label: "Requested by", value: approval.requestedBy ?? "Unknown" },
+        { label: "Requested at", value: approval.requestedAt ?? "Unknown" },
+        { label: "Expires", value: approval.expiresAt ?? "None" },
+        { label: "Preview", value: approval.preview ?? "None" },
+        { label: "Rollback", value: approval.rollbackPlan ?? "None" },
         { label: "Evidence", value: evidence.join(", ") || "None" },
+        { label: "Task", value: approval.taskId ?? "None" },
+        { label: "Run", value: approval.runId ?? "None" },
+        { label: "Employee", value: approval.employeeId ?? "None" },
+        { label: "Workflow", value: approval.workflowId ?? "None" },
+        { label: "Domain", value: approval.domain ?? "None" },
       ],
       actions: [
         { kind: "approveApproval", label: "Approve", enabled: pending, target },

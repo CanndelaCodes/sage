@@ -179,6 +179,18 @@ const state = {
       proposedAction: "Run memory replay",
       state: "pending",
       riskClass: "local_reversible_write",
+      evidence: ["incident_1", "memory:queue"],
+      preview: "Would replay failed memory captures only.",
+      rollbackPlan: "Stop replay and keep failed items queued.",
+      scope: "task",
+      taskId: "task_1",
+      runId: "run_task_1",
+      employeeId: "employee_memory",
+      workflowId: "workflow_1",
+      domain: "memory",
+      requestedBy: "Security Sentinel",
+      requestedAt: "2026-06-01T12:58:00.000Z",
+      expiresAt: "2026-06-01T13:58:00.000Z",
     },
   ],
   codingReports: [
@@ -518,6 +530,21 @@ describe("overlay renderer model", () => {
         { kind: "denyApproval", label: "Deny", enabled: true },
       ],
     });
+    expect(approvalModel.workspace.facts).toEqual(
+      expect.arrayContaining([
+        { label: "Scope", value: "task" },
+        { label: "Preview", value: "Would replay failed memory captures only." },
+        { label: "Rollback", value: "Stop replay and keep failed items queued." },
+        { label: "Task", value: "task_1" },
+        { label: "Run", value: "run_task_1" },
+        { label: "Employee", value: "employee_memory" },
+        { label: "Workflow", value: "workflow_1" },
+        { label: "Domain", value: "memory" },
+        { label: "Requested at", value: "2026-06-01T12:58:00.000Z" },
+        { label: "Expires", value: "2026-06-01T13:58:00.000Z" },
+        { label: "Evidence", value: "incident_1, memory:queue" },
+      ]),
+    );
     expect(incidentModel.workspace).toMatchObject({
       title: "Memory queue backlog",
       eyebrow: "Incident / warning",
