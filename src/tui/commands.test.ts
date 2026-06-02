@@ -26,8 +26,14 @@ describe("tui slash commands", () => {
     expect(command?.getArgumentCompletions?.("em").map((entry) => entry.value)).toContain(
       "emergency-stop",
     );
+    expect(command?.getArgumentCompletions?.("emp").map((entry) => entry.value)).toContain(
+      "employees",
+    );
+    expect(command?.getArgumentCompletions?.("obs").map((entry) => entry.value)).toContain(
+      "observations",
+    );
     expect(helpText()).toContain(
-      "/sageos <status|pause|resume|stop|emergency-stop|tasks|task <id>|incidents|approvals>",
+      "/sageos <status|pause|resume|stop|emergency-stop|employees|employee <id>|tasks|task <id>|runs|run <id>|observations|observation <id>|workflows|skills|apps|coding|collaborations|incidents|approvals|audit>",
     );
   });
 });

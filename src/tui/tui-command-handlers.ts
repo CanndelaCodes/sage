@@ -24,10 +24,22 @@ import {
 } from "./components/selectors.js";
 import {
   formatSageOsApprovalsForTui,
+  formatSageOsAppsForTui,
+  formatSageOsAuditForTui,
+  formatSageOsCodingReportsForTui,
   formatSageOsCommandCenterForTui,
+  formatSageOsCollaborationsForTui,
+  formatSageOsEmployeeDetailForTui,
+  formatSageOsEmployeesForTui,
   formatSageOsIncidentsForTui,
+  formatSageOsObservationDetailForTui,
+  formatSageOsObservationsForTui,
+  formatSageOsRunDetailForTui,
+  formatSageOsRunsForTui,
+  formatSageOsSkillsForTui,
   formatSageOsTaskDetailForTui,
   formatSageOsTasksForTui,
+  formatSageOsWorkflowsForTui,
 } from "./tui-sageos-command-center.js";
 import { formatStatusSummary } from "./tui-status-summary.js";
 
@@ -290,6 +302,16 @@ export function createCommandHandlers(context: CommandHandlerContext) {
         case "tasks":
           addSystemLines(formatSageOsTasksForTui(await client.getSageOsState()));
           break;
+        case "employees":
+          addSystemLines(formatSageOsEmployeesForTui(await client.getSageOsState()));
+          break;
+        case "employee":
+          if (!restText) {
+            chatLog.addSystem("usage: /sageos employee <id>");
+            break;
+          }
+          addSystemLines(formatSageOsEmployeeDetailForTui(await client.getSageOsState(), restText));
+          break;
         case "task":
           if (!restText) {
             chatLog.addSystem("usage: /sageos task <id>");
@@ -297,15 +319,55 @@ export function createCommandHandlers(context: CommandHandlerContext) {
           }
           addSystemLines(formatSageOsTaskDetailForTui(await client.getSageOsState(), restText));
           break;
+        case "runs":
+          addSystemLines(formatSageOsRunsForTui(await client.getSageOsState()));
+          break;
+        case "run":
+          if (!restText) {
+            chatLog.addSystem("usage: /sageos run <id>");
+            break;
+          }
+          addSystemLines(formatSageOsRunDetailForTui(await client.getSageOsState(), restText));
+          break;
+        case "observations":
+          addSystemLines(formatSageOsObservationsForTui(await client.getSageOsState()));
+          break;
+        case "observation":
+          if (!restText) {
+            chatLog.addSystem("usage: /sageos observation <id>");
+            break;
+          }
+          addSystemLines(
+            formatSageOsObservationDetailForTui(await client.getSageOsState(), restText),
+          );
+          break;
+        case "workflows":
+          addSystemLines(formatSageOsWorkflowsForTui(await client.getSageOsState()));
+          break;
+        case "skills":
+          addSystemLines(formatSageOsSkillsForTui(await client.getSageOsState()));
+          break;
+        case "apps":
+          addSystemLines(formatSageOsAppsForTui(await client.getSageOsState()));
+          break;
+        case "coding":
+          addSystemLines(formatSageOsCodingReportsForTui(await client.getSageOsState()));
+          break;
+        case "collaborations":
+          addSystemLines(formatSageOsCollaborationsForTui(await client.getSageOsState()));
+          break;
         case "incidents":
           addSystemLines(formatSageOsIncidentsForTui(await client.getSageOsState()));
           break;
         case "approvals":
           addSystemLines(formatSageOsApprovalsForTui(await client.getSageOsState()));
           break;
+        case "audit":
+          addSystemLines(formatSageOsAuditForTui(await client.getSageOsState()));
+          break;
         default:
           chatLog.addSystem(
-            "usage: /sageos <status|pause|resume|stop|emergency-stop|tasks|task <id>|incidents|approvals>",
+            "usage: /sageos <status|pause|resume|stop|emergency-stop|employees|employee <id>|tasks|task <id>|runs|run <id>|observations|observation <id>|workflows|skills|apps|coding|collaborations|incidents|approvals|audit>",
           );
       }
     } catch (err) {
