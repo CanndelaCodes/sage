@@ -207,6 +207,59 @@ describe("SageOS task runner", () => {
     expect(log).toContain("requires execute_scoped autonomy while current policy allows prepare");
   });
 
+  it("blocks queued policy-risk tasks before executor runs", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-task-runner-risk-"));
+    const store = createSageOsStateStore({ stateDir: root });
+    const now = "2026-06-02T06:18:00.000Z";
+    await upsertSageOsTask(store, {
+      id: "task_policy_change",
+      title: "Change autonomy policy",
+      objective: "Do not run policy-changing work without operator approval.",
+      state: "queued",
+      requestedBy: "sageos.cli",
+      autonomyTier: "execute_scoped",
+      policyScopes: [{ kind: "tool", allow: ["autonomy_policy_update"], risk: "low" }],
+      createdAt: now,
+      updatedAt: now,
+    });
+    let executorCalls = 0;
+
+    const result = await runNextSageOsTaskOnce({
+      stateDir: root,
+      requestedBy: "sageos.test",
+      cfg: { policy: { requireApprovalForPolicyChanges: true } },
+      executor: async () => {
+        executorCalls += 1;
+        return { summary: "should not run" };
+      },
+      now: () => new Date(now),
+    });
+
+    expect(executorCalls).toBe(0);
+    expect(result).toMatchObject({
+      outcome: "blocked",
+      task: { id: "task_policy_change", state: "waiting_for_policy", updatedAt: now },
+      approval: {
+        id: "approval_task_task_policy_change",
+        state: "pending",
+        riskClass: "policy_change",
+        taskId: "task_policy_change",
+      },
+      status: {
+        tasks: { total: 1, queued: 0, blocked: 1 },
+        approvals: { pending: 1 },
+      },
+    });
+    await expect(readSageOsState(store)).resolves.toMatchObject({
+      tasks: [{ id: "task_policy_change", state: "waiting_for_policy" }],
+      approvals: [{ id: "approval_task_task_policy_change", state: "pending" }],
+      runs: [],
+    });
+    const log = await readFile(path.join(root, "sageos", "events.jsonl"), "utf8");
+    expect(log).toContain("approval_requested");
+    expect(log).toContain("policy_change approval required");
+  });
+
   it("runs queued tasks with an approved autonomy-tier approval", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "sageos-task-runner-tier-approved-"));
     const store = createSageOsStateStore({ stateDir: root });

@@ -1,5 +1,6 @@
 import type {
   SageOsApproval,
+  SageOsApprovalRiskClass,
   SageOsConfig,
   SageOsRun,
   SageOsRunBudgetUsage,
@@ -16,7 +17,7 @@ import {
   sendSageOsCompletionNotificationOnce,
   sendSageOsTaskNotificationOnce,
 } from "./notifications.js";
-import { evaluateSageOsAutonomyTier } from "./policy.js";
+import { evaluateSageOsAutonomyTier, requiredSageOsApprovalRisk } from "./policy.js";
 import {
   createSageOsStateStore,
   readSageOsState,
@@ -103,6 +104,31 @@ export async function runNextSageOsTaskOnce(
       type: "approval_requested",
       actor: requestedBy,
       summary: `Requested approval ${approval.id} before running SageOS task ${task.id}: ${autonomyDecision.reason}`,
+      taskId: task.id,
+    });
+    const status = await collectSageOsStatus({ stateDir: params.stateDir, cfg: params.cfg });
+    await writeSageOsState(store, status);
+    return { outcome: "blocked", task: blockedTask, approval, status };
+  }
+  const riskClass = requiredSageOsExecutionApprovalRisk(task, params.cfg);
+  if (riskClass && !hasApprovedTaskApproval(task, riskClass, state.approvals)) {
+    const reason = `${riskClass} approval required before running queued SageOS task ${task.id}`;
+    const blockedTask: SageOsTaskSpec = {
+      ...task,
+      state: "waiting_for_policy",
+      updatedAt: now,
+    };
+    const approval = createSageOsTaskApproval(blockedTask, riskClass, {
+      requestedBy,
+      now,
+      reason,
+    });
+    await upsertSageOsTask(store, blockedTask);
+    await upsertSageOsApproval(store, approval);
+    await appendSageOsEvent(createSageOsEventLog({ stateDir: params.stateDir }), {
+      type: "approval_requested",
+      actor: requestedBy,
+      summary: `Requested approval ${approval.id} before running SageOS task ${task.id}: ${reason}`,
       taskId: task.id,
     });
     const status = await collectSageOsStatus({ stateDir: params.stateDir, cfg: params.cfg });
@@ -290,6 +316,27 @@ function hasApprovedAutonomyApproval(task: SageOsTaskSpec, approvals: SageOsAppr
       approval.taskId === task.id &&
       approval.state === "approved" &&
       approval.riskClass === "policy_change",
+  );
+}
+
+function requiredSageOsExecutionApprovalRisk(
+  task: SageOsTaskSpec,
+  cfg?: SageOsConfig,
+): SageOsApprovalRiskClass | undefined {
+  const riskClass = requiredSageOsApprovalRisk(task.policyScopes, cfg);
+  return riskClass === "destructive" ? undefined : riskClass;
+}
+
+function hasApprovedTaskApproval(
+  task: SageOsTaskSpec,
+  riskClass: SageOsApprovalRiskClass,
+  approvals: SageOsApproval[],
+): boolean {
+  return approvals.some(
+    (approval) =>
+      approval.taskId === task.id &&
+      approval.state === "approved" &&
+      approval.riskClass === riskClass,
   );
 }
 
