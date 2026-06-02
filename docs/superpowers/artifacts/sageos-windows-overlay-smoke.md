@@ -2,7 +2,7 @@
 
 Date: 2026-06-02
 Operator: Codex
-Build: Windows overlay MVP shell verification after voice availability update
+Build: Windows overlay MVP shell verification after launcher and Edge Rail action availability update
 
 ## Preconditions
 
@@ -35,11 +35,15 @@ Build: Windows overlay MVP shell verification after voice availability update
 - [x] `SAGEOS_OVERLAY_VOICE_ENABLED=1` plus `SAGEOS_OVERLAY_VOICE_MODE=pushToTalk` exposes the Voice entry point.
 - [x] Voice entry is enabled only when browser speech recognition exists; otherwise it is disabled with an unavailable-runtime reason.
 - [x] The Voice entry point is omitted when voice config is missing, disabled, or invalid.
+- [x] Universal Launcher disabled input, run, and voice states expose operator-facing reasons.
+- [x] Gateway disconnected, reconnecting, loading, refreshing, and error states render explicit overlay callouts and toolbar labels.
+- [x] Gateway-backed toolbar, row, and Agent Workspace actions disable with reasons when the gateway is unavailable or busy.
 - [x] Liquid Linear material tokens cover ambient, command, focus, and summit glass elevations.
 - [x] Liquid Linear command glass tokens cover refraction, specular highlights, platinum tint, command/focus/control shadows, runway highlights, and spring motion.
 - [x] Command Deck opens on active run telemetry when a live run exists, including worker session, current tool, budget used, verification, timeline, logs, and artifacts.
 - [x] Automated smoke captures the overlay over bright, text-heavy, and IDE-like visual backdrops.
 - [x] Edge Rail collapse keeps health, approval, and incident indicators visible.
+- [x] Edge Rail health, approval, and incident badges carry drill-down targets and expand to the relevant workspace.
 - [x] Pass-through surfaces can temporarily restore overlay pointer capture over active controls.
 - [x] Pinned widget mode leaves the underlying app usable outside active widget controls.
 - [x] Pause, resume, stop, approve, deny, queue, cancel, run next, safe repair, and emergency stop controls call the expected `sageos.*` RPC methods.
@@ -54,11 +58,14 @@ Build: Windows overlay MVP shell verification after voice availability update
 - HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud.png`
 - IDE-like backdrop HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud-ide.png`
 - Current verification update: `pnpm --dir apps/windows-overlay smoke:electron` passed on
-  2026-06-02 after the voice availability update. The packaged overlay reported `ok: true`,
+  2026-06-02 after the launcher and Edge Rail action availability update. The packaged overlay reported `ok: true`,
   `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, no renderer page errors,
   four `sageos.control` calls for pause, resume, stop, and emergency stop, verified the
   availability-aware Voice entry state, and refreshed the full, bright, edge-left, text-heavy edge,
   HUD, and IDE HUD screenshots above.
+- Current package gates after the latest overlay UX pass: `pnpm --dir apps/windows-overlay test`
+  passed with 13 files and 78 tests, `pnpm --dir apps/windows-overlay typecheck` passed, and
+  `pnpm --dir apps/windows-overlay build` passed.
 - Notes: Automated overlay package test, focused config/state tests, overlay typecheck, overlay build,
   root `pnpm tsgo`, root `pnpm build`, exact `pnpm oxfmt --check` plan targets, and
   `git diff --check` passed on 2026-06-01 during the final overlay MVP verification pass.
@@ -96,6 +103,9 @@ Build: Windows overlay MVP shell verification after voice availability update
   deny, run next, safe memory replay repair, queue, cancel, and launcher send. Unit coverage now
   verifies the registered global hotkey callback opens and closes the overlay, startup fails if
   Electron reports hotkey registration failure, and active-monitor selection honors `primary` plus
-  configured display IDs. The smoke now presses `Ctrl+K`, verifies launcher focus, presses
+  configured display IDs. Unit coverage also verifies explicit connected/loading/reconnecting/error
+  state labels, stale-state callouts, gateway-backed control disabled reasons, Edge Rail drill-down
+  targets, and Universal Launcher disabled reasons for gateway and empty-command states. The smoke
+  now presses `Ctrl+K`, verifies launcher focus, presses
   `Escape`, and waits for the Electron BrowserWindow to hide through the close bridge. The smoke
   emitted Electron's development CSP warning only; no renderer page errors were observed.

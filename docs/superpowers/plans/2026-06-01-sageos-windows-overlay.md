@@ -15,12 +15,12 @@ Status: implemented and verified for the Windows overlay MVP shell as of 2026-06
 Current evidence:
 
 - `pnpm exec vitest run --config vitest.config.ts src/config/sageos-schema.test.ts src/sageos/overlay-state.test.ts` passed with 8 tests.
-- `pnpm --dir apps/windows-overlay test` passed with 71 tests.
+- `pnpm --dir apps/windows-overlay test` passed with 78 tests.
 - `pnpm --dir apps/windows-overlay typecheck` passed.
 - `pnpm --dir apps/windows-overlay build` passed.
 - `pnpm tsgo`, `pnpm lint`, and `pnpm build` passed during the same 2026-06-02 continuation after the startup CLI integration.
 - `git diff --check` passed for the startup CLI slice and this plan reconciliation.
-- `docs/superpowers/artifacts/sageos-windows-overlay-smoke.md` records the current smoke evidence, screenshot paths, keyboard checks, pass-through probe, tray controls, voice availability behavior, and Liquid Linear visual contract evidence.
+- `docs/superpowers/artifacts/sageos-windows-overlay-smoke.md` records the current smoke evidence, screenshot paths, keyboard checks, pass-through probe, tray controls, voice availability behavior, gateway connection/action availability behavior, Edge Rail drill-down targets, Universal Launcher disabled-state behavior, and Liquid Linear visual contract evidence.
 - Follow-up CLI integration is complete in `sage os overlay startup install|status|uninstall`, so the active-user Windows startup shortcut can be managed from SageOS config instead of only the package script.
 
 The checked steps below reflect completed implementation work. Keep the original task details as the implementation recipe and acceptance mapping for future audits.
