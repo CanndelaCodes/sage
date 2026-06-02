@@ -875,9 +875,12 @@ Create `apps/windows-overlay/tests/sageos-actions.test.ts`.
 import { describe, expect, it, vi } from "vitest";
 import {
   approveSageOsApproval,
+  emergencyStopSageOs,
   loadSageOsOverlayStatus,
   pauseSageOs,
   queueSageOsTask,
+  resumeSageOs,
+  stopSageOs,
 } from "../src/renderer/sageos-actions.js";
 
 describe("SageOS overlay actions", () => {
@@ -891,12 +894,30 @@ describe("SageOS overlay actions", () => {
   it("uses existing control, approval, and task RPC methods", async () => {
     const request = vi.fn().mockResolvedValue({ state: {} });
     await pauseSageOs({ request });
+    await resumeSageOs({ request });
+    await stopSageOs({ request });
+    await emergencyStopSageOs({ request });
     await approveSageOsApproval({ request }, "approval_1");
     await queueSageOsTask({ request }, "task_1");
 
     expect(request).toHaveBeenCalledWith("sageos.control", {
       state: "paused",
       emergency: false,
+      reason: "windows-overlay",
+    });
+    expect(request).toHaveBeenCalledWith("sageos.control", {
+      state: "running",
+      emergency: false,
+      reason: "windows-overlay",
+    });
+    expect(request).toHaveBeenCalledWith("sageos.control", {
+      state: "stopped",
+      emergency: false,
+      reason: "windows-overlay",
+    });
+    expect(request).toHaveBeenCalledWith("sageos.control", {
+      state: "stopped",
+      emergency: true,
       reason: "windows-overlay",
     });
     expect(request).toHaveBeenCalledWith("sageos.approvals.resolve", {
@@ -965,6 +986,14 @@ export function pauseSageOs(client: OverlayGatewayClient) {
 export function resumeSageOs(client: OverlayGatewayClient) {
   return client.request<SageOsPersistedState>("sageos.control", {
     state: "running",
+    emergency: false,
+    reason: "windows-overlay",
+  });
+}
+
+export function stopSageOs(client: OverlayGatewayClient) {
+  return client.request<SageOsPersistedState>("sageos.control", {
+    state: "stopped",
     emergency: false,
     reason: "windows-overlay",
   });
@@ -1591,7 +1620,7 @@ Build:
 - [ ] HUD expands to full overlay.
 - [ ] Edge Rail collapse keeps health, approval, incident, and active-operation indicators visible.
 - [ ] Pinned widget mode leaves the underlying app usable outside active widget controls.
-- [ ] Pause, resume, approve, deny, queue, cancel, and emergency stop controls call the expected `sageos.*` RPC methods.
+- [ ] Pause, resume, stop, approve, deny, queue, cancel, and emergency stop controls call the expected `sageos.*` RPC methods.
 - [ ] No renderer console errors appear during the smoke flow.
 
 ## Evidence
