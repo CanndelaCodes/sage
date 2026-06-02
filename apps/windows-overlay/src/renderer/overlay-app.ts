@@ -1567,6 +1567,7 @@ function buildResourceRows(state: SageOsOverlayStatusState): OverlayResourceRow[
 function buildSystemResourceRows(state: SageOsOverlayStatusState): OverlaySystemResourceRow[] {
   const status = state.status;
   const files = fileWorkspaceSummary(state);
+  const collaboration = collaborationWorkspaceSummary(state);
   return [
     {
       id: "supervisor",
@@ -1621,6 +1622,12 @@ function buildSystemResourceRows(state: SageOsOverlayStatusState): OverlaySystem
       title: "Apps & Widgets",
       detail: `${status.apps.total} total / ${status.apps.queued} queued / ${status.apps.blocked} blocked`,
       state: `${status.apps.active} active`,
+    },
+    {
+      id: "collaboration",
+      title: "Collaboration",
+      detail: `${collaboration.openEvents} open / ${collaboration.handoffs} handoffs / ${collaboration.reviewRequests} reviews`,
+      state: `${collaboration.openEvents} open`,
     },
     {
       id: "memory",
@@ -2370,6 +2377,33 @@ function latestObservationSummary(observation: OverlayObservationRecord | undefi
   return observation ? `${observation.title} (${observation.state})` : "None";
 }
 
+type CollaborationWorkspaceSummary = {
+  openEvents: number;
+  handoffs: number;
+  reviewRequests: number;
+  incidentEscalations: number;
+  sharedArtifacts: number;
+  latest?: OverlayCollaborationRecord;
+};
+
+function collaborationWorkspaceSummary(
+  state: SageOsOverlayStatusState,
+): CollaborationWorkspaceSummary {
+  const events = state.collaborations ?? [];
+  return {
+    openEvents: events.filter((event) => event.state === "open").length,
+    handoffs: events.filter((event) => event.kind === "handoff").length,
+    reviewRequests: events.filter((event) => event.kind === "review_request").length,
+    incidentEscalations: events.filter((event) => event.kind === "incident_escalation").length,
+    sharedArtifacts: events.filter((event) => event.kind === "shared_artifact").length,
+    latest: latestByTimestamp(events, (event) => event.updatedAt ?? event.createdAt),
+  };
+}
+
+function latestCollaborationSummary(event: OverlayCollaborationRecord | undefined): string {
+  return event ? `${event.title} (${event.kind} / ${event.state})` : "None";
+}
+
 function latestByTimestamp<T>(
   records: readonly T[],
   timestampForRecord: (record: T) => string | undefined,
@@ -2754,6 +2788,28 @@ function systemWorkspaceModel(
     };
   }
 
+  if (id === "collaboration") {
+    const collaboration = collaborationWorkspaceSummary(state);
+    return {
+      title: "Collaboration",
+      eyebrow: `System / ${collaboration.openEvents} open`,
+      detail: "Cross-employee handoffs, review requests, incident escalations, shared artifacts, and latest collaboration state.",
+      facts: [
+        { label: "Open events", value: String(collaboration.openEvents) },
+        { label: "Handoffs", value: String(collaboration.handoffs) },
+        { label: "Review requests", value: String(collaboration.reviewRequests) },
+        { label: "Incident escalations", value: String(collaboration.incidentEscalations) },
+        { label: "Shared artifacts", value: String(collaboration.sharedArtifacts) },
+        { label: "Latest event", value: latestCollaborationSummary(collaboration.latest) },
+        { label: "From", value: collaboration.latest?.fromAgentId ?? "None" },
+        { label: "To", value: collaboration.latest?.toAgentId ?? "None" },
+        { label: "Task", value: collaboration.latest?.taskId ?? "None" },
+        { label: "Artifacts", value: formatList(collaboration.latest?.artifactRefs ?? []) },
+      ],
+      actions: [],
+    };
+  }
+
   if (id === "learning") {
     return {
       title: "Learning",
@@ -2923,6 +2979,7 @@ type OverlayWorkflowRecord = NonNullable<SageOsOverlayStatusState["workflows"]>[
 type OverlaySkillRecord = NonNullable<SageOsOverlayStatusState["skills"]>[number];
 type OverlayAppRecord = NonNullable<SageOsOverlayStatusState["apps"]>[number];
 type OverlayObservationRecord = NonNullable<SageOsOverlayStatusState["observations"]>[number];
+type OverlayCollaborationRecord = NonNullable<SageOsOverlayStatusState["collaborations"]>[number];
 
 function assignedTasksForEmployee(tasks: OverlayTaskRecord[], employeeId: string): OverlayTaskRecord[] {
   return tasks.filter((task) => task.ownerAgentId === employeeId);

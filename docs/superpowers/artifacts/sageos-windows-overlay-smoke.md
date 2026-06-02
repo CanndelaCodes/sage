@@ -2,7 +2,7 @@
 
 Date: 2026-06-02
 Operator: Codex
-Build: Windows overlay MVP shell verification after Compact HUD polish pass
+Build: Windows overlay MVP shell verification after Collaboration workspace pass
 
 ## Preconditions
 
@@ -59,6 +59,8 @@ Build: Windows overlay MVP shell verification after Compact HUD polish pass
 - [x] Skills workspace summarizes queue health, latest skill, workflow links, trigger conditions, provenance, tests, allowed scopes, and rollback refs.
 - [x] Apps & Widgets appears as a first-class Command Deck system resource and Agent Workspace surface.
 - [x] Apps & Widgets workspace summarizes queue health, latest app/widget candidate, target surfaces, purpose, preview commands, artifacts, source observations, provenance, inputs, outputs, policy scopes, and rollback refs.
+- [x] Collaboration appears as a first-class Command Deck system resource and Agent Workspace surface.
+- [x] Collaboration workspace summarizes open events, handoffs, review requests, incident escalations, shared artifacts, latest event, participants, related task, and artifacts.
 - [x] Settings appears as a first-class Command Deck system resource and Agent Workspace surface.
 - [x] Settings workspace summarizes autonomy mode, default tier, approval gates, sources, notifications, and overlay launch configuration.
 - [x] Audit workspace exposes timeline, evidence, verification, rollback, filter dimensions, and incident bundle pointers from the shared SageOS status contract.
@@ -85,7 +87,7 @@ Build: Windows overlay MVP shell verification after Compact HUD polish pass
 - HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud.png`
 - IDE-like backdrop HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud-ide.png`
 - Current verification update: `pnpm --dir apps/windows-overlay smoke:electron` passed on
-  2026-06-02 after the Compact HUD polish pass. The packaged overlay reported `ok: true`,
+  2026-06-02 after the Collaboration workspace pass. The packaged overlay reported `ok: true`,
   `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, no renderer page errors,
   four `sageos.control` calls for pause, resume, stop, and emergency stop, verified the
   availability-aware Voice entry state, and refreshed the full, bright, edge-left, text-heavy edge,
@@ -146,7 +148,7 @@ src/telegram/bot.test.ts` passed with 28 files
   state labels, stale-state callouts, gateway-backed control disabled reasons, Edge Rail active-operation drill-down
   targets, explicit Security and PC Management system resources, active-operation launcher-prefill
   controls, Universal Launcher quick-action presets, employee edit launcher-prefill controls, employee current task/activity/output/incident
-  facts, first-class Files, Coding, repo, Observations, Workflows, Skills, Apps & Widgets, and Settings system resources, Audit timeline/evidence/verification/rollback summaries,
+  facts, first-class Files, Coding, repo, Observations, Workflows, Skills, Apps & Widgets, Collaboration, and Settings system resources, Audit timeline/evidence/verification/rollback summaries,
   and Universal Launcher disabled reasons for gateway and empty-command states. The smoke
   now presses `Ctrl+K`, verifies launcher focus, presses
   `Escape`, and waits for the Electron BrowserWindow to hide through the close bridge. The smoke

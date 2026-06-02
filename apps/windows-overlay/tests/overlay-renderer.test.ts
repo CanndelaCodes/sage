@@ -409,6 +409,7 @@ describe("overlay renderer model", () => {
       "Workflows",
       "Skills",
       "Apps & Widgets",
+      "Collaboration",
       "Memory",
       "Learning",
       "Sources",
@@ -543,6 +544,9 @@ describe("overlay renderer model", () => {
     });
     const appsModel = renderOverlayModel(state as never, {
       workspaceTarget: { kind: "system", id: "apps" },
+    });
+    const collaborationSystemModel = renderOverlayModel(state as never, {
+      workspaceTarget: { kind: "system", id: "collaboration" },
     });
     const memoryModel = renderOverlayModel(state as never, {
       workspaceTarget: { kind: "system", id: "memory" },
@@ -846,6 +850,23 @@ describe("overlay renderer model", () => {
         { label: "Preview commands", value: "sage os apps preview app_1" },
         { label: "Artifacts", value: "apps/code-focus" },
         { label: "Sources", value: "None" },
+      ]),
+    );
+    expect(collaborationSystemModel.workspace).toMatchObject({
+      title: "Collaboration",
+      eyebrow: "System / 1 open",
+    });
+    expect(collaborationSystemModel.workspace.facts).toEqual(
+      expect.arrayContaining([
+        { label: "Open events", value: "1" },
+        { label: "Handoffs", value: "1" },
+        { label: "Review requests", value: "0" },
+        { label: "Incident escalations", value: "0" },
+        { label: "Shared artifacts", value: "0" },
+        { label: "Latest event", value: "Review memory queue (handoff / open)" },
+        { label: "From", value: "employee_memory" },
+        { label: "To", value: "employee_reviewer" },
+        { label: "Artifacts", value: "coding_report_task_1" },
       ]),
     );
     expect(memoryModel.workspace).toMatchObject({
