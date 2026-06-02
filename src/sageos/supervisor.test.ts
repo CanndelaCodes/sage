@@ -224,6 +224,13 @@ describe("SageOS supervisor skeleton", () => {
     const flushDueNotificationBatchOnce = vi
       .fn()
       .mockResolvedValue({ outcome: "skipped", reason: "not_due", count: 1 });
+    const sendDueIncidentNotificationsOnce = vi.fn().mockResolvedValue({
+      outcome: "skipped",
+      reason: "no_incidents",
+      count: 0,
+      incidentIds: [],
+      status,
+    });
     const collectStatus = vi.fn().mockResolvedValue(status);
 
     const result = await runSageOsSupervisorWorkLoopOnce({
@@ -245,6 +252,7 @@ describe("SageOS supervisor skeleton", () => {
         runMemoryStewardOnce,
         runNextTaskOnce,
         flushDueNotificationBatchOnce,
+        sendDueIncidentNotificationsOnce,
         collectStatus,
       },
     });
@@ -310,6 +318,21 @@ describe("SageOS supervisor skeleton", () => {
       outcome: "skipped",
       reason: "not_due",
       count: 1,
+    });
+    expect(sendDueIncidentNotificationsOnce).toHaveBeenCalledWith({
+      stateDir: root,
+      cfg: {
+        sources: { appFocus: true, system: true },
+        memory: { replayQueues: true },
+        notifications: {
+          telegram: { enabled: true, target: "telegram:123", batchWindowMinutes: 15 },
+        },
+      },
+    });
+    expect(result.incidents).toMatchObject({
+      outcome: "skipped",
+      reason: "no_incidents",
+      count: 0,
     });
     expect(collectStatus).toHaveBeenCalledWith({
       stateDir: root,

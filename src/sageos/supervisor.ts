@@ -3,6 +3,7 @@ import { createSageOsEventLog, appendSageOsEvent, type SageOsEventLog } from "./
 import { runSageOsMemoryStewardOnce } from "./memory-steward.js";
 import {
   flushDueSageOsTelegramNotificationBatchOnce,
+  sendDueSageOsIncidentNotificationsOnce,
   sendDueSageOsTelegramDigestOnce,
   sendSageOsLifecycleNotificationOnce,
 } from "./notifications.js";
@@ -43,6 +44,7 @@ export type SageOsSupervisorWorkLoopDeps = {
   runMemoryStewardOnce?: typeof runSageOsMemoryStewardOnce;
   runNextTaskOnce?: typeof runNextSageOsTaskOnce;
   flushDueNotificationBatchOnce?: typeof flushDueSageOsTelegramNotificationBatchOnce;
+  sendDueIncidentNotificationsOnce?: typeof sendDueSageOsIncidentNotificationsOnce;
   sendDueTelegramDigestOnce?: typeof sendDueSageOsTelegramDigestOnce;
   collectStatus?: typeof collectSageOsStatus;
 };
@@ -56,6 +58,7 @@ export type SageOsSupervisorWorkLoopResult = {
   task: SageOsSupervisorTaskResult;
   tasks: SageOsSupervisorTaskResult[];
   notificationBatch?: Awaited<ReturnType<typeof flushDueSageOsTelegramNotificationBatchOnce>>;
+  incidents?: Awaited<ReturnType<typeof sendDueSageOsIncidentNotificationsOnce>>;
   digest?: Awaited<ReturnType<typeof sendDueSageOsTelegramDigestOnce>>;
   status: SageOsStatusSnapshot;
 };
@@ -126,6 +129,14 @@ export async function runSageOsSupervisorWorkLoopOnce(params: {
   if (hasNotificationBatchWindow(sageos)) {
     result.notificationBatch = await (
       deps.flushDueNotificationBatchOnce ?? flushDueSageOsTelegramNotificationBatchOnce
+    )({
+      stateDir: params.stateDir,
+      cfg: sageos,
+    });
+  }
+  if (sageos.notifications?.telegram?.enabled === true) {
+    result.incidents = await (
+      deps.sendDueIncidentNotificationsOnce ?? sendDueSageOsIncidentNotificationsOnce
     )({
       stateDir: params.stateDir,
       cfg: sageos,

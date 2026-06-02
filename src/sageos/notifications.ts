@@ -136,6 +136,31 @@ export type SageOsTelegramStatusNotificationResult =
       status: SageOsStatusSnapshot;
     };
 
+export type SageOsTelegramIncidentSweepResult =
+  | {
+      outcome: "sent";
+      target: string;
+      count: number;
+      incidentIds: string[];
+      results: SageOsTelegramStatusNotificationResult[];
+      status: SageOsStatusSnapshot;
+    }
+  | {
+      outcome: "skipped";
+      reason: "telegram_disabled" | "missing_target" | "no_incidents" | "already_sent";
+      count: number;
+      incidentIds: string[];
+      status: SageOsStatusSnapshot;
+    }
+  | {
+      outcome: "failed";
+      target: string;
+      count: number;
+      incidentIds: string[];
+      results: SageOsTelegramStatusNotificationResult[];
+      status: SageOsStatusSnapshot;
+    };
+
 export type SageOsNotificationBatchEntry = SageOsNotificationMessage & {
   id: string;
   status: "pending";
@@ -185,6 +210,11 @@ type NotificationBatchFile = {
 type DigestScheduleFile = {
   version: 1;
   lastScheduledFor?: string;
+};
+
+type IncidentNotificationFile = {
+  version: 1;
+  notified: Record<string, { notifiedAt: string; severity?: string; title?: string }>;
 };
 
 const batchLocks = new Map<string, Promise<unknown>>();
@@ -831,6 +861,111 @@ export async function sendSageOsIncidentNotificationOnce(params: {
   });
 }
 
+export function resolveSageOsIncidentNotificationStatePath(
+  params: { stateDir?: string } = {},
+): string {
+  return path.join(resolveSageOsStateDir(params.stateDir), "notification-incidents.json");
+}
+
+export async function sendDueSageOsIncidentNotificationsOnce(params: {
+  stateDir?: string;
+  statePath?: string;
+  cfg?: SageOsConfig;
+  target?: string;
+  sender?: SageOsTelegramSender;
+  sendIncidentNotificationOnce?: typeof sendSageOsIncidentNotificationOnce;
+  now?: () => Date;
+}): Promise<SageOsTelegramIncidentSweepResult> {
+  const cfg = params.cfg;
+  const status = await collectSageOsStatus({ stateDir: params.stateDir, cfg });
+  await writeSageOsState(createSageOsStateStore({ stateDir: params.stateDir }), status);
+  const statePath = params.statePath ?? resolveSageOsIncidentNotificationStatePath(params);
+  const state = await loadIncidentNotificationState(statePath);
+  const activeIncidentIds = new Set(status.incidents.map((incident) => incident.id));
+  const notified = Object.fromEntries(
+    Object.entries(state.notified).filter(([incidentId]) => activeIncidentIds.has(incidentId)),
+  );
+  const notifyable = status.incidents.filter(shouldNotifyIncident);
+  const pending = notifyable.filter((incident) => !notified[incident.id]);
+
+  if (pending.length === 0) {
+    await saveIncidentNotificationState(statePath, { version: 1, notified });
+    return {
+      outcome: "skipped",
+      reason: notifyable.length === 0 ? "no_incidents" : "already_sent",
+      count: 0,
+      incidentIds: [],
+      status,
+    };
+  }
+
+  if (!cfg?.notifications?.telegram?.enabled) {
+    await saveIncidentNotificationState(statePath, { version: 1, notified });
+    return {
+      outcome: "skipped",
+      reason: "telegram_disabled",
+      count: pending.length,
+      incidentIds: pending.map((incident) => incident.id),
+      status,
+    };
+  }
+  const target = params.target ?? telegramTarget(cfg);
+  if (!target) {
+    await saveIncidentNotificationState(statePath, { version: 1, notified });
+    return {
+      outcome: "skipped",
+      reason: "missing_target",
+      count: pending.length,
+      incidentIds: pending.map((incident) => incident.id),
+      status,
+    };
+  }
+
+  const sendIncidentNotification =
+    params.sendIncidentNotificationOnce ?? sendSageOsIncidentNotificationOnce;
+  const results: SageOsTelegramStatusNotificationResult[] = [];
+  const sentIncidentIds: string[] = [];
+  const notifiedAt = (params.now?.() ?? new Date()).toISOString();
+  for (const incident of pending) {
+    const result = await sendIncidentNotification({
+      incidentId: incident.id,
+      stateDir: params.stateDir,
+      cfg,
+      target,
+      sender: params.sender,
+    });
+    results.push(result);
+    if (result.outcome === "sent") {
+      sentIncidentIds.push(incident.id);
+      notified[incident.id] = {
+        notifiedAt,
+        severity: incident.severity,
+        title: incident.title,
+      };
+    }
+  }
+
+  await saveIncidentNotificationState(statePath, { version: 1, notified });
+  if (sentIncidentIds.length > 0) {
+    return {
+      outcome: "sent",
+      target,
+      count: sentIncidentIds.length,
+      incidentIds: sentIncidentIds,
+      results,
+      status,
+    };
+  }
+  return {
+    outcome: "failed",
+    target,
+    count: pending.length,
+    incidentIds: pending.map((incident) => incident.id),
+    results,
+    status,
+  };
+}
+
 export async function sendSageOsApprovalNotificationOnce(params: {
   approvalId: string;
   stateDir?: string;
@@ -1110,6 +1245,27 @@ async function loadDigestScheduleState(schedulePath: string): Promise<DigestSche
   }
 }
 
+async function loadIncidentNotificationState(statePath: string): Promise<IncidentNotificationFile> {
+  try {
+    const raw = await fs.readFile(statePath, "utf-8");
+    const parsed = JSON.parse(raw) as Partial<IncidentNotificationFile>;
+    const notified =
+      parsed.notified && typeof parsed.notified === "object" && !Array.isArray(parsed.notified)
+        ? Object.fromEntries(
+            Object.entries(parsed.notified).filter(
+              ([incidentId, entry]) =>
+                typeof incidentId === "string" &&
+                Boolean(incidentId.trim()) &&
+                isIncidentNotificationEntry(entry),
+            ),
+          )
+        : {};
+    return { version: 1, notified };
+  } catch {
+    return { version: 1, notified: {} };
+  }
+}
+
 async function saveDigestScheduleState(
   schedulePath: string,
   store: DigestScheduleFile,
@@ -1125,6 +1281,26 @@ async function saveDigestScheduleState(
     await fs.writeFile(tmp, body, { encoding: "utf-8", mode: 0o600 });
     await fs.rename(tmp, schedulePath);
     await fs.chmod(schedulePath, 0o600);
+  } finally {
+    await fs.rm(tmp, { force: true });
+  }
+}
+
+async function saveIncidentNotificationState(
+  statePath: string,
+  store: IncidentNotificationFile,
+): Promise<void> {
+  await fs.mkdir(path.dirname(statePath), { recursive: true });
+  const body = `${JSON.stringify(store, null, 2)}\n`;
+  if (process.platform === "win32") {
+    await fs.writeFile(statePath, body, "utf-8");
+    return;
+  }
+  const tmp = `${statePath}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    await fs.writeFile(tmp, body, { encoding: "utf-8", mode: 0o600 });
+    await fs.rename(tmp, statePath);
+    await fs.chmod(statePath, 0o600);
   } finally {
     await fs.rm(tmp, { force: true });
   }
@@ -1165,8 +1341,25 @@ function isNotificationBatchEntry(input: unknown): input is SageOsNotificationBa
   );
 }
 
+function isIncidentNotificationEntry(
+  input: unknown,
+): input is IncidentNotificationFile["notified"][string] {
+  const entry = input as Partial<IncidentNotificationFile["notified"][string]>;
+  return (
+    !!entry &&
+    typeof entry === "object" &&
+    typeof entry.notifiedAt === "string" &&
+    (entry.severity === undefined || typeof entry.severity === "string") &&
+    (entry.title === undefined || typeof entry.title === "string")
+  );
+}
+
 function shouldBatchTaskNotification(cfg: SageOsConfig | undefined, run: SageOsRun): boolean {
   return telegramBatchWindowMinutes(cfg) > 0 && run.state === "succeeded";
+}
+
+function shouldNotifyIncident(incident: SageOsIncident): boolean {
+  return incident.severity !== "info";
 }
 
 function shouldBatchCompletionNotification(

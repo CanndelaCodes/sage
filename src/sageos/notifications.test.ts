@@ -16,6 +16,7 @@ import {
   sendDueSageOsTelegramDigestOnce,
   sendSageOsApprovalNotificationOnce,
   sendSageOsCompletionNotificationOnce,
+  sendDueSageOsIncidentNotificationsOnce,
   sendSageOsIncidentNotificationOnce,
   sendSageOsLifecycleNotificationOnce,
   sendSageOsTaskNotificationOnce,
@@ -691,6 +692,73 @@ describe("SageOS notifications", () => {
       expect.stringContaining("SageOS: Incident"),
       expect.objectContaining({ plainText: expect.stringContaining("Replay memory queues") }),
     );
+  });
+
+  it("sends active incident notifications once with durable dedupe", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-incident-notification-dedupe-"));
+    const now = "2026-06-01T21:00:00.000Z";
+    await writeSageOsState(
+      createSageOsStateStore({ stateDir: root }),
+      createSageOsStatusSnapshot({
+        incidents: [
+          {
+            id: "incident_memory_capture_attention",
+            severity: "warning",
+            category: "memory",
+            title: "Sage Memory capture queue has failed entries",
+            summary: "1 Sage Memory capture entry is failed and needs replay or repair.",
+            firstSeenAt: now,
+            lastSeenAt: now,
+            autoRepairSafe: true,
+          },
+          {
+            id: "incident_worker_failed",
+            severity: "error",
+            category: "worker",
+            title: "SageOS worker failed",
+            summary: "A worker failed during autonomous execution.",
+            firstSeenAt: now,
+            lastSeenAt: now,
+            autoRepairSafe: false,
+          },
+        ],
+      }),
+    );
+    const cfg = { notifications: { telegram: { enabled: true, target: "telegram:123" } } };
+    const sender = vi.fn(async () => ({ messageId: "incident", chatId: "123" }));
+
+    const sent = await sendDueSageOsIncidentNotificationsOnce({
+      stateDir: root,
+      cfg,
+      sender,
+    });
+
+    expect(sent).toMatchObject({
+      outcome: "sent",
+      target: "telegram:123",
+      count: 2,
+      incidentIds: ["incident_memory_capture_attention", "incident_worker_failed"],
+    });
+    expect(sender).toHaveBeenCalledTimes(2);
+    expect(sender).toHaveBeenCalledWith(
+      "telegram:123",
+      expect.stringContaining("SageOS: Incident"),
+      expect.objectContaining({ plainText: expect.stringContaining("SageOS: Incident") }),
+    );
+
+    sender.mockClear();
+    const skipped = await sendDueSageOsIncidentNotificationsOnce({
+      stateDir: root,
+      cfg,
+      sender,
+    });
+
+    expect(skipped).toMatchObject({
+      outcome: "skipped",
+      reason: "already_sent",
+      count: 0,
+    });
+    expect(sender).not.toHaveBeenCalled();
   });
 
   it("builds and sends Night Shift completion notifications from coding reports", async () => {
