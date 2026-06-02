@@ -42,6 +42,15 @@ export type OverlayToolbarAvailability = {
   connected: boolean;
   loading: boolean;
 };
+export type OverlayGatewayActionState = {
+  enabled: boolean;
+  disabledReason?: string;
+};
+export type OverlayGatewayActionStateParams = {
+  enabled: boolean;
+  disabledReason?: string;
+  availability: OverlayToolbarAvailability;
+};
 export type OverlaySurfaceVisibility = {
   toolbar: boolean;
   launcher: boolean;
@@ -97,6 +106,7 @@ export type OverlayApprovalRow = {
   detail: string;
   risk: string;
   state: string;
+  canResolve: boolean;
 };
 export type OverlayIncidentRow = {
   id: string;
@@ -221,6 +231,7 @@ export function renderOverlayModel(
     detail: approval.proposedAction,
     risk: approval.riskClass,
     state: approval.state,
+    canResolve: approval.state === "pending",
   }));
   const incidentRows = status.incidents.map((incident) => ({
     id: incident.id,
@@ -526,6 +537,43 @@ export function getOverlayToolbarControls(
   ];
 }
 
+export function getOverlayGatewayActionState(
+  params: OverlayGatewayActionStateParams,
+): OverlayGatewayActionState {
+  if (!params.enabled) {
+    return { enabled: false, disabledReason: params.disabledReason };
+  }
+  if (!params.availability.connected) {
+    return { enabled: false, disabledReason: "Gateway unavailable" };
+  }
+  if (params.availability.loading) {
+    return { enabled: false, disabledReason: "Gateway request in progress" };
+  }
+  return { enabled: true, disabledReason: undefined };
+}
+
+export function applyOverlayWorkspaceAvailability(
+  workspace: AgentWorkspaceView,
+  availability: OverlayToolbarAvailability,
+): AgentWorkspaceView {
+  return {
+    ...workspace,
+    actions: workspace.actions.map((action) => {
+      if (action.kind === "assignEmployeeTask") {
+        return action;
+      }
+      return {
+        ...action,
+        ...getOverlayGatewayActionState({
+          enabled: action.enabled,
+          disabledReason: action.disabledReason,
+          availability,
+        }),
+      };
+    }),
+  };
+}
+
 function withToolbarAvailability(
   control: OverlayToolbarControl,
   availability: OverlayToolbarAvailability,
@@ -677,7 +725,7 @@ export class SageOsOverlayApp extends LitElement {
                 ${surfaceVisibility.commandDeck ? renderCommandDeck(model.commandDeck.cards) : nothing}
                 ${surfaceVisibility.overview ? this.renderOverviewGroups(model.overview) : nothing}
                 ${surfaceVisibility.agentWorkspace
-                  ? renderAgentWorkspace(model.workspace, {
+                  ? renderAgentWorkspace(this.workspaceWithAvailability(model.workspace), {
                       onAction: (action) => void this.runWorkspaceAction(action),
                     })
                   : nothing}
@@ -881,6 +929,7 @@ export class SageOsOverlayApp extends LitElement {
   }
 
   private renderOperationalRows(commandDeck: ReturnType<typeof renderOverlayModel>["commandDeck"]) {
+    const runNextAction = this.gatewayActionState(true);
     return html`
       <section class="operational-grid">
         <article class="overlay-panel overlay-panel--focus">
@@ -889,6 +938,8 @@ export class SageOsOverlayApp extends LitElement {
             <button
               class="overlay-button overlay-button--primary"
               type="button"
+              title=${runNextAction.disabledReason ?? "Run next"}
+              ?disabled=${!runNextAction.enabled}
               @click=${() => void this.controller?.runNextTask()}
             >
               Run next
@@ -916,7 +967,8 @@ export class SageOsOverlayApp extends LitElement {
                       <button
                         class="overlay-button overlay-button--primary"
                         type="button"
-                        ?disabled=${!task.canQueue}
+                        title=${this.gatewayActionTitle("Queue", task.canQueue, "Task is not queueable")}
+                        ?disabled=${this.gatewayActionDisabled(task.canQueue, "Task is not queueable")}
                         @click=${() => void this.controller?.queueTask(task.id)}
                       >
                         Queue
@@ -924,7 +976,8 @@ export class SageOsOverlayApp extends LitElement {
                       <button
                         class="overlay-button"
                         type="button"
-                        ?disabled=${!task.canCancel}
+                        title=${this.gatewayActionTitle("Cancel", task.canCancel, "Task is not cancellable")}
+                        ?disabled=${this.gatewayActionDisabled(task.canCancel, "Task is not cancellable")}
                         @click=${() => void this.controller?.cancelTask(task.id)}
                       >
                         Cancel
@@ -961,6 +1014,8 @@ export class SageOsOverlayApp extends LitElement {
                       <button
                         class="overlay-button overlay-button--primary"
                         type="button"
+                        title=${this.gatewayActionTitle("Approve", approval.canResolve, "Approval is not pending")}
+                        ?disabled=${this.gatewayActionDisabled(approval.canResolve, "Approval is not pending")}
                         @click=${() => void this.controller?.approveApproval(approval.id)}
                       >
                         Approve
@@ -968,6 +1023,8 @@ export class SageOsOverlayApp extends LitElement {
                       <button
                         class="overlay-button"
                         type="button"
+                        title=${this.gatewayActionTitle("Deny", approval.canResolve, "Approval is not pending")}
+                        ?disabled=${this.gatewayActionDisabled(approval.canResolve, "Approval is not pending")}
                         @click=${() => void this.controller?.denyApproval(approval.id)}
                       >
                         Deny
@@ -1033,7 +1090,12 @@ export class SageOsOverlayApp extends LitElement {
                       <button
                         class=${`overlay-button ${incident.canRepair ? "overlay-button--primary" : ""}`}
                         type="button"
-                        ?disabled=${!incident.canRepair}
+                        title=${this.gatewayActionTitle(
+                          incident.repairLabel ?? "Run repair",
+                          incident.canRepair,
+                          "Repair requires review",
+                        )}
+                        ?disabled=${this.gatewayActionDisabled(incident.canRepair, "Repair requires review")}
                         @click=${() => void this.controller?.runIncidentRepair(incident.id)}
                       >
                         ${incident.repairLabel ?? "Run repair"}
@@ -1118,6 +1180,30 @@ export class SageOsOverlayApp extends LitElement {
   private openWorkspace(target: AgentWorkspaceTarget) {
     this.workspaceTarget = target;
     this.requestUpdate();
+  }
+
+  private workspaceWithAvailability(workspace: AgentWorkspaceView): AgentWorkspaceView {
+    return applyOverlayWorkspaceAvailability(workspace, this.gatewayAvailability());
+  }
+
+  private gatewayAvailability(): OverlayToolbarAvailability {
+    return { connected: this.overlayConnected, loading: this.loading };
+  }
+
+  private gatewayActionState(enabled: boolean, disabledReason?: string): OverlayGatewayActionState {
+    return getOverlayGatewayActionState({
+      enabled,
+      disabledReason,
+      availability: this.gatewayAvailability(),
+    });
+  }
+
+  private gatewayActionDisabled(enabled: boolean, disabledReason?: string): boolean {
+    return !this.gatewayActionState(enabled, disabledReason).enabled;
+  }
+
+  private gatewayActionTitle(label: string, enabled: boolean, disabledReason?: string): string {
+    return this.gatewayActionState(enabled, disabledReason).disabledReason ?? label;
   }
 
   private async runWorkspaceAction(action: AgentWorkspaceAction) {

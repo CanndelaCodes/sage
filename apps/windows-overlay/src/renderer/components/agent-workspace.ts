@@ -33,6 +33,7 @@ export type AgentWorkspaceAction = {
   kind: AgentWorkspaceActionKind;
   label: string;
   enabled: boolean;
+  disabledReason?: string;
   target: AgentWorkspaceTarget;
 };
 
@@ -71,6 +72,7 @@ export function renderAgentWorkspace(
             <button
               class="overlay-button"
               type="button"
+              title=${action.disabledReason ?? action.label}
               ?disabled=${!action.enabled}
               @click=${() => opts.onAction?.(action)}
             >

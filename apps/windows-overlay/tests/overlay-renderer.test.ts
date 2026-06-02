@@ -2,11 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 import {
   getOverlaySurfaceVisibility,
   getOverlayToolbarControls,
+  getOverlayGatewayActionState,
   handleOverlayKeyboardShortcut,
   isOverlayInteractiveElement,
   isOverlayVoiceInputAvailable,
   getOverlayConnectionState,
   getOverlayStateCallouts,
+  applyOverlayWorkspaceAvailability,
   readInitialOverlaySurface,
   readOverlayGatewaySettings,
   readOverlayInteractionSettings,
@@ -823,6 +825,62 @@ describe("overlay renderer model", () => {
     expect(busyControls.find((control) => control.kind === "stop")?.disabledReason).toBe(
       "Gateway request in progress",
     );
+  });
+
+  it("normalizes gateway-backed action availability with operator-facing reasons", () => {
+    expect(
+      getOverlayGatewayActionState({
+        enabled: true,
+        availability: { connected: true, loading: false },
+      }),
+    ).toEqual({ enabled: true, disabledReason: undefined });
+    expect(
+      getOverlayGatewayActionState({
+        enabled: true,
+        availability: { connected: false, loading: false },
+      }),
+    ).toEqual({ enabled: false, disabledReason: "Gateway unavailable" });
+    expect(
+      getOverlayGatewayActionState({
+        enabled: true,
+        availability: { connected: true, loading: true },
+      }),
+    ).toEqual({ enabled: false, disabledReason: "Gateway request in progress" });
+    expect(
+      getOverlayGatewayActionState({
+        enabled: false,
+        disabledReason: "Task is not queueable",
+        availability: { connected: false, loading: true },
+      }),
+    ).toEqual({ enabled: false, disabledReason: "Task is not queueable" });
+  });
+
+  it("disables gateway-backed workspace actions while keeping local prefill actions available", () => {
+    const model = renderOverlayModel(state as never, {
+      workspaceTarget: { kind: "employee", id: "employee_memory" },
+    });
+    const workspace = applyOverlayWorkspaceAvailability(model.workspace, {
+      connected: false,
+      loading: false,
+    });
+
+    expect(workspace.actions).toEqual([
+      { kind: "assignEmployeeTask", label: "Assign task", enabled: true, target: expect.any(Object) },
+      {
+        kind: "pauseEmployee",
+        label: "Pause",
+        enabled: false,
+        disabledReason: "Gateway unavailable",
+        target: expect.any(Object),
+      },
+      {
+        kind: "retireEmployee",
+        label: "Retire",
+        enabled: false,
+        disabledReason: "Gateway unavailable",
+        target: expect.any(Object),
+      },
+    ]);
   });
 
   it("labels connection states explicitly for production overlay operation", () => {
