@@ -62,6 +62,44 @@ describe("SageOS supervisor skeleton", () => {
     expect(log).toContain("supervisor_stopped");
   });
 
+  it("sends configured Telegram startup and shutdown notifications from supervisor lifecycle", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-supervisor-lifecycle-notify-"));
+    const sageos = {
+      notifications: { telegram: { enabled: true, target: "telegram:123" } },
+    };
+    const sendLifecycleNotificationOnce = vi.fn(async () => ({
+      outcome: "sent" as const,
+      target: "telegram:123",
+      notification: {
+        kind: "startup" as const,
+        title: "SageOS: Startup",
+        text: "SageOS: Startup",
+        redactedObservationCount: 0,
+      },
+      status: createSageOsStatusSnapshot(),
+    }));
+    const supervisor = createSageOsSupervisor({
+      stateDir: root,
+      intervalMs: 50,
+      config: { sageos },
+      sendLifecycleNotificationOnce,
+    });
+
+    await supervisor.start();
+    await supervisor.stop("test shutdown");
+
+    expect(sendLifecycleNotificationOnce).toHaveBeenNthCalledWith(1, {
+      kind: "startup",
+      stateDir: root,
+      cfg: sageos,
+    });
+    expect(sendLifecycleNotificationOnce).toHaveBeenNthCalledWith(2, {
+      kind: "shutdown",
+      stateDir: root,
+      cfg: sageos,
+    });
+  });
+
   it("does not start autonomous work when persisted emergency-stop control exists", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "sageos-supervisor-start-control-"));
     const controlStore = createSageOsControlStore({ stateDir: root });

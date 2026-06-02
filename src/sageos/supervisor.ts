@@ -4,6 +4,7 @@ import { runSageOsMemoryStewardOnce } from "./memory-steward.js";
 import {
   flushDueSageOsTelegramNotificationBatchOnce,
   sendDueSageOsTelegramDigestOnce,
+  sendSageOsLifecycleNotificationOnce,
 } from "./notifications.js";
 import { observeAppFocusOnce } from "./observations.js";
 import {
@@ -33,6 +34,7 @@ export type SageOsSupervisorOptions = {
   eventLog?: SageOsEventLog;
   stateStore?: SageOsStateStore;
   runWorkLoopOnce?: typeof runSageOsSupervisorWorkLoopOnce;
+  sendLifecycleNotificationOnce?: typeof sendSageOsLifecycleNotificationOnce;
 };
 
 export type SageOsSupervisorWorkLoopDeps = {
@@ -185,6 +187,23 @@ export function createSageOsSupervisor(options: SageOsSupervisorOptions = {}): S
     timer.unref?.();
   };
 
+  const sendLifecycleNotification = async (kind: "startup" | "shutdown") => {
+    const cfg = options.config?.sageos;
+    if (cfg?.notifications?.telegram?.enabled !== true) {
+      return;
+    }
+    const send = options.sendLifecycleNotificationOnce ?? sendSageOsLifecycleNotificationOnce;
+    try {
+      await send({ kind, stateDir: options.stateDir, cfg });
+    } catch (err) {
+      await appendSageOsEvent(eventLog, {
+        type: "notification_failed",
+        actor: "sageos.supervisor",
+        summary: `Failed to send SageOS ${kind} notification: ${String(err)}`,
+      });
+    }
+  };
+
   const markTickWindow = (now = new Date()) => ({
     lastTickAt: now.toISOString(),
     nextTickAt: new Date(now.getTime() + intervalMs).toISOString(),
@@ -305,6 +324,7 @@ export function createSageOsSupervisor(options: SageOsSupervisorOptions = {}): S
         summary: "SageOS supervisor started",
       });
       await persist();
+      await sendLifecycleNotification("startup");
       armTimer();
     },
     async pause(reason = "manual") {
@@ -351,6 +371,7 @@ export function createSageOsSupervisor(options: SageOsSupervisorOptions = {}): S
         summary: `SageOS supervisor stopped: ${reason}`,
       });
       await persist();
+      await sendLifecycleNotification("shutdown");
     },
     async emergencyStop(reason = "manual") {
       clear();
@@ -367,6 +388,7 @@ export function createSageOsSupervisor(options: SageOsSupervisorOptions = {}): S
         sensitivity: "normal",
       });
       await persist();
+      await sendLifecycleNotification("shutdown");
     },
     getStatus() {
       return { ...status };
