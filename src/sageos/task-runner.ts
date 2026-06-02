@@ -1,4 +1,5 @@
 import type {
+  SageOsApproval,
   SageOsConfig,
   SageOsRun,
   SageOsRunBudgetUsage,
@@ -7,6 +8,7 @@ import type {
   SageOsStatusSnapshot,
   SageOsTaskSpec,
 } from "./types.js";
+import { createSageOsTaskApproval } from "./approvals.js";
 import { describeSageOsBudgetViolations } from "./budget.js";
 import { runSageOsNightShiftTask } from "./coding/night-shift.js";
 import { appendSageOsEvent, createSageOsEventLog } from "./event-log.js";
@@ -14,9 +16,11 @@ import {
   sendSageOsCompletionNotificationOnce,
   sendSageOsTaskNotificationOnce,
 } from "./notifications.js";
+import { evaluateSageOsAutonomyTier } from "./policy.js";
 import {
   createSageOsStateStore,
   readSageOsState,
+  upsertSageOsApproval,
   upsertSageOsRun,
   upsertSageOsTask,
   writeSageOsState,
@@ -49,7 +53,8 @@ export type SageOsTaskRunnerResult =
   | {
       outcome: "completed" | "failed" | "blocked";
       task: SageOsTaskSpec;
-      run: SageOsRun;
+      run?: SageOsRun;
+      approval?: SageOsApproval;
       status: SageOsStatusSnapshot;
     };
 
@@ -77,6 +82,30 @@ export async function runNextSageOsTaskOnce(
 
   const now = (params.now?.() ?? new Date()).toISOString();
   const requestedBy = params.requestedBy?.trim() || "sageos.task_runner";
+  const autonomyDecision = evaluateSageOsAutonomyTier(task.autonomyTier, params.cfg);
+  if (!autonomyDecision.allowed && !hasApprovedAutonomyApproval(task, state.approvals)) {
+    const blockedTask: SageOsTaskSpec = {
+      ...task,
+      state: "waiting_for_policy",
+      updatedAt: now,
+    };
+    const approval = createSageOsTaskApproval(blockedTask, autonomyDecision.riskClass, {
+      requestedBy,
+      now,
+      reason: autonomyDecision.reason,
+    });
+    await upsertSageOsTask(store, blockedTask);
+    await upsertSageOsApproval(store, approval);
+    await appendSageOsEvent(createSageOsEventLog({ stateDir: params.stateDir }), {
+      type: "approval_requested",
+      actor: requestedBy,
+      summary: `Requested approval ${approval.id} before running SageOS task ${task.id}: ${autonomyDecision.reason}`,
+      taskId: task.id,
+    });
+    const status = await collectSageOsStatus({ stateDir: params.stateDir, cfg: params.cfg });
+    await writeSageOsState(store, status);
+    return { outcome: "blocked", task: blockedTask, approval, status };
+  }
   const attempt =
     state.runs
       .filter((run) => run.taskId === task.id)
@@ -250,6 +279,15 @@ function createTaskRun(task: SageOsTaskSpec, attempt: number, startedAt: string)
     },
     startedAt,
   };
+}
+
+function hasApprovedAutonomyApproval(task: SageOsTaskSpec, approvals: SageOsApproval[]): boolean {
+  return approvals.some(
+    (approval) =>
+      approval.taskId === task.id &&
+      approval.state === "approved" &&
+      approval.riskClass === "policy_change",
+  );
 }
 
 function completeRun(

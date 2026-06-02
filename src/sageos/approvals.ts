@@ -1,4 +1,4 @@
-import type { SageOsApproval, SageOsTaskSpec } from "./types.js";
+import type { SageOsApproval, SageOsApprovalRiskClass, SageOsTaskSpec } from "./types.js";
 import { appendSageOsEvent, createSageOsEventLog } from "./event-log.js";
 import {
   createSageOsStateStore,
@@ -24,6 +24,29 @@ export type ResolveSageOsApprovalResult =
       outcome: "not_pending";
       approval: SageOsApproval;
     };
+
+export function createSageOsTaskApproval(
+  task: SageOsTaskSpec,
+  riskClass: SageOsApprovalRiskClass,
+  opts: { requestedBy: string; now: string; reason?: string },
+): SageOsApproval {
+  return {
+    id: `approval_task_${safeId(task.id)}`,
+    state: "pending",
+    riskClass,
+    title: `Approve SageOS task: ${task.title}`,
+    proposedAction: `Queue SageOS task ${task.id}: ${task.objective}`,
+    evidence: [task.id],
+    preview: opts.reason ?? task.objective,
+    rollbackPlan: "Cancel the task before it runs.",
+    scope: "task",
+    taskId: task.id,
+    requestedBy: opts.requestedBy,
+    requestedAt: opts.now,
+    createdAt: opts.now,
+    updatedAt: opts.now,
+  };
+}
 
 export async function resolveSageOsApproval(params: {
   id: string;
@@ -81,6 +104,16 @@ export async function resolveSageOsApproval(params: {
   });
 
   return { outcome: "resolved", approval: nextApproval, ...(task ? { task } : {}) };
+}
+
+function safeId(value: string): string {
+  const safe = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 80);
+  return safe || "task";
 }
 
 function resolveLinkedTask(params: {

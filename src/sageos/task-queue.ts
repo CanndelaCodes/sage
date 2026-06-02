@@ -1,10 +1,10 @@
 import type {
   SageOsApproval,
-  SageOsApprovalRiskClass,
   SageOsConfig,
   SageOsStatusSnapshot,
   SageOsTaskSpec,
 } from "./types.js";
+import { createSageOsTaskApproval } from "./approvals.js";
 import { appendSageOsEvent, createSageOsEventLog } from "./event-log.js";
 import { requiredSageOsApprovalRisk } from "./policy.js";
 import {
@@ -55,7 +55,7 @@ export async function queueSageOsTask(params: {
 
   let approval: SageOsApproval | undefined;
   if (riskClass) {
-    approval = approvalForTask(nextTask, riskClass, { requestedBy, now });
+    approval = createSageOsTaskApproval(nextTask, riskClass, { requestedBy, now });
     await upsertSageOsApproval(store, approval);
     await appendSageOsEvent(createSageOsEventLog({ stateDir: params.stateDir }), {
       type: "approval_requested",
@@ -77,37 +77,4 @@ export async function queueSageOsTask(params: {
   const status = await collectSageOsStatus({ stateDir: params.stateDir, cfg: params.cfg });
   await writeSageOsState(store, status);
   return { outcome: riskClass ? "approval_required" : "queued", task: nextTask, approval, status };
-}
-
-function approvalForTask(
-  task: SageOsTaskSpec,
-  riskClass: SageOsApprovalRiskClass,
-  opts: { requestedBy: string; now: string },
-): SageOsApproval {
-  return {
-    id: `approval_task_${safeId(task.id)}`,
-    state: "pending",
-    riskClass,
-    title: `Approve SageOS task: ${task.title}`,
-    proposedAction: `Queue SageOS task ${task.id}: ${task.objective}`,
-    evidence: [task.id],
-    preview: task.objective,
-    rollbackPlan: "Cancel the task before it runs.",
-    scope: "task",
-    taskId: task.id,
-    requestedBy: opts.requestedBy,
-    requestedAt: opts.now,
-    createdAt: opts.now,
-    updatedAt: opts.now,
-  };
-}
-
-function safeId(value: string): string {
-  const safe = value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .slice(0, 80);
-  return safe || "task";
 }

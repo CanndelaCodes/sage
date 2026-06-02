@@ -770,6 +770,61 @@ describe("sage os CLI", () => {
     });
   });
 
+  it("passes policy config when running the next task without notifications", async () => {
+    const runCalls: unknown[] = [];
+    const program = makeProgram({
+      loadConfig: () => ({ sageos: { mode: "prepare" } }),
+      runNextTaskOnce: async (params: unknown) => {
+        runCalls.push(params);
+        return {
+          outcome: "blocked" as const,
+          task: {
+            id: "task_policy_run_next",
+            title: "Run scoped task",
+            objective: "Policy check.",
+            state: "waiting_for_policy" as const,
+            requestedBy: "sageos.cli",
+            autonomyTier: "execute_scoped" as const,
+            policyScopes: [],
+            createdAt: "2026-06-02T06:25:00.000Z",
+            updatedAt: "2026-06-02T06:25:00.000Z",
+          },
+          approval: {
+            id: "approval_task_task_policy_run_next",
+            state: "pending" as const,
+            riskClass: "policy_change" as const,
+            title: "Approve SageOS task",
+            proposedAction: "Queue SageOS task task_policy_run_next",
+            evidence: ["task_policy_run_next"],
+            scope: "task" as const,
+            taskId: "task_policy_run_next",
+            requestedBy: "sageos.cli",
+            requestedAt: "2026-06-02T06:25:00.000Z",
+            createdAt: "2026-06-02T06:25:00.000Z",
+            updatedAt: "2026-06-02T06:25:00.000Z",
+          },
+          status: createSageOsStatusSnapshot(),
+        };
+      },
+    } as SageOsCliDeps);
+
+    await program.parseAsync(["os", "tasks", "run-next", "--json"], {
+      from: "user",
+    });
+
+    expect(lastJson()).toMatchObject({
+      result: {
+        outcome: "blocked",
+        approval: { id: "approval_task_task_policy_run_next" },
+      },
+    });
+    expect(runCalls).toHaveLength(1);
+    expect(runCalls[0]).toMatchObject({
+      notify: false,
+      cfg: { mode: "prepare" },
+    });
+  });
+
   it("lists and resolves approvals with audit evidence", async () => {
     const stateDir = process.env.SAGE_STATE_DIR!;
     const store = createSageOsStateStore();

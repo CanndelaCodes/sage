@@ -1023,6 +1023,51 @@ describe("SageOS gateway methods", () => {
     );
   });
 
+  it("applies configured autonomy policy to gateway run-next without notifications", async () => {
+    mockLoadConfig.mockReturnValue({ sageos: { mode: "prepare" } });
+    const store = createSageOsStateStore();
+    const now = "2026-06-02T06:20:00.000Z";
+    await upsertSageOsTask(store, {
+      id: "task_policy_run_next",
+      title: "Run scoped task",
+      objective: "Gateway run-next should not bypass the configured autonomy tier.",
+      state: "queued",
+      requestedBy: "sageos.cli",
+      autonomyTier: "execute_scoped",
+      policyScopes: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const { response, broadcast } = await invoke("sageos.tasks.runNext");
+
+    expect(response?.ok).toBe(true);
+    expect(response?.payload).toMatchObject({
+      result: {
+        outcome: "blocked",
+        task: { id: "task_policy_run_next", state: "waiting_for_policy" },
+        approval: {
+          id: "approval_task_task_policy_run_next",
+          state: "pending",
+          riskClass: "policy_change",
+        },
+      },
+    });
+    expect(broadcast).toHaveBeenCalledWith(
+      "sageos",
+      expect.objectContaining({
+        tasks: expect.arrayContaining([
+          expect.objectContaining({ id: "task_policy_run_next", state: "waiting_for_policy" }),
+        ]),
+        approvals: expect.arrayContaining([
+          expect.objectContaining({ id: "approval_task_task_policy_run_next", state: "pending" }),
+        ]),
+        runs: [],
+      }),
+      { dropIfSlow: true },
+    );
+  });
+
   it("cancels tasks through gateway controls with audit evidence", async () => {
     const store = createSageOsStateStore();
     const now = "2026-05-27T22:10:00.000Z";

@@ -922,13 +922,17 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
       const result = await runNextTask({
         requestedBy: "sageos.cli",
         notify: Boolean(cliOpts.notify),
-        cfg: cliOpts.notify ? loadSageConfig().sageos : undefined,
+        cfg: loadSageConfig().sageos,
       });
-      outputJsonOrText(cliOpts, { result }, () =>
-        result.outcome === "idle"
-          ? "No queued SageOS tasks."
-          : `${result.outcome}: ${result.task.id}\t${result.run.id}`,
-      );
+      outputJsonOrText(cliOpts, { result }, () => {
+        if (result.outcome === "idle") {
+          return "No queued SageOS tasks.";
+        }
+        if (result.approval) {
+          return `${result.outcome}: ${result.task.id}\tapproval ${result.approval.id}`;
+        }
+        return `${result.outcome}: ${result.task.id}${result.run ? `\t${result.run.id}` : ""}`;
+      });
     });
 
   tasks

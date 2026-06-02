@@ -558,7 +558,7 @@ export const sageOsHandlers: GatewayRequestHandlers = {
     const result = await runNextSageOsTaskOnce({
       requestedBy: "sageos.gateway",
       notify,
-      cfg: notify ? loadConfig().sageos : undefined,
+      cfg: loadConfig().sageos,
     });
     const state = await readSageOsState(createSageOsStateStore());
     context.broadcast("sageos", state, { dropIfSlow: true });

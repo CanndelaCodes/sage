@@ -1,4 +1,11 @@
-import type { SageOsApprovalRiskClass, SageOsConfig, SageOsPolicyScope } from "./types.js";
+import {
+  SAGEOS_AUTONOMY_TIERS,
+  normalizeSageOsMode,
+  type SageOsApprovalRiskClass,
+  type SageOsAutonomyMode,
+  type SageOsConfig,
+  type SageOsPolicyScope,
+} from "./types.js";
 
 type SageOsPolicyConfig = NonNullable<SageOsConfig["policy"]>;
 
@@ -19,6 +26,38 @@ export function requiredSageOsApprovalRisk(
     }
   }
   return undefined;
+}
+
+export type SageOsAutonomyPolicyDecision =
+  | {
+      allowed: true;
+      currentMode: SageOsAutonomyMode;
+      requiredMode: SageOsAutonomyMode;
+    }
+  | {
+      allowed: false;
+      currentMode: SageOsAutonomyMode;
+      requiredMode: SageOsAutonomyMode;
+      riskClass: "policy_change";
+      reason: string;
+    };
+
+export function evaluateSageOsAutonomyTier(
+  requiredMode: SageOsAutonomyMode | undefined,
+  cfg?: SageOsConfig,
+): SageOsAutonomyPolicyDecision {
+  const currentMode = normalizeSageOsMode(cfg?.policy?.defaultTier ?? cfg?.mode);
+  const normalizedRequiredMode = normalizeSageOsMode(requiredMode);
+  if (autonomyRank(normalizedRequiredMode) <= autonomyRank(currentMode)) {
+    return { allowed: true, currentMode, requiredMode: normalizedRequiredMode };
+  }
+  return {
+    allowed: false,
+    currentMode,
+    requiredMode: normalizedRequiredMode,
+    riskClass: "policy_change",
+    reason: `requires ${normalizedRequiredMode} autonomy while current policy allows ${currentMode}`,
+  };
 }
 
 function policyRequiresApproval(
@@ -42,6 +81,10 @@ function policyRequiresApproval(
       return true;
   }
   return false;
+}
+
+function autonomyRank(mode: SageOsAutonomyMode): number {
+  return SAGEOS_AUTONOMY_TIERS.find((tier) => tier.mode === mode)?.tier ?? 0;
 }
 
 function riskClassForScope(scope: SageOsPolicyScope): SageOsApprovalRiskClass | undefined {

@@ -4,7 +4,12 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
-import { createSageOsStateStore, readSageOsState, upsertSageOsTask } from "./state-store.js";
+import {
+  createSageOsStateStore,
+  readSageOsState,
+  upsertSageOsApproval,
+  upsertSageOsTask,
+} from "./state-store.js";
 import { collectSageOsStatus } from "./status.js";
 import { runNextSageOsTaskOnce } from "./task-runner.js";
 
@@ -130,6 +135,123 @@ describe("SageOS task runner", () => {
     const log = await readFile(path.join(root, "sageos", "events.jsonl"), "utf8");
     expect(log).toContain("task_run_started");
     expect(log).toContain("task_completed");
+  });
+
+  it("blocks queued tasks above the current autonomy tier before executor runs", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-task-runner-tier-"));
+    const store = createSageOsStateStore({ stateDir: root });
+    const now = "2026-06-02T06:10:00.000Z";
+    await upsertSageOsTask(store, {
+      id: "task_execute_scoped",
+      title: "Run scoped execution",
+      objective: "Do not run when SageOS is configured for prepare-only autonomy.",
+      state: "queued",
+      requestedBy: "sageos.cli",
+      autonomyTier: "execute_scoped",
+      policyScopes: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+    let executorCalls = 0;
+
+    const result = await runNextSageOsTaskOnce({
+      stateDir: root,
+      requestedBy: "sageos.test",
+      cfg: { mode: "prepare" },
+      executor: async () => {
+        executorCalls += 1;
+        return { summary: "should not run" };
+      },
+      now: () => new Date(now),
+    });
+
+    expect(executorCalls).toBe(0);
+    expect(result).toMatchObject({
+      outcome: "blocked",
+      task: { id: "task_execute_scoped", state: "waiting_for_policy", updatedAt: now },
+      approval: {
+        id: "approval_task_task_execute_scoped",
+        state: "pending",
+        riskClass: "policy_change",
+        taskId: "task_execute_scoped",
+      },
+      status: {
+        tasks: { total: 1, queued: 0, blocked: 1 },
+        approvals: { pending: 1 },
+      },
+    });
+    expect(result.status.incidents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "incident_policy_blocked",
+          repairAction: expect.objectContaining({ gatewayMethod: "sageos.approvals.list" }),
+        }),
+      ]),
+    );
+    await expect(readSageOsState(store)).resolves.toMatchObject({
+      tasks: [{ id: "task_execute_scoped", state: "waiting_for_policy" }],
+      approvals: [{ id: "approval_task_task_execute_scoped", state: "pending" }],
+      runs: [],
+    });
+    const log = await readFile(path.join(root, "sageos", "events.jsonl"), "utf8");
+    expect(log).toContain("approval_requested");
+    expect(log).toContain("requires execute_scoped autonomy while current policy allows prepare");
+  });
+
+  it("runs queued tasks with an approved autonomy-tier approval", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-task-runner-tier-approved-"));
+    const store = createSageOsStateStore({ stateDir: root });
+    const now = "2026-06-02T06:15:00.000Z";
+    await upsertSageOsTask(store, {
+      id: "task_execute_approved",
+      title: "Run approved scoped execution",
+      objective: "Run after the operator approved this autonomy escalation.",
+      state: "queued",
+      requestedBy: "sageos.cli",
+      autonomyTier: "execute_scoped",
+      policyScopes: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+    await upsertSageOsApproval(store, {
+      id: "approval_task_task_execute_approved",
+      state: "approved",
+      riskClass: "policy_change",
+      title: "Approve SageOS task: Run approved scoped execution",
+      proposedAction: "Queue SageOS task task_execute_approved",
+      evidence: ["task_execute_approved"],
+      scope: "task",
+      taskId: "task_execute_approved",
+      requestedBy: "sageos.test",
+      requestedAt: now,
+      resolvedBy: "operator",
+      resolvedAt: now,
+      createdAt: now,
+      updatedAt: now,
+    });
+    let executorCalls = 0;
+
+    const result = await runNextSageOsTaskOnce({
+      stateDir: root,
+      requestedBy: "sageos.test",
+      cfg: { mode: "prepare" },
+      executor: async () => {
+        executorCalls += 1;
+        return { summary: "approved execution ran" };
+      },
+      now: () => new Date(now),
+    });
+
+    expect(executorCalls).toBe(1);
+    expect(result).toMatchObject({
+      outcome: "completed",
+      task: { id: "task_execute_approved", state: "completed" },
+      run: {
+        id: "run_task_execute_approved_1",
+        state: "succeeded",
+        verificationResult: { outcome: "passed", summary: "approved execution ran" },
+      },
+    });
   });
 
   it("dispatches queued coding execution plans through the Night Shift runner", async () => {
