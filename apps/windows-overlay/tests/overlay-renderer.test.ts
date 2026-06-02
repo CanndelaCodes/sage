@@ -269,7 +269,11 @@ describe("overlay renderer model", () => {
       { label: "Approvals", value: "2" },
       { label: "Incidents", value: "1" },
     ]);
-    expect(model.edgeRail.badges).toContainEqual({ kind: "approval", count: 2 });
+    expect(model.edgeRail.badges).toEqual([
+      { kind: "health", count: 0, target: { kind: "system", id: "supervisor" } },
+      { kind: "approval", count: 2, target: { kind: "approval", id: "approval_1" } },
+      { kind: "incident", count: 1, target: { kind: "incident", id: "incident_1" } },
+    ]);
   });
 
   it("honors badge visibility settings for HUD and Edge Rail", () => {
@@ -279,7 +283,9 @@ describe("overlay renderer model", () => {
     });
 
     expect(model.hud.badges).toEqual([{ label: "Tasks", value: "1" }]);
-    expect(model.edgeRail.badges).toEqual([{ kind: "health", count: 0 }]);
+    expect(model.edgeRail.badges).toEqual([
+      { kind: "health", count: 0, target: { kind: "system", id: "supervisor" } },
+    ]);
   });
 
   it("maps tasks, approvals, and incidents into operational rows", () => {

@@ -13,7 +13,7 @@ import type {
 } from "./components/agent-workspace.js";
 import { renderCommandDeck } from "./components/command-deck.js";
 import { renderCompactHud } from "./components/compact-hud.js";
-import { renderEdgeRail } from "./components/edge-rail.js";
+import { renderEdgeRail, type EdgeRailBadge } from "./components/edge-rail.js";
 import { renderPinnedWidgets } from "./components/pinned-widgets.js";
 import type { PinnedWidgetView } from "./components/pinned-widgets.js";
 import { renderUniversalLauncher } from "./components/universal-launcher.js";
@@ -260,12 +260,28 @@ export function renderOverlayModel(
   if (showIncidentBadge) {
     hudBadges.push({ label: "Incidents", value: incidents });
   }
-  const edgeRailBadges = [{ kind: "health", count: status.supervisor.state === "running" ? 0 : 1 }];
+  const firstApprovalTarget = firstApprovalWorkspaceTarget(approvalRows);
+  const firstIncidentTarget = firstIncidentWorkspaceTarget(status.incidents);
+  const edgeRailBadges: EdgeRailBadge[] = [
+    {
+      kind: "health",
+      count: status.supervisor.state === "running" ? 0 : 1,
+      target: { kind: "system", id: "supervisor" },
+    },
+  ];
   if (showApprovalBadge) {
-    edgeRailBadges.push({ kind: "approval", count: status.approvals.pending });
+    edgeRailBadges.push({
+      kind: "approval",
+      count: status.approvals.pending,
+      target: firstApprovalTarget,
+    });
   }
   if (showIncidentBadge) {
-    edgeRailBadges.push({ kind: "incident", count: status.incidents.length });
+    edgeRailBadges.push({
+      kind: "incident",
+      count: status.incidents.length,
+      target: firstIncidentTarget,
+    });
   }
 
   return {
@@ -734,7 +750,9 @@ export class SageOsOverlayApp extends LitElement {
                   : nothing}
                 ${surfaceVisibility.compactHud ? renderCompactHud(model.hud.badges) : nothing}
                 ${surfaceVisibility.edgeRail
-                  ? renderEdgeRail(model.edgeRail.badges, this.layout.collapsedEdge)
+                  ? renderEdgeRail(model.edgeRail.badges, this.layout.collapsedEdge, {
+                      onBadgeClick: (badge) => this.openEdgeRailBadge(badge),
+                    })
                   : nothing}
               `
             : nothing}
@@ -1179,6 +1197,13 @@ export class SageOsOverlayApp extends LitElement {
 
   private openWorkspace(target: AgentWorkspaceTarget) {
     this.workspaceTarget = target;
+    this.requestUpdate();
+  }
+
+  private openEdgeRailBadge(badge: EdgeRailBadge) {
+    this.workspaceTarget = badge.target;
+    this.setSurface("commandDeck");
+    void window.sageOsOverlay?.expand();
     this.requestUpdate();
   }
 
@@ -1818,6 +1843,20 @@ function buildPinnedWidgets(
   };
 
   return pinnedWidgets.map((widget) => widgetCatalog[widget]);
+}
+
+function firstApprovalWorkspaceTarget(rows: OverlayApprovalRow[]): AgentWorkspaceTarget {
+  const approval = rows.find((entry) => entry.canResolve) ?? rows[0];
+  return approval ? { kind: "approval", id: approval.id } : { kind: "system", id: "policy" };
+}
+
+function firstIncidentWorkspaceTarget(
+  incidents: SageOsOverlayStatusState["status"]["incidents"],
+): AgentWorkspaceTarget {
+  const incident =
+    incidents.find((entry) => entry.severity === "critical" || entry.severity === "error") ??
+    incidents[0];
+  return incident ? { kind: "incident", id: incident.id } : { kind: "system", id: "sources" };
 }
 
 function systemWorkspaceModel(
