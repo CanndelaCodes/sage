@@ -110,7 +110,9 @@ export async function runNextSageOsTaskOnce(
     await writeSageOsState(store, status);
     return { outcome: "blocked", task: blockedTask, approval, status };
   }
-  const riskClass = requiredSageOsExecutionApprovalRisk(task, params.cfg);
+  const riskClass = requiredSageOsExecutionApprovalRisk(task, params.cfg, {
+    usesBuiltInCodingRunner: !params.executor,
+  });
   if (riskClass && !hasApprovedTaskApproval(task, riskClass, state.approvals)) {
     const reason = `${riskClass} approval required before running queued SageOS task ${task.id}`;
     const blockedTask: SageOsTaskSpec = {
@@ -322,9 +324,15 @@ function hasApprovedAutonomyApproval(task: SageOsTaskSpec, approvals: SageOsAppr
 function requiredSageOsExecutionApprovalRisk(
   task: SageOsTaskSpec,
   cfg?: SageOsConfig,
+  options: { usesBuiltInCodingRunner: boolean } = { usesBuiltInCodingRunner: false },
 ): SageOsApprovalRiskClass | undefined {
   const riskClass = requiredSageOsApprovalRisk(task.policyScopes, cfg);
-  return riskClass === "destructive" ? undefined : riskClass;
+  if (riskClass !== "destructive") {
+    return riskClass;
+  }
+  return options.usesBuiltInCodingRunner && task.execution?.kind === "coding"
+    ? undefined
+    : riskClass;
 }
 
 function hasApprovedTaskApproval(

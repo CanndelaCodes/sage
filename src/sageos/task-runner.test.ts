@@ -62,7 +62,7 @@ describe("SageOS task runner", () => {
       state: "queued",
       requestedBy: "sageos.cli",
       autonomyTier: "execute_scoped",
-      policyScopes: [{ kind: "repo", allow: ["C:\\Users\\jason\\Desktop\\sage"], risk: "low" }],
+      policyScopes: [{ kind: "app", allow: ["dry_run_executor"], risk: "low" }],
       createdAt: now,
       updatedAt: now,
     });
@@ -258,6 +258,58 @@ describe("SageOS task runner", () => {
     const log = await readFile(path.join(root, "sageos", "events.jsonl"), "utf8");
     expect(log).toContain("approval_requested");
     expect(log).toContain("policy_change approval required");
+  });
+
+  it("blocks queued destructive file tasks before executor runs", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-task-runner-destructive-"));
+    const store = createSageOsStateStore({ stateDir: root });
+    const now = "2026-06-02T06:22:00.000Z";
+    await upsertSageOsTask(store, {
+      id: "task_delete_local_files",
+      title: "Delete local files",
+      objective: "Do not run local destructive file work without operator approval.",
+      state: "queued",
+      requestedBy: "sageos.cli",
+      autonomyTier: "execute_scoped",
+      policyScopes: [{ kind: "file", allow: ["local_files"], risk: "low" }],
+      createdAt: now,
+      updatedAt: now,
+    });
+    let executorCalls = 0;
+
+    const result = await runNextSageOsTaskOnce({
+      stateDir: root,
+      requestedBy: "sageos.test",
+      executor: async () => {
+        executorCalls += 1;
+        return { summary: "should not run" };
+      },
+      now: () => new Date(now),
+    });
+
+    expect(executorCalls).toBe(0);
+    expect(result).toMatchObject({
+      outcome: "blocked",
+      task: { id: "task_delete_local_files", state: "waiting_for_policy", updatedAt: now },
+      approval: {
+        id: "approval_task_task_delete_local_files",
+        state: "pending",
+        riskClass: "destructive",
+        taskId: "task_delete_local_files",
+      },
+      status: {
+        tasks: { total: 1, queued: 0, blocked: 1 },
+        approvals: { pending: 1 },
+      },
+    });
+    await expect(readSageOsState(store)).resolves.toMatchObject({
+      tasks: [{ id: "task_delete_local_files", state: "waiting_for_policy" }],
+      approvals: [{ id: "approval_task_task_delete_local_files", state: "pending" }],
+      runs: [],
+    });
+    const log = await readFile(path.join(root, "sageos", "events.jsonl"), "utf8");
+    expect(log).toContain("approval_requested");
+    expect(log).toContain("destructive approval required");
   });
 
   it("runs queued tasks with an approved autonomy-tier approval", async () => {
