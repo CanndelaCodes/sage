@@ -159,14 +159,27 @@ export class SageOsOverlayController {
     this.onChange();
     try {
       const result = await run();
-      if (isSageOsOverlayStatusState(result)) {
-        this.state = { ...this.state, connected: true, sageOsState: result };
+      const sageOsState = extractSageOsOverlayStatusState(result);
+      if (sageOsState) {
+        this.state = { ...this.state, connected: true, sageOsState };
       }
     } catch (err) {
       this.state = { ...this.state, error: String(err) };
     }
     this.onChange();
   }
+}
+
+function extractSageOsOverlayStatusState(value: unknown): SageOsOverlayStatusState | null {
+  if (isSageOsOverlayStatusState(value)) {
+    return value;
+  }
+  if (typeof value !== "object" || value === null || !("state" in value)) {
+    return null;
+  }
+
+  const wrappedState = (value as { state?: unknown }).state;
+  return isSageOsOverlayStatusState(wrappedState) ? wrappedState : null;
 }
 
 function isSageOsOverlayStatusState(value: unknown): value is SageOsOverlayStatusState {

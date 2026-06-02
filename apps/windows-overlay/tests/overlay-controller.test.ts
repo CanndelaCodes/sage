@@ -109,6 +109,25 @@ describe("SageOsOverlayController", () => {
     expect(request).toHaveBeenCalledWith("sageos.tasks.runNext", {});
   });
 
+  it("adopts wrapped gateway state payloads after mutations", async () => {
+    const queuedState = stateFixture("observe");
+    const approvedState = stateFixture("execute_scoped", [{ id: "incident_after_approval" }]);
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce({ result: { outcome: "queued" }, state: queuedState })
+      .mockResolvedValueOnce({ approval: { id: "approval_1", state: "approved" }, state: approvedState });
+    const controller = new SageOsOverlayController({ request });
+
+    await controller.queueTask("task_1");
+
+    expect(controller.state.connected).toBe(true);
+    expect(controller.state.sageOsState).toBe(queuedState);
+
+    await controller.approveApproval("approval_1");
+
+    expect(controller.state.sageOsState).toBe(approvedState);
+  });
+
   it("runs employee lifecycle actions through existing RPC methods", async () => {
     const request = vi.fn().mockResolvedValue(stateFixture("execute_scoped"));
     const controller = new SageOsOverlayController({ request });
