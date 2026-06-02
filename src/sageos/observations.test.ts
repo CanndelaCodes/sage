@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { listLearningEventQueue } from "../learning/activity-queue.js";
 import { normalizeLearningEvent } from "../learning/events.js";
 import { observeAppFocusOnce } from "./observations.js";
-import { createSageOsStateStore, readSageOsState } from "./state-store.js";
+import { createSageOsStateStore, readSageOsState, upsertSageOsObservation } from "./state-store.js";
 
 describe("SageOS observations", () => {
   it("records enabled app-focus observations and learning events", async () => {
@@ -145,5 +145,68 @@ describe("SageOS observations", () => {
     expect(eventLog).toContain("observation_redacted");
     expect(eventLog).not.toContain("1Password");
     expect(eventLog).not.toContain("Jason Vault");
+  });
+
+  it("prunes observations older than the configured retention window before recording", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-observe-retention-"));
+    const store = createSageOsStateStore({ stateDir: root });
+    const now = new Date("2026-06-10T12:00:00.000Z");
+
+    await upsertSageOsObservation(store, {
+      id: "obs_old",
+      source: "app_focus",
+      state: "captured",
+      title: "Old focus",
+      text: "Old focus should expire.",
+      sensitivity: "public",
+      observedAt: "2026-05-01T12:00:00.000Z",
+      payload: {},
+      provenance: {},
+      createdAt: "2026-05-01T12:00:00.000Z",
+      updatedAt: "2026-05-01T12:00:00.000Z",
+    });
+    await upsertSageOsObservation(store, {
+      id: "obs_recent",
+      source: "app_focus",
+      state: "captured",
+      title: "Recent focus",
+      text: "Recent focus should remain.",
+      sensitivity: "public",
+      observedAt: "2026-06-09T12:00:00.000Z",
+      payload: {},
+      provenance: {},
+      createdAt: "2026-06-09T12:00:00.000Z",
+      updatedAt: "2026-06-09T12:00:00.000Z",
+    });
+
+    const result = await observeAppFocusOnce({
+      stateDir: root,
+      agentId: "main",
+      cfg: {
+        sources: { appFocus: true },
+        privacy: { observationRetentionDays: 7 },
+      },
+      now: () => now,
+      readFocus: async () => ({
+        supported: true,
+        event: normalizeLearningEvent(
+          {
+            source: "app_focus",
+            actor: "local-user",
+            title: "Code: Fresh work",
+            text: "Active app focus: Code - Fresh work",
+            payload: { processName: "Code", pid: 789, windowTitle: "Fresh work" },
+          },
+          { now: () => now, idFactory: () => "learning_fresh_focus" },
+        ),
+      }),
+    });
+
+    expect(result).toMatchObject({ status: "recorded" });
+    const state = await readSageOsState(store);
+    expect(state.observations.map((observation) => observation.id)).toEqual(
+      expect.arrayContaining(["obs_recent", result.observation.id]),
+    );
+    expect(state.observations.map((observation) => observation.id)).not.toContain("obs_old");
   });
 });

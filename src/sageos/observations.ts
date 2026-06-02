@@ -8,6 +8,7 @@ import { normalizeLearningEvent } from "../learning/events.js";
 import { appendSageOsEvent, createSageOsEventLog } from "./event-log.js";
 import {
   createSageOsStateStore,
+  pruneSageOsObservations,
   upsertSageOsObservation,
   type SageOsStateStore,
 } from "./state-store.js";
@@ -81,6 +82,12 @@ export async function observeAppFocusOnce(params: {
     updatedAt: now.toISOString(),
   };
 
+  const stateStore = params.stateStore ?? createSageOsStateStore({ stateDir: params.stateDir });
+  const retentionCutoff = observationRetentionCutoff(now, params.cfg);
+  if (retentionCutoff) {
+    await pruneSageOsObservations(stateStore, retentionCutoff);
+  }
+
   const event = await appendSageOsEvent(createSageOsEventLog({ stateDir: params.stateDir }), {
     type: denialReason === undefined ? "observation_recorded" : "observation_redacted",
     actor: "sageos.observer",
@@ -91,16 +98,21 @@ export async function observeAppFocusOnce(params: {
     sensitivity: observation.sensitivity,
   });
   const observationWithEvent = { ...observation, eventId: event.id };
-  await upsertSageOsObservation(
-    params.stateStore ?? createSageOsStateStore({ stateDir: params.stateDir }),
-    observationWithEvent,
-  );
+  await upsertSageOsObservation(stateStore, observationWithEvent);
   const learning = await enqueueLearningEvents({
     queuePath: learningQueuePath(params.stateDir, params.agentId),
     agentId: params.agentId,
     events: [learningEvent],
   });
   return { status: "recorded", observation: observationWithEvent, learning };
+}
+
+function observationRetentionCutoff(now: Date, cfg: SageOsConfig | undefined): Date | undefined {
+  const retentionDays = cfg?.privacy?.observationRetentionDays;
+  if (typeof retentionDays !== "number" || !Number.isFinite(retentionDays) || retentionDays < 0) {
+    return undefined;
+  }
+  return new Date(now.getTime() - Math.floor(retentionDays) * 24 * 60 * 60 * 1000);
 }
 
 function learningQueuePath(

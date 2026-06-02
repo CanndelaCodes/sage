@@ -368,6 +368,26 @@ export async function upsertSageOsObservation(
   return { ...current, observations, updatedAt: new Date().toISOString() };
 }
 
+export async function pruneSageOsObservations(
+  store: SageOsStateStore,
+  cutoff: Date,
+): Promise<SageOsPersistedState> {
+  const cutoffMs = cutoff.getTime();
+  if (!Number.isFinite(cutoffMs)) {
+    return readSageOsState(store);
+  }
+
+  const observationsFile = siblingStore(store, "observations.json").path;
+  const observations = await updateJsonFile<SageOsObservation[]>(observationsFile, [], (current) =>
+    current.filter((observation) => {
+      const observedAtMs = Date.parse(observation.observedAt);
+      return !Number.isFinite(observedAtMs) || observedAtMs >= cutoffMs;
+    }),
+  );
+  const current = await readSageOsState(store);
+  return { ...current, observations, updatedAt: new Date().toISOString() };
+}
+
 export async function readSageOsControl(
   store: SageOsStateStore,
 ): Promise<SageOsSupervisorControl | undefined> {

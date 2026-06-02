@@ -231,6 +231,7 @@ const SageOsSchema = z
         denyApps: z.array(z.string()).optional(),
         denyWindowTitlePatterns: z.array(z.string()).optional(),
         denyFilePatterns: z.array(z.string()).optional(),
+        observationRetentionDays: z.number().int().nonnegative().optional(),
       })
       .strict()
       .optional(),

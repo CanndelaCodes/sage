@@ -29,12 +29,14 @@ describe("SageOS config schema", () => {
           localOnlyDefault: true,
           storeRawScreenshots: false,
           denyApps: ["1Password"],
+          observationRetentionDays: 14,
         },
       },
     });
 
     expect(parsed.sageos?.mode).toBe("execute_scoped");
     expect(parsed.sageos?.sources?.defender).toBe(true);
+    expect(parsed.sageos?.privacy?.observationRetentionDays).toBe(14);
   });
 
   it("accepts the SageOS Windows overlay config namespace", () => {
@@ -104,6 +106,18 @@ describe("SageOS config schema", () => {
             openMode: "browser",
             collapsedEdge: "center",
             pinnedWidgets: ["unknownWidget"],
+          },
+        },
+      }),
+    ).toThrow();
+  });
+
+  it("rejects invalid SageOS observation retention values", () => {
+    expect(() =>
+      SageSchema.parse({
+        sageos: {
+          privacy: {
+            observationRetentionDays: -1,
           },
         },
       }),
