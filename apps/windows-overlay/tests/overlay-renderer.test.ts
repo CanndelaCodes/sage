@@ -5,6 +5,8 @@ import {
   handleOverlayKeyboardShortcut,
   isOverlayInteractiveElement,
   isOverlayVoiceInputAvailable,
+  getOverlayConnectionState,
+  getOverlayStateCallouts,
   readInitialOverlaySurface,
   readOverlayGatewaySettings,
   readOverlayInteractionSettings,
@@ -795,6 +797,108 @@ describe("overlay renderer model", () => {
       "Full",
       "Rail",
       "Close",
+    ]);
+  });
+
+  it("labels connection states explicitly for production overlay operation", () => {
+    expect(
+      getOverlayConnectionState({
+        connected: true,
+        loading: false,
+        error: null,
+        hasState: true,
+      }),
+    ).toEqual({
+      label: "Connected",
+      detail: "Live SageOS gateway state",
+      tone: "success",
+    });
+    expect(
+      getOverlayConnectionState({
+        connected: false,
+        loading: true,
+        error: null,
+        hasState: false,
+      }),
+    ).toMatchObject({ label: "Loading", tone: "loading" });
+    expect(
+      getOverlayConnectionState({
+        connected: false,
+        loading: false,
+        error: null,
+        hasState: true,
+      }),
+    ).toEqual({
+      label: "Reconnecting",
+      detail: "Showing last known SageOS state",
+      tone: "warning",
+    });
+    expect(
+      getOverlayConnectionState({
+        connected: false,
+        loading: false,
+        error: "Error: gateway not connected",
+        hasState: false,
+      }),
+    ).toEqual({
+      label: "Error",
+      detail: "gateway not connected",
+      tone: "error",
+    });
+  });
+
+  it("surfaces stale, empty, loading, and error callouts without hiding loaded state", () => {
+    expect(
+      getOverlayStateCallouts({
+        connected: false,
+        loading: false,
+        error: null,
+        hasState: true,
+      }),
+    ).toEqual([
+      {
+        message: "Gateway disconnected. Showing last known SageOS state.",
+        tone: "warning",
+      },
+    ]);
+    expect(
+      getOverlayStateCallouts({
+        connected: false,
+        loading: false,
+        error: null,
+        hasState: false,
+      }),
+    ).toEqual([
+      {
+        message: "Waiting for SageOS gateway connection.",
+        tone: "empty",
+      },
+    ]);
+    expect(
+      getOverlayStateCallouts({
+        connected: true,
+        loading: true,
+        error: null,
+        hasState: true,
+      }),
+    ).toEqual([
+      {
+        message: "Refreshing SageOS state...",
+        tone: "loading",
+      },
+    ]);
+    expect(
+      getOverlayStateCallouts({
+        connected: false,
+        loading: false,
+        error: "Error: gateway not connected",
+        hasState: false,
+      }),
+    ).toEqual([
+      {
+        message: "gateway not connected",
+        tone: "error",
+      },
     ]);
   });
 

@@ -49,6 +49,30 @@ export type OverlaySurfaceVisibility = {
 };
 export type OverlayCard = { title: string; value: string; detail: string };
 export type OverlayBadge = { label: string; value: string };
+export type OverlayConnectionTone = "neutral" | "success" | "loading" | "warning" | "error";
+export type OverlayConnectionState = {
+  label: string;
+  detail: string;
+  tone: OverlayConnectionTone;
+};
+export type OverlayStateCalloutTone =
+  | "loading"
+  | "error"
+  | "empty"
+  | "success"
+  | "warning"
+  | "critical"
+  | "degraded";
+export type OverlayStateCallout = {
+  message: string;
+  tone: OverlayStateCalloutTone;
+};
+export type OverlayConnectionStateParams = {
+  connected: boolean;
+  loading: boolean;
+  error: string | null;
+  hasState: boolean;
+};
 export type OverlayOverviewRow = { label: string; value: string; detail: string };
 export type OverlayOverviewGroup = { title: string; rows: OverlayOverviewRow[] };
 export type OverlayTaskRow = {
@@ -258,6 +282,77 @@ export function renderOverlayModel(
   };
 }
 
+export function getOverlayConnectionState(
+  params: OverlayConnectionStateParams,
+): OverlayConnectionState {
+  const error = normalizeOverlayErrorMessage(params.error);
+  if (error) {
+    return { label: "Error", detail: error, tone: "error" };
+  }
+
+  if (params.loading) {
+    return params.hasState
+      ? { label: "Refreshing", detail: "Updating SageOS gateway state", tone: "loading" }
+      : { label: "Loading", detail: "Waiting for SageOS gateway state", tone: "loading" };
+  }
+
+  if (!params.connected) {
+    return params.hasState
+      ? {
+          label: "Reconnecting",
+          detail: "Showing last known SageOS state",
+          tone: "warning",
+        }
+      : {
+          label: "Connecting",
+          detail: "Waiting for SageOS gateway connection",
+          tone: "neutral",
+        };
+  }
+
+  return params.hasState
+    ? { label: "Connected", detail: "Live SageOS gateway state", tone: "success" }
+    : { label: "Connected", detail: "Waiting for first SageOS state", tone: "loading" };
+}
+
+export function getOverlayStateCallouts(
+  params: OverlayConnectionStateParams,
+): OverlayStateCallout[] {
+  const error = normalizeOverlayErrorMessage(params.error);
+  if (error) {
+    return [{ message: error, tone: "error" }];
+  }
+
+  if (params.loading) {
+    return [
+      {
+        message: params.hasState ? "Refreshing SageOS state..." : "Loading SageOS state...",
+        tone: "loading",
+      },
+    ];
+  }
+
+  if (!params.connected) {
+    return params.hasState
+      ? [
+          {
+            message: "Gateway disconnected. Showing last known SageOS state.",
+            tone: "warning",
+          },
+        ]
+      : [
+          {
+            message: "Waiting for SageOS gateway connection.",
+            tone: "empty",
+          },
+        ];
+  }
+
+  return params.hasState
+    ? []
+    : [{ message: "Waiting for SageOS gateway state.", tone: "empty" }];
+}
+
 export function readOverlayGatewaySettings(
   search = globalThis.location?.search ?? "",
   storage: Pick<Storage, "getItem"> | null = safeLocalStorage(),
@@ -346,6 +441,11 @@ function normalizeOverlayBoolean(value: unknown, fallback: boolean): boolean {
     return false;
   }
   return fallback;
+}
+
+function normalizeOverlayErrorMessage(error: string | null): string | null {
+  const message = error?.trim().replace(/^Error:\s*/i, "");
+  return message || null;
 }
 
 export function getOverlaySurfaceVisibility(surface: OverlaySurface): OverlaySurfaceVisibility {
@@ -527,17 +627,23 @@ export class SageOsOverlayApp extends LitElement {
         })
       : null;
     const surfaceVisibility = getOverlaySurfaceVisibility(this.surface);
+    const callouts = getOverlayStateCallouts({
+      connected: this.overlayConnected,
+      loading: this.loading,
+      error: this.error,
+      hasState: Boolean(model),
+    });
 
     return html`
       <main class=${`overlay-shell overlay-shell--${this.surface}`}>
         ${surfaceVisibility.toolbar ? this.renderToolbar() : nothing}
         <section class="overlay-content">
-          ${this.error
-            ? html`<section class="overlay-callout overlay-callout--error">${this.error}</section>`
-            : nothing}
-          ${this.loading
-            ? html`<section class="overlay-callout overlay-callout--loading">Loading SageOS state...</section>`
-            : nothing}
+          ${callouts.map(
+            (callout) =>
+              html`<section class=${`overlay-callout overlay-callout--${callout.tone}`}>
+                ${callout.message}
+              </section>`,
+          )}
           ${model
             ? html`
                 ${surfaceVisibility.launcher ? this.renderLauncher() : nothing}
@@ -559,7 +665,7 @@ export class SageOsOverlayApp extends LitElement {
                   ? renderEdgeRail(model.edgeRail.badges, this.layout.collapsedEdge)
                   : nothing}
               `
-            : html`<section class="overlay-callout overlay-callout--empty">Waiting for SageOS gateway state.</section>`}
+            : nothing}
         </section>
       </main>
     `;
@@ -594,9 +700,20 @@ export class SageOsOverlayApp extends LitElement {
   }
 
   private renderToolbar() {
+    const connection = getOverlayConnectionState({
+      connected: this.overlayConnected,
+      loading: this.loading,
+      error: this.error,
+      hasState: Boolean(this.sageOsState),
+    });
     return html`
       <nav class=${`overlay-toolbar overlay-toolbar--${this.surface}`} aria-label="SageOS overlay controls">
-        <span class="overlay-connection">${this.overlayConnected ? "Connected" : "Connecting"}</span>
+        <span
+          class=${`overlay-connection overlay-connection--${connection.tone}`}
+          title=${connection.detail}
+          aria-label=${`SageOS gateway: ${connection.label}. ${connection.detail}`}
+          >${connection.label}</span
+        >
         ${getOverlayToolbarControls(this.surface).map(
           (control) => html`
             <button

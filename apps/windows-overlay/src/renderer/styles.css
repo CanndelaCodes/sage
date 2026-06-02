@@ -311,10 +311,35 @@ input::placeholder {
   max-width: 180px;
   margin-right: auto;
   overflow: hidden;
+  border: 1px solid var(--sageos-border-subtle);
+  border-radius: 999px;
+  background: rgba(248, 250, 252, 0.06);
   color: var(--sageos-text-secondary);
   font-size: 13px;
+  line-height: 1;
+  padding: 6px 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.overlay-connection--success {
+  border-color: color-mix(in srgb, var(--sageos-accent-success) 42%, transparent);
+  color: #bbf7d0;
+}
+
+.overlay-connection--loading {
+  border-color: color-mix(in srgb, var(--sageos-accent-primary) 46%, transparent);
+  color: #bae6fd;
+}
+
+.overlay-connection--warning {
+  border-color: color-mix(in srgb, var(--sageos-accent-warning) 52%, transparent);
+  color: #fde68a;
+}
+
+.overlay-connection--error {
+  border-color: color-mix(in srgb, var(--sageos-accent-danger) 58%, transparent);
+  color: #fecaca;
 }
 
 .overlay-callout {
