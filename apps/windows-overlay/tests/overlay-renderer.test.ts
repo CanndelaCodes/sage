@@ -46,7 +46,22 @@ const state = {
       restrictions: ["no destructive git"],
       reports: { total: 2, active: 0, queued: 1, blocked: 0 },
     },
-    notifications: { telegram: { enabled: true, target: "Jason" }, urgentPending: 1 },
+    notifications: {
+      telegram: {
+        enabled: true,
+        target: "Jason",
+        digestSchedule: "0 8 * * *",
+        quietHours: { start: "22:00", end: "07:00", timezone: "UTC" },
+      },
+      urgentPending: 1,
+      recent: {
+        sent: 2,
+        failed: 1,
+        skipped: 1,
+        lastOutcome: "skipped",
+        lastSummary: "Skipped SageOS Telegram digest because quiet hours are active.",
+      },
+    },
     audit: { recentEvents: 12, eventLogPath: "events.jsonl" },
     incidents: [
       {
@@ -348,6 +363,11 @@ describe("overlay renderer model", () => {
       detail: "2 pending / 1 failed / sage-memory",
     });
     expect(model.overview[2].rows).toContainEqual({
+      label: "Notifications",
+      value: "1 urgent",
+      detail: "Telegram enabled / digest 0 8 * * * / quiet 22:00-07:00 UTC",
+    });
+    expect(model.overview[2].rows).toContainEqual({
       label: "Audit",
       value: "12 events",
       detail: "events.jsonl",
@@ -411,6 +431,9 @@ describe("overlay renderer model", () => {
     });
     const policyModel = renderOverlayModel(state as never, {
       workspaceTarget: { kind: "system", id: "policy" },
+    });
+    const notificationModel = renderOverlayModel(state as never, {
+      workspaceTarget: { kind: "system", id: "notifications" },
     });
     const auditModel = renderOverlayModel(state as never, {
       workspaceTarget: { kind: "system", id: "audit" },
@@ -552,6 +575,14 @@ describe("overlay renderer model", () => {
       title: "Policy",
       eyebrow: "System / execute_scoped",
     });
+    expect(notificationModel.workspace.facts).toEqual(
+      expect.arrayContaining([
+        { label: "Digest schedule", value: "0 8 * * *" },
+        { label: "Quiet hours", value: "22:00-07:00 UTC" },
+        { label: "Recent", value: "2 sent / 1 failed / 1 skipped" },
+        { label: "Last outcome", value: "skipped" },
+      ]),
+    );
     expect(auditModel.workspace).toMatchObject({
       title: "Audit",
       eyebrow: "System / events",

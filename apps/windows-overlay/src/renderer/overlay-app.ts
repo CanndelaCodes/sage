@@ -963,7 +963,7 @@ function buildOverviewGroups(
         {
           label: "Notifications",
           value: `${status.notifications.urgentPending} urgent`,
-          detail: status.notifications.telegram.enabled ? "Telegram enabled" : "Telegram disabled",
+          detail: formatNotificationStatusDetail(status.notifications),
         },
         {
           label: "Audit",
@@ -1072,7 +1072,7 @@ function buildSystemResourceRows(
     {
       id: "notifications",
       title: "Notifications",
-      detail: status.notifications.telegram.enabled ? "Telegram enabled" : "Telegram disabled",
+      detail: formatNotificationStatusDetail(status.notifications),
       state: `${status.notifications.urgentPending} urgent`,
     },
     {
@@ -1538,11 +1538,7 @@ function systemWorkspaceModel(
       title: "Notifications",
       eyebrow: `System / ${status.notifications.telegram.enabled ? "enabled" : "disabled"}`,
       detail: "Telegram and urgent notification state.",
-      facts: [
-        { label: "Telegram", value: status.notifications.telegram.enabled ? "Enabled" : "Disabled" },
-        { label: "Target", value: status.notifications.telegram.target ?? "None" },
-        { label: "Urgent pending", value: String(status.notifications.urgentPending) },
-      ],
+      facts: notificationWorkspaceFacts(status.notifications),
       actions: [],
     };
   }
@@ -1744,6 +1740,56 @@ function formatNotificationPolicy(
     return "Not specified";
   }
   return `${formatList(policy.channels ?? [])} / ${formatList(policy.notifyOn ?? [])}`;
+}
+
+type OverlayNotifications = SageOsOverlayStatusState["status"]["notifications"];
+
+function formatNotificationStatusDetail(notifications: OverlayNotifications): string {
+  const parts = [notifications.telegram.enabled ? "Telegram enabled" : "Telegram disabled"];
+  if (notifications.telegram.digestSchedule) {
+    parts.push(`digest ${notifications.telegram.digestSchedule}`);
+  }
+  const quietHours = formatNotificationQuietHours(notifications.telegram.quietHours);
+  if (quietHours) {
+    parts.push(`quiet ${quietHours}`);
+  }
+  return parts.join(" / ");
+}
+
+function notificationWorkspaceFacts(
+  notifications: OverlayNotifications,
+): AgentWorkspaceView["facts"] {
+  const facts: AgentWorkspaceView["facts"] = [
+    { label: "Telegram", value: notifications.telegram.enabled ? "Enabled" : "Disabled" },
+    { label: "Target", value: notifications.telegram.target ?? "None" },
+    { label: "Urgent pending", value: String(notifications.urgentPending) },
+  ];
+  if (notifications.telegram.digestSchedule) {
+    facts.push({ label: "Digest schedule", value: notifications.telegram.digestSchedule });
+  }
+  const quietHours = formatNotificationQuietHours(notifications.telegram.quietHours);
+  if (quietHours) {
+    facts.push({ label: "Quiet hours", value: quietHours });
+  }
+  if (notifications.recent) {
+    facts.push({
+      label: "Recent",
+      value: `${notifications.recent.sent} sent / ${notifications.recent.failed} failed / ${notifications.recent.skipped} skipped`,
+    });
+    if (notifications.recent.lastOutcome) {
+      facts.push({ label: "Last outcome", value: notifications.recent.lastOutcome });
+    }
+  }
+  return facts;
+}
+
+function formatNotificationQuietHours(
+  quietHours: OverlayNotifications["telegram"]["quietHours"] | undefined,
+): string | undefined {
+  if (!quietHours) {
+    return undefined;
+  }
+  return `${quietHours.start}-${quietHours.end}${quietHours.timezone ? ` ${quietHours.timezone}` : ""}`;
 }
 
 function formatRunVerification(
