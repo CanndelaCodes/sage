@@ -389,7 +389,7 @@ describe("SageOS notifications", () => {
     const status = createSageOsStatusSnapshot({
       incidents: [
         {
-          id: "incident_memory_queue_failed",
+          id: "incident_memory_capture_attention",
           severity: "warning",
           category: "memory",
           title: "Sage Memory capture queue has failed entries",
@@ -432,7 +432,7 @@ describe("SageOS notifications", () => {
 
     const sender = vi.fn(async () => ({ messageId: "12", chatId: "123" }));
     const sent = await sendSageOsIncidentNotificationOnce({
-      incidentId: "incident_memory_queue_failed",
+      incidentId: "incident_memory_capture_attention",
       stateDir: root,
       cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
       sender,

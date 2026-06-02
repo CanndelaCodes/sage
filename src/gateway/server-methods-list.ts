@@ -43,6 +43,7 @@ const BASE_METHODS = [
   "sageos.memory.doctor",
   "sageos.notifications.digest",
   "sageos.notifications.startup",
+  "sageos.notifications.shutdown",
   "sageos.notifications.approval",
   "sageos.notifications.incident",
   "sageos.notifications.completion",

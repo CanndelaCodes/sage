@@ -843,6 +843,35 @@ export const sageOsHandlers: GatewayRequestHandlers = {
     });
     respond(true, { notification, state }, undefined);
   },
+  "sageos.notifications.shutdown": async ({ params, respond, context }) => {
+    const cfg = loadConfig().sageos;
+    const target =
+      typeof params.target === "string" && params.target.trim() ? params.target.trim() : undefined;
+    const stateStore = createSageOsStateStore();
+    if (params.send === true) {
+      const result = await sendSageOsLifecycleNotificationOnce({
+        kind: "shutdown",
+        cfg,
+        target,
+      });
+      await writeSageOsState(stateStore, result.status);
+      const state = await readSageOsState(stateStore);
+      context.broadcast("sageos", state, { dropIfSlow: true });
+      respond(true, { result, state }, undefined);
+      return;
+    }
+
+    const status = await collectSageOsStatus({ cfg });
+    await writeSageOsState(stateStore, status);
+    const state = await readSageOsState(stateStore);
+    const notification = buildSageOsLifecycleNotification({
+      kind: "shutdown",
+      status,
+      cfg,
+      target,
+    });
+    respond(true, { notification, state }, undefined);
+  },
   "sageos.notifications.approval": async ({ params, respond, context }) => {
     const approvalId = typeof params.approvalId === "string" ? params.approvalId.trim() : "";
     if (!approvalId) {

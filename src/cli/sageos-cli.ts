@@ -1170,6 +1170,35 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
     });
 
   notifications
+    .command("shutdown")
+    .description("Preview or send a SageOS Telegram shutdown notification")
+    .option("--send", "Send the notification to Telegram", false)
+    .option("--target <target>", "Telegram target override")
+    .option("--json", "Output JSON", false)
+    .action(async (opts: { send?: boolean; target?: string; json?: boolean }) => {
+      const cliOpts = commandOptions(opts);
+      const cfg = loadSageConfig().sageos;
+      const target = cliOpts.target?.trim() || undefined;
+      if (cliOpts.send) {
+        const result = await sendLifecycleNotification({ kind: "shutdown", cfg, target });
+        outputJsonOrText(cliOpts, { result }, () =>
+          result.outcome === "sent"
+            ? `Sent Telegram shutdown notification: ${result.target}`
+            : `${result.outcome}: ${"reason" in result ? result.reason : result.target}`,
+        );
+        return;
+      }
+      const status = await collectSageOsStatus({ cfg });
+      const notification = buildSageOsLifecycleNotification({
+        kind: "shutdown",
+        status,
+        cfg,
+        target,
+      });
+      outputJsonOrText(cliOpts, { notification, status }, () => notification.text);
+    });
+
+  notifications
     .command("approval <approvalId>")
     .description("Preview or send a SageOS Telegram approval prompt")
     .option("--send", "Send the notification to Telegram", false)

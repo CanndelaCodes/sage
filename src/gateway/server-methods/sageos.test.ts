@@ -189,6 +189,7 @@ describe("SageOS gateway methods", () => {
     expect(listGatewayMethods()).toContain("sageos.memory.doctor");
     expect(listGatewayMethods()).toContain("sageos.notifications.digest");
     expect(listGatewayMethods()).toContain("sageos.notifications.startup");
+    expect(listGatewayMethods()).toContain("sageos.notifications.shutdown");
     expect(listGatewayMethods()).toContain("sageos.notifications.approval");
     expect(listGatewayMethods()).toContain("sageos.notifications.incident");
     expect(listGatewayMethods()).toContain("sageos.notifications.completion");
@@ -237,6 +238,7 @@ describe("SageOS gateway methods", () => {
       "sageos.memory.doctor",
       "sageos.notifications.digest",
       "sageos.notifications.startup",
+      "sageos.notifications.shutdown",
       "sageos.notifications.approval",
       "sageos.notifications.incident",
       "sageos.notifications.completion",
@@ -1442,17 +1444,21 @@ describe("SageOS gateway methods", () => {
     mockLoadConfig.mockReturnValue({
       sageos: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
     });
-    mockSendLifecycleNotificationOnce.mockResolvedValue({
-      outcome: "sent",
-      target: "telegram:123",
-      notification: {
-        kind: "startup",
-        title: "SageOS: Startup",
-        text: "SageOS: Startup",
+    mockSendLifecycleNotificationOnce.mockImplementation((params: { kind?: string }) => {
+      const kind = params.kind === "shutdown" ? "shutdown" : "startup";
+      const title = kind === "shutdown" ? "SageOS: Shutdown" : "SageOS: Startup";
+      return Promise.resolve({
+        outcome: "sent",
         target: "telegram:123",
-        redactedObservationCount: 0,
-      },
-      status: createSageOsStatusSnapshot(),
+        notification: {
+          kind,
+          title,
+          text: title,
+          target: "telegram:123",
+          redactedObservationCount: 0,
+        },
+        status: createSageOsStatusSnapshot(),
+      });
     });
     mockSendApprovalNotificationOnce.mockResolvedValue({
       outcome: "sent",
@@ -1498,6 +1504,21 @@ describe("SageOS gateway methods", () => {
     });
     expect(mockSendLifecycleNotificationOnce).toHaveBeenCalledWith({
       kind: "startup",
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+      target: undefined,
+    });
+
+    const shutdown = await invoke("sageos.notifications.shutdown", { send: true });
+    expect(shutdown.response?.ok).toBe(true);
+    expect(shutdown.response?.payload).toMatchObject({
+      result: {
+        outcome: "sent",
+        target: "telegram:123",
+        notification: { title: "SageOS: Shutdown" },
+      },
+    });
+    expect(mockSendLifecycleNotificationOnce).toHaveBeenCalledWith({
+      kind: "shutdown",
       cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
       target: undefined,
     });

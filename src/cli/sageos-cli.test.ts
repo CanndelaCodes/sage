@@ -1056,13 +1056,18 @@ describe("sage os CLI", () => {
       }),
       sendLifecycleNotificationOnce: async (params: unknown) => {
         lifecycleCalls.push(params);
+        const kind =
+          (params as { kind?: "startup" | "shutdown" }).kind === "shutdown"
+            ? "shutdown"
+            : "startup";
+        const title = kind === "shutdown" ? "SageOS: Shutdown" : "SageOS: Startup";
         return {
           outcome: "sent" as const,
           target: "telegram:123",
           notification: {
-            kind: "startup" as const,
-            title: "SageOS: Startup",
-            text: "SageOS: Startup",
+            kind,
+            title,
+            text: title,
             target: "telegram:123",
             redactedObservationCount: 0,
           },
@@ -1123,6 +1128,21 @@ describe("sage os CLI", () => {
     expect(lastJson()).toMatchObject({ result: { outcome: "sent", target: "telegram:123" } });
     expect(lifecycleCalls[0]).toMatchObject({
       kind: "startup",
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+    });
+
+    await program.parseAsync(["os", "notifications", "shutdown", "--send", "--json"], {
+      from: "user",
+    });
+    expect(lastJson()).toMatchObject({
+      result: {
+        outcome: "sent",
+        target: "telegram:123",
+        notification: { title: "SageOS: Shutdown" },
+      },
+    });
+    expect(lifecycleCalls[1]).toMatchObject({
+      kind: "shutdown",
       cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
     });
 
