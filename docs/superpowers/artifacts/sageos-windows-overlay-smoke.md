@@ -2,7 +2,7 @@
 
 Date: 2026-06-02
 Operator: Codex
-Build: Windows overlay MVP shell verification after 31dbe765c7
+Build: Windows overlay MVP shell verification after voice availability update
 
 ## Preconditions
 
@@ -33,6 +33,7 @@ Build: Windows overlay MVP shell verification after 31dbe765c7
 - [x] `Ctrl+K` focuses the Universal Launcher when the full overlay is active.
 - [x] `Escape` dismisses the overlay through the preload IPC close bridge.
 - [x] `SAGEOS_OVERLAY_VOICE_ENABLED=1` plus `SAGEOS_OVERLAY_VOICE_MODE=pushToTalk` exposes the Voice entry point.
+- [x] Voice entry is enabled only when browser speech recognition exists; otherwise it is disabled with an unavailable-runtime reason.
 - [x] The Voice entry point is omitted when voice config is missing, disabled, or invalid.
 - [x] Liquid Linear material tokens cover ambient, command, focus, and summit glass elevations.
 - [x] Liquid Linear command glass tokens cover refraction, specular highlights, platinum tint, command/focus/control shadows, runway highlights, and spring motion.
@@ -53,10 +54,11 @@ Build: Windows overlay MVP shell verification after 31dbe765c7
 - HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud.png`
 - IDE-like backdrop HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud-ide.png`
 - Current verification update: `pnpm --dir apps/windows-overlay smoke:electron` passed on
-  2026-06-02 after 31dbe765c7. The packaged overlay reported `ok: true`,
+  2026-06-02 after the voice availability update. The packaged overlay reported `ok: true`,
   `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, no renderer page errors,
-  four `sageos.control` calls for pause, resume, stop, and emergency stop, and refreshed the
-  full, bright, edge-left, text-heavy edge, HUD, and IDE HUD screenshots above.
+  four `sageos.control` calls for pause, resume, stop, and emergency stop, verified the
+  availability-aware Voice entry state, and refreshed the full, bright, edge-left, text-heavy edge,
+  HUD, and IDE HUD screenshots above.
 - Notes: Automated overlay package test, focused config/state tests, overlay typecheck, overlay build,
   root `pnpm tsgo`, root `pnpm build`, exact `pnpm oxfmt --check` plan targets, and
   `git diff --check` passed on 2026-06-01 during the final overlay MVP verification pass.
@@ -73,7 +75,8 @@ Build: Windows overlay MVP shell verification after 31dbe765c7
   `globalShortcut` registration, sends native Windows keyboard input, and reports
   `defaultHotkeyToggles: 2` after the overlay opens and closes,
   enables `SAGEOS_OVERLAY_VOICE_ENABLED=1` with `SAGEOS_OVERLAY_VOICE_MODE=pushToTalk`,
-  verifies the Voice button focuses the Universal Launcher,
+  verifies the Voice control is enabled only when browser speech recognition exists and is otherwise
+  disabled with an unavailable-runtime reason,
   captures full Command Deck over a bright synthetic desktop, captures Edge Rail and pinned widgets
   over a text-heavy synthetic app, captures HUD over an IDE-like dark surface,
   seeds the mock gateway with an active run that includes `workerSessionId`, `currentToolCall`,

@@ -4,12 +4,50 @@ export type UniversalLauncherProps = {
   value: string;
   disabled?: boolean;
   voiceEnabled?: boolean;
+  voiceAvailable?: boolean;
+  voiceListening?: boolean;
   onInput: (value: string) => void;
   onRun: () => void;
   onVoice: () => void;
 };
 
+export type UniversalLauncherVoiceState = {
+  visible: boolean;
+  disabled: boolean;
+  title?: string;
+};
+
+export function getUniversalLauncherVoiceState(params: {
+  voiceEnabled?: boolean;
+  voiceAvailable?: boolean;
+  voiceListening?: boolean;
+  launcherDisabled?: boolean;
+}): UniversalLauncherVoiceState {
+  if (!params.voiceEnabled) {
+    return { visible: false, disabled: true };
+  }
+  if (!params.voiceAvailable) {
+    return {
+      visible: true,
+      disabled: true,
+      title: "Voice input is not available in this Electron runtime.",
+    };
+  }
+  return {
+    visible: true,
+    disabled: Boolean(params.launcherDisabled || params.voiceListening),
+    title: undefined,
+  };
+}
+
 export function renderUniversalLauncher(props: UniversalLauncherProps) {
+  const voiceState = getUniversalLauncherVoiceState({
+    voiceEnabled: props.voiceEnabled,
+    voiceAvailable: props.voiceAvailable,
+    voiceListening: props.voiceListening,
+    launcherDisabled: props.disabled,
+  });
+
   return html`
     <section class="universal-launcher">
       <input
@@ -26,16 +64,17 @@ export function renderUniversalLauncher(props: UniversalLauncherProps) {
           props.onRun();
         }}
       />
-      ${props.voiceEnabled
+      ${voiceState.visible
         ? html`
             <button
               class="overlay-button"
               type="button"
               aria-label="Start voice command"
-              ?disabled=${props.disabled}
+              title=${voiceState.title ?? ""}
+              ?disabled=${voiceState.disabled}
               @click=${() => props.onVoice()}
             >
-              Voice
+              ${props.voiceListening ? "Listening" : "Voice"}
             </button>
           `
         : nothing}

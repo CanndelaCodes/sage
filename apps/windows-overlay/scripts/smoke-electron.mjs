@@ -80,10 +80,7 @@ async function smokeFullOverlay(gatewayUrl) {
     });
     await page.waitForFunction(() => document.body.innerText.includes("Memory Queue"));
     await assertPreloadBridge(page);
-    await page.getByRole("button", { name: "Start voice command" }).click();
-    await page.waitForFunction(
-      () => document.activeElement?.getAttribute("aria-label") === "SageOS command",
-    );
+    await assertVoiceEntry(page);
 
     await page.screenshot({
       path: path.join(screenshotDir, "overlay-smoke-styled.png"),
@@ -441,6 +438,30 @@ async function assertPreloadBridge(page) {
     api.interactivePointer,
     "function",
     "sageos-overlay:interactive-pointer bridge is exposed",
+  );
+}
+
+async function assertVoiceEntry(page) {
+  const voiceButton = page.getByRole("button", { name: "Start voice command" });
+  await voiceButton.waitFor({ state: "attached", timeout: 5_000 });
+  const available = await isVoiceInputAvailable(page);
+  const disabled = await voiceButton.isDisabled();
+  if (available) {
+    assertEqual(disabled, false, "Voice input is enabled when browser speech recognition exists");
+    return;
+  }
+
+  assertEqual(disabled, true, "Voice input is disabled when browser speech recognition is missing");
+  assertEqual(
+    await voiceButton.getAttribute("title"),
+    "Voice input is not available in this Electron runtime.",
+    "Voice input explains unavailable runtime support",
+  );
+}
+
+async function isVoiceInputAvailable(page) {
+  return page.evaluate(
+    () => typeof window.SpeechRecognition === "function" || typeof window.webkitSpeechRecognition === "function",
   );
 }
 

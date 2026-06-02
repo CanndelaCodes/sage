@@ -65,7 +65,8 @@ describe("Electron overlay smoke script", () => {
       'waitForRecordedMethod("sageos.memory.replay")',
       'waitForRecordedMethod("sageos.tasks.runNext")',
       'page.keyboard.press("Control+K")',
-      'name: "Start voice command"',
+      "assertVoiceEntry(page)",
+      "isVoiceInputAvailable(page)",
       'page.keyboard.press("Escape")',
       'waitForOverlayWindowHidden(app)',
     ]) {

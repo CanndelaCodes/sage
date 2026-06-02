@@ -4,6 +4,7 @@ import {
   getOverlayToolbarControls,
   handleOverlayKeyboardShortcut,
   isOverlayInteractiveElement,
+  isOverlayVoiceInputAvailable,
   readInitialOverlaySurface,
   readOverlayGatewaySettings,
   readOverlayInteractionSettings,
@@ -716,6 +717,16 @@ describe("overlay renderer model", () => {
     expect(readOverlayInteractionSettings("?voice=pushToTalk")).toEqual({
       voice: { enabled: true, mode: "pushToTalk" },
     });
+  });
+
+  it("only treats voice input as available when a browser speech recognizer exists", () => {
+    expect(isOverlayVoiceInputAvailable({})).toBe(false);
+    expect(isOverlayVoiceInputAvailable({ SpeechRecognition: function SpeechRecognition() {} })).toBe(
+      true,
+    );
+    expect(
+      isOverlayVoiceInputAvailable({ webkitSpeechRecognition: function WebkitSpeechRecognition() {} }),
+    ).toBe(true);
   });
 
   it("keeps full overlay, HUD, and edge rail sections mutually exclusive", () => {

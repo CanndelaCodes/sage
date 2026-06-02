@@ -118,6 +118,20 @@ export type OverlayInteractionSettings = {
     mode?: "pushToTalk";
   };
 };
+export type OverlaySpeechRecognitionScope = {
+  SpeechRecognition?: unknown;
+  webkitSpeechRecognition?: unknown;
+};
+type OverlaySpeechRecognitionConstructor = new () => OverlaySpeechRecognition;
+type OverlaySpeechRecognition = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang?: string;
+  maxAlternatives?: number;
+  addEventListener(type: "end" | "error" | "result", listener: (event: unknown) => void): void;
+  start(): void;
+  stop?: () => void;
+};
 export type RenderOverlayModelOptions = {
   workspaceTarget?: AgentWorkspaceTarget;
   pinnedWidgets?: SageOsOverlayWidgetId[];
@@ -274,6 +288,12 @@ export function readOverlayInteractionSettings(
     : { voice: { enabled: false } };
 }
 
+export function isOverlayVoiceInputAvailable(
+  scope: OverlaySpeechRecognitionScope = globalThis as OverlaySpeechRecognitionScope,
+) {
+  return typeof scope.SpeechRecognition === "function" || typeof scope.webkitSpeechRecognition === "function";
+}
+
 export function normalizeOverlaySurface(value: unknown): OverlaySurface {
   return value === "hud" || value === "edgeRail" ? value : "commandDeck";
 }
@@ -420,6 +440,9 @@ export class SageOsOverlayApp extends LitElement {
   private launcherCommand = "";
   private workspaceTarget: AgentWorkspaceTarget | null = null;
   private interactivePointerActive = false;
+  private activeVoiceRecognition: OverlaySpeechRecognition | null = null;
+  private voiceAvailable = isOverlayVoiceInputAvailable();
+  private voiceListening = false;
   private readonly onOverlayKeyDown = (event: KeyboardEvent) =>
     handleOverlayKeyboardShortcut(event, {
       close: () => void window.sageOsOverlay?.close(),
@@ -459,6 +482,7 @@ export class SageOsOverlayApp extends LitElement {
   disconnectedCallback() {
     window.removeEventListener("keydown", this.onOverlayKeyDown);
     window.removeEventListener("mousemove", this.onOverlayPointerMove);
+    this.activeVoiceRecognition?.stop?.();
     this.controller?.stop();
     this.controller = null;
     super.disconnectedCallback();
@@ -580,12 +604,62 @@ export class SageOsOverlayApp extends LitElement {
       value: this.launcherCommand,
       disabled: this.loading || !this.overlayConnected,
       voiceEnabled: this.interaction.voice.enabled,
+      voiceAvailable: this.voiceAvailable,
+      voiceListening: this.voiceListening,
       onInput: (value) => {
         this.launcherCommand = value;
       },
       onRun: () => void this.runLauncherCommand(),
-      onVoice: () => this.focusLauncher(),
+      onVoice: () => this.startVoiceCommand(),
     });
+  }
+
+  private startVoiceCommand() {
+    const recognition = createOverlaySpeechRecognition();
+    if (!recognition) {
+      this.error = "Voice input is not available in this Electron runtime.";
+      this.focusLauncher();
+      this.requestUpdate();
+      return;
+    }
+
+    this.error = null;
+    this.voiceListening = true;
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.lang = globalThis.navigator?.language ?? "en-US";
+    recognition.addEventListener("result", (event) => {
+      const transcript = extractOverlayVoiceTranscript(event);
+      if (transcript) {
+        this.launcherCommand = transcript;
+      }
+      this.focusLauncher();
+      this.requestUpdate();
+    });
+    recognition.addEventListener("error", (event) => {
+      const error = typeof event === "object" && event && "error" in event ? String(event.error) : "unknown";
+      this.error = `Voice input failed: ${error}`;
+      this.requestUpdate();
+    });
+    recognition.addEventListener("end", () => {
+      if (this.activeVoiceRecognition !== recognition) {
+        return;
+      }
+      this.activeVoiceRecognition = null;
+      this.voiceListening = false;
+      this.requestUpdate();
+    });
+
+    this.activeVoiceRecognition = recognition;
+    try {
+      recognition.start();
+    } catch (err) {
+      this.activeVoiceRecognition = null;
+      this.voiceListening = false;
+      this.error = `Voice input failed: ${String(err)}`;
+      this.requestUpdate();
+    }
   }
 
   private async runLauncherCommand() {
@@ -1904,4 +1978,33 @@ function runSummaryRow(
     value: `${summary.active} active`,
     detail: `${summary.total} total / ${summary.failed} failed`,
   };
+}
+
+function createOverlaySpeechRecognition(
+  scope: OverlaySpeechRecognitionScope = globalThis as OverlaySpeechRecognitionScope,
+): OverlaySpeechRecognition | null {
+  const ctor = speechRecognitionConstructor(scope);
+  return ctor ? new ctor() : null;
+}
+
+function speechRecognitionConstructor(
+  scope: OverlaySpeechRecognitionScope,
+): OverlaySpeechRecognitionConstructor | null {
+  const candidate = scope.SpeechRecognition ?? scope.webkitSpeechRecognition;
+  return typeof candidate === "function" ? (candidate as OverlaySpeechRecognitionConstructor) : null;
+}
+
+function extractOverlayVoiceTranscript(event: unknown): string {
+  if (typeof event !== "object" || event === null || !("results" in event)) {
+    return "";
+  }
+  const results = event.results as ArrayLike<ArrayLike<{ transcript?: unknown }>>;
+  const phrases: string[] = [];
+  for (let index = 0; index < results.length; index += 1) {
+    const alternative = results[index]?.[0];
+    if (typeof alternative?.transcript === "string") {
+      phrases.push(alternative.transcript.trim());
+    }
+  }
+  return phrases.filter(Boolean).join(" ").trim();
 }
