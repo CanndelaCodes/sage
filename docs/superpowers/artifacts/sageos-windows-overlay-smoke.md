@@ -1,8 +1,8 @@
 # SageOS Windows Overlay Smoke Checklist
 
-Date: 2026-06-01
+Date: 2026-06-02
 Operator: Codex
-Build: Windows overlay MVP shell verification after eeba2e551d
+Build: Windows overlay MVP shell verification after 2a9b433b70
 
 ## Preconditions
 
@@ -52,6 +52,10 @@ Build: Windows overlay MVP shell verification after eeba2e551d
 - Text-heavy backdrop edge rail screenshot path: `apps/windows-overlay/dist/overlay-smoke-edge-text-heavy.png`
 - HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud.png`
 - IDE-like backdrop HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud-ide.png`
+- Current verification update: `pnpm --dir apps/windows-overlay smoke:electron` passed on
+  2026-06-02 after 2a9b433b70. The packaged overlay reported `ok: true`,
+  `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, no renderer page errors,
+  and refreshed the full, bright, edge-left, text-heavy edge, HUD, and IDE HUD screenshots above.
 - Notes: Automated overlay package test, focused config/state tests, overlay typecheck, overlay build,
   root `pnpm tsgo`, root `pnpm build`, exact `pnpm oxfmt --check` plan targets, and
   `git diff --check` passed on 2026-06-01 during the final overlay MVP verification pass.
