@@ -5,10 +5,12 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
 import {
+  createSageOsControlStore,
   createSageOsStateStore,
   readSageOsState,
   upsertSageOsApproval,
   upsertSageOsTask,
+  writeSageOsControl,
 } from "./state-store.js";
 import { collectSageOsStatus } from "./status.js";
 import { runNextSageOsTaskOnce } from "./task-runner.js";
@@ -144,6 +146,57 @@ describe("SageOS task runner", () => {
     const log = await readFile(path.join(root, "sageos", "events.jsonl"), "utf8");
     expect(log).toContain("task_run_started");
     expect(log).toContain("task_completed");
+  });
+
+  it("does not run queued tasks while SageOS is stopped", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-task-runner-stopped-"));
+    const store = createSageOsStateStore({ stateDir: root });
+    const now = "2026-06-02T07:10:00.000Z";
+    await writeSageOsControl(createSageOsControlStore({ stateDir: root }), {
+      state: "stopped",
+      emergency: true,
+      reason: "operator emergency stop",
+      updatedAt: now,
+    });
+    await upsertSageOsTask(store, {
+      id: "task_after_stop",
+      title: "Run after stop",
+      objective: "This task must stay queued until SageOS is resumed.",
+      state: "queued",
+      requestedBy: "sageos.cli",
+      autonomyTier: "execute_scoped",
+      policyScopes: [{ kind: "app", allow: ["dry_run_executor"], risk: "low" }],
+      createdAt: now,
+      updatedAt: now,
+    });
+    let executorCalls = 0;
+
+    const result = await runNextSageOsTaskOnce({
+      stateDir: root,
+      requestedBy: "sageos.test",
+      executor: async () => {
+        executorCalls += 1;
+        return { summary: "should not run" };
+      },
+      now: () => new Date(now),
+    });
+
+    expect(executorCalls).toBe(0);
+    expect(result).toMatchObject({
+      outcome: "blocked",
+      task: { id: "task_after_stop", state: "queued" },
+      status: {
+        tasks: { total: 1, queued: 1, active: 0 },
+        runs: { total: 0, active: 0 },
+      },
+    });
+    await expect(readSageOsState(store)).resolves.toMatchObject({
+      tasks: [{ id: "task_after_stop", state: "queued" }],
+      runs: [],
+    });
+    const log = await readFile(path.join(root, "sageos", "events.jsonl"), "utf8");
+    expect(log).toContain("task_run_blocked");
+    expect(log).toContain("operator emergency stop");
   });
 
   it("blocks queued tasks above the current autonomy tier before executor runs", async () => {

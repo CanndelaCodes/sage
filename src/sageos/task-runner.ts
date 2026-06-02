@@ -19,7 +19,9 @@ import {
 } from "./notifications.js";
 import { evaluateSageOsAutonomyTier, requiredSageOsApprovalRisk } from "./policy.js";
 import {
+  createSageOsControlStore,
   createSageOsStateStore,
+  readSageOsControl,
   readSageOsState,
   upsertSageOsApproval,
   upsertSageOsRun,
@@ -84,6 +86,20 @@ export async function runNextSageOsTaskOnce(
 
   const now = (params.now?.() ?? new Date()).toISOString();
   const requestedBy = params.requestedBy?.trim() || "sageos.task_runner";
+  const control = await readSageOsControl(createSageOsControlStore({ stateDir: params.stateDir }));
+  if (control?.state === "stopped") {
+    await appendSageOsEvent(createSageOsEventLog({ stateDir: params.stateDir }), {
+      type: "task_run_blocked",
+      actor: requestedBy,
+      summary: `Skipped SageOS task ${queuedTask.id}: supervisor is stopped${
+        control.reason ? ` (${control.reason})` : ""
+      }`,
+      taskId: queuedTask.id,
+    });
+    const status = await collectSageOsStatus({ stateDir: params.stateDir, cfg: params.cfg });
+    await writeSageOsState(store, status);
+    return { outcome: "blocked", task: queuedTask, status };
+  }
   const task = applySageOsTaskExecutionContract(queuedTask);
   await upsertSageOsTask(store, task);
   const autonomyDecision = evaluateSageOsAutonomyTier(task.autonomyTier, params.cfg);
