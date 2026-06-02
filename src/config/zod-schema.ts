@@ -274,6 +274,14 @@ const SageOsSchema = z
             target: z.string().optional(),
             digestSchedule: z.string().optional(),
             urgentOnlyDuringFocus: z.boolean().optional(),
+            quietHours: z
+              .object({
+                start: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/),
+                end: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/),
+                timezone: z.string().optional(),
+              })
+              .strict()
+              .optional(),
           })
           .strict()
           .optional(),

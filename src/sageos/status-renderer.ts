@@ -44,6 +44,12 @@ function renderNotificationLine(snapshot: SageOsStatusSnapshot): string {
   if (snapshot.notifications.telegram.digestSchedule) {
     parts.push(`digest ${snapshot.notifications.telegram.digestSchedule}`);
   }
+  const quietHours = snapshot.notifications.telegram.quietHours;
+  if (quietHours) {
+    parts.push(
+      `quiet ${quietHours.start}-${quietHours.end}${quietHours.timezone ? ` ${quietHours.timezone}` : ""}`,
+    );
+  }
   if (snapshot.notifications.telegram.urgentOnlyDuringFocus) {
     parts.push("focus urgent-only");
   }

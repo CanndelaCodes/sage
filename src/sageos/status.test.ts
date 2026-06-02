@@ -295,6 +295,7 @@ describe("SageOS status collector", () => {
             target: "telegram:123",
             digestSchedule: "0 8 * * *",
             urgentOnlyDuringFocus: true,
+            quietHours: { start: "22:00", end: "07:00", timezone: "UTC" },
           },
         },
       },
@@ -346,6 +347,7 @@ describe("SageOS status collector", () => {
         target: "telegram:123",
         digestSchedule: "0 8 * * *",
         urgentOnlyDuringFocus: true,
+        quietHours: { start: "22:00", end: "07:00", timezone: "UTC" },
       },
       recent: {
         sent: 1,

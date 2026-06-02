@@ -210,6 +210,11 @@ export type SageOsStatusSnapshot = {
       target?: string;
       digestSchedule?: string;
       urgentOnlyDuringFocus?: boolean;
+      quietHours?: {
+        start: string;
+        end: string;
+        timezone?: string;
+      };
     };
     urgentPending: number;
     recent?: {
@@ -672,6 +677,11 @@ export type SageOsConfig = {
       target?: string;
       digestSchedule?: string;
       urgentOnlyDuringFocus?: boolean;
+      quietHours?: {
+        start: string;
+        end: string;
+        timezone?: string;
+      };
     };
   };
 };

@@ -195,6 +195,38 @@ describe("SageOS notifications", () => {
     await expect(readFile(logPath, "utf8")).resolves.toContain("notification_skipped");
   });
 
+  it("skips Telegram digests during configured quiet hours", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-notification-quiet-hours-"));
+    await writeSageOsState(
+      createSageOsStateStore({ stateDir: root }),
+      createSageOsStatusSnapshot({
+        supervisor: { enabled: true, paused: false, state: "running" },
+      }),
+    );
+    const sender = vi.fn(async () => ({ messageId: "43", chatId: "123" }));
+
+    const skipped = await sendSageOsTelegramDigestOnce({
+      stateDir: root,
+      cfg: {
+        notifications: {
+          telegram: {
+            enabled: true,
+            target: "telegram:123",
+            quietHours: { start: "22:00", end: "07:00", timezone: "UTC" },
+          },
+        },
+      },
+      now: () => new Date("2026-05-28T02:30:00.000Z"),
+      sender,
+    });
+
+    expect(skipped).toMatchObject({ outcome: "skipped", reason: "quiet_hours" });
+    expect(sender).not.toHaveBeenCalled();
+    await expect(
+      readFile(createSageOsEventLog({ stateDir: root }).path, "utf8"),
+    ).resolves.toContain("quiet hours");
+  });
+
   it("builds and sends task result notifications with audit evidence", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "sageos-task-notification-"));
     const task = {

@@ -48,7 +48,7 @@ export type SageOsTelegramDigestResult =
     }
   | {
       outcome: "skipped";
-      reason: "telegram_disabled" | "missing_target";
+      reason: "telegram_disabled" | "missing_target" | "quiet_hours";
       notification?: SageOsNotificationMessage;
       status: SageOsStatusSnapshot;
     }
@@ -149,6 +149,7 @@ export async function sendSageOsTelegramDigestOnce(params: {
   cfg?: SageOsConfig;
   target?: string;
   sender?: SageOsTelegramSender;
+  now?: () => Date;
 }): Promise<SageOsTelegramDigestResult> {
   const cfg = params.cfg;
   const target = params.target ?? telegramTarget(cfg);
@@ -173,6 +174,17 @@ export async function sendSageOsTelegramDigestOnce(params: {
       summary: "Skipped SageOS Telegram digest because no target is configured.",
     });
     return { outcome: "skipped", reason: "missing_target", status };
+  }
+  const quietHours = telegramQuietHours(cfg);
+  if (quietHours && isInsideQuietHours(params.now?.() ?? new Date(), quietHours)) {
+    await appendSageOsEvent(eventLog, {
+      type: "notification_skipped",
+      actor: "sageos.notification_manager",
+      summary: `Skipped SageOS Telegram digest because quiet hours are active (${formatQuietHours(
+        quietHours,
+      )}).`,
+    });
+    return { outcome: "skipped", reason: "quiet_hours", status };
   }
 
   const notification = buildSageOsDigestNotification({ state, status, cfg, target });
@@ -626,6 +638,61 @@ async function sendStatusNotification(params: {
 function telegramTarget(cfg: SageOsConfig | undefined): string | undefined {
   const target = cfg?.notifications?.telegram?.target?.trim();
   return target || undefined;
+}
+
+type TelegramQuietHours = NonNullable<
+  NonNullable<NonNullable<SageOsConfig["notifications"]>["telegram"]>["quietHours"]
+>;
+
+function telegramQuietHours(cfg: SageOsConfig | undefined): TelegramQuietHours | undefined {
+  const quietHours = cfg?.notifications?.telegram?.quietHours;
+  const start = quietHours?.start.trim();
+  const end = quietHours?.end.trim();
+  if (!start || !end) {
+    return undefined;
+  }
+  const timezone = quietHours?.timezone?.trim();
+  return { start, end, ...(timezone ? { timezone } : {}) };
+}
+
+function isInsideQuietHours(now: Date, quietHours: TelegramQuietHours): boolean {
+  const start = timeToMinutes(quietHours.start);
+  const end = timeToMinutes(quietHours.end);
+  if (start === undefined || end === undefined || start === end) {
+    return false;
+  }
+  const current = localMinutes(now, quietHours.timezone);
+  if (start < end) {
+    return current >= start && current < end;
+  }
+  return current >= start || current < end;
+}
+
+function timeToMinutes(value: string): number | undefined {
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(value.trim());
+  if (!match) {
+    return undefined;
+  }
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function localMinutes(date: Date, timezone: string | undefined): number {
+  if (!timezone) {
+    return date.getHours() * 60 + date.getMinutes();
+  }
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hourCycle: "h23",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(date);
+  const hour = Number(parts.find((part) => part.type === "hour")?.value ?? "0");
+  const minute = Number(parts.find((part) => part.type === "minute")?.value ?? "0");
+  return hour * 60 + minute;
+}
+
+function formatQuietHours(quietHours: TelegramQuietHours): string {
+  return `${quietHours.start}-${quietHours.end}${quietHours.timezone ? ` ${quietHours.timezone}` : ""}`;
 }
 
 function riskSummary(task: SageOsTaskSpec): string {

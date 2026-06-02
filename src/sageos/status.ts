@@ -481,12 +481,25 @@ function summarizeNotifications(
 ): SageOsStatusSnapshot["notifications"] {
   const target = cfg?.notifications?.telegram?.target?.trim();
   const digestSchedule = cfg?.notifications?.telegram?.digestSchedule?.trim();
+  const quietHours = cfg?.notifications?.telegram?.quietHours;
+  const quietStart = quietHours?.start.trim();
+  const quietEnd = quietHours?.end.trim();
+  const quietTimezone = quietHours?.timezone?.trim();
   const recent = summarizeNotificationEvents(events);
   return {
     telegram: {
       enabled: cfg?.notifications?.telegram?.enabled === true,
       ...(target ? { target } : {}),
       ...(digestSchedule ? { digestSchedule } : {}),
+      ...(quietStart && quietEnd
+        ? {
+            quietHours: {
+              start: quietStart,
+              end: quietEnd,
+              ...(quietTimezone ? { timezone: quietTimezone } : {}),
+            },
+          }
+        : {}),
       ...(cfg?.notifications?.telegram?.urgentOnlyDuringFocus === true
         ? { urgentOnlyDuringFocus: true }
         : {}),
