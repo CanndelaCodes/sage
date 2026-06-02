@@ -7,9 +7,19 @@ export type UniversalLauncherProps = {
   voiceEnabled?: boolean;
   voiceAvailable?: boolean;
   voiceListening?: boolean;
+  quickActions?: UniversalLauncherQuickAction[];
   onInput: (value: string) => void;
   onRun: () => void;
   onVoice: () => void;
+  onQuickAction?: (action: UniversalLauncherQuickAction) => void;
+};
+
+export type UniversalLauncherQuickAction = {
+  id: string;
+  label: string;
+  command: string;
+  disabled?: boolean;
+  disabledReason?: string;
 };
 
 export type UniversalLauncherVoiceState = {
@@ -130,6 +140,25 @@ export function renderUniversalLauncher(props: UniversalLauncherProps) {
       >
         Run
       </button>
+      ${props.quickActions?.length
+        ? html`
+            <div class="universal-launcher__quick-actions" aria-label="SageOS quick actions">
+              ${props.quickActions.map(
+                (action) => html`
+                  <button
+                    class="overlay-button"
+                    type="button"
+                    title=${action.disabledReason ?? action.command}
+                    ?disabled=${action.disabled}
+                    @click=${() => props.onQuickAction?.(action)}
+                  >
+                    ${action.label}
+                  </button>
+                `,
+              )}
+            </div>
+          `
+        : nothing}
     </section>
   `;
 }

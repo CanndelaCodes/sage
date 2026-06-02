@@ -2,7 +2,7 @@
 
 Date: 2026-06-02
 Operator: Codex
-Build: Windows overlay MVP shell verification after Audit timeline pass
+Build: Windows overlay MVP shell verification after Universal Launcher quick-action pass
 
 ## Preconditions
 
@@ -35,6 +35,7 @@ Build: Windows overlay MVP shell verification after Audit timeline pass
 - [x] `SAGEOS_OVERLAY_VOICE_ENABLED=1` plus `SAGEOS_OVERLAY_VOICE_MODE=pushToTalk` exposes the Voice entry point.
 - [x] Voice entry is enabled only when browser speech recognition exists; otherwise it is disabled with an unavailable-runtime reason.
 - [x] The Voice entry point is omitted when voice config is missing, disabled, or invalid.
+- [x] Universal Launcher exposes quick actions for employees, tasks, workflows, memory replay, Night Shift coding, app/widget drafting, and safe incident repair.
 - [x] Universal Launcher disabled input, run, and voice states expose operator-facing reasons.
 - [x] Gateway disconnected, reconnecting, loading, refreshing, and error states render explicit overlay callouts and toolbar labels.
 - [x] Gateway-backed toolbar, row, and Agent Workspace actions disable with reasons when the gateway is unavailable or busy.
@@ -71,7 +72,7 @@ Build: Windows overlay MVP shell verification after Audit timeline pass
 - HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud.png`
 - IDE-like backdrop HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud-ide.png`
 - Current verification update: `pnpm --dir apps/windows-overlay smoke:electron` passed on
-  2026-06-02 after the Audit timeline pass. The packaged overlay reported `ok: true`,
+  2026-06-02 after the Universal Launcher quick-action pass. The packaged overlay reported `ok: true`,
   `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, no renderer page errors,
   four `sageos.control` calls for pause, resume, stop, and emergency stop, verified the
   availability-aware Voice entry state, and refreshed the full, bright, edge-left, text-heavy edge,
@@ -131,7 +132,7 @@ src/telegram/bot.test.ts` passed with 28 files
   configured display IDs. Unit coverage also verifies explicit connected/loading/reconnecting/error
   state labels, stale-state callouts, gateway-backed control disabled reasons, Edge Rail active-operation drill-down
   targets, explicit Security and PC Management system resources, active-operation launcher-prefill
-  controls, employee edit launcher-prefill controls, employee current task/activity/output/incident
+  controls, Universal Launcher quick-action presets, employee edit launcher-prefill controls, employee current task/activity/output/incident
   facts, first-class Files and Settings system resources, Audit timeline/evidence/verification/rollback summaries,
   and Universal Launcher disabled reasons for gateway and empty-command states. The smoke
   now presses `Ctrl+K`, verifies launcher focus, presses

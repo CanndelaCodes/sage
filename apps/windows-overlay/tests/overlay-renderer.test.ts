@@ -278,6 +278,23 @@ describe("overlay renderer model", () => {
       "Approvals",
       "Incidents",
     ]);
+    expect(model.launcher.quickActions).toEqual([
+      { id: "createEmployee", label: "New employee", command: "Create employee " },
+      { id: "createTask", label: "New task", command: "Assign task " },
+      {
+        id: "draftWorkflow",
+        label: "Workflow",
+        command: "Draft workflow from repeated work",
+      },
+      { id: "memoryReplay", label: "Memory replay", command: "Replay memory queue" },
+      {
+        id: "nightShift",
+        label: "Night Shift",
+        command: "Start Night Shift coding in C:/Users/jason/Desktop/sage",
+      },
+      { id: "appWidget", label: "App/widget", command: "Draft app widget for " },
+      { id: "repairIncident", label: "Repair", command: "Repair Memory queue backlog" },
+    ]);
   });
 
   it("maps the same state into HUD and Edge Rail badges", () => {

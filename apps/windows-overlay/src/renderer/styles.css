@@ -675,6 +675,20 @@ input::placeholder {
   gap: 8px;
 }
 
+.universal-launcher__quick-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 1px;
+}
+
+.universal-launcher__quick-actions .overlay-button {
+  flex: 0 0 auto;
+  min-height: 28px;
+  padding: 5px 8px;
+}
+
 .compact-hud {
   position: fixed;
   right: 18px;
@@ -846,6 +860,11 @@ input::placeholder {
   .agent-workspace__facts,
   .universal-launcher {
     grid-template-columns: 1fr;
+  }
+
+  .universal-launcher__quick-actions {
+    flex-wrap: wrap;
+    overflow-x: visible;
   }
 }
 

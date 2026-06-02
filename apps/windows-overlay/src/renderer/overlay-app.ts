@@ -17,7 +17,10 @@ import { renderCompactHud } from "./components/compact-hud.js";
 import { renderEdgeRail, type EdgeRailBadge } from "./components/edge-rail.js";
 import { renderPinnedWidgets } from "./components/pinned-widgets.js";
 import type { PinnedWidgetView } from "./components/pinned-widgets.js";
-import { renderUniversalLauncher } from "./components/universal-launcher.js";
+import {
+  renderUniversalLauncher,
+  type UniversalLauncherQuickAction,
+} from "./components/universal-launcher.js";
 import { OverlayGatewayBrowserClient } from "./gateway-client.js";
 import { SageOsOverlayController } from "./overlay-controller.js";
 import { canRunSageOsIncidentRepair } from "./sageos-actions.js";
@@ -321,6 +324,9 @@ export function renderOverlayModel(
       codingReports: codingReportRows satisfies OverlayCodingReportRow[],
       resources: resourceRows satisfies OverlayResourceRow[],
       systemResources: systemResourceRows satisfies OverlaySystemResourceRow[],
+    },
+    launcher: {
+      quickActions: buildUniversalLauncherQuickActions(state),
     },
     overview: buildOverviewGroups(status),
     workspace: buildWorkspaceModel(state, opts.workspaceTarget ?? defaultWorkspaceTarget(state)),
@@ -765,7 +771,9 @@ export class SageOsOverlayApp extends LitElement {
           )}
           ${model
             ? html`
-                ${surfaceVisibility.launcher ? this.renderLauncher() : nothing}
+                ${surfaceVisibility.launcher
+                  ? this.renderLauncher(model.launcher.quickActions)
+                  : nothing}
                 ${surfaceVisibility.pinnedWidgets
                   ? renderPinnedWidgets(model.pinnedWidgets, this.layout.collapsedEdge)
                   : nothing}
@@ -873,7 +881,7 @@ export class SageOsOverlayApp extends LitElement {
     }
   }
 
-  private renderLauncher() {
+  private renderLauncher(quickActions: UniversalLauncherQuickAction[]) {
     const launcherAction = this.gatewayActionState(true);
     return renderUniversalLauncher({
       value: this.launcherCommand,
@@ -882,12 +890,23 @@ export class SageOsOverlayApp extends LitElement {
       voiceEnabled: this.interaction.voice.enabled,
       voiceAvailable: this.voiceAvailable,
       voiceListening: this.voiceListening,
+      quickActions,
       onInput: (value) => {
         this.launcherCommand = value;
       },
       onRun: () => void this.runLauncherCommand(),
       onVoice: () => this.startVoiceCommand(),
+      onQuickAction: (action) => this.applyLauncherQuickAction(action),
     });
+  }
+
+  private applyLauncherQuickAction(action: UniversalLauncherQuickAction) {
+    if (action.disabled) {
+      return;
+    }
+    this.launcherCommand = action.command;
+    this.requestUpdate();
+    void this.updateComplete.then(() => this.focusLauncher());
   }
 
   private startVoiceCommand() {
@@ -1579,6 +1598,40 @@ function buildSystemResourceRows(state: SageOsOverlayStatusState): OverlaySystem
       detail: `${status.policy.mode} / ${status.sources.enabled.length} enabled source`,
       state: status.policy.mode,
     },
+  ];
+}
+
+function buildUniversalLauncherQuickActions(
+  state: SageOsOverlayStatusState,
+): UniversalLauncherQuickAction[] {
+  const codingRepo = state.status.coding.allowedRepos[0];
+  const repairIncident = state.status.incidents.find((incident) =>
+    canRunSageOsIncidentRepair(incident),
+  );
+  return [
+    { id: "createEmployee", label: "New employee", command: "Create employee " },
+    { id: "createTask", label: "New task", command: "Assign task " },
+    {
+      id: "draftWorkflow",
+      label: "Workflow",
+      command: "Draft workflow from repeated work",
+    },
+    { id: "memoryReplay", label: "Memory replay", command: "Replay memory queue" },
+    {
+      id: "nightShift",
+      label: "Night Shift",
+      command: `Start Night Shift coding in ${codingRepo ?? ""}`,
+    },
+    { id: "appWidget", label: "App/widget", command: "Draft app widget for " },
+    ...(repairIncident
+      ? [
+          {
+            id: "repairIncident",
+            label: "Repair",
+            command: `Repair ${repairIncident.title}`,
+          } satisfies UniversalLauncherQuickAction,
+        ]
+      : []),
   ];
 }
 
