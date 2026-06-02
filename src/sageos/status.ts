@@ -115,6 +115,10 @@ export async function collectSageOsStatus(
       now: state.status.generatedAt,
       observations: state.observations,
     }),
+    ...securityFindingIncidents({
+      now: state.status.generatedAt,
+      observations: state.observations,
+    }),
     ...notificationFailureIncidents({
       events,
     }),
@@ -171,6 +175,7 @@ const GENERATED_INCIDENT_IDS = new Set([
   "incident_policy_blocked",
   "incident_source_failed",
   "incident_memory_doctor_failed",
+  "incident_security_finding",
   "incident_notification_failed",
   "incident_worker_failed",
   "incident_budget_exhausted",
@@ -438,6 +443,47 @@ function sourceFailureIncidents(params: {
   ];
 }
 
+function securityFindingIncidents(params: {
+  now: string;
+  observations: SageOsObservation[];
+}): SageOsIncident[] {
+  const observation = latestCapturedSystemObservation(params.observations);
+  const findings = observation ? securityFindingsFromObservation(observation) : [];
+  if (!observation || findings.length === 0) {
+    return [];
+  }
+
+  const failed = findings.filter((finding) => finding.status === "failed").length;
+  const unavailable = findings.filter((finding) => finding.status === "unavailable").length;
+  const warning = findings.length - failed - unavailable;
+  const summary = [
+    `${findings.length} security finding${findings.length === 1 ? "" : "s"} from the latest system observation.`,
+    `Warning ${warning}, unavailable ${unavailable}, failed ${failed}.`,
+    `Latest: ${findings.map(formatSecurityFinding).join("; ")}.`,
+  ].join(" ");
+
+  return [
+    {
+      id: "incident_security_finding",
+      severity: failed > 0 ? "error" : "warning",
+      category: "security",
+      title: "SageOS security finding needs review",
+      summary,
+      firstSeenAt: observation.observedAt,
+      lastSeenAt: observation.observedAt,
+      autoRepairSafe: false,
+      repairAction: {
+        id: "repair_security_findings_review",
+        label: "Review security observations",
+        command: "sage os observations --json",
+        gatewayMethod: "sageos.observations.list",
+        risk: "medium",
+        approvalRequired: false,
+      },
+    },
+  ];
+}
+
 function notificationFailureIncidents(params: { events: SageOsEvent[] }): SageOsIncident[] {
   const lastNotificationEvent = params.events
     .filter((event) =>
@@ -571,6 +617,68 @@ function activeFailedObservationSources(observations: SageOsObservation[]): stri
   return [...latestBySource.values()]
     .filter((observation) => observation.state === "failed")
     .map((observation) => observation.source);
+}
+
+function latestCapturedSystemObservation(
+  observations: SageOsObservation[],
+): SageOsObservation | undefined {
+  return observations
+    .filter((observation) => observation.source === "system" && observation.state === "captured")
+    .toSorted((a, b) => observationSortTime(b) - observationSortTime(a))[0];
+}
+
+type SecurityFinding = {
+  id: string;
+  label: string;
+  status: "warning" | "failed" | "unavailable";
+  summary: string;
+};
+
+function securityFindingsFromObservation(observation: SageOsObservation): SecurityFinding[] {
+  const payload = isRecord(observation.payload) ? observation.payload : {};
+  const checks = Array.isArray(payload.checks) ? payload.checks : [];
+  return checks
+    .map(readSecurityFinding)
+    .filter((finding): finding is SecurityFinding => Boolean(finding));
+}
+
+function readSecurityFinding(value: unknown): SecurityFinding | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  const id = readString(value.id);
+  const label = readString(value.label);
+  const status = readString(value.status);
+  const summary = readString(value.summary);
+  if (!isSecurityCheck(id, label) || !isSecurityFindingStatus(status)) {
+    return undefined;
+  }
+  return {
+    id,
+    label: label || id,
+    status,
+    summary,
+  };
+}
+
+function isSecurityCheck(id: string, label: string): boolean {
+  return /defender|firewall|malware|security/i.test(`${id} ${label}`);
+}
+
+function isSecurityFindingStatus(status: string): status is SecurityFinding["status"] {
+  return status === "warning" || status === "failed" || status === "unavailable";
+}
+
+function formatSecurityFinding(finding: SecurityFinding): string {
+  return `${finding.label || finding.id}: ${finding.summary || finding.status}`;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readString(value: unknown): string {
+  return typeof value === "string" ? value : "";
 }
 
 function observationSortTime(observation: SageOsObservation): number {

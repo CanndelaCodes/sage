@@ -510,6 +510,110 @@ describe("SageOS status collector", () => {
     );
   });
 
+  it("surfaces security findings from system observations until a newer check is clean", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "sageos-status-security-finding-"));
+    const store = createSageOsStateStore({ stateDir: root });
+    const memoryCaptureQueuePath = path.join(root, "memory-queue.json");
+    const learningActivityQueuePath = path.join(root, "learning-queue.json");
+
+    await upsertSageOsObservation(store, {
+      id: "obs_system_security_warning",
+      source: "system",
+      state: "captured",
+      title: "System status",
+      text: "System status: 2 check(s), 1 warning(s), 0 failure(s).",
+      sensitivity: "private",
+      observedAt: "2026-06-02T10:00:00.000Z",
+      payload: {
+        platform: "win32",
+        checkedAt: "2026-06-02T10:00:00.000Z",
+        checks: [
+          {
+            id: "defender",
+            label: "Defender",
+            status: "warning",
+            summary: "Defender needs review.",
+          },
+          {
+            id: "runtime",
+            label: "Runtime",
+            status: "ok",
+            summary: "Runtime ok.",
+          },
+        ],
+      },
+      provenance: { adapter: "system" },
+      createdAt: "2026-06-02T10:00:00.000Z",
+      updatedAt: "2026-06-02T10:00:00.000Z",
+    });
+
+    const warning = await collectSageOsStatus({
+      stateDir: root,
+      memoryCaptureQueuePath,
+      learningActivityQueuePath,
+    });
+
+    expect(warning.incidents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "incident_security_finding",
+          category: "security",
+          severity: "warning",
+          title: "SageOS security finding needs review",
+          summary: expect.stringContaining("Defender: Defender needs review."),
+          autoRepairSafe: false,
+          repairAction: expect.objectContaining({
+            command: "sage os observations --json",
+            gatewayMethod: "sageos.observations.list",
+            approvalRequired: false,
+          }),
+        }),
+      ]),
+    );
+
+    await writeSageOsState(store, warning);
+    await upsertSageOsObservation(store, {
+      id: "obs_system_security_ok",
+      source: "system",
+      state: "captured",
+      title: "System status",
+      text: "System status: 2 check(s), 0 warning(s), 0 failure(s).",
+      sensitivity: "private",
+      observedAt: "2026-06-02T10:05:00.000Z",
+      payload: {
+        platform: "win32",
+        checkedAt: "2026-06-02T10:05:00.000Z",
+        checks: [
+          {
+            id: "defender",
+            label: "Defender",
+            status: "ok",
+            summary: "Defender antivirus and real-time protection are enabled.",
+          },
+          {
+            id: "runtime",
+            label: "Runtime",
+            status: "ok",
+            summary: "Runtime ok.",
+          },
+        ],
+      },
+      provenance: { adapter: "system" },
+      createdAt: "2026-06-02T10:05:00.000Z",
+      updatedAt: "2026-06-02T10:05:00.000Z",
+    });
+
+    const recovered = await collectSageOsStatus({
+      stateDir: root,
+      memoryCaptureQueuePath,
+      learningActivityQueuePath,
+    });
+
+    expect(recovered.incidents.map((incident) => incident.id)).not.toContain(
+      "incident_security_finding",
+    );
+  });
+
   it("tracks notification failure incidents until a later successful send", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "sageos-status-notification-failure-"));
     const store = createSageOsStateStore({ stateDir: root });
