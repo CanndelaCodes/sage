@@ -286,7 +286,7 @@ input::placeholder {
 .overlay-toolbar--hud {
   position: fixed;
   right: 18px;
-  bottom: 72px;
+  bottom: 106px;
   z-index: 4;
   min-height: 34px;
   padding: 6px;
@@ -694,23 +694,75 @@ input::placeholder {
   right: 18px;
   bottom: 18px;
   z-index: 3;
-  display: flex;
-  max-width: calc(100vw - 36px);
-  gap: 8px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  width: min(560px, calc(100vw - 36px));
+  min-height: 62px;
+  gap: 12px;
+  overflow: hidden;
+  border: 1px solid var(--sageos-border-default);
+  border-radius: var(--sageos-radius-shell);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent 34%),
+    var(--sageos-liquid-command);
+  box-shadow: var(--sageos-shadow-command);
+  backdrop-filter: blur(var(--sageos-glass-blur-sm)) saturate(1.35);
+  padding: 10px 12px;
   pointer-events: auto;
 }
 
+.compact-hud__main {
+  min-width: 0;
+}
+
+.compact-hud__meta {
+  display: flex;
+  gap: 8px;
+  color: var(--sageos-text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.compact-hud__title {
+  overflow: hidden;
+  color: var(--sageos-text-primary);
+  font-size: 15px;
+  font-weight: 720;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compact-hud__detail {
+  overflow: hidden;
+  color: var(--sageos-text-secondary);
+  font-size: 12px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compact-hud__badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: 230px;
+}
+
 .hud-badge {
-  max-width: 180px;
+  max-width: 110px;
   overflow: hidden;
   border: 1px solid var(--sageos-border-default);
   border-radius: 999px;
-  background: var(--sageos-liquid-command);
+  background: var(--sageos-liquid-ambient);
   color: var(--sageos-text-primary);
-  padding: 8px 10px;
+  font-size: 12px;
+  padding: 5px 8px;
   text-overflow: ellipsis;
   white-space: nowrap;
-  box-shadow: var(--sageos-shadow-command);
+  box-shadow: var(--sageos-shadow-ambient);
   backdrop-filter: blur(var(--sageos-glass-blur-sm));
 }
 

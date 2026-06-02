@@ -2,7 +2,7 @@
 
 Date: 2026-06-02
 Operator: Codex
-Build: Windows overlay MVP shell verification after repo workspace pass
+Build: Windows overlay MVP shell verification after Compact HUD polish pass
 
 ## Preconditions
 
@@ -28,6 +28,7 @@ Build: Windows overlay MVP shell verification after repo workspace pass
 - [x] `pnpm --dir apps/windows-overlay smoke:electron` verifies the packaged Electron overlay against a mock gateway.
 - [x] `SAGEOS_OVERLAY_ACTIVE_MONITOR=auto|primary|<display id>` routes the overlay to the active, primary, or configured monitor.
 - [x] `powershell -ExecutionPolicy Bypass -File scripts/sageos-windows-overlay.ps1 -OpenMode hud` starts HUD-first mode.
+- [x] Compact HUD renders as a Liquid Linear command island with current operation title, progress detail, status, target kind, and live badges.
 - [x] HUD expands to full overlay.
 - [x] Tray menu exposes Open SageOS, Show HUD, Collapse to Edge Rail, Hide Overlay, and Quit SageOS Overlay mouse-first controls.
 - [x] `Ctrl+K` focuses the Universal Launcher when the full overlay is active.
@@ -84,7 +85,7 @@ Build: Windows overlay MVP shell verification after repo workspace pass
 - HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud.png`
 - IDE-like backdrop HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud-ide.png`
 - Current verification update: `pnpm --dir apps/windows-overlay smoke:electron` passed on
-  2026-06-02 after the repo workspace pass. The packaged overlay reported `ok: true`,
+  2026-06-02 after the Compact HUD polish pass. The packaged overlay reported `ok: true`,
   `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, no renderer page errors,
   four `sageos.control` calls for pause, resume, stop, and emergency stop, verified the
   availability-aware Voice entry state, and refreshed the full, bright, edge-left, text-heavy edge,
@@ -123,7 +124,7 @@ src/telegram/bot.test.ts` passed with 28 files
   verifies the Voice control is enabled only when browser speech recognition exists and is otherwise
   disabled with an unavailable-runtime reason,
   captures full Command Deck over a bright synthetic desktop, captures Edge Rail and pinned widgets
-  over a text-heavy synthetic app, captures HUD over an IDE-like dark surface,
+  over a text-heavy synthetic app, captures the richer Compact HUD command island over an IDE-like dark surface,
   seeds the mock gateway with an active run that includes `workerSessionId`, `currentToolCall`,
   `budgetUsed`, `timeline`, logs, artifacts, and verification metadata,
   waits for launcher submissions to enable before clicking and for the launcher field to clear

@@ -68,6 +68,13 @@ export type OverlaySurfaceVisibility = {
 };
 export type OverlayCard = { title: string; value: string; detail: string };
 export type OverlayBadge = { label: string; value: string };
+export type OverlayHudView = {
+  title: string;
+  detail: string;
+  status: string;
+  target: AgentWorkspaceTarget;
+  badges: OverlayBadge[];
+};
 export type OverlayConnectionTone = "neutral" | "success" | "loading" | "warning" | "error";
 export type OverlayConnectionState = {
   label: string;
@@ -332,12 +339,39 @@ export function renderOverlayModel(
     overview: buildOverviewGroups(status),
     workspace: buildWorkspaceModel(state, opts.workspaceTarget ?? defaultWorkspaceTarget(state)),
     pinnedWidgets: buildPinnedWidgets(status, opts.pinnedWidgets),
-    hud: {
-      badges: hudBadges,
-    },
+    hud: buildCompactHudView(state, hudBadges),
     edgeRail: {
       badges: edgeRailBadges,
     },
+  };
+}
+
+function buildCompactHudView(
+  state: SageOsOverlayStatusState,
+  badges: OverlayBadge[],
+): OverlayHudView {
+  const target = defaultWorkspaceTarget(state) ?? { kind: "system", id: "supervisor" };
+  if (target.kind === "run") {
+    const run = state.runs?.find((entry) => entry.id === target.id);
+    const task = run ? state.tasks?.find((entry) => entry.id === run.taskId) : undefined;
+    if (run) {
+      return {
+        title: task?.title ?? run.id,
+        detail: formatRunProgress(run),
+        status: run.state,
+        target,
+        badges,
+      };
+    }
+  }
+
+  const status = state.status;
+  return {
+    title: status.supervisor.paused ? "SageOS paused" : "SageOS",
+    detail: `${status.tasks.active} active / ${status.approvals.pending} approvals / ${status.incidents.length} incidents`,
+    status: status.supervisor.state,
+    target,
+    badges,
   };
 }
 
@@ -788,7 +822,7 @@ export class SageOsOverlayApp extends LitElement {
                 ${surfaceVisibility.operationalRows
                   ? this.renderOperationalRows(model.commandDeck)
                   : nothing}
-                ${surfaceVisibility.compactHud ? renderCompactHud(model.hud.badges) : nothing}
+                ${surfaceVisibility.compactHud ? renderCompactHud(model.hud) : nothing}
                 ${surfaceVisibility.edgeRail
                   ? renderEdgeRail(model.edgeRail.badges, this.layout.collapsedEdge, {
                       onBadgeClick: (badge) => this.openEdgeRailBadge(badge),

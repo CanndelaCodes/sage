@@ -299,11 +299,17 @@ describe("overlay renderer model", () => {
 
   it("maps the same state into HUD and Edge Rail badges", () => {
     const model = renderOverlayModel(state as never);
-    expect(model.hud.badges).toEqual([
-      { label: "Tasks", value: "1" },
-      { label: "Approvals", value: "2" },
-      { label: "Incidents", value: "1" },
-    ]);
+    expect(model.hud).toEqual({
+      title: "Night Shift report",
+      detail: "node test.js / 12 min / 9 tool calls",
+      status: "running",
+      target: { kind: "run", id: "run_task_1" },
+      badges: [
+        { label: "Tasks", value: "1" },
+        { label: "Approvals", value: "2" },
+        { label: "Incidents", value: "1" },
+      ],
+    });
     expect(model.edgeRail.badges).toEqual([
       { kind: "health", count: 0, target: { kind: "system", id: "supervisor" } },
       { kind: "activeOperation", count: 1, target: { kind: "run", id: "run_task_1" } },
@@ -319,6 +325,7 @@ describe("overlay renderer model", () => {
     });
 
     expect(model.hud.badges).toEqual([{ label: "Tasks", value: "1" }]);
+    expect(model.hud.title).toBe("Night Shift report");
     expect(model.edgeRail.badges).toEqual([
       { kind: "health", count: 0, target: { kind: "system", id: "supervisor" } },
       { kind: "activeOperation", count: 1, target: { kind: "run", id: "run_task_1" } },
