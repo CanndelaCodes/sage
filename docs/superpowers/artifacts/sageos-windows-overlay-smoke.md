@@ -55,8 +55,8 @@ Build: Windows overlay MVP shell verification after Audit timeline pass
 - [x] Private and secret observation bodies are redacted in Command Deck resource rows and Agent Workspace detail.
 - [x] Approval workspace detail exposes scope, preview, rollback, evidence, linked resources, expiration, and approve/deny actions.
 - [x] Automated smoke captures the overlay over bright, text-heavy, and IDE-like visual backdrops.
-- [x] Edge Rail collapse keeps health, approval, and incident indicators visible.
-- [x] Edge Rail health, approval, and incident badges carry drill-down targets and expand to the relevant workspace.
+- [x] Edge Rail collapse keeps health, active-operation, approval, and incident indicators visible.
+- [x] Edge Rail health, active-operation, approval, and incident badges carry drill-down targets and expand to the relevant workspace.
 - [x] Pass-through surfaces can temporarily restore overlay pointer capture over active controls.
 - [x] Pinned widget mode leaves the underlying app usable outside active widget controls.
 - [x] Pause, resume, stop, approve, deny, queue, cancel, run next, safe repair, and emergency stop controls call the expected `sageos.*` RPC methods.
@@ -129,7 +129,7 @@ src/telegram/bot.test.ts` passed with 28 files
   verifies the registered global hotkey callback opens and closes the overlay, startup fails if
   Electron reports hotkey registration failure, and active-monitor selection honors `primary` plus
   configured display IDs. Unit coverage also verifies explicit connected/loading/reconnecting/error
-  state labels, stale-state callouts, gateway-backed control disabled reasons, Edge Rail drill-down
+  state labels, stale-state callouts, gateway-backed control disabled reasons, Edge Rail active-operation drill-down
   targets, explicit Security and PC Management system resources, active-operation launcher-prefill
   controls, employee edit launcher-prefill controls, employee current task/activity/output/incident
   facts, first-class Files and Settings system resources, Audit timeline/evidence/verification/rollback summaries,

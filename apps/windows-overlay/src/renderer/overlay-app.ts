@@ -282,6 +282,11 @@ export function renderOverlayModel(
       count: status.supervisor.state === "running" ? 0 : 1,
       target: { kind: "system", id: "supervisor" },
     },
+    {
+      kind: "activeOperation",
+      count: status.tasks.active,
+      target: defaultWorkspaceTarget(state) ?? { kind: "system", id: "supervisor" },
+    },
   ];
   if (showApprovalBadge) {
     edgeRailBadges.push({

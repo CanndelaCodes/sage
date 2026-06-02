@@ -2,7 +2,7 @@ import { html } from "lit";
 import type { SageOsOverlayEdge } from "../../../../../src/sageos/types.js";
 import type { AgentWorkspaceTarget } from "./agent-workspace.js";
 
-export type EdgeRailBadgeKind = "health" | "approval" | "incident";
+export type EdgeRailBadgeKind = "health" | "activeOperation" | "approval" | "incident";
 export type EdgeRailBadge = {
   kind: EdgeRailBadgeKind;
   count: number;
@@ -37,6 +37,9 @@ export function renderEdgeRail(
 }
 
 function edgeRailBadgeLabel(kind: EdgeRailBadgeKind): string {
+  if (kind === "activeOperation") {
+    return "Active";
+  }
   if (kind === "approval") {
     return "Approvals";
   }

@@ -289,6 +289,7 @@ describe("overlay renderer model", () => {
     ]);
     expect(model.edgeRail.badges).toEqual([
       { kind: "health", count: 0, target: { kind: "system", id: "supervisor" } },
+      { kind: "activeOperation", count: 1, target: { kind: "run", id: "run_task_1" } },
       { kind: "approval", count: 2, target: { kind: "approval", id: "approval_1" } },
       { kind: "incident", count: 1, target: { kind: "incident", id: "incident_1" } },
     ]);
@@ -303,6 +304,7 @@ describe("overlay renderer model", () => {
     expect(model.hud.badges).toEqual([{ label: "Tasks", value: "1" }]);
     expect(model.edgeRail.badges).toEqual([
       { kind: "health", count: 0, target: { kind: "system", id: "supervisor" } },
+      { kind: "activeOperation", count: 1, target: { kind: "run", id: "run_task_1" } },
     ]);
   });
 
