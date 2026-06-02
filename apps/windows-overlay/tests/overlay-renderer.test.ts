@@ -91,6 +91,8 @@ const state = {
         severity: "warning",
         title: "Memory queue backlog",
         summary: "Memory queue has failed captures.",
+        firstSeenAt: "2026-06-01T12:40:00.000Z",
+        lastSeenAt: "2026-06-01T12:56:00.000Z",
         autoRepairSafe: true,
         repairAction: {
           id: "repair_memory_replay",
@@ -205,6 +207,8 @@ const state = {
       tests: [{ command: "node test.js", exitCode: 0 }],
       blockers: [],
       diff: { changedFiles: ["README.md"] },
+      verificationRefs: ["test:node test.js"],
+      rollback: "Revert README.md changes.",
     },
   ],
   workflows: [
@@ -725,6 +729,39 @@ describe("overlay renderer model", () => {
       title: "Audit",
       eyebrow: "System / events",
     });
+    expect(auditModel.workspace.facts).toEqual(
+      expect.arrayContaining([
+        { label: "Recent events", value: "12" },
+        { label: "Event log", value: "events.jsonl" },
+        {
+          label: "Timeline",
+          value:
+            "2026-06-01T12:58:00.000Z Approval requested: Approve repair (local_reversible_write), 2026-06-01T12:56:00.000Z Incident warning: Memory queue backlog, 2026-06-01T12:55:00.000Z Run run_task_1: Ran tests (running) -> test:node test.js, 2026-06-01T12:50:00.000Z Run run_task_1: Started run (running) -> run_task_1",
+        },
+        {
+          label: "Evidence",
+          value: "task_1: memory:node_1; approval_1: incident_1, memory:queue; run_task_1: coding_report_task_1",
+        },
+        {
+          label: "Verification",
+          value:
+            "task_1: Run focused tests, Review changed files; run_task_1: passed / Tests passed / test:node test.js; coding_report_task_1: node test.js: 0",
+        },
+        {
+          label: "Rollback",
+          value:
+            "task_1: Revert the scoped branch.; approval_1: Stop replay and keep failed items queued.; coding_report_task_1: Revert README.md changes.",
+        },
+        {
+          label: "Filters",
+          value: "employee, task, run, policy, app, repo, folder, source, incident, risk",
+        },
+        {
+          label: "Incident bundle",
+          value: "incident_1: Memory queue backlog / repair Replay memory queue / event log events.jsonl",
+        },
+      ]),
+    );
     expect(settingsModel.workspace).toMatchObject({
       title: "Settings",
       eyebrow: "System / execute_scoped",

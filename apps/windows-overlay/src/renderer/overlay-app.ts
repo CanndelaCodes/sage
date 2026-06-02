@@ -2053,6 +2053,165 @@ function textMatchesAny(value: string, needles: string[]): boolean {
   return needles.some((needle) => haystack.includes(needle));
 }
 
+type AuditTimelineEntry = {
+  at: string;
+  summary: string;
+};
+
+function auditWorkspaceFacts(state: SageOsOverlayStatusState): AgentWorkspaceView["facts"] {
+  const status = state.status;
+  return [
+    { label: "Recent events", value: String(status.audit.recentEvents) },
+    { label: "Event log", value: status.audit.eventLogPath ?? "None" },
+    { label: "Timeline", value: formatAuditTimeline(state) },
+    { label: "Evidence", value: formatAuditEvidence(state) },
+    { label: "Verification", value: formatAuditVerification(state) },
+    { label: "Rollback", value: formatAuditRollback(state) },
+    {
+      label: "Filters",
+      value: "employee, task, run, policy, app, repo, folder, source, incident, risk",
+    },
+    { label: "Incident bundle", value: formatAuditIncidentBundle(state) },
+  ];
+}
+
+function formatAuditTimeline(state: SageOsOverlayStatusState): string {
+  const entries: AuditTimelineEntry[] = [
+    ...(state.approvals ?? []).flatMap((approval) => {
+      const entriesForApproval: AuditTimelineEntry[] = [];
+      if (approval.requestedAt) {
+        entriesForApproval.push({
+          at: approval.requestedAt,
+          summary: `Approval requested: ${approval.title} (${approval.riskClass})`,
+        });
+      }
+      if (approval.resolvedAt) {
+        entriesForApproval.push({
+          at: approval.resolvedAt,
+          summary: `Approval ${approval.state}: ${approval.title}`,
+        });
+      }
+      return entriesForApproval;
+    }),
+    ...state.status.incidents.flatMap((incident) => {
+      const at = incident.lastSeenAt ?? incident.firstSeenAt;
+      return at
+        ? [
+            {
+              at,
+              summary: `Incident ${incident.severity}: ${incident.title}`,
+            } satisfies AuditTimelineEntry,
+          ]
+        : [];
+    }),
+    ...(state.runs ?? []).flatMap((run) =>
+      (run.timeline ?? []).map((event) => ({
+        at: event.at,
+        summary: `Run ${run.id}: ${formatAuditRunTimelineEvent(event)}`,
+      })),
+    ),
+    ...(state.codingReports ?? []).flatMap((report) => {
+      const at = report.finishedAt ?? report.startedAt ?? report.updatedAt ?? report.createdAt;
+      return at
+        ? [
+            {
+              at,
+              summary: `Coding report ${report.id}: ${report.outcome}`,
+            } satisfies AuditTimelineEntry,
+          ]
+        : [];
+    }),
+    ...(state.tasks ?? []).flatMap((task) => {
+      const at = task.updatedAt ?? task.createdAt;
+      return at
+        ? [
+            {
+              at,
+              summary: `Task ${task.id}: ${task.title} (${task.state})`,
+            } satisfies AuditTimelineEntry,
+          ]
+        : [];
+    }),
+  ];
+
+  const visible = entries
+    .filter((entry) => entry.at)
+    .toSorted((a, b) => auditTimestampSortValue(b.at) - auditTimestampSortValue(a.at))
+    .slice(0, 8)
+    .map((entry) => `${entry.at} ${entry.summary}`);
+
+  return visible.length > 0 ? visible.join(", ") : "No timeline events";
+}
+
+function auditTimestampSortValue(value: string): number {
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatAuditRunTimelineEvent(event: { label: string; state?: string; ref?: string }): string {
+  const state = event.state ? ` (${event.state})` : "";
+  const ref = event.ref ? ` -> ${event.ref}` : "";
+  return `${event.label}${state}${ref}`;
+}
+
+function formatAuditEvidence(state: SageOsOverlayStatusState): string {
+  const entries = [
+    ...(state.tasks ?? [])
+      .filter((task) => (task.evidenceRefs ?? []).length > 0)
+      .map((task) => `${task.id}: ${formatList(task.evidenceRefs ?? [])}`),
+    ...(state.approvals ?? [])
+      .filter((approval) => (approval.evidence ?? []).length > 0)
+      .map((approval) => `${approval.id}: ${formatList(approval.evidence ?? [])}`),
+    ...(state.runs ?? [])
+      .filter((run) => (run.artifacts ?? []).length > 0)
+      .map((run) => `${run.id}: ${formatList(run.artifacts ?? [])}`),
+  ];
+  return entries.length > 0 ? entries.join("; ") : "No evidence refs";
+}
+
+function formatAuditVerification(state: SageOsOverlayStatusState): string {
+  const entries = [
+    ...(state.tasks ?? [])
+      .filter((task) => (task.verificationPlan ?? []).length > 0)
+      .map((task) => `${task.id}: ${formatList(task.verificationPlan ?? [])}`),
+    ...(state.runs ?? [])
+      .filter((run) => run.verificationResult)
+      .map((run) => `${run.id}: ${formatRunVerification(run.verificationResult)}`),
+    ...(state.codingReports ?? [])
+      .filter((report) => (report.tests ?? []).length > 0)
+      .map((report) => `${report.id}: ${formatCodingReportTests(report.tests ?? [])}`),
+  ];
+  return entries.length > 0 ? entries.join("; ") : "No verification refs";
+}
+
+function formatCodingReportTests(tests: Array<{ command: string; exitCode: number }>): string {
+  return tests.map((test) => `${test.command}: ${test.exitCode}`).join(", ");
+}
+
+function formatAuditRollback(state: SageOsOverlayStatusState): string {
+  const entries = [
+    ...(state.tasks ?? [])
+      .filter((task) => Boolean(task.rollback))
+      .map((task) => `${task.id}: ${task.rollback}`),
+    ...(state.approvals ?? [])
+      .filter((approval) => Boolean(approval.rollbackPlan))
+      .map((approval) => `${approval.id}: ${approval.rollbackPlan}`),
+    ...(state.codingReports ?? [])
+      .filter((report) => Boolean(report.rollback))
+      .map((report) => `${report.id}: ${report.rollback}`),
+  ];
+  return entries.length > 0 ? entries.join("; ") : "No rollback refs";
+}
+
+function formatAuditIncidentBundle(state: SageOsOverlayStatusState): string {
+  const eventLog = state.status.audit.eventLogPath ?? "event log pending";
+  const bundles = state.status.incidents.map((incident) => {
+    const repair = incident.repairAction?.label ?? "no repair";
+    return `${incident.id}: ${incident.title} / repair ${repair} / event log ${eventLog}`;
+  });
+  return bundles.length > 0 ? bundles.join("; ") : `No active incidents / event log ${eventLog}`;
+}
+
 function systemWorkspaceModel(
   state: SageOsOverlayStatusState,
   id: string,
@@ -2209,10 +2368,7 @@ function systemWorkspaceModel(
       title: "Audit",
       eyebrow: "System / events",
       detail: status.audit.eventLogPath ?? "Event log path is pending.",
-      facts: [
-        { label: "Recent events", value: String(status.audit.recentEvents) },
-        { label: "Event log", value: status.audit.eventLogPath ?? "None" },
-      ],
+      facts: auditWorkspaceFacts(state),
       actions: [],
     };
   }
