@@ -1412,6 +1412,14 @@ function buildOverviewGroups(
   const warningIncidents = status.incidents.filter(
     (incident) => incident.severity === "warning",
   ).length;
+  const collaboration = status.collaboration ?? {
+    total: 0,
+    open: 0,
+    handoffs: 0,
+    reviewRequests: 0,
+    incidentEscalations: 0,
+    sharedArtifacts: 0,
+  };
 
   return [
     {
@@ -1423,6 +1431,39 @@ function buildOverviewGroups(
         summaryRow("Workflows", status.workflows),
         summaryRow("Skills", status.skills),
         summaryRow("Apps", status.apps),
+      ],
+    },
+    {
+      title: "Operations",
+      rows: [
+        {
+          label: "Active Operations",
+          value: `${status.tasks.active} active`,
+          detail: `${status.tasks.queued} queued / ${status.tasks.blocked} blocked / ${status.tasks.total} total`,
+        },
+        {
+          label: "Approvals",
+          value: `${status.approvals.pending} pending`,
+          detail: "Pending decisions",
+        },
+        {
+          label: "Collaboration",
+          value: `${collaboration.open} open`,
+          detail: [
+            countLabel(collaboration.handoffs, "handoff"),
+            countLabel(collaboration.reviewRequests, "review"),
+            countLabel(collaboration.incidentEscalations, "escalation"),
+            countLabel(collaboration.sharedArtifacts, "artifact"),
+          ].join(" / "),
+        },
+        {
+          label: "Incidents",
+          value: `${status.incidents.length} active`,
+          detail: `${countLabel(urgentIncidents, "urgent", "urgent")} / ${countLabel(
+            warningIncidents,
+            "warning",
+          )}`,
+        },
       ],
     },
     {
@@ -1440,7 +1481,10 @@ function buildOverviewGroups(
         {
           label: "Security",
           value: `${urgentIncidents} urgent`,
-          detail: `${warningIncidents} warnings / ${status.incidents.length} incidents`,
+          detail: `${countLabel(warningIncidents, "warning")} / ${countLabel(
+            status.incidents.length,
+            "incident",
+          )}`,
         },
         {
           label: "Sources",
@@ -3375,6 +3419,10 @@ function runSummaryRow(
     value: `${summary.active} active`,
     detail: `${summary.total} total / ${summary.failed} failed`,
   };
+}
+
+function countLabel(count: number, singular: string, plural = `${singular}s`): string {
+  return `${count} ${count === 1 ? singular : plural}`;
 }
 
 function createOverlaySpeechRecognition(

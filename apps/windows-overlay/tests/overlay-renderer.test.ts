@@ -31,6 +31,14 @@ const state = {
     workflows: { total: 5, active: 2, queued: 1, blocked: 0 },
     skills: { total: 9, active: 1, queued: 0, blocked: 0 },
     apps: { total: 2, active: 1, queued: 0, blocked: 0 },
+    collaboration: {
+      total: 1,
+      open: 1,
+      handoffs: 1,
+      reviewRequests: 0,
+      incidentEscalations: 0,
+      sharedArtifacts: 0,
+    },
     observations: { total: 20, recent: 4, redacted: 2, failed: 1 },
     memory: {
       status: "degraded",
@@ -425,6 +433,7 @@ describe("overlay renderer model", () => {
 
     expect(model.overview.map((group) => group.title)).toEqual([
       "Workforce",
+      "Operations",
       "Computer",
       "Memory",
     ]);
@@ -434,32 +443,52 @@ describe("overlay renderer model", () => {
       detail: "7 total / 0 blocked",
     });
     expect(model.overview[1].rows).toContainEqual({
+      label: "Active Operations",
+      value: "1 active",
+      detail: "1 queued / 1 blocked / 3 total",
+    });
+    expect(model.overview[1].rows).toContainEqual({
+      label: "Approvals",
+      value: "2 pending",
+      detail: "Pending decisions",
+    });
+    expect(model.overview[1].rows).toContainEqual({
+      label: "Collaboration",
+      value: "1 open",
+      detail: "1 handoff / 0 reviews / 0 escalations / 0 artifacts",
+    });
+    expect(model.overview[1].rows).toContainEqual({
+      label: "Incidents",
+      value: "1 active",
+      detail: "0 urgent / 1 warning",
+    });
+    expect(model.overview[2].rows).toContainEqual({
       label: "Observations",
       value: "4 recent",
       detail: "20 total / 1 failed / 2 redacted",
     });
-    expect(model.overview[1].rows).toContainEqual({
+    expect(model.overview[2].rows).toContainEqual({
       label: "Security",
       value: "0 urgent",
-      detail: "1 warnings / 1 incidents",
+      detail: "1 warning / 1 incident",
     });
-    expect(model.overview[1].rows).toContainEqual({
+    expect(model.overview[2].rows).toContainEqual({
       label: "Policy",
       value: "execute_scoped",
       detail: "destructive, external_writes",
     });
-    expect(model.overview[2].rows).toContainEqual({
+    expect(model.overview[3].rows).toContainEqual({
       label: "Memory",
       value: "degraded",
       detail: "2 pending / 1 failed / sage-memory",
     });
-    expect(model.overview[2].rows).toContainEqual({
+    expect(model.overview[3].rows).toContainEqual({
       label: "Notifications",
       value: "1 urgent",
       detail:
         "Telegram enabled / digest 0 8 * * * / next 2026-06-02T12:00:00.000Z / batch 15m / 1 queued / due 2026-06-01T13:15:00.000Z / quiet 22:00-07:00 UTC",
     });
-    expect(model.overview[2].rows).toContainEqual({
+    expect(model.overview[3].rows).toContainEqual({
       label: "Audit",
       value: "12 events",
       detail: "events.jsonl",
