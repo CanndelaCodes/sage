@@ -389,7 +389,13 @@ describe("sage os CLI", () => {
       updatedAt: "2026-05-27T13:05:00.000Z",
     });
 
-    const program = makeProgram();
+    const program = makeProgram({
+      loadConfig: () => ({
+        sageos: {
+          notifications: { telegram: { enabled: true, target: "telegram:cli" } },
+        },
+      }),
+    } as SageOsCliDeps);
     await program.parseAsync(
       [
         "os",
@@ -423,6 +429,11 @@ describe("sage os CLI", () => {
           evidenceRefs: ["memory:node_1"],
           verificationPlan: ["Confirm blockers are documented"],
           budget: { maxMinutes: 45, maxToolCalls: 50 },
+        },
+        status: {
+          notifications: {
+            telegram: { enabled: true, target: "telegram:cli" },
+          },
         },
       },
     });
@@ -552,10 +563,24 @@ describe("sage os CLI", () => {
       updatedAt: now,
     });
 
-    const program = makeProgram();
+    const program = makeProgram({
+      loadConfig: () => ({
+        sageos: {
+          notifications: { telegram: { enabled: true, target: "telegram:cli" } },
+        },
+      }),
+    } as SageOsCliDeps);
     await program.parseAsync(["os", "tasks", "queue", "task_low", "--json"], { from: "user" });
     expect(lastJson()).toMatchObject({
-      result: { outcome: "queued", task: { id: "task_low", state: "queued" } },
+      result: {
+        outcome: "queued",
+        task: { id: "task_low", state: "queued" },
+        status: {
+          notifications: {
+            telegram: { enabled: true, target: "telegram:cli" },
+          },
+        },
+      },
     });
 
     await program.parseAsync(["os", "tasks", "queue", "task_external", "--json"], {

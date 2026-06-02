@@ -27,6 +27,7 @@ describe("SageOS task queue policy", () => {
       stateDir: root,
       requestedBy: "sageos.test",
       reason: "operator accepted suggestion",
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:queue" } } },
       now: () => new Date(now),
     });
 
@@ -36,6 +37,10 @@ describe("SageOS task queue policy", () => {
     });
     expect(result.approval).toBeUndefined();
     expect(result.status.tasks).toMatchObject({ total: 1, queued: 1, blocked: 0 });
+    expect(result.status.notifications.telegram).toMatchObject({
+      enabled: true,
+      target: "telegram:queue",
+    });
     await expect(readSageOsState(store)).resolves.toMatchObject({
       tasks: [{ id: "task_low", state: "queued" }],
       approvals: [],

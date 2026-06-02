@@ -31,6 +31,7 @@ describe("SageOS Ambient Copilot", () => {
 
     const result = await runSageOsAmbientCopilotOnce({
       stateDir: root,
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:ambient" } } },
       now: () => new Date(now),
     });
 
@@ -45,6 +46,10 @@ describe("SageOS Ambient Copilot", () => {
     });
     expect(result.tasks[0]?.objective).toContain("obs_focus");
     expect(result.status.tasks).toMatchObject({ total: 1, queued: 1 });
+    expect(result.status.notifications.telegram).toMatchObject({
+      enabled: true,
+      target: "telegram:ambient",
+    });
     await expect(readSageOsState(store)).resolves.toMatchObject({
       tasks: [{ id: "task_observation_obs_focus", state: "proposed" }],
     });

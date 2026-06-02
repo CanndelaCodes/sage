@@ -43,6 +43,7 @@ describe("SageOS task creation", () => {
       ownerAgentId: "employee_memory_steward",
       requestedBy: "sageos.test",
       stateStore: store,
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:create" } } },
       now: () => new Date("2026-06-01T14:05:00.000Z"),
     });
 
@@ -71,6 +72,10 @@ describe("SageOS task creation", () => {
         policyScopes: [{ kind: "memory", allow: ["sage_memory"], risk: "low" }],
       },
       status: { tasks: { total: 1, queued: 1 } },
+    });
+    expect(result.status.notifications.telegram).toMatchObject({
+      enabled: true,
+      target: "telegram:create",
     });
     await expect(readSageOsState(store)).resolves.toMatchObject({
       tasks: [expect.objectContaining({ id: "task_review_memory_queue" })],

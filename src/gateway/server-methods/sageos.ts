@@ -502,6 +502,7 @@ export const sageOsHandlers: GatewayRequestHandlers = {
     const result = await createSageOsTask({
       title,
       objective,
+      cfg: loadConfig().sageos,
       ownerAgentId: stringParam(params, "ownerAgentId") || stringParam(params, "employeeId"),
       autonomyTier: stringParam(params, "autonomyTier") || undefined,
       requestedBy: "sageos.gateway",
@@ -539,6 +540,7 @@ export const sageOsHandlers: GatewayRequestHandlers = {
     }
     const result = await queueSageOsTask({
       taskId: id,
+      cfg: loadConfig().sageos,
       requestedBy: "sageos.gateway",
       reason: typeof params.reason === "string" ? params.reason : undefined,
     });

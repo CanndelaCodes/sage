@@ -661,9 +661,11 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
         command?: Command,
       ) => {
         const cliOpts = commandOptions(command ?? opts);
+        const cfg = loadSageConfig().sageos;
         const result = await createSageOsTask({
           title,
           objective: cliOpts.objective ?? "",
+          cfg,
           ownerAgentId: cliOpts.employee,
           autonomyTier: cliOpts.tier,
           evidenceRefs: cliOpts.evidence,
@@ -708,8 +710,10 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
     .option("--json", "Output JSON", false)
     .action(async (id: string, opts: { reason?: string; json?: boolean }, command?: Command) => {
       const cliOpts = commandOptions(command ?? opts);
+      const cfg = loadSageConfig().sageos;
       const result = await queueSageOsTask({
         taskId: id,
+        cfg,
         requestedBy: "sageos.cli",
         reason: cliOpts.reason,
       });

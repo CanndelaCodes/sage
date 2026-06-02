@@ -861,6 +861,9 @@ describe("SageOS gateway methods", () => {
   });
 
   it("creates proposed tasks through gateway controls", async () => {
+    mockLoadConfig.mockReturnValue({
+      sageos: { notifications: { telegram: { enabled: true, target: "telegram:gateway" } } },
+    });
     const store = createSageOsStateStore();
     await upsertSageOsAgent(store, {
       id: "employee_memory_steward",
@@ -901,6 +904,11 @@ describe("SageOS gateway methods", () => {
           budget: { maxMinutes: 20, maxToolCalls: 12 },
           toolProfile: "sageos.memory-steward",
         },
+        status: {
+          notifications: {
+            telegram: { enabled: true, target: "telegram:gateway" },
+          },
+        },
       },
     });
     expect(broadcast).toHaveBeenCalledWith(
@@ -931,6 +939,9 @@ describe("SageOS gateway methods", () => {
   });
 
   it("queues proposed tasks through gateway policy controls", async () => {
+    mockLoadConfig.mockReturnValue({
+      sageos: { notifications: { telegram: { enabled: true, target: "telegram:gateway" } } },
+    });
     const store = createSageOsStateStore();
     const now = "2026-05-27T17:45:00.000Z";
     await upsertSageOsTask(store, {
@@ -952,7 +963,15 @@ describe("SageOS gateway methods", () => {
 
     expect(response?.ok).toBe(true);
     expect(response?.payload).toMatchObject({
-      result: { outcome: "queued", task: { id: "task_low", state: "queued" } },
+      result: {
+        outcome: "queued",
+        task: { id: "task_low", state: "queued" },
+        status: {
+          notifications: {
+            telegram: { enabled: true, target: "telegram:gateway" },
+          },
+        },
+      },
     });
     expect(broadcast).toHaveBeenCalledWith(
       "sageos",

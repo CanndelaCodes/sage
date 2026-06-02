@@ -1,5 +1,6 @@
 import type {
   SageOsAutonomyMode,
+  SageOsConfig,
   SageOsPolicyScope,
   SageOsSensitivity,
   SageOsStatusSnapshot,
@@ -50,6 +51,7 @@ export async function createSageOsTask(params: {
   now?: () => Date;
   stateDir?: string;
   stateStore?: SageOsStateStore;
+  cfg?: SageOsConfig;
 }): Promise<SageOsTaskCreationResult> {
   const objective = params.objective.trim();
   if (!objective) {
@@ -113,7 +115,7 @@ export async function createSageOsTask(params: {
     taskId: task.id,
     sensitivity: "normal",
   });
-  const status = await collectSageOsStatus({ stateDir: params.stateDir });
+  const status = await collectSageOsStatus({ stateDir: params.stateDir, cfg: params.cfg });
   await writeSageOsState(store, status);
   return { outcome: "created", task, status };
 }

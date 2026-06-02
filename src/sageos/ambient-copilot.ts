@@ -59,7 +59,7 @@ export async function runSageOsAmbientCopilotOnce(params: {
     }
   }
 
-  const status = await collectSageOsStatus({ stateDir: params.stateDir });
+  const status = await collectSageOsStatus({ stateDir: params.stateDir, cfg: params.cfg });
   await writeSageOsState(store, status);
   return {
     observed: observations.length,

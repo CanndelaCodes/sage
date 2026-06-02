@@ -1,6 +1,7 @@
 import type {
   SageOsApproval,
   SageOsApprovalRiskClass,
+  SageOsConfig,
   SageOsPolicyScope,
   SageOsStatusSnapshot,
   SageOsTaskSpec,
@@ -30,6 +31,7 @@ export async function queueSageOsTask(params: {
   requestedBy?: string;
   reason?: string;
   now?: () => Date;
+  cfg?: SageOsConfig;
 }): Promise<SageOsTaskQueueResult> {
   const store = params.stateStore ?? createSageOsStateStore({ stateDir: params.stateDir });
   const state = await readSageOsState(store);
@@ -72,7 +74,7 @@ export async function queueSageOsTask(params: {
     });
   }
 
-  const status = await collectSageOsStatus({ stateDir: params.stateDir });
+  const status = await collectSageOsStatus({ stateDir: params.stateDir, cfg: params.cfg });
   await writeSageOsState(store, status);
   return { outcome: riskClass ? "approval_required" : "queued", task: nextTask, approval, status };
 }
