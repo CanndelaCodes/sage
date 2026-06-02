@@ -2,7 +2,7 @@
 
 Date: 2026-06-02
 Operator: Codex
-Build: Windows overlay MVP shell verification after 2a9b433b70
+Build: Windows overlay MVP shell verification after 31dbe765c7
 
 ## Preconditions
 
@@ -41,7 +41,7 @@ Build: Windows overlay MVP shell verification after 2a9b433b70
 - [x] Edge Rail collapse keeps health, approval, and incident indicators visible.
 - [x] Pass-through surfaces can temporarily restore overlay pointer capture over active controls.
 - [x] Pinned widget mode leaves the underlying app usable outside active widget controls.
-- [x] Pause, resume, approve, deny, queue, cancel, run next, safe repair, and emergency stop controls call the expected `sageos.*` RPC methods.
+- [x] Pause, resume, stop, approve, deny, queue, cancel, run next, safe repair, and emergency stop controls call the expected `sageos.*` RPC methods.
 - [x] No renderer page errors appear during the smoke flow.
 
 ## Evidence
@@ -53,9 +53,10 @@ Build: Windows overlay MVP shell verification after 2a9b433b70
 - HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud.png`
 - IDE-like backdrop HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud-ide.png`
 - Current verification update: `pnpm --dir apps/windows-overlay smoke:electron` passed on
-  2026-06-02 after 2a9b433b70. The packaged overlay reported `ok: true`,
+  2026-06-02 after 31dbe765c7. The packaged overlay reported `ok: true`,
   `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, no renderer page errors,
-  and refreshed the full, bright, edge-left, text-heavy edge, HUD, and IDE HUD screenshots above.
+  four `sageos.control` calls for pause, resume, stop, and emergency stop, and refreshed the
+  full, bright, edge-left, text-heavy edge, HUD, and IDE HUD screenshots above.
 - Notes: Automated overlay package test, focused config/state tests, overlay typecheck, overlay build,
   root `pnpm tsgo`, root `pnpm build`, exact `pnpm oxfmt --check` plan targets, and
   `git diff --check` passed on 2026-06-01 during the final overlay MVP verification pass.
@@ -88,7 +89,7 @@ Build: Windows overlay MVP shell verification after 2a9b433b70
   the overlay controller,
   renders without pinned-widget overlap in the full Command Deck, exposes the preload IPC bridge
   as `window.sageOsOverlay`, collapses to the left Edge Rail, launches HUD-first mode, expands HUD
-  to the full overlay, and records expected RPC calls for pause, resume, emergency stop, approve,
+  to the full overlay, and records expected RPC calls for pause, resume, stop, emergency stop, approve,
   deny, run next, safe memory replay repair, queue, cancel, and launcher send. Unit coverage now
   verifies the registered global hotkey callback opens and closes the overlay, startup fails if
   Electron reports hotkey registration failure, and active-monitor selection honors `primary` plus

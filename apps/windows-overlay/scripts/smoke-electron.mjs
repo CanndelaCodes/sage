@@ -99,8 +99,10 @@ async function smokeFullOverlay(gatewayUrl) {
     await waitForRecordedMethod("sageos.control");
     await page.getByRole("button", { name: "Resume" }).click();
     await waitForRecordedMethod("sageos.control", 2);
-    await page.getByRole("button", { name: "Emergency stop" }).click();
+    await page.getByRole("button", { name: "Stop", exact: true }).click();
     await waitForRecordedMethod("sageos.control", 3);
+    await page.getByRole("button", { name: "Emergency stop" }).click();
+    await waitForRecordedMethod("sageos.control", 4);
     await page.getByRole("button", { name: "Approve" }).click();
     await waitForRecordedMethod("sageos.approvals.resolve");
     await page.getByRole("button", { name: "Deny" }).click();
