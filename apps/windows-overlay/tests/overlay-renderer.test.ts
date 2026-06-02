@@ -800,6 +800,31 @@ describe("overlay renderer model", () => {
     ]);
   });
 
+  it("marks gateway mutation toolbar controls unavailable when disconnected or busy", () => {
+    const disconnectedControls = getOverlayToolbarControls("commandDeck", {
+      connected: false,
+      loading: false,
+    });
+    expect(disconnectedControls.filter((control) => control.disabled).map((control) => control.kind)).toEqual([
+      "pause",
+      "resume",
+      "stop",
+      "emergencyStop",
+    ]);
+    expect(
+      disconnectedControls.find((control) => control.kind === "pause")?.disabledReason,
+    ).toBe("Gateway unavailable");
+    expect(disconnectedControls.find((control) => control.kind === "close")?.disabled).toBeUndefined();
+
+    const busyControls = getOverlayToolbarControls("commandDeck", {
+      connected: true,
+      loading: true,
+    });
+    expect(busyControls.find((control) => control.kind === "stop")?.disabledReason).toBe(
+      "Gateway request in progress",
+    );
+  });
+
   it("labels connection states explicitly for production overlay operation", () => {
     expect(
       getOverlayConnectionState({

@@ -35,6 +35,12 @@ export type OverlayToolbarControl = {
   kind: OverlayToolbarControlKind;
   label: string;
   tone?: "primary" | "danger";
+  disabled?: boolean;
+  disabledReason?: string;
+};
+export type OverlayToolbarAvailability = {
+  connected: boolean;
+  loading: boolean;
 };
 export type OverlaySurfaceVisibility = {
   toolbar: boolean;
@@ -490,7 +496,10 @@ export function getOverlaySurfaceVisibility(surface: OverlaySurface): OverlaySur
   };
 }
 
-export function getOverlayToolbarControls(surface: OverlaySurface): OverlayToolbarControl[] {
+export function getOverlayToolbarControls(
+  surface: OverlaySurface,
+  availability: OverlayToolbarAvailability = { connected: true, loading: false },
+): OverlayToolbarControl[] {
   if (surface === "edgeRail") {
     return [];
   }
@@ -503,15 +512,30 @@ export function getOverlayToolbarControls(surface: OverlaySurface): OverlayToolb
     return shellControls;
   }
 
-  return [
+  const gatewayControls: OverlayToolbarControl[] = [
     { kind: "pause", label: "Pause" },
     { kind: "resume", label: "Resume", tone: "primary" },
     { kind: "stop", label: "Stop" },
     { kind: "emergencyStop", label: "Emergency stop", tone: "danger" },
+  ];
+  return [
+    ...gatewayControls.map((control) => withToolbarAvailability(control, availability)),
     { kind: "expand", label: "Full", tone: "primary" },
     { kind: "collapse", label: "Rail" },
     { kind: "close", label: "Close" },
   ];
+}
+
+function withToolbarAvailability(
+  control: OverlayToolbarControl,
+  availability: OverlayToolbarAvailability,
+): OverlayToolbarControl {
+  const disabledReason = !availability.connected
+    ? "Gateway unavailable"
+    : availability.loading
+      ? "Gateway request in progress"
+      : undefined;
+  return disabledReason ? { ...control, disabled: true, disabledReason } : control;
 }
 
 export function isOverlayInteractiveElement(element: Element | null): boolean {
@@ -714,11 +738,16 @@ export class SageOsOverlayApp extends LitElement {
           aria-label=${`SageOS gateway: ${connection.label}. ${connection.detail}`}
           >${connection.label}</span
         >
-        ${getOverlayToolbarControls(this.surface).map(
+        ${getOverlayToolbarControls(this.surface, {
+          connected: this.overlayConnected,
+          loading: this.loading,
+        }).map(
           (control) => html`
             <button
               class=${control.tone ? `overlay-button overlay-button--${control.tone}` : "overlay-button"}
               type="button"
+              title=${control.disabledReason ?? control.label}
+              ?disabled=${control.disabled}
               @click=${() => this.runToolbarControl(control.kind)}
             >
               ${control.label}
