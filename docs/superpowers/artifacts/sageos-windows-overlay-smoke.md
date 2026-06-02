@@ -2,7 +2,7 @@
 
 Date: 2026-06-02
 Operator: Codex
-Build: Windows overlay MVP shell verification after launcher and Edge Rail action availability update
+Build: Windows overlay MVP shell verification after SageOS policy hardening sweep
 
 ## Preconditions
 
@@ -58,14 +58,21 @@ Build: Windows overlay MVP shell verification after launcher and Edge Rail actio
 - HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud.png`
 - IDE-like backdrop HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud-ide.png`
 - Current verification update: `pnpm --dir apps/windows-overlay smoke:electron` passed on
-  2026-06-02 after the launcher and Edge Rail action availability update. The packaged overlay reported `ok: true`,
+  2026-06-02 after the SageOS policy hardening sweep. The packaged overlay reported `ok: true`,
   `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, no renderer page errors,
   four `sageos.control` calls for pause, resume, stop, and emergency stop, verified the
   availability-aware Voice entry state, and refreshed the full, bright, edge-left, text-heavy edge,
   HUD, and IDE HUD screenshots above.
-- Current package gates after the latest overlay UX pass: `pnpm --dir apps/windows-overlay test`
-  passed with 13 files and 78 tests, `pnpm --dir apps/windows-overlay typecheck` passed, and
+- Current package gates after the latest verification sweep: `pnpm --dir apps/windows-overlay test`
+  passed with 13 files and 81 tests, `pnpm --dir apps/windows-overlay typecheck` passed, and
   `pnpm --dir apps/windows-overlay build` passed.
+- Current shared SageOS/control-surface gate after the latest policy hardening sweep:
+  `pnpm exec vitest run --config vitest.unit.config.ts src/sageos src/cli/sageos-cli.test.ts
+src/gateway/server-methods/sageos.test.ts src/auto-reply/reply/commands.test.ts
+src/telegram/bot-native-commands.test.ts src/telegram/bot.test.ts` passed with 28 files
+  and 251 tests.
+- Current static gates after the latest policy hardening sweep: `pnpm exec tsgo --noEmit` passed,
+  and `pnpm exec oxlint --type-aware` passed with 0 warnings and 0 errors.
 - Notes: Automated overlay package test, focused config/state tests, overlay typecheck, overlay build,
   root `pnpm tsgo`, root `pnpm build`, exact `pnpm oxfmt --check` plan targets, and
   `git diff --check` passed on 2026-06-01 during the final overlay MVP verification pass.
