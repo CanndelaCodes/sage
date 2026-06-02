@@ -222,6 +222,21 @@ describe("SageOS status collector", () => {
       actor: "test",
       summary: "Queued test task.",
     });
+    await appendSageOsEvent(log, {
+      type: "notification_failed",
+      actor: "sageos.notification_manager",
+      summary: "Failed to send SageOS digest.",
+    });
+    await appendSageOsEvent(log, {
+      type: "notification_skipped",
+      actor: "sageos.notification_manager",
+      summary: "Skipped low-priority digest.",
+    });
+    await appendSageOsEvent(log, {
+      type: "notification_sent",
+      actor: "sageos.notification_manager",
+      summary: "Sent SageOS digest.",
+    });
 
     const memoryQueuePath = path.join(root, "agents", "main", "sage-memory", "capture-queue.json");
     const sessionFile = path.join(root, "session.jsonl");
@@ -273,6 +288,16 @@ describe("SageOS status collector", () => {
       agentId: "main",
       memoryCaptureQueuePath: memoryQueuePath,
       learningActivityQueuePath: learningQueuePath,
+      cfg: {
+        notifications: {
+          telegram: {
+            enabled: true,
+            target: "telegram:123",
+            digestSchedule: "0 8 * * *",
+            urgentOnlyDuringFocus: true,
+          },
+        },
+      },
       now: () => new Date(now),
     });
     const persisted = await readSageOsState(store);
@@ -315,7 +340,23 @@ describe("SageOS status collector", () => {
     expect(snapshot.sources.failing).toContain("system");
     expect(snapshot.memory.captureQueue.failed).toBe(1);
     expect(snapshot.learning.activityQueue.failed).toBe(1);
-    expect(snapshot.audit).toMatchObject({ recentEvents: 1, eventLogPath: log.path });
+    expect(snapshot.notifications).toMatchObject({
+      telegram: {
+        enabled: true,
+        target: "telegram:123",
+        digestSchedule: "0 8 * * *",
+        urgentOnlyDuringFocus: true,
+      },
+      recent: {
+        sent: 1,
+        failed: 1,
+        skipped: 1,
+        lastOutcome: "sent",
+        lastSummary: "Sent SageOS digest.",
+      },
+    });
+    expect(snapshot.notifications.recent.lastAt).toEqual(expect.any(String));
+    expect(snapshot.audit).toMatchObject({ recentEvents: 4, eventLogPath: log.path });
     expect(snapshot.incidents.map((incident) => incident.category)).toEqual(
       expect.arrayContaining(["memory", "learning", "policy"]),
     );

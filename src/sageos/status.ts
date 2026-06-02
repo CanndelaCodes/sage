@@ -7,7 +7,7 @@ import {
   listSageMemoryCaptureQueue,
   resolveSageMemoryCaptureQueuePath,
 } from "../memory/sage-memory-capture-queue.js";
-import { createSageOsEventLog } from "./event-log.js";
+import { createSageOsEventLog, readSageOsEvents, type SageOsEvent } from "./event-log.js";
 import { createSageOsStateStore, readSageOsState } from "./state-store.js";
 import {
   createSageOsStatusSnapshot,
@@ -46,7 +46,7 @@ export async function collectSageOsStatus(
   const store = createSageOsStateStore({ stateDir: opts.stateDir });
   const state = await readSageOsState(store);
   const eventLog = createSageOsEventLog({ stateDir: opts.stateDir });
-  const [memoryQueue, learningQueue, recentEvents] = await Promise.all([
+  const [memoryQueue, learningQueue, recentEvents, events] = await Promise.all([
     listSageMemoryCaptureQueue({
       queuePath:
         opts.memoryCaptureQueuePath ??
@@ -64,6 +64,7 @@ export async function collectSageOsStatus(
         }),
     }),
     countEventLogLines(eventLog.path),
+    readSageOsEvents(eventLog, { limit: 100 }),
   ]);
   const memoryCaptureQueue = queueSummary(memoryQueue);
   const learningActivityQueue = queueSummary(learningQueue);
@@ -127,7 +128,7 @@ export async function collectSageOsStatus(
     sources: summarizeSources(opts.cfg, state.observations),
     policy: summarizePolicy(opts.cfg, state.status.mode),
     coding: summarizeCoding(opts.cfg, state.codingReports),
-    notifications: summarizeNotifications(opts.cfg, incidents),
+    notifications: summarizeNotifications(opts.cfg, incidents, events),
     incidents,
     audit: {
       ...state.status.audit,
@@ -476,16 +477,48 @@ function summarizeCoding(
 function summarizeNotifications(
   cfg: SageOsConfig | undefined,
   incidents: SageOsIncident[],
+  events: SageOsEvent[],
 ): SageOsStatusSnapshot["notifications"] {
   const target = cfg?.notifications?.telegram?.target?.trim();
+  const digestSchedule = cfg?.notifications?.telegram?.digestSchedule?.trim();
+  const recent = summarizeNotificationEvents(events);
   return {
     telegram: {
       enabled: cfg?.notifications?.telegram?.enabled === true,
       ...(target ? { target } : {}),
+      ...(digestSchedule ? { digestSchedule } : {}),
+      ...(cfg?.notifications?.telegram?.urgentOnlyDuringFocus === true
+        ? { urgentOnlyDuringFocus: true }
+        : {}),
     },
     urgentPending: incidents.filter(
       (incident) => incident.severity === "error" || incident.severity === "critical",
     ).length,
+    recent,
+  };
+}
+
+function summarizeNotificationEvents(
+  events: SageOsEvent[],
+): SageOsStatusSnapshot["notifications"]["recent"] {
+  const notificationEvents = events.filter((event) =>
+    ["notification_sent", "notification_failed", "notification_skipped"].includes(event.type),
+  );
+  const last = notificationEvents.at(-1);
+  const lastOutcome =
+    last?.type === "notification_sent"
+      ? "sent"
+      : last?.type === "notification_failed"
+        ? "failed"
+        : last?.type === "notification_skipped"
+          ? "skipped"
+          : undefined;
+  return {
+    sent: notificationEvents.filter((event) => event.type === "notification_sent").length,
+    failed: notificationEvents.filter((event) => event.type === "notification_failed").length,
+    skipped: notificationEvents.filter((event) => event.type === "notification_skipped").length,
+    ...(last ? { lastAt: last.ts, lastSummary: last.summary } : {}),
+    ...(lastOutcome ? { lastOutcome } : {}),
   };
 }
 

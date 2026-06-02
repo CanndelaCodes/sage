@@ -208,8 +208,18 @@ export type SageOsStatusSnapshot = {
     telegram: {
       enabled: boolean;
       target?: string;
+      digestSchedule?: string;
+      urgentOnlyDuringFocus?: boolean;
     };
     urgentPending: number;
+    recent?: {
+      sent: number;
+      failed: number;
+      skipped: number;
+      lastAt?: string;
+      lastOutcome?: "sent" | "failed" | "skipped";
+      lastSummary?: string;
+    };
   };
   incidents: SageOsIncident[];
   audit: { recentEvents: number; eventLogPath?: string };
@@ -272,6 +282,7 @@ export function createSageOsStatusSnapshot(
     notifications: overrides.notifications ?? {
       telegram: { enabled: false },
       urgentPending: 0,
+      recent: { sent: 0, failed: 0, skipped: 0 },
     },
     incidents: overrides.incidents ?? [],
     audit: overrides.audit ?? { recentEvents: 0 },

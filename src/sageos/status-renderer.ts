@@ -17,9 +17,7 @@ export function renderSageOsStatus(snapshot: SageOsStatusSnapshot): string {
     `Learning: ${snapshot.learning.status}, activity queue ${snapshot.learning.activityQueue.pending} pending / ${snapshot.learning.activityQueue.failed} failed`,
     `Policy: ${snapshot.policy.mode}, approvals ${listOrNone(snapshot.policy.approvalsRequired)}`,
     `Sources: ${snapshot.sources.enabled.length} enabled, ${snapshot.sources.disabled.length} disabled, ${snapshot.sources.failing.length} failing`,
-    `Notifications: Telegram ${
-      snapshot.notifications.telegram.enabled ? "enabled" : "disabled"
-    }, urgent pending ${snapshot.notifications.urgentPending}`,
+    renderNotificationLine(snapshot),
     `Coding: ${
       snapshot.coding.enabled ? "enabled" : "disabled"
     }, ${snapshot.coding.allowedRepos.length} repos, ${snapshot.coding.reports.total} reports, restrictions ${listOrNone(
@@ -35,6 +33,25 @@ export function renderSageOsStatus(snapshot: SageOsStatusSnapshot): string {
     lines.push(`Audit: ${snapshot.audit.recentEvents} recent events`);
   }
   return lines.join("\n");
+}
+
+function renderNotificationLine(snapshot: SageOsStatusSnapshot): string {
+  const recent = snapshot.notifications.recent ?? { sent: 0, failed: 0, skipped: 0 };
+  const parts = [
+    `Notifications: Telegram ${snapshot.notifications.telegram.enabled ? "enabled" : "disabled"}`,
+    `urgent pending ${snapshot.notifications.urgentPending}`,
+  ];
+  if (snapshot.notifications.telegram.digestSchedule) {
+    parts.push(`digest ${snapshot.notifications.telegram.digestSchedule}`);
+  }
+  if (snapshot.notifications.telegram.urgentOnlyDuringFocus) {
+    parts.push("focus urgent-only");
+  }
+  parts.push(`recent ${recent.sent} sent / ${recent.failed} failed / ${recent.skipped} skipped`);
+  if (recent.lastOutcome) {
+    parts.push(`last ${recent.lastOutcome}`);
+  }
+  return parts.join(", ");
 }
 
 function renderMemoryLine(snapshot: SageOsStatusSnapshot): string {
