@@ -449,16 +449,27 @@ describe("handleCommands SageOS", () => {
       const cfg = {
         commands: { text: true },
         channels: { whatsapp: { allowFrom: ["*"] } },
+        sageos: {
+          notifications: { telegram: { enabled: true, target: "telegram:commands" } },
+        },
       } as SageConfig;
 
       const status = await handleCommands(buildParams("/sageos status", cfg));
       expect(status.shouldContinue).toBe(false);
       expect(status.reply?.text).toContain("Supervisor:");
+      expect(status.reply?.text).toContain("Notifications: Telegram enabled");
 
       const pause = await handleCommands(buildParams("/sageos pause telegram", cfg));
       expect(pause.shouldContinue).toBe(false);
       expect(pause.reply?.text).toContain("SageOS paused");
       expect((await readSageOsControl(createSageOsControlStore()))?.state).toBe("paused");
+      await expect(readSageOsState(createSageOsStateStore())).resolves.toMatchObject({
+        status: {
+          notifications: {
+            telegram: { enabled: true, target: "telegram:commands" },
+          },
+        },
+      });
 
       const resume = await handleCommands(buildParams("/sageos resume telegram", cfg));
       expect(resume.shouldContinue).toBe(false);

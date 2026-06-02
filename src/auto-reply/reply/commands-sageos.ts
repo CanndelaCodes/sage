@@ -17,6 +17,7 @@ import { renderSageOsStatus } from "../../sageos/status-renderer.js";
 import { collectSageOsStatus } from "../../sageos/status.js";
 import {
   createSageOsStatusSnapshot,
+  type SageOsConfig,
   type SageOsRun,
   type SageOsStatusSnapshot,
   type SageOsSupervisorStatus,
@@ -111,6 +112,7 @@ async function applySageOsControl(params: {
   state: SageOsControlState;
   reason: string;
   emergency?: boolean;
+  cfg?: SageOsConfig;
 }): Promise<SageOsStatusSnapshot> {
   const stateStore = createSageOsStateStore();
   const controlStore = createSageOsControlStore();
@@ -141,7 +143,7 @@ async function applySageOsControl(params: {
     actor: "sageos.command",
     summary: `SageOS ${params.emergency ? "emergency stop" : params.state}: ${params.reason}`,
   });
-  const refreshed = await collectSageOsStatus();
+  const refreshed = await collectSageOsStatus({ cfg: params.cfg });
   await writeSageOsState(stateStore, refreshed);
   return refreshed;
 }
@@ -252,7 +254,7 @@ export const handleSageOsCommand: CommandHandler = async (
     if (parsed.target) {
       return usageReply();
     }
-    const status = await collectSageOsStatus();
+    const status = await collectSageOsStatus({ cfg: params.cfg.sageos });
     return { shouldContinue: false, reply: { text: renderSageOsStatus(status) } };
   }
 
@@ -264,6 +266,7 @@ export const handleSageOsCommand: CommandHandler = async (
       state,
       reason,
       emergency: parsed.action === "emergency-stop",
+      cfg: params.cfg.sageos,
     });
     return {
       shouldContinue: false,
