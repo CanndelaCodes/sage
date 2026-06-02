@@ -357,7 +357,7 @@ describe("SageOS notifications", () => {
     expect(notification.text).toContain("Rollback: Delete the Telegram message if incorrect.");
     expect(notification.text).toContain("Expires: 2026-05-28T01:01:00.000Z");
     expect(notification.text).toContain(
-      "Actions: Approve approval_task_external | Deny approval_task_external | Open Command Center",
+      "Actions: /sageos approve approval_task_external | /sageos deny approval_task_external | Open Command Center",
     );
 
     const sender = vi.fn(async () => ({ messageId: "14", chatId: "123" }));

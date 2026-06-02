@@ -291,7 +291,7 @@ export function buildSageOsApprovalNotification(params: {
   }
   lines.push(
     nextAction(params.status),
-    `Actions: Approve ${params.approval.id} | Deny ${params.approval.id} | Open Command Center`,
+    `Actions: /sageos approve ${params.approval.id} | /sageos deny ${params.approval.id} | Open Command Center`,
   );
   return {
     kind: "approval",
