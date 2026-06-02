@@ -598,8 +598,10 @@ export const sageOsHandlers: GatewayRequestHandlers = {
     respond(true, { workflows: state.workflows }, undefined);
   },
   "sageos.workflows.discover": async ({ params, respond, context }) => {
+    const cfg = loadConfig().sageos;
     const result = await discoverSageOsWorkflowCandidates({
       minOccurrences: parseLimit(params.min, 2),
+      cfg,
     });
     const stateStore = createSageOsStateStore();
     await writeSageOsState(stateStore, result.status);
@@ -620,7 +622,7 @@ export const sageOsHandlers: GatewayRequestHandlers = {
       );
       return;
     }
-    const result = await dryRunSageOsWorkflow({ workflowId });
+    const result = await dryRunSageOsWorkflow({ workflowId, cfg: loadConfig().sageos });
     const stateStore = createSageOsStateStore();
     await writeSageOsState(stateStore, result.status);
     const state = await readSageOsState(stateStore);
@@ -641,7 +643,7 @@ export const sageOsHandlers: GatewayRequestHandlers = {
       );
       return;
     }
-    const result = await draftSageOsSkillFromWorkflow({ workflowId });
+    const result = await draftSageOsSkillFromWorkflow({ workflowId, cfg: loadConfig().sageos });
     const stateStore = createSageOsStateStore();
     await writeSageOsState(stateStore, result.status);
     const state = await readSageOsState(stateStore);
@@ -653,8 +655,10 @@ export const sageOsHandlers: GatewayRequestHandlers = {
     respond(true, { apps: state.apps }, undefined);
   },
   "sageos.apps.discover": async ({ params, respond, context }) => {
+    const cfg = loadConfig().sageos;
     const result = await discoverSageOsAppCandidates({
       minOccurrences: parseLimit(params.min, 2),
+      cfg,
     });
     const stateStore = createSageOsStateStore();
     await writeSageOsState(stateStore, result.status);

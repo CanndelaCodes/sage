@@ -36,7 +36,11 @@ describe("SageOS workflow compiler", () => {
       });
     }
 
-    const result = await discoverSageOsWorkflowCandidates({ stateDir: root, minOccurrences: 2 });
+    const result = await discoverSageOsWorkflowCandidates({
+      stateDir: root,
+      minOccurrences: 2,
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:workflow" } } },
+    });
 
     expect(result).toMatchObject({
       observed: 2,
@@ -51,6 +55,10 @@ describe("SageOS workflow compiler", () => {
         },
       ],
       status: { workflows: { total: 1, queued: 1 } },
+    });
+    expect(result.status.notifications.telegram).toMatchObject({
+      enabled: true,
+      target: "telegram:workflow",
     });
     await expect(readSageOsState(store)).resolves.toMatchObject({
       workflows: [{ id: "workflow_app_focus_code_sageos_mvp", state: "candidate" }],

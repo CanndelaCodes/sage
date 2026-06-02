@@ -1696,6 +1696,9 @@ describe("SageOS gateway methods", () => {
   });
 
   it("discovers workflow candidates through gateway controls", async () => {
+    mockLoadConfig.mockReturnValue({
+      sageos: { notifications: { telegram: { enabled: true, target: "telegram:gateway" } } },
+    });
     mockDiscoverWorkflowCandidates.mockResolvedValue({
       observed: 2,
       created: 1,
@@ -1729,7 +1732,10 @@ describe("SageOS gateway methods", () => {
       result: { created: 1, candidates: [{ id: "workflow_new" }] },
       state: { status: { workflows: { total: 1, queued: 1 } } },
     });
-    expect(mockDiscoverWorkflowCandidates).toHaveBeenCalledWith({ minOccurrences: 3 });
+    expect(mockDiscoverWorkflowCandidates).toHaveBeenCalledWith({
+      minOccurrences: 3,
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:gateway" } } },
+    });
     expect(broadcast).toHaveBeenCalledWith(
       "sageos",
       expect.objectContaining({
@@ -1740,6 +1746,9 @@ describe("SageOS gateway methods", () => {
   });
 
   it("dry-runs workflow candidates through gateway controls", async () => {
+    mockLoadConfig.mockReturnValue({
+      sageos: { notifications: { telegram: { enabled: true, target: "telegram:gateway" } } },
+    });
     mockDryRunWorkflow.mockResolvedValue({
       outcome: "passed",
       workflow: {
@@ -1784,7 +1793,10 @@ describe("SageOS gateway methods", () => {
       },
       state: { status: { workflows: { total: 1, active: 1 } } },
     });
-    expect(mockDryRunWorkflow).toHaveBeenCalledWith({ workflowId: "workflow_new" });
+    expect(mockDryRunWorkflow).toHaveBeenCalledWith({
+      workflowId: "workflow_new",
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:gateway" } } },
+    });
     expect(broadcast).toHaveBeenCalledWith(
       "sageos",
       expect.objectContaining({
@@ -1801,6 +1813,9 @@ describe("SageOS gateway methods", () => {
   });
 
   it("drafts skills from workflow candidates through gateway controls", async () => {
+    mockLoadConfig.mockReturnValue({
+      sageos: { notifications: { telegram: { enabled: true, target: "telegram:gateway" } } },
+    });
     mockDraftSkillFromWorkflow.mockResolvedValue({
       outcome: "drafted",
       skill: {
@@ -1829,7 +1844,10 @@ describe("SageOS gateway methods", () => {
       result: { outcome: "drafted", skill: { id: "skill_new", workflowId: "workflow_new" } },
       state: { status: { skills: { total: 1, queued: 1 } } },
     });
-    expect(mockDraftSkillFromWorkflow).toHaveBeenCalledWith({ workflowId: "workflow_new" });
+    expect(mockDraftSkillFromWorkflow).toHaveBeenCalledWith({
+      workflowId: "workflow_new",
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:gateway" } } },
+    });
     expect(broadcast).toHaveBeenCalledWith(
       "sageos",
       expect.objectContaining({
@@ -1846,6 +1864,9 @@ describe("SageOS gateway methods", () => {
   });
 
   it("discovers app candidates through gateway controls", async () => {
+    mockLoadConfig.mockReturnValue({
+      sageos: { notifications: { telegram: { enabled: true, target: "telegram:gateway" } } },
+    });
     mockDiscoverAppCandidates.mockResolvedValue({
       observed: 2,
       created: 1,
@@ -1882,7 +1903,10 @@ describe("SageOS gateway methods", () => {
       result: { created: 1, candidates: [{ id: "app_widget_new" }] },
       state: { status: { apps: { total: 1, queued: 1 } } },
     });
-    expect(mockDiscoverAppCandidates).toHaveBeenCalledWith({ minOccurrences: 3 });
+    expect(mockDiscoverAppCandidates).toHaveBeenCalledWith({
+      minOccurrences: 3,
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:gateway" } } },
+    });
     expect(broadcast).toHaveBeenCalledWith(
       "sageos",
       expect.objectContaining({

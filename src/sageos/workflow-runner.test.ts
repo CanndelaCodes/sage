@@ -24,6 +24,7 @@ describe("SageOS workflow dry runner", () => {
     const result = await dryRunSageOsWorkflow({
       stateDir: root,
       workflowId: "workflow_focus_code",
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:workflow" } } },
       now: () => new Date(now),
     });
 
@@ -43,6 +44,10 @@ describe("SageOS workflow dry runner", () => {
         evalRefs: ["eval_workflow_focus_code_20260527T230000000Z"],
       },
       status: { workflows: { total: 1, active: 1, blocked: 0 } },
+    });
+    expect(result.status.notifications.telegram).toMatchObject({
+      enabled: true,
+      target: "telegram:workflow",
     });
     await expect(readSageOsState(store)).resolves.toMatchObject({
       workflows: [

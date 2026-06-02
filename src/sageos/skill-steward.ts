@@ -1,4 +1,9 @@
-import type { SageOsSkillRecord, SageOsStatusSnapshot, SageOsWorkflow } from "./types.js";
+import type {
+  SageOsConfig,
+  SageOsSkillRecord,
+  SageOsStatusSnapshot,
+  SageOsWorkflow,
+} from "./types.js";
 import { appendSageOsEvent, createSageOsEventLog } from "./event-log.js";
 import {
   createSageOsStateStore,
@@ -20,17 +25,29 @@ export async function draftSageOsSkillFromWorkflow(params: {
   stateDir?: string;
   workflowId: string;
   now?: () => Date;
+  cfg?: SageOsConfig;
 }): Promise<DraftSageOsSkillFromWorkflowResult> {
   const store = createSageOsStateStore({ stateDir: params.stateDir });
   const state = await readSageOsState(store);
   const workflow = state.workflows.find((item) => item.id === params.workflowId);
   if (!workflow) {
-    return finish({ store, stateDir: params.stateDir, outcome: "missing_workflow" });
+    return finish({
+      store,
+      stateDir: params.stateDir,
+      outcome: "missing_workflow",
+      cfg: params.cfg,
+    });
   }
 
   const existing = state.skills.find((skill) => skill.workflowId === workflow.id);
   if (existing) {
-    return finish({ store, stateDir: params.stateDir, outcome: "existing", skill: existing });
+    return finish({
+      store,
+      stateDir: params.stateDir,
+      outcome: "existing",
+      skill: existing,
+      cfg: params.cfg,
+    });
   }
 
   const skill = skillFromWorkflow(workflow, (params.now ?? (() => new Date()))());
@@ -41,7 +58,7 @@ export async function draftSageOsSkillFromWorkflow(params: {
     summary: `Created SageOS draft skill ${skill.id} from workflow ${workflow.id}: ${skill.name}`,
     sensitivity: "normal",
   });
-  return finish({ store, stateDir: params.stateDir, outcome: "drafted", skill });
+  return finish({ store, stateDir: params.stateDir, outcome: "drafted", skill, cfg: params.cfg });
 }
 
 function skillFromWorkflow(workflow: SageOsWorkflow, now: Date): SageOsSkillRecord {
@@ -66,8 +83,9 @@ async function finish(params: {
   stateDir?: string;
   outcome: DraftSageOsSkillOutcome;
   skill?: SageOsSkillRecord;
+  cfg?: SageOsConfig;
 }): Promise<DraftSageOsSkillFromWorkflowResult> {
-  const status = await collectSageOsStatus({ stateDir: params.stateDir });
+  const status = await collectSageOsStatus({ stateDir: params.stateDir, cfg: params.cfg });
   await writeSageOsState(params.store, status);
   return {
     outcome: params.outcome,

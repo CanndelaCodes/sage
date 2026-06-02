@@ -1,4 +1,4 @@
-import type { SageOsStatusSnapshot, SageOsWorkflow } from "./types.js";
+import type { SageOsConfig, SageOsStatusSnapshot, SageOsWorkflow } from "./types.js";
 import { appendSageOsEvent, createSageOsEventLog } from "./event-log.js";
 import {
   createSageOsStateStore,
@@ -32,12 +32,13 @@ export async function dryRunSageOsWorkflow(params: {
   stateDir?: string;
   workflowId: string;
   now?: () => Date;
+  cfg?: SageOsConfig;
 }): Promise<DryRunSageOsWorkflowResult> {
   const store = createSageOsStateStore({ stateDir: params.stateDir });
   const state = await readSageOsState(store);
   const workflow = state.workflows.find((item) => item.id === params.workflowId);
   if (!workflow) {
-    const status = await collectAndPersistStatus(store, params.stateDir);
+    const status = await collectAndPersistStatus(store, params.stateDir, params.cfg);
     return { outcome: "missing_workflow", status };
   }
 
@@ -61,7 +62,7 @@ export async function dryRunSageOsWorkflow(params: {
     sensitivity: "normal",
   });
 
-  const status = await collectAndPersistStatus(store, params.stateDir);
+  const status = await collectAndPersistStatus(store, params.stateDir, params.cfg);
   return {
     outcome: report.passed ? "passed" : "failed",
     workflow: nextWorkflow,
@@ -107,8 +108,9 @@ function buildDryRunReport(params: {
 async function collectAndPersistStatus(
   store: ReturnType<typeof createSageOsStateStore>,
   stateDir: string | undefined,
+  cfg: SageOsConfig | undefined,
 ): Promise<SageOsStatusSnapshot> {
-  const status = await collectSageOsStatus({ stateDir });
+  const status = await collectSageOsStatus({ stateDir, cfg });
   await writeSageOsState(store, status);
   return status;
 }

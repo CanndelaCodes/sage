@@ -17,6 +17,7 @@ describe("SageOS skill steward", () => {
     const result = await draftSageOsSkillFromWorkflow({
       stateDir: root,
       workflowId: "workflow_focus_code",
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:skill" } } },
       now: () => new Date(now),
     });
 
@@ -33,6 +34,10 @@ describe("SageOS skill steward", () => {
         allowedScopes: [{ kind: "app", allow: ["Code"], risk: "low" }],
       },
       status: { skills: { total: 1, active: 0, queued: 1, blocked: 0 } },
+    });
+    expect(result.status.notifications.telegram).toMatchObject({
+      enabled: true,
+      target: "telegram:skill",
     });
     await expect(readSageOsState(store)).resolves.toMatchObject({
       skills: [{ id: "skill_focus_code", workflowId: "workflow_focus_code" }],

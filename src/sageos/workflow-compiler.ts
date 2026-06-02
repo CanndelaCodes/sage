@@ -1,4 +1,5 @@
 import type {
+  SageOsConfig,
   SageOsObservation,
   SageOsPolicyScope,
   SageOsStatusSnapshot,
@@ -26,6 +27,7 @@ export async function discoverSageOsWorkflowCandidates(
     stateDir?: string;
     minOccurrences?: number;
     now?: Date;
+    cfg?: SageOsConfig;
   } = {},
 ): Promise<SageOsWorkflowCandidateDiscoveryResult> {
   const store = createSageOsStateStore({ stateDir: params.stateDir });
@@ -55,7 +57,7 @@ export async function discoverSageOsWorkflowCandidates(
     });
   }
 
-  const status = await collectSageOsStatus({ stateDir: params.stateDir });
+  const status = await collectSageOsStatus({ stateDir: params.stateDir, cfg: params.cfg });
   await writeSageOsState(store, status);
   return {
     observed: captured.length,

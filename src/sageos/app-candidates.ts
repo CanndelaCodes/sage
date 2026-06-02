@@ -1,5 +1,6 @@
 import type {
   SageOsAppCandidate,
+  SageOsConfig,
   SageOsObservation,
   SageOsPolicyScope,
   SageOsSensitivity,
@@ -27,6 +28,7 @@ export async function discoverSageOsAppCandidates(
     stateDir?: string;
     minOccurrences?: number;
     now?: Date;
+    cfg?: SageOsConfig;
   } = {},
 ): Promise<SageOsAppCandidateDiscoveryResult> {
   const store = createSageOsStateStore({ stateDir: params.stateDir });
@@ -56,7 +58,7 @@ export async function discoverSageOsAppCandidates(
     });
   }
 
-  const status = await collectSageOsStatus({ stateDir: params.stateDir });
+  const status = await collectSageOsStatus({ stateDir: params.stateDir, cfg: params.cfg });
   await writeSageOsState(store, status);
   return {
     observed: captured.length,

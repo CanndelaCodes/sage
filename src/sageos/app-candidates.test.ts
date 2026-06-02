@@ -36,7 +36,11 @@ describe("SageOS app candidate discovery", () => {
       });
     }
 
-    const result = await discoverSageOsAppCandidates({ stateDir: root, minOccurrences: 2 });
+    const result = await discoverSageOsAppCandidates({
+      stateDir: root,
+      minOccurrences: 2,
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:app" } } },
+    });
 
     expect(result).toMatchObject({
       observed: 2,
@@ -61,6 +65,10 @@ describe("SageOS app candidate discovery", () => {
         },
       ],
       status: { apps: { total: 1, queued: 1 } },
+    });
+    expect(result.status.notifications.telegram).toMatchObject({
+      enabled: true,
+      target: "telegram:app",
     });
     await expect(readSageOsState(store)).resolves.toMatchObject({
       apps: [{ id: "app_widget_app_focus_code_sageos_mvp", state: "draft" }],

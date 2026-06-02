@@ -842,8 +842,10 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
     .option("--json", "Output JSON", false)
     .action(async (opts: { min?: string; json?: boolean }, command?: Command) => {
       const cliOpts = commandOptions(command ?? opts);
+      const cfg = loadSageConfig().sageos;
       const result = await discoverWorkflowCandidates({
         minOccurrences: parseLimit(cliOpts.min, 2),
+        cfg,
       });
       outputJsonOrText(cliOpts, { result }, () =>
         [
@@ -863,7 +865,8 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
       if (!workflowId) {
         fail("Workflow id required.");
       }
-      const result = await dryRunWorkflow({ workflowId });
+      const cfg = loadSageConfig().sageos;
+      const result = await dryRunWorkflow({ workflowId, cfg });
       outputJsonOrText(cliOpts, { result }, () =>
         result.workflow
           ? `${result.outcome}: ${result.workflow.id}\t${result.workflow.state}`
@@ -887,7 +890,8 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
       if (!workflowId) {
         fail("Workflow id required.");
       }
-      const result = await draftSkillFromWorkflow({ workflowId });
+      const cfg = loadSageConfig().sageos;
+      const result = await draftSkillFromWorkflow({ workflowId, cfg });
       outputJsonOrText(cliOpts, { result }, () =>
         result.skill
           ? `${result.outcome}: ${result.skill.id}\t${result.skill.name}`
@@ -926,8 +930,10 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
     .option("--json", "Output JSON", false)
     .action(async (opts: { min?: string; json?: boolean }, command?: Command) => {
       const cliOpts = commandOptions(command ?? opts);
+      const cfg = loadSageConfig().sageos;
       const result = await discoverAppCandidates({
         minOccurrences: parseLimit(cliOpts.min, 2),
+        cfg,
       });
       outputJsonOrText(cliOpts, { result }, () =>
         [

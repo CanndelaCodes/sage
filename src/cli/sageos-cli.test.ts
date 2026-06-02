@@ -1271,6 +1271,11 @@ describe("sage os CLI", () => {
     const discoverCalls: unknown[] = [];
     const dryRunCalls: unknown[] = [];
     const program = makeProgram({
+      loadConfig: () => ({
+        sageos: {
+          notifications: { telegram: { enabled: true, target: "telegram:cli" } },
+        },
+      }),
       discoverWorkflowCandidates: async (params: unknown) => {
         discoverCalls.push(params);
         return {
@@ -1345,7 +1350,10 @@ describe("sage os CLI", () => {
       result: { observed: 2, created: 1, candidates: [{ id: "workflow_new" }] },
     });
     expect(discoverCalls).toHaveLength(1);
-    expect(discoverCalls[0]).toMatchObject({ minOccurrences: 2 });
+    expect(discoverCalls[0]).toMatchObject({
+      minOccurrences: 2,
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:cli" } } },
+    });
 
     await program.parseAsync(["os", "workflows", "dry-run", "workflow_existing", "--json"], {
       from: "user",
@@ -1358,7 +1366,10 @@ describe("sage os CLI", () => {
       },
     });
     expect(dryRunCalls).toHaveLength(1);
-    expect(dryRunCalls[0]).toMatchObject({ workflowId: "workflow_existing" });
+    expect(dryRunCalls[0]).toMatchObject({
+      workflowId: "workflow_existing",
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:cli" } } },
+    });
   });
 
   it("lists and drafts skills through CLI controls", async () => {
@@ -1379,6 +1390,11 @@ describe("sage os CLI", () => {
 
     const draftCalls: unknown[] = [];
     const program = makeProgram({
+      loadConfig: () => ({
+        sageos: {
+          notifications: { telegram: { enabled: true, target: "telegram:cli" } },
+        },
+      }),
       draftSkillFromWorkflow: async (params: unknown) => {
         draftCalls.push(params);
         return {
@@ -1412,7 +1428,10 @@ describe("sage os CLI", () => {
       result: { outcome: "drafted", skill: { id: "skill_new", workflowId: "workflow_new" } },
     });
     expect(draftCalls).toHaveLength(1);
-    expect(draftCalls[0]).toMatchObject({ workflowId: "workflow_new" });
+    expect(draftCalls[0]).toMatchObject({
+      workflowId: "workflow_new",
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:cli" } } },
+    });
   });
 
   it("lists and discovers app candidates through CLI controls", async () => {
@@ -1439,6 +1458,11 @@ describe("sage os CLI", () => {
 
     const discoverCalls: unknown[] = [];
     const program = makeProgram({
+      loadConfig: () => ({
+        sageos: {
+          notifications: { telegram: { enabled: true, target: "telegram:cli" } },
+        },
+      }),
       discoverAppCandidates: async (params: unknown) => {
         discoverCalls.push(params);
         return {
@@ -1492,7 +1516,10 @@ describe("sage os CLI", () => {
       result: { observed: 2, created: 1, candidates: [{ id: "app_widget_new" }] },
     });
     expect(discoverCalls).toHaveLength(1);
-    expect(discoverCalls[0]).toMatchObject({ minOccurrences: 2 });
+    expect(discoverCalls[0]).toMatchObject({
+      minOccurrences: 2,
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:cli" } } },
+    });
   });
 
   it("lists, inspects, and runs coding reports through CLI controls", async () => {
