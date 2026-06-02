@@ -29,6 +29,7 @@ describe("SageOS config schema", () => {
           localOnlyDefault: true,
           storeRawScreenshots: false,
           denyApps: ["1Password"],
+          denySystemChecks: ["startup", "services"],
           observationRetentionDays: 14,
         },
       },
@@ -36,6 +37,7 @@ describe("SageOS config schema", () => {
 
     expect(parsed.sageos?.mode).toBe("execute_scoped");
     expect(parsed.sageos?.sources?.defender).toBe(true);
+    expect(parsed.sageos?.privacy?.denySystemChecks).toEqual(["startup", "services"]);
     expect(parsed.sageos?.privacy?.observationRetentionDays).toBe(14);
   });
 

@@ -17,7 +17,7 @@ const execFileAsync = promisify(execFile) as unknown as (
   opts: { encoding: "utf8"; timeout: number; maxBuffer: number; windowsHide?: boolean },
 ) => Promise<{ stdout: string; stderr: string }>;
 
-export type SageOsSystemCheckStatus = "ok" | "warning" | "failed" | "unavailable";
+export type SageOsSystemCheckStatus = "ok" | "warning" | "failed" | "unavailable" | "redacted";
 
 export type SageOsSystemCheck = {
   id: string;
@@ -119,7 +119,8 @@ async function persistSystemObservation(params: {
   now: Date;
   snapshot: SageOsSystemStatusSnapshot;
 }): Promise<SageOsObservation> {
-  const summary = summarizeChecks(params.snapshot.checks);
+  const checks = redactDeniedSystemChecks(params.snapshot.checks, params.cfg);
+  const summary = summarizeChecks(checks);
   const observation: SageOsObservation = {
     id: `obs_${randomUUID()}`,
     source: "system",
@@ -131,7 +132,7 @@ async function persistSystemObservation(params: {
     payload: {
       platform: params.snapshot.platform,
       checkedAt: params.snapshot.checkedAt,
-      checks: params.snapshot.checks,
+      checks,
       summary,
     },
     provenance: { adapter: "system" },
@@ -150,6 +151,34 @@ async function persistSystemObservation(params: {
   const observationWithEvent = { ...observation, eventId: event.id };
   await upsertSageOsObservation(stateStore, observationWithEvent);
   return observationWithEvent;
+}
+
+function redactDeniedSystemChecks(
+  checks: SageOsSystemCheck[],
+  cfg: SageOsConfig | undefined,
+): SageOsSystemCheck[] {
+  const denied = new Set((cfg?.privacy?.denySystemChecks ?? []).map(normalizeCheckKey));
+  if (denied.size === 0) {
+    return checks;
+  }
+  return checks.map((check) => {
+    if (!denied.has(normalizeCheckKey(check.id)) && !denied.has(normalizeCheckKey(check.label))) {
+      return check;
+    }
+    return {
+      id: check.id,
+      label: check.label,
+      status: "redacted",
+      summary: `${check.label} check redacted by SageOS privacy policy.`,
+    };
+  });
+}
+
+function normalizeCheckKey(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
 }
 
 async function persistSystemFailureObservation(params: {

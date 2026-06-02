@@ -169,6 +169,62 @@ describe("SageOS system observer", () => {
     expect(state.observations.map((observation) => observation.id)).not.toContain("obs_old_system");
   });
 
+  it("redacts denied system checks before persisting observation details", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-system-deny-checks-"));
+    const now = new Date("2026-06-02T08:45:00.000Z");
+
+    const result = await observeSystemStatusOnce({
+      stateDir: root,
+      cfg: {
+        sources: { system: true },
+        privacy: { denySystemChecks: ["startup"] },
+      },
+      now: () => now,
+      readSystemStatus: async () => ({
+        platform: "win32",
+        checkedAt: now.toISOString(),
+        checks: [
+          {
+            id: "defender",
+            label: "Defender",
+            status: "ok",
+            summary: "Real-time protection on",
+          },
+          {
+            id: "startup",
+            label: "Startup",
+            status: "warning",
+            summary: "SecretApp starts with Windows.",
+            details: {
+              entries: [{ name: "SecretApp", location: "HKCU", user: "jason" }],
+            },
+          },
+        ],
+      }),
+    });
+
+    expect(result).toMatchObject({
+      status: "recorded",
+      observation: {
+        source: "system",
+        state: "captured",
+        payload: {
+          checks: [
+            { id: "defender", status: "ok" },
+            {
+              id: "startup",
+              label: "Startup",
+              status: "redacted",
+              summary: "Startup check redacted by SageOS privacy policy.",
+            },
+          ],
+        },
+      },
+    });
+    expect(JSON.stringify(result)).not.toContain("SecretApp");
+    expect(JSON.stringify(result)).not.toContain("HKCU");
+  });
+
   it("normalizes Windows read-only checks from PowerShell JSON", async () => {
     const now = new Date("2026-05-27T18:10:00.000Z");
     const snapshot = await readSystemStatusSnapshot({

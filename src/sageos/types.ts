@@ -662,6 +662,7 @@ export type SageOsConfig = {
     denyApps?: string[];
     denyWindowTitlePatterns?: string[];
     denyFilePatterns?: string[];
+    denySystemChecks?: string[];
     observationRetentionDays?: number;
   };
   policy?: {
