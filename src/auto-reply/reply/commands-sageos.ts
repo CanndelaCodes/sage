@@ -4,6 +4,7 @@ import type {
   HandleCommandsParams,
 } from "./commands-types.js";
 import { logVerbose } from "../../globals.js";
+import { resolveSageOsApproval } from "../../sageos/approvals.js";
 import { appendSageOsEvent, createSageOsEventLog } from "../../sageos/event-log.js";
 import {
   createSageOsControlStore,
@@ -29,7 +30,9 @@ type SageOsCommandAction =
   | "stop"
   | "emergency-stop"
   | "tasks"
-  | "task";
+  | "task"
+  | "approve"
+  | "deny";
 
 type SageOsControlState = "paused" | "running" | "stopped";
 
@@ -49,7 +52,19 @@ function parseSageOsCommand(commandBody: string): {
   }
   const [actionToken = "", ...rest] = raw.split(/\s+/);
   const action = actionToken.toLowerCase() as SageOsCommandAction;
-  if (!["status", "pause", "resume", "stop", "emergency-stop", "tasks", "task"].includes(action)) {
+  if (
+    ![
+      "status",
+      "pause",
+      "resume",
+      "stop",
+      "emergency-stop",
+      "tasks",
+      "task",
+      "approve",
+      "deny",
+    ].includes(action)
+  ) {
     return { action: "status", target: raw };
   }
   return { action, target: rest.join(" ").trim() };
@@ -67,7 +82,9 @@ function usageReply(): CommandHandlerResult {
         "- /sageos stop [reason]\n" +
         "- /sageos emergency-stop [reason]\n" +
         "- /sageos tasks\n" +
-        "- /sageos task <id>",
+        "- /sageos task <id>\n" +
+        "- /sageos approve <approval-id> [reason]\n" +
+        "- /sageos deny <approval-id> [reason]",
     },
   };
 }
@@ -203,6 +220,16 @@ function formatTaskDetail(task: SageOsTaskSpec, runs: SageOsRun[]): string {
   return lines.join("\n");
 }
 
+function parseApprovalTarget(target: string): { id: string; reason?: string } | undefined {
+  const [id = "", ...reasonParts] = target.trim().split(/\s+/);
+  const trimmedId = id.trim();
+  if (!trimmedId) {
+    return undefined;
+  }
+  const reason = reasonParts.join(" ").trim();
+  return { id: trimmedId, ...(reason ? { reason } : {}) };
+}
+
 export const handleSageOsCommand: CommandHandler = async (
   params: HandleCommandsParams,
   allowTextCommands: boolean,
@@ -242,6 +269,43 @@ export const handleSageOsCommand: CommandHandler = async (
       shouldContinue: false,
       reply: { text: formatControlReply(parsed.action, status) },
     };
+  }
+
+  if (parsed.action === "approve" || parsed.action === "deny") {
+    const approvalTarget = parseApprovalTarget(parsed.target);
+    if (!approvalTarget) {
+      return usageReply();
+    }
+    const result = await resolveSageOsApproval({
+      id: approvalTarget.id,
+      decision: parsed.action === "approve" ? "approved" : "denied",
+      actor: "sageos.command",
+      reason: approvalTarget.reason || params.command.surface || "command",
+    });
+    if (result.outcome === "not_found") {
+      return {
+        shouldContinue: false,
+        reply: { text: `SageOS approval not found: ${result.id}` },
+      };
+    }
+    if (result.outcome === "not_pending") {
+      return {
+        shouldContinue: false,
+        reply: {
+          text: `SageOS approval not pending: ${result.approval.id} (${result.approval.state})`,
+        },
+      };
+    }
+    const lines = [
+      `SageOS approval ${result.approval.state}`,
+      `Approval: ${result.approval.id}`,
+      `Risk: ${result.approval.riskClass}`,
+      `Reason: ${result.approval.resolutionReason ?? "manual"}`,
+    ];
+    if (result.task) {
+      lines.push(`Task: ${result.task.id} ${result.task.state}`);
+    }
+    return { shouldContinue: false, reply: { text: lines.join("\n") } };
   }
 
   const store = createSageOsStateStore();

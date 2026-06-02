@@ -37,7 +37,19 @@ describe("commands registry", () => {
     const specs = listNativeCommandSpecs();
     expect(specs.find((spec) => spec.name === "help")).toBeTruthy();
     expect(specs.find((spec) => spec.name === "stop")).toBeTruthy();
-    expect(specs.find((spec) => spec.name === "sageos")).toBeTruthy();
+    const sageos = specs.find((spec) => spec.name === "sageos");
+    expect(sageos).toBeTruthy();
+    expect(sageos?.args?.[0]?.choices).toEqual([
+      "status",
+      "pause",
+      "resume",
+      "stop",
+      "emergency-stop",
+      "tasks",
+      "task",
+      "approve",
+      "deny",
+    ]);
     expect(specs.find((spec) => spec.name === "skill")).toBeTruthy();
     expect(specs.find((spec) => spec.name === "whoami")).toBeTruthy();
     expect(specs.find((spec) => spec.name === "compact")).toBeFalsy();
@@ -171,6 +183,9 @@ describe("commands registry", () => {
 
   it("normalizes SageOS commands with arguments", () => {
     expect(normalizeCommandBody("/SAGEOS pause telegram")).toBe("/sageos pause telegram");
+    expect(normalizeCommandBody("/SAGEOS approve approval_external reviewed")).toBe(
+      "/sageos approve approval_external reviewed",
+    );
   });
 });
 

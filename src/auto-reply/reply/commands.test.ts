@@ -14,6 +14,8 @@ import {
   createSageOsControlStore,
   createSageOsStateStore,
   readSageOsControl,
+  readSageOsState,
+  upsertSageOsApproval,
   upsertSageOsRun,
   upsertSageOsTask,
 } from "../../sageos/state-store.js";
@@ -516,6 +518,95 @@ describe("handleCommands SageOS", () => {
       expect(detail.reply?.text).toContain("SageOS task task_1");
       expect(detail.reply?.text).toContain("Summarize the latest Night Shift coding report.");
       expect(detail.reply?.text).toContain("run_task_1_1");
+    });
+  });
+
+  it("approves and denies SageOS approvals from Telegram controls", async () => {
+    await withSageOsStateDir(async () => {
+      const store = createSageOsStateStore();
+      const now = new Date("2026-05-27T13:00:00Z").toISOString();
+      await upsertSageOsTask(store, {
+        id: "task_external",
+        title: "Send Telegram update",
+        objective: "Send an approved external update.",
+        state: "waiting_for_policy",
+        requestedBy: "telegram",
+        autonomyTier: "execute_scoped",
+        policyScopes: [{ kind: "channel", allow: ["telegram:123"], risk: "high" }],
+        createdAt: now,
+        updatedAt: now,
+      });
+      await upsertSageOsApproval(store, {
+        id: "approval_external",
+        state: "pending",
+        riskClass: "external_write",
+        title: "Send Telegram update",
+        proposedAction: "Send a redacted update.",
+        evidence: ["task_external"],
+        scope: "task",
+        taskId: "task_external",
+        requestedBy: "sageos.test",
+        requestedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await upsertSageOsApproval(store, {
+        id: "approval_policy",
+        state: "pending",
+        riskClass: "policy_change",
+        title: "Change SageOS policy",
+        proposedAction: "Relax policy for a workflow.",
+        evidence: ["policy-diff"],
+        scope: "domain",
+        requestedBy: "sageos.test",
+        requestedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      });
+      const cfg = {
+        commands: { text: true },
+        channels: { telegram: { allowFrom: ["*"] } },
+      } as SageConfig;
+
+      const approved = await handleCommands(
+        buildParams("/sageos approve approval_external reviewed in Telegram", cfg, {
+          Provider: "telegram",
+          Surface: "telegram",
+        }),
+      );
+      expect(approved.shouldContinue).toBe(false);
+      expect(approved.reply?.text).toContain("SageOS approval approved");
+      expect(approved.reply?.text).toContain("approval_external");
+      expect(approved.reply?.text).toContain("Task: task_external queued");
+
+      const denied = await handleCommands(
+        buildParams("/sageos deny approval_policy too broad", cfg, {
+          Provider: "telegram",
+          Surface: "telegram",
+        }),
+      );
+      expect(denied.shouldContinue).toBe(false);
+      expect(denied.reply?.text).toContain("SageOS approval denied");
+      expect(denied.reply?.text).toContain("approval_policy");
+
+      const state = await readSageOsState(store);
+      expect(state.approvals).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: "approval_external",
+            state: "approved",
+            resolvedBy: "sageos.command",
+            resolutionReason: "reviewed in telegram",
+          }),
+          expect.objectContaining({
+            id: "approval_policy",
+            state: "denied",
+            resolvedBy: "sageos.command",
+            resolutionReason: "too broad",
+          }),
+        ]),
+      );
+      expect(state.tasks.find((task) => task.id === "task_external")?.state).toBe("queued");
     });
   });
 });
