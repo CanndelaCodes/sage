@@ -68,9 +68,12 @@ Build: Windows overlay MVP shell verification after SageOS policy hardening swee
   `pnpm --dir apps/windows-overlay build` passed.
 - Current shared SageOS/control-surface gate after the latest policy hardening sweep:
   `pnpm exec vitest run --config vitest.unit.config.ts src/sageos src/cli/sageos-cli.test.ts
-src/gateway/server-methods/sageos.test.ts src/auto-reply/reply/commands.test.ts
-src/telegram/bot-native-commands.test.ts src/telegram/bot.test.ts` passed with 28 files
+src/auto-reply/reply/commands.test.ts src/telegram/bot-native-commands.test.ts
+src/telegram/bot.test.ts` passed with 28 files
   and 252 tests, including destructive queued-execution approval gating.
+- Current gateway SageOS method gate after the latest policy hardening sweep:
+  `pnpm exec vitest run --config vitest.config.ts src/gateway/server-methods/sageos.test.ts`
+  passed with 1 file and 35 tests.
 - Current static gates after the latest policy hardening sweep: `pnpm exec tsgo --noEmit` passed,
   and `pnpm exec oxlint --type-aware` passed with 0 warnings and 0 errors.
 - Notes: Automated overlay package test, focused config/state tests, overlay typecheck, overlay build,
