@@ -27,6 +27,18 @@ export type SageOsViewProps = {
 
 const terminalTaskStates = new Set(["completed", "failed", "cancelled", "expired"]);
 
+type SageOsStatusSnapshot = SageOsPersistedState["status"];
+type SageOsMemoryStatus = SageOsStatusSnapshot["memory"];
+type SageOsLearningStatus = SageOsStatusSnapshot["learning"];
+type SageOsPolicyStatus = SageOsStatusSnapshot["policy"];
+type SageOsSourceStatus = SageOsStatusSnapshot["sources"];
+type SageOsAuditStatus = SageOsStatusSnapshot["audit"];
+type SageOsObservationList = SageOsPersistedState["observations"];
+type SageOsWorkflowList = SageOsPersistedState["workflows"];
+type SageOsSkillList = SageOsPersistedState["skills"];
+type SageOsAppList = SageOsPersistedState["apps"];
+type SageOsCodingReportList = SageOsPersistedState["codingReports"];
+
 export function renderSageOs(props: SageOsViewProps) {
   const state = props.state;
   const status = state?.status;
@@ -158,6 +170,15 @@ export function renderSageOs(props: SageOsViewProps) {
               ${renderApprovals(props, state.approvals)}
               ${renderIncidents(props, status.incidents)}
               ${renderCollaborations(state.collaborations)}
+              ${renderObservations(state.observations)}
+              ${renderMemoryQueue(status.memory)}
+              ${renderLearningQueue(status.learning)}
+              ${renderWorkflows(state.workflows)}
+              ${renderSkills(state.skills)}
+              ${renderApps(state.apps)}
+              ${renderCodingReports(state.codingReports)}
+              ${renderPolicyAndSources(status.policy, status.sources)}
+              ${renderAuditTrail(status.audit)}
             </section>
           `
           : nothing
@@ -173,6 +194,281 @@ function renderKpi(label: string, value: string, sub: string) {
       <div class="stat-value">${value}</div>
       <div class="muted">${sub}</div>
     </div>
+  `;
+}
+
+function renderObservations(observations: SageOsObservationList) {
+  return html`
+    <section class="card sageos-section">
+      <div class="card-title">Observation Stream</div>
+      <div class="card-sub">${observations.length} captured observation(s).</div>
+      <div class="list sageos-list">
+        ${
+          observations.length === 0
+            ? html`
+                <div class="muted">No recent SageOS observations.</div>
+              `
+            : observations.slice(0, 8).map(
+                (observation) => html`
+                <div class="list-item sageos-list-item">
+                  <div class="list-main">
+                    <div class="list-title">${observation.title}</div>
+                    <div class="list-sub mono">${observation.id}</div>
+                    <div class="list-sub">${observation.text}</div>
+                  </div>
+                  <div class="list-meta">
+                    <span class="chip">${observation.source}</span>
+                    <span>${observation.state}</span>
+                    <span>${observation.sensitivity}</span>
+                  </div>
+                </div>
+              `,
+              )
+        }
+      </div>
+    </section>
+  `;
+}
+
+function renderMemoryQueue(memory: SageOsMemoryStatus) {
+  return html`
+    <section class="card sageos-section">
+      <div class="card-title">Memory Queue</div>
+      <div class="card-sub">${formatMemoryBackend(memory.canonical)} is the canonical backend.</div>
+      <div class="list sageos-list">
+        <div class="list-item sageos-list-item">
+          <div class="list-main">
+            <div class="list-title">${formatMemoryBackend(memory.backend)}</div>
+            <div class="list-sub">
+              ${memory.captureQueue.pending} pending / ${memory.captureQueue.failed} failed /
+              ${memory.captureQueue.total} total capture item(s)
+            </div>
+            ${
+              memory.doctor
+                ? html`
+                  <div class="list-sub">
+                    Doctor: ${memory.doctor.checks} checks / ${memory.doctor.warnings} warnings /
+                    ${memory.doctor.failures} failures
+                  </div>
+                `
+                : nothing
+            }
+          </div>
+          <div class="list-meta">
+            <span class="chip">${memory.status}</span>
+            <span>${memory.canonical}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderLearningQueue(learning: SageOsLearningStatus) {
+  return html`
+    <section class="card sageos-section">
+      <div class="card-title">Learning Queue</div>
+      <div class="card-sub">
+        ${learning.activityQueue.pending} pending activity event(s).
+      </div>
+      <div class="list sageos-list">
+        <div class="list-item sageos-list-item">
+          <div class="list-main">
+            <div class="list-title">activity event</div>
+            <div class="list-sub">
+              ${learning.activityQueue.pending} pending / ${learning.activityQueue.failed} failed /
+              ${learning.activityQueue.total} total learning item(s)
+            </div>
+          </div>
+          <div class="list-meta">
+            <span class="chip">${learning.status}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderWorkflows(workflows: SageOsWorkflowList) {
+  return html`
+    <section class="card sageos-section">
+      <div class="card-title">Workflow Candidates</div>
+      <div class="card-sub">${workflows.length} workflow candidate(s).</div>
+      <div class="list sageos-list">
+        ${
+          workflows.length === 0
+            ? html`
+                <div class="muted">No SageOS workflow candidates.</div>
+              `
+            : workflows.map(
+                (workflow) => html`
+                <div class="list-item sageos-list-item">
+                  <div class="list-main">
+                    <div class="list-title">${workflow.name}</div>
+                    <div class="list-sub mono">${workflow.id}</div>
+                    <div class="list-sub">${workflow.trigger}</div>
+                    <div class="list-sub">Pattern: ${workflow.observedPattern}</div>
+                    <div class="list-sub">Outputs: ${formatList(workflow.outputs)}</div>
+                  </div>
+                  <div class="list-meta">
+                    <span class="chip">${workflow.state}</span>
+                    <span>${formatPolicyScopes(workflow.policyScopes)}</span>
+                  </div>
+                </div>
+              `,
+              )
+        }
+      </div>
+    </section>
+  `;
+}
+
+function renderSkills(skills: SageOsSkillList) {
+  return html`
+    <section class="card sageos-section">
+      <div class="card-title">Skill Candidates</div>
+      <div class="card-sub">${skills.length} skill candidate(s).</div>
+      <div class="list sageos-list">
+        ${
+          skills.length === 0
+            ? html`
+                <div class="muted">No SageOS skill candidates.</div>
+              `
+            : skills.map(
+                (skill) => html`
+                <div class="list-item sageos-list-item">
+                  <div class="list-main">
+                    <div class="list-title">${skill.name}</div>
+                    <div class="list-sub mono">${skill.id}</div>
+                    <div class="list-sub">Provenance: ${formatList(skill.provenance)}</div>
+                    <div class="list-sub">Tests: ${formatList(skill.tests)}</div>
+                    <div class="list-sub">Triggers: ${formatList(skill.triggerConditions)}</div>
+                  </div>
+                  <div class="list-meta">
+                    <span class="chip">${skill.state}</span>
+                    ${skill.workflowId ? html`<span>${skill.workflowId}</span>` : nothing}
+                  </div>
+                </div>
+              `,
+              )
+        }
+      </div>
+    </section>
+  `;
+}
+
+function renderApps(apps: SageOsAppList) {
+  return html`
+    <section class="card sageos-section">
+      <div class="card-title">App Candidates</div>
+      <div class="card-sub">${apps.length} app candidate(s).</div>
+      <div class="list sageos-list">
+        ${
+          apps.length === 0
+            ? html`
+                <div class="muted">No SageOS app candidates.</div>
+              `
+            : apps.map(
+                (app) => html`
+                <div class="list-item sageos-list-item">
+                  <div class="list-main">
+                    <div class="list-title">${app.name}</div>
+                    <div class="list-sub mono">${app.id}</div>
+                    <div class="list-sub">${app.purpose}</div>
+                    <div class="list-sub">Inputs: ${formatList(app.inputs)}</div>
+                    <div class="list-sub">Outputs: ${formatList(app.outputs)}</div>
+                    ${app.previewCommand ? html`<div class="list-sub mono">${app.previewCommand}</div>` : nothing}
+                  </div>
+                  <div class="list-meta">
+                    <span class="chip">${app.state}</span>
+                    <span>${app.targetSurface}</span>
+                    <span>${app.sensitivity}</span>
+                  </div>
+                </div>
+              `,
+              )
+        }
+      </div>
+    </section>
+  `;
+}
+
+function renderCodingReports(reports: SageOsCodingReportList) {
+  return html`
+    <section class="card sageos-section">
+      <div class="card-title">Coding Reports</div>
+      <div class="card-sub">${reports.length} coding report(s).</div>
+      <div class="list sageos-list">
+        ${
+          reports.length === 0
+            ? html`
+                <div class="muted">No SageOS coding reports.</div>
+              `
+            : reports.map(
+                (report) => html`
+                <div class="list-item sageos-list-item">
+                  <div class="list-main">
+                    <div class="list-title">${report.objective}</div>
+                    <div class="list-sub mono">${report.id}</div>
+                    <div class="list-sub">${report.repoPath}</div>
+                    <div class="list-sub">Diff: ${report.diff.stat}</div>
+                    <div class="list-sub">Tests: ${formatList(report.tests.map((test) => test.command))}</div>
+                    <div class="list-sub">Rollback: ${report.rollback}</div>
+                  </div>
+                  <div class="list-meta">
+                    <span class="chip">${report.outcome}</span>
+                    <span>${report.taskId}</span>
+                    <span>${report.runId}</span>
+                  </div>
+                </div>
+              `,
+              )
+        }
+      </div>
+    </section>
+  `;
+}
+
+function renderPolicyAndSources(policy: SageOsPolicyStatus, sources: SageOsSourceStatus) {
+  return html`
+    <section class="card sageos-section">
+      <div class="card-title">Policy & Sources</div>
+      <div class="card-sub">${policy.mode} mode with ${policy.defaultTier} default tier.</div>
+      <div class="list sageos-list">
+        <div class="list-item sageos-list-item">
+          <div class="list-main">
+            <div class="list-title">Approval gates</div>
+            <div class="list-sub">Required: ${formatList(policy.approvalsRequired)}</div>
+            <div class="list-sub">Enabled sources: ${formatList(sources.enabled)}</div>
+            <div class="list-sub">Disabled sources: ${formatList(sources.disabled)}</div>
+            <div class="list-sub">Failing sources: ${formatList(sources.failing)}</div>
+          </div>
+          <div class="list-meta">
+            <span class="chip">${policy.mode}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderAuditTrail(audit: SageOsAuditStatus) {
+  return html`
+    <section class="card sageos-section">
+      <div class="card-title">Audit Trail</div>
+      <div class="card-sub">${audit.recentEvents} recent event(s).</div>
+      <div class="list sageos-list">
+        <div class="list-item sageos-list-item">
+          <div class="list-main">
+            <div class="list-title">${audit.eventLogPath ?? "Event log unavailable"}</div>
+            <div class="list-sub">Recent events: ${audit.recentEvents}</div>
+          </div>
+          <div class="list-meta">
+            <span class="chip">audit</span>
+          </div>
+        </div>
+      </div>
+    </section>
   `;
 }
 
@@ -403,6 +699,26 @@ function formatPolicyScope(scope: SageOsPolicyScope): string {
     scope.risk ? `risk ${scope.risk}` : undefined,
   ].filter((part): part is string => Boolean(part));
   return `${scope.kind}: ${parts.length > 0 ? parts.join("; ") : "scoped"}`;
+}
+
+function formatList(values: string[]): string {
+  if (values.length === 0) {
+    return "none";
+  }
+  return values.join(", ");
+}
+
+function formatMemoryBackend(backend: SageOsMemoryStatus["backend"]): string {
+  switch (backend) {
+    case "sage-memory":
+      return "Sage Memory";
+    case "qmd":
+      return "QMD";
+    case "builtin":
+      return "Built-in";
+    case "unknown":
+      return "Unknown";
+  }
 }
 
 function renderCollaborations(collaborations: SageOsCollaborationEvent[]) {
