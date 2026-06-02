@@ -1,4 +1,4 @@
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -545,6 +545,22 @@ describe("SageOS gateway methods", () => {
   it("returns durable SageOS status", async () => {
     const store = createSageOsStateStore();
     const now = new Date().toISOString();
+    const sageOsStateDir = path.join(process.env.SAGE_STATE_DIR ?? "", "sageos");
+    const notificationBatchPath = path.join(sageOsStateDir, "notification-batch.json");
+    const notificationDigestPath = path.join(sageOsStateDir, "notification-digest.json");
+    mockLoadConfig.mockReturnValue({
+      sageos: {
+        memory: { replayQueues: true },
+        notifications: {
+          telegram: {
+            enabled: true,
+            target: "telegram:123",
+            digestSchedule: "* * * * *",
+            batchWindowMinutes: 15,
+          },
+        },
+      },
+    });
     await upsertSageOsTask(store, {
       id: "task_status",
       title: "Expose status",
@@ -556,6 +572,45 @@ describe("SageOS gateway methods", () => {
       createdAt: now,
       updatedAt: now,
     });
+    await mkdir(sageOsStateDir, { recursive: true });
+    await writeFile(
+      notificationBatchPath,
+      `${JSON.stringify(
+        {
+          version: 1,
+          entries: [
+            {
+              id: "batch_task_status",
+              kind: "task",
+              title: "SageOS: Task completed",
+              text: "SageOS: Task completed\nTask: task_status - Expose status",
+              target: "telegram:123",
+              redactedObservationCount: 0,
+              status: "pending",
+              createdAt: "2026-06-02T10:00:00.000Z",
+              updatedAt: "2026-06-02T10:00:00.000Z",
+              taskId: "task_status",
+            },
+          ],
+        },
+        null,
+        2,
+      )}\n`,
+      "utf8",
+    );
+    await writeFile(
+      notificationDigestPath,
+      `${JSON.stringify(
+        {
+          version: 1,
+          lastScheduledFor: "2026-06-02T09:59:00.000Z",
+        },
+        null,
+        2,
+      )}\n`,
+      "utf8",
+    );
+
     const { response } = await invoke("sageos.status");
     expect(response?.ok).toBe(true);
     expect(response?.payload).toMatchObject({
@@ -566,6 +621,27 @@ describe("SageOS gateway methods", () => {
         runs: { total: 0 },
         memory: { canonical: "sage-memory", captureQueue: { total: 0 } },
         learning: { activityQueue: { total: 0 } },
+        notifications: {
+          telegram: {
+            enabled: true,
+            target: "telegram:123",
+            digestSchedule: "* * * * *",
+            batchWindowMinutes: 15,
+          },
+          batch: {
+            path: notificationBatchPath,
+            pending: 1,
+            total: 1,
+            firstQueuedAt: "2026-06-02T10:00:00.000Z",
+            dueAt: "2026-06-02T10:15:00.000Z",
+          },
+          digest: {
+            path: notificationDigestPath,
+            schedule: "* * * * *",
+            lastScheduledFor: "2026-06-02T09:59:00.000Z",
+            nextDueAt: expect.any(String),
+          },
+        },
         audit: { eventLogPath: expect.stringContaining("events.jsonl") },
       },
       agents: [],

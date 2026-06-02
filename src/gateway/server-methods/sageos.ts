@@ -253,18 +253,22 @@ async function runEmployeeLifecycleGatewayAction(
     return;
   }
 
-  const status = await collectSageOsStatus();
+  const status = await collectGatewaySageOsStatus();
   await writeSageOsState(stateStore, status);
   const state = await readSageOsState(stateStore);
   context.broadcast("sageos", state, { dropIfSlow: true });
   respond(true, { result, state }, undefined);
 }
 
+async function collectGatewaySageOsStatus() {
+  return await collectSageOsStatus({ cfg: loadConfig().sageos });
+}
+
 export const sageOsHandlers: GatewayRequestHandlers = {
   "sageos.status": async ({ respond }) => {
     const stateStore = createSageOsStateStore();
     const state = await readSageOsState(stateStore);
-    const status = await collectSageOsStatus();
+    const status = await collectGatewaySageOsStatus();
     respond(true, { ...state, status }, undefined);
   },
   "sageos.agents.list": async ({ respond }) => {
@@ -317,7 +321,7 @@ export const sageOsHandlers: GatewayRequestHandlers = {
       summary: `Drafted SageOS employee ${employee.name}`,
       sensitivity: "normal",
     });
-    const status = await collectSageOsStatus();
+    const status = await collectGatewaySageOsStatus();
     await writeSageOsState(stateStore, status);
     const state = await readSageOsState(stateStore);
     context.broadcast("sageos", state, { dropIfSlow: true });
@@ -383,7 +387,7 @@ export const sageOsHandlers: GatewayRequestHandlers = {
       return;
     }
     const stateStore = createSageOsStateStore();
-    const status = await collectSageOsStatus();
+    const status = await collectGatewaySageOsStatus();
     await writeSageOsState(stateStore, status);
     const state = await readSageOsState(stateStore);
     context.broadcast("sageos", state, { dropIfSlow: true });
@@ -439,7 +443,7 @@ export const sageOsHandlers: GatewayRequestHandlers = {
       title,
       objective,
     });
-    const status = await collectSageOsStatus();
+    const status = await collectGatewaySageOsStatus();
     await writeSageOsState(stateStore, status);
     const state = await readSageOsState(stateStore);
     context.broadcast("sageos", state, { dropIfSlow: true });
@@ -471,7 +475,7 @@ export const sageOsHandlers: GatewayRequestHandlers = {
       taskId: stringParam(params, "taskId") || undefined,
       artifactRefs: stringArrayParam(params.artifactRefs),
     });
-    const status = await collectSageOsStatus();
+    const status = await collectGatewaySageOsStatus();
     await writeSageOsState(stateStore, status);
     const state = await readSageOsState(stateStore);
     context.broadcast("sageos", state, { dropIfSlow: true });
@@ -733,7 +737,7 @@ export const sageOsHandlers: GatewayRequestHandlers = {
     }
 
     const stateStore = createSageOsStateStore();
-    const status = await collectSageOsStatus();
+    const status = await collectGatewaySageOsStatus();
     await writeSageOsState(stateStore, status);
     const state = await readSageOsState(stateStore);
     context.broadcast("sageos", state, { dropIfSlow: true });
@@ -754,7 +758,7 @@ export const sageOsHandlers: GatewayRequestHandlers = {
         ? await observeAppFocusOnce({ cfg: { sources: { appFocus: true } } })
         : await observeSystemStatusOnce({ cfg: { sources: { system: true } } });
     const stateStore = createSageOsStateStore();
-    const status = await collectSageOsStatus();
+    const status = await collectGatewaySageOsStatus();
     await writeSageOsState(stateStore, status);
     const state = await readSageOsState(stateStore);
     context.broadcast("sageos", state, { dropIfSlow: true });
@@ -1030,7 +1034,7 @@ export const sageOsHandlers: GatewayRequestHandlers = {
       summary: `SageOS ${emergency ? "emergency stop" : controlState}: ${reason}`,
     });
 
-    const statusWithAudit = await collectSageOsStatus();
+    const statusWithAudit = await collectGatewaySageOsStatus();
     await writeSageOsState(stateStore, statusWithAudit);
     const state = await readSageOsState(stateStore);
     context.broadcast("sageos", state, { dropIfSlow: true });
