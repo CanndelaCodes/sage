@@ -2,9 +2,11 @@ import type {
   SageOsAgentSpec,
   SageOsApproval,
   SageOsApprovalRiskClass,
+  SageOsConfig,
   SageOsPolicyScope,
 } from "./types.js";
 import { appendSageOsEvent, createSageOsEventLog } from "./event-log.js";
+import { requiredSageOsApprovalRisk } from "./policy.js";
 import {
   createSageOsStateStore,
   readSageOsState,
@@ -53,8 +55,9 @@ export type SageOsEmployeeActivationResult =
 
 export function buildSageOsEmployeeActivationPreview(
   employee: SageOsAgentSpec,
+  cfg?: SageOsConfig,
 ): SageOsEmployeeActivationPreview {
-  const approvalRiskClasses = approvalRiskClassesForScopes(employee.allowedScopes);
+  const approvalRiskClasses = approvalRiskClassesForScopes(employee.allowedScopes, cfg);
   return {
     employeeId: employee.id,
     employeeName: employee.name,
@@ -82,6 +85,7 @@ export async function activateSageOsEmployee(params: {
   now?: () => Date;
   stateDir?: string;
   stateStore?: SageOsStateStore;
+  cfg?: SageOsConfig;
 }): Promise<SageOsEmployeeActivationResult> {
   const stateStore = params.stateStore ?? createSageOsStateStore({ stateDir: params.stateDir });
   const state = await readSageOsState(stateStore);
@@ -90,7 +94,7 @@ export async function activateSageOsEmployee(params: {
     return { outcome: "not_found", employeeId: params.employeeId, reason: "not_found" };
   }
 
-  const preview = buildSageOsEmployeeActivationPreview(employee);
+  const preview = buildSageOsEmployeeActivationPreview(employee, params.cfg);
   if (employee.status === "active") {
     return { outcome: "activated", employee, preview };
   }
@@ -179,43 +183,17 @@ async function requestEmployeeActivationApproval(params: {
   return approval;
 }
 
-function approvalRiskClassesForScopes(scopes: SageOsPolicyScope[]): SageOsApprovalRiskClass[] {
-  return [...new Set(scopes.filter(requiresApproval).map(scopeToRiskClass))];
-}
-
-function requiresApproval(scope: SageOsPolicyScope): boolean {
-  if (scope.risk === "high" || scope.risk === "critical") {
-    return true;
-  }
-  return (
-    scope.risk === "medium" &&
-    (scope.kind === "system" || scope.kind === "channel" || scope.kind === "network")
-  );
-}
-
-function scopeToRiskClass(scope: SageOsPolicyScope): SageOsApprovalRiskClass {
-  if (scope.kind === "system") {
-    return "windows_setting";
-  }
-  if (scope.kind === "channel") {
-    return "external_write";
-  }
-  if (scope.kind === "network") {
-    return "production";
-  }
-  if (scope.kind === "memory") {
-    return "private_data_export";
-  }
-  if (scope.kind === "file" || scope.kind === "repo") {
-    return "destructive";
-  }
-  if (
-    scope.kind === "tool" &&
-    [...(scope.allow ?? []), ...(scope.deny ?? [])].some(hasCredentialText)
-  ) {
-    return "credentials";
-  }
-  return "policy_change";
+function approvalRiskClassesForScopes(
+  scopes: SageOsPolicyScope[],
+  cfg: SageOsConfig | undefined,
+): SageOsApprovalRiskClass[] {
+  return [
+    ...new Set(
+      scopes
+        .map((scope) => requiredSageOsApprovalRisk([scope], cfg))
+        .filter((riskClass): riskClass is SageOsApprovalRiskClass => Boolean(riskClass)),
+    ),
+  ];
 }
 
 function toolsFromScopes(scopes: SageOsPolicyScope[]): string[] {
@@ -241,10 +219,6 @@ function risksFromScopes(employee: SageOsAgentSpec): string[] {
     .map((deny) => `Denied action: ${deny}`);
   const risks = [...scopedRisks, ...deniedRisks];
   return risks.length > 0 ? [...new Set(risks)] : ["scope drift without review"];
-}
-
-function hasCredentialText(value: string): boolean {
-  return /credential|secret|token|auth/i.test(value);
 }
 
 function approvalId(employeeId: string): string {

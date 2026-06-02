@@ -167,6 +167,59 @@ describe("SageOS employee activation", () => {
       employee: { id: "employee_windows_admin", status: "active" },
     });
   });
+
+  it("uses policy config to require approval before activating private memory export scopes", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-employee-private-export-"));
+    const store = createSageOsStateStore({ stateDir: root });
+    const now = new Date("2026-05-27T18:45:00.000Z");
+    const employee = employeeFixture({
+      id: "employee_memory_exporter",
+      name: "Memory Exporter",
+      role: "memory",
+      allowedScopes: [{ kind: "memory", allow: ["sage_memory_export"], risk: "low" }],
+      tools: ["sage-memory"],
+      memoryScopes: ["sage_memory_export"],
+      risks: ["private data may leave local review context"],
+    });
+    await upsertSageOsAgent(store, employee);
+
+    const preview = buildSageOsEmployeeActivationPreview(employee, {
+      policy: { requireApprovalForPrivateDataExport: true },
+    });
+    expect(preview).toMatchObject({
+      approvalRequired: true,
+      approvalRiskClasses: ["private_data_export"],
+    });
+
+    const blocked = await activateSageOsEmployee({
+      employeeId: "employee_memory_exporter",
+      stateDir: root,
+      stateStore: store,
+      requestedBy: "test",
+      cfg: { policy: { requireApprovalForPrivateDataExport: true } },
+      now: () => now,
+    });
+
+    expect(blocked).toMatchObject({
+      outcome: "approval_required",
+      employee: { id: "employee_memory_exporter", status: "draft" },
+      preview: {
+        approvalRequired: true,
+        approvalRiskClasses: ["private_data_export"],
+      },
+      approval: {
+        id: "approval_employee_employee_memory_exporter",
+        state: "pending",
+        riskClass: "private_data_export",
+        scope: "employee",
+        employeeId: "employee_memory_exporter",
+      },
+    });
+    await expect(readSageOsState(store)).resolves.toMatchObject({
+      agents: [{ id: "employee_memory_exporter", status: "draft" }],
+      approvals: [{ id: "approval_employee_employee_memory_exporter", state: "pending" }],
+    });
+  });
 });
 
 function employeeFixture(overrides: Partial<SageOsAgentSpec> = {}): SageOsAgentSpec {

@@ -350,7 +350,11 @@ export const sageOsHandlers: GatewayRequestHandlers = {
       );
       return;
     }
-    respond(true, { preview: buildSageOsEmployeeActivationPreview(employee) }, undefined);
+    respond(
+      true,
+      { preview: buildSageOsEmployeeActivationPreview(employee, loadConfig().sageos) },
+      undefined,
+    );
   },
   "sageos.agents.activate": async ({ params, respond, context }) => {
     const id = typeof params.id === "string" ? params.id.trim() : "";
@@ -366,6 +370,7 @@ export const sageOsHandlers: GatewayRequestHandlers = {
       employeeId: id,
       requestedBy: "sageos.gateway",
       reason: typeof params.reason === "string" ? params.reason : undefined,
+      cfg: loadConfig().sageos,
     });
     if (result.outcome === "not_found") {
       respond(

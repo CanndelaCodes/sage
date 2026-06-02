@@ -52,10 +52,10 @@ function riskClassForScope(scope: SageOsPolicyScope): SageOsApprovalRiskClass | 
     return "production";
   }
   if (scope.kind === "system") {
-    return "windows_setting";
+    return systemScopeChangesWindowsSettings(scope) ? "windows_setting" : undefined;
   }
   if (scope.kind === "memory") {
-    return "private_data_export";
+    return memoryScopeExportsPrivateData(scope) ? "private_data_export" : undefined;
   }
   if (scope.kind === "file" || scope.kind === "repo") {
     return "destructive";
@@ -79,4 +79,18 @@ function hasCredentialText(value: string): boolean {
 
 function hasPolicyText(value: string): boolean {
   return /policy|approval|guardrail|autonomy|permission|allowlist|denylist|safety/i.test(value);
+}
+
+function memoryScopeExportsPrivateData(scope: SageOsPolicyScope): boolean {
+  return [...(scope.allow ?? []), ...(scope.deny ?? [])].some((value) =>
+    /export|upload|external|private|share|send|publish|telegram|slack|discord/i.test(value),
+  );
+}
+
+function systemScopeChangesWindowsSettings(scope: SageOsPolicyScope): boolean {
+  return [...(scope.allow ?? []), ...(scope.deny ?? [])].some((value) =>
+    /admin|setting|registry|firewall|restart|install|uninstall|write|mutate|destructive|windows_system/i.test(
+      value,
+    ),
+  );
 }

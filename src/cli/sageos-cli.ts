@@ -713,7 +713,7 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
       if (!employee) {
         fail(`SageOS employee not found: ${id}`);
       }
-      const preview = buildSageOsEmployeeActivationPreview(employee);
+      const preview = buildSageOsEmployeeActivationPreview(employee, loadSageConfig().sageos);
       outputJsonOrText(cliOpts, { preview }, () => renderJsonResource({ preview }));
     });
 
@@ -728,6 +728,7 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
         employeeId: id,
         requestedBy: "sageos.cli",
         reason: cliOpts.reason,
+        cfg: loadSageConfig().sageos,
       });
       if (result.outcome === "not_found") {
         fail(`SageOS employee not found: ${id}`);

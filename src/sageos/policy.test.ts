@@ -58,4 +58,21 @@ describe("SageOS policy evaluation", () => {
       }),
     ).toBeUndefined();
   });
+
+  it("does not treat local memory queue maintenance as private data export", () => {
+    expect(
+      requiredSageOsApprovalRisk([{ kind: "memory", allow: ["capture_queue"], risk: "medium" }], {
+        policy: { requireApprovalForPrivateDataExport: true },
+      }),
+    ).toBeUndefined();
+  });
+
+  it("does not require approval for read-only system status scopes", () => {
+    expect(
+      requiredSageOsApprovalRisk(
+        [{ kind: "system", allow: ["security_status", "defender_status"], risk: "low" }],
+        {},
+      ),
+    ).toBeUndefined();
+  });
 });
