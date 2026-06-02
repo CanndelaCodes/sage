@@ -2,7 +2,7 @@
 
 Date: 2026-06-01
 Operator: Codex
-Build: Liquid Linear command glass visual polish slice after aa02911462
+Build: Windows overlay MVP shell verification after eeba2e551d
 
 ## Preconditions
 
@@ -52,8 +52,10 @@ Build: Liquid Linear command glass visual polish slice after aa02911462
 - Text-heavy backdrop edge rail screenshot path: `apps/windows-overlay/dist/overlay-smoke-edge-text-heavy.png`
 - HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud.png`
 - IDE-like backdrop HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud-ide.png`
-- Notes: Automated overlay package test, typecheck, build, `pnpm tsgo`, `pnpm lint`, and
-  `git diff --check` passed on 2026-06-01 during the visual/layout pass. The visual contract
+- Notes: Automated overlay package test, focused config/state tests, overlay typecheck, overlay build,
+  root `pnpm tsgo`, root `pnpm build`, exact `pnpm oxfmt --check` plan targets, and
+  `git diff --check` passed on 2026-06-01 during the final overlay MVP verification pass.
+  The visual contract
   now enforces the Liquid Linear command glass token layer, refraction/specular surface overlays,
   forced-colors fallback, focus states, reduced-motion handling,
   edge anchoring classes, state classes, text overflow guards, and full-overlay pinned widget flow.
