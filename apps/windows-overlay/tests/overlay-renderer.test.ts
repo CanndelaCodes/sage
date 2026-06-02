@@ -356,6 +356,8 @@ describe("overlay renderer model", () => {
     ]);
     expect(model.commandDeck.systemResources.map((resource) => resource.title)).toEqual([
       "Supervisor",
+      "Security",
+      "PC Management",
       "Memory",
       "Learning",
       "Sources",
@@ -462,6 +464,12 @@ describe("overlay renderer model", () => {
     });
     const collaborationModel = renderOverlayModel(state as never, {
       workspaceTarget: { kind: "collaboration", id: "collab_1" },
+    });
+    const securityModel = renderOverlayModel(state as never, {
+      workspaceTarget: { kind: "system", id: "security" },
+    });
+    const pcManagementModel = renderOverlayModel(state as never, {
+      workspaceTarget: { kind: "system", id: "pc-management" },
     });
     const memoryModel = renderOverlayModel(state as never, {
       workspaceTarget: { kind: "system", id: "memory" },
@@ -600,6 +608,28 @@ describe("overlay renderer model", () => {
       title: "Review memory queue",
       eyebrow: "Collaboration / handoff",
     });
+    expect(securityModel.workspace).toMatchObject({
+      title: "Security",
+      eyebrow: "System / degraded",
+    });
+    expect(securityModel.workspace.facts).toEqual(
+      expect.arrayContaining([
+        { label: "Urgent incidents", value: "0" },
+        { label: "Warning incidents", value: "1" },
+        { label: "Failing sources", value: "screen" },
+      ]),
+    );
+    expect(pcManagementModel.workspace).toMatchObject({
+      title: "PC Management",
+      eyebrow: "System / observing",
+    });
+    expect(pcManagementModel.workspace.facts).toEqual(
+      expect.arrayContaining([
+        { label: "Enabled sources", value: "apps, clipboard" },
+        { label: "Recent observations", value: "4" },
+        { label: "Redacted observations", value: "2" },
+      ]),
+    );
     expect(memoryModel.workspace).toMatchObject({
       title: "Memory",
       eyebrow: "System / degraded",

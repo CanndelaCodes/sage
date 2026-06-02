@@ -1380,6 +1380,18 @@ function countUrgentIncidents(status: SageOsOverlayStatusState["status"]): numbe
   ).length;
 }
 
+function countWarningIncidents(status: SageOsOverlayStatusState["status"]): number {
+  return status.incidents.filter((incident) => incident.severity === "warning").length;
+}
+
+function securitySystemState(status: SageOsOverlayStatusState["status"]): "degraded" | "ok" {
+  return countUrgentIncidents(status) > 0 ||
+    countWarningIncidents(status) > 0 ||
+    status.sources.failing.length > 0
+    ? "degraded"
+    : "ok";
+}
+
 function buildResourceRows(state: SageOsOverlayStatusState): OverlayResourceRow[] {
   return [
     ...(state.agents ?? []).map((agent) => ({
@@ -1443,6 +1455,18 @@ function buildSystemResourceRows(
       title: "Supervisor",
       detail: status.supervisor.paused ? "Paused" : "Running",
       state: status.supervisor.state,
+    },
+    {
+      id: "security",
+      title: "Security",
+      detail: `${countUrgentIncidents(status)} urgent / ${countWarningIncidents(status)} warning / ${status.sources.failing.length} failing source`,
+      state: securitySystemState(status),
+    },
+    {
+      id: "pc-management",
+      title: "PC Management",
+      detail: `${status.observations.recent} recent observations / ${status.sources.enabled.length} enabled source`,
+      state: "observing",
     },
     {
       id: "memory",
@@ -1893,6 +1917,42 @@ function systemWorkspaceModel(
         { label: "Queue total", value: String(status.memory.captureQueue.total) },
         { label: "Queue path", value: status.memory.captureQueue.path ?? "Unknown" },
         { label: "Doctor", value: status.memory.doctor?.ok === false ? "Needs review" : "OK" },
+      ],
+      actions: [],
+    };
+  }
+
+  if (id === "security") {
+    return {
+      title: "Security",
+      eyebrow: `System / ${securitySystemState(status)}`,
+      detail: "Security posture from urgent incidents, warning incidents, and failing PC sources.",
+      facts: [
+        { label: "Urgent incidents", value: String(countUrgentIncidents(status)) },
+        { label: "Warning incidents", value: String(countWarningIncidents(status)) },
+        { label: "Failing sources", value: status.sources.failing.join(", ") || "None" },
+        { label: "Incident total", value: String(status.incidents.length) },
+        {
+          label: "Approval gates",
+          value: status.policy.approvalsRequired.join(", ") || "No extra approvals",
+        },
+      ],
+      actions: [],
+    };
+  }
+
+  if (id === "pc-management") {
+    return {
+      title: "PC Management",
+      eyebrow: "System / observing",
+      detail: "Read-only full-PC observation coverage for apps, sources, and local system state.",
+      facts: [
+        { label: "Enabled sources", value: status.sources.enabled.join(", ") || "None" },
+        { label: "Disabled sources", value: status.sources.disabled.join(", ") || "None" },
+        { label: "Failing sources", value: status.sources.failing.join(", ") || "None" },
+        { label: "Recent observations", value: String(status.observations.recent) },
+        { label: "Redacted observations", value: String(status.observations.redacted) },
+        { label: "Observation total", value: String(status.observations.total) },
       ],
       actions: [],
     };

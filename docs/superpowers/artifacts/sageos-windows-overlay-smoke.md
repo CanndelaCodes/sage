@@ -2,7 +2,7 @@
 
 Date: 2026-06-02
 Operator: Codex
-Build: Windows overlay MVP shell verification after SageOS policy hardening sweep
+Build: Windows overlay MVP shell verification after Security and PC Management resource pass
 
 ## Preconditions
 
@@ -41,6 +41,7 @@ Build: Windows overlay MVP shell verification after SageOS policy hardening swee
 - [x] Liquid Linear material tokens cover ambient, command, focus, and summit glass elevations.
 - [x] Liquid Linear command glass tokens cover refraction, specular highlights, platinum tint, command/focus/control shadows, runway highlights, and spring motion.
 - [x] Command Deck opens on active run telemetry when a live run exists, including worker session, current tool, budget used, verification, timeline, logs, and artifacts.
+- [x] Command Deck exposes first-class Security and PC Management system resources with Agent Workspace drill-downs.
 - [x] Automated smoke captures the overlay over bright, text-heavy, and IDE-like visual backdrops.
 - [x] Edge Rail collapse keeps health, approval, and incident indicators visible.
 - [x] Edge Rail health, approval, and incident badges carry drill-down targets and expand to the relevant workspace.
@@ -58,7 +59,7 @@ Build: Windows overlay MVP shell verification after SageOS policy hardening swee
 - HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud.png`
 - IDE-like backdrop HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud-ide.png`
 - Current verification update: `pnpm --dir apps/windows-overlay smoke:electron` passed on
-  2026-06-02 after the SageOS policy hardening sweep. The packaged overlay reported `ok: true`,
+  2026-06-02 after the Security and PC Management resource pass. The packaged overlay reported `ok: true`,
   `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, no renderer page errors,
   four `sageos.control` calls for pause, resume, stop, and emergency stop, verified the
   availability-aware Voice entry state, and refreshed the full, bright, edge-left, text-heavy edge,
@@ -75,7 +76,7 @@ src/telegram/bot.test.ts` passed with 28 files
 - Current gateway SageOS method gate after the latest policy hardening sweep:
   `pnpm exec vitest run --config vitest.config.ts src/gateway/server-methods/sageos.test.ts`
   passed with 1 file and 35 tests.
-- Current static gates after the latest policy hardening sweep: `pnpm exec tsgo --noEmit` passed,
+- Current static gates after the latest overlay resource pass: `pnpm exec tsgo --noEmit` passed,
   and `pnpm exec oxlint --type-aware` passed with 0 warnings and 0 errors.
 - Notes: Automated overlay package test, focused config/state tests, overlay typecheck, overlay build,
   root `pnpm tsgo`, root `pnpm build`, exact `pnpm oxfmt --check` plan targets, and
@@ -116,7 +117,7 @@ src/telegram/bot.test.ts` passed with 28 files
   Electron reports hotkey registration failure, and active-monitor selection honors `primary` plus
   configured display IDs. Unit coverage also verifies explicit connected/loading/reconnecting/error
   state labels, stale-state callouts, gateway-backed control disabled reasons, Edge Rail drill-down
-  targets, and Universal Launcher disabled reasons for gateway and empty-command states. The smoke
+  targets, explicit Security and PC Management system resources, and Universal Launcher disabled reasons for gateway and empty-command states. The smoke
   now presses `Ctrl+K`, verifies launcher focus, presses
   `Escape`, and waits for the Electron BrowserWindow to hide through the close bridge. The smoke
   emitted Electron's development CSP warning only; no renderer page errors were observed.
