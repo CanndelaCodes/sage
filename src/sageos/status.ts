@@ -9,6 +9,7 @@ import {
   listSageMemoryCaptureQueue,
   resolveSageMemoryCaptureQueuePath,
 } from "../memory/sage-memory-capture-queue.js";
+import { describeSageOsBudgetViolations } from "./budget.js";
 import {
   createSageOsEventLog,
   readSageOsEvents,
@@ -119,6 +120,10 @@ export async function collectSageOsStatus(
     ...workerFailureIncidents({
       runs: state.runs,
     }),
+    ...budgetIncidents({
+      tasks: state.tasks,
+      runs: state.runs,
+    }),
   ];
 
   const snapshot = createSageOsStatusSnapshot({
@@ -166,6 +171,7 @@ const GENERATED_INCIDENT_IDS = new Set([
   "incident_memory_doctor_failed",
   "incident_notification_failed",
   "incident_worker_failed",
+  "incident_budget_exhausted",
 ]);
 
 function isGeneratedIncidentId(id: string): boolean {
@@ -475,6 +481,44 @@ function workerFailureIncidents(params: { runs: SageOsRun[] }): SageOsIncident[]
         label: "Inspect failed runs",
         command: "sage os status --json",
         gatewayMethod: "sageos.runs.list",
+        risk: "low",
+        approvalRequired: false,
+      },
+    },
+  ];
+}
+
+function budgetIncidents(params: { tasks: SageOsTaskSpec[]; runs: SageOsRun[] }): SageOsIncident[] {
+  const tasksById = new Map(params.tasks.map((task) => [task.id, task]));
+  const exhausted = params.runs
+    .map((run) => {
+      const task = tasksById.get(run.taskId);
+      const violations = describeSageOsBudgetViolations(task?.budget, run.budgetUsed);
+      return task && violations.length > 0 ? { run, task, violations } : undefined;
+    })
+    .filter((entry): entry is { run: SageOsRun; task: SageOsTaskSpec; violations: string[] } =>
+      Boolean(entry),
+    );
+  const latest = exhausted.toSorted((a, b) => runSortTime(b.run) - runSortTime(a.run))[0];
+  if (!latest) {
+    return [];
+  }
+  const first = exhausted.toSorted((a, b) => runSortTime(a.run) - runSortTime(b.run))[0] ?? latest;
+  return [
+    {
+      id: "incident_budget_exhausted",
+      severity: "warning",
+      category: "budget",
+      title: "SageOS task budget exhausted",
+      summary: `${exhausted.length} SageOS run${exhausted.length === 1 ? "" : "s"} exceeded delegated budget. Latest: ${latest.run.id} for task ${latest.task.id} (${latest.violations.join(", ")}).`,
+      firstSeenAt: first.run.finishedAt ?? first.run.startedAt ?? new Date(0).toISOString(),
+      lastSeenAt: latest.run.finishedAt ?? latest.run.startedAt ?? new Date(0).toISOString(),
+      autoRepairSafe: true,
+      repairAction: {
+        id: "repair_budget_tasks_review",
+        label: "Inspect budgeted tasks",
+        command: "sage os tasks --json",
+        gatewayMethod: "sageos.tasks.list",
         risk: "low",
         approvalRequired: false,
       },

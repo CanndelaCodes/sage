@@ -194,6 +194,35 @@ describe("SageOS overlay actions", () => {
     expect(result).toBe(refreshed);
   });
 
+  it("runs budget incident task inspection repairs and refreshes overlay state", async () => {
+    const refreshed = { status: { incidents: [] } };
+    const request = vi.fn().mockResolvedValueOnce({ tasks: [] }).mockResolvedValueOnce(refreshed);
+    const state = {
+      status: {
+        incidents: [
+          {
+            id: "incident_budget_exhausted",
+            autoRepairSafe: true,
+            repairAction: {
+              gatewayMethod: "sageos.tasks.list",
+              approvalRequired: false,
+            },
+          },
+        ],
+      },
+    };
+
+    const result = await runSageOsIncidentRepair(
+      { request },
+      state as never,
+      "incident_budget_exhausted",
+    );
+
+    expect(request).toHaveBeenNthCalledWith(1, "sageos.tasks.list", {});
+    expect(request).toHaveBeenNthCalledWith(2, "sageos.status", {});
+    expect(result).toBe(refreshed);
+  });
+
   it("rejects incident repair methods that are not safe for the overlay", async () => {
     const request = vi.fn();
     const state = {

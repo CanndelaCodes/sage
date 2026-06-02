@@ -7,6 +7,7 @@ import type {
   SageOsStatusSnapshot,
   SageOsTaskSpec,
 } from "./types.js";
+import { describeSageOsBudgetViolations } from "./budget.js";
 import { runSageOsNightShiftTask } from "./coding/night-shift.js";
 import { appendSageOsEvent, createSageOsEventLog } from "./event-log.js";
 import {
@@ -148,12 +149,42 @@ export async function runNextSageOsTaskOnce(
       stateDir: params.stateDir,
     });
     const finishedAt = (params.now?.() ?? new Date()).toISOString();
+    const budgetUsed = executorBudgetUsage(run, finishedAt, execution);
+    const budgetViolations = describeSageOsBudgetViolations(runningTask.budget, budgetUsed);
+    if (budgetViolations.length > 0) {
+      const error = `Task budget exceeded: ${budgetViolations.join(", ")}`;
+      const failedTask: SageOsTaskSpec = { ...runningTask, state: "failed", updatedAt: finishedAt };
+      const failedRun = failRun(
+        run,
+        runningTask,
+        finishedAt,
+        error,
+        budgetUsed,
+        budgetViolations.some((violation) => violation.startsWith("elapsed minutes"))
+          ? "timed_out"
+          : "failed",
+      );
+      await upsertSageOsTask(store, failedTask);
+      await upsertSageOsRun(store, failedRun);
+      await appendSageOsEvent(createSageOsEventLog({ stateDir: params.stateDir }), {
+        type: "task_budget_exhausted",
+        actor: requestedBy,
+        summary: `SageOS task ${task.id} exceeded budget: ${budgetViolations.join(", ")}`,
+        taskId: task.id,
+        runId: run.id,
+        traceId: run.traceId,
+      });
+      await maybeSendTaskNotification(params, failedTask, failedRun);
+      const status = await collectSageOsStatus({ stateDir: params.stateDir, cfg: params.cfg });
+      await writeSageOsState(store, status);
+      return { outcome: "failed", task: failedTask, run: failedRun, status };
+    }
     const completedTask: SageOsTaskSpec = {
       ...runningTask,
       state: "completed",
       updatedAt: finishedAt,
     };
-    const completedRun = completeRun(run, runningTask, finishedAt, execution);
+    const completedRun = completeRun(run, runningTask, finishedAt, execution, budgetUsed);
     await upsertSageOsTask(store, completedTask);
     await upsertSageOsRun(store, completedRun);
     await appendSageOsEvent(createSageOsEventLog({ stateDir: params.stateDir }), {
@@ -226,6 +257,7 @@ function completeRun(
   task: SageOsTaskSpec,
   finishedAt: string,
   execution: SageOsTaskExecutorResult | void,
+  budgetUsed = executorBudgetUsage(run, finishedAt, execution),
 ): SageOsRun {
   const summary = execution?.summary?.trim() || "dry run completed";
   return {
@@ -239,11 +271,7 @@ function completeRun(
       `Completed SageOS task ${task.id}: ${summary}`,
     ],
     artifacts: uniqueStrings(execution?.artifacts ?? task.evidenceRefs ?? []),
-    budgetUsed: runBudgetUsage(run, finishedAt, {
-      ...execution?.budgetUsed,
-      toolCalls: execution?.budgetUsed?.toolCalls ?? execution?.toolCalls ?? 1,
-      costUsd: execution?.budgetUsed?.costUsd ?? execution?.costUsd,
-    }),
+    budgetUsed,
     timeline: [
       ...(run.timeline ?? []),
       ...(execution?.timeline ?? []),
@@ -269,11 +297,12 @@ function failRun(
   task: SageOsTaskSpec,
   finishedAt: string,
   error: string,
-  usage: Pick<SageOsRunBudgetUsage, "toolCalls" | "costUsd"> = { toolCalls: 1 },
+  usage: SageOsRunBudgetUsage = { toolCalls: 1 },
+  state: SageOsRun["state"] = "failed",
 ): SageOsRun {
   return {
     ...run,
-    state: "failed",
+    state,
     finishedAt,
     error,
     currentToolCall: undefined,
@@ -340,7 +369,7 @@ async function maybeSendCompletionNotification(
   });
 }
 
-async function dryRunExecutor(ctx: { task: SageOsTaskSpec }): Promise<{ summary: string }> {
+async function dryRunExecutor(ctx: { task: SageOsTaskSpec }): Promise<SageOsTaskExecutorResult> {
   return { summary: `dry-run executor accepted ${ctx.task.id}` };
 }
 
@@ -358,13 +387,31 @@ function uniqueStrings(values: string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
 
+function executorBudgetUsage(
+  run: SageOsRun,
+  finishedAt: string,
+  execution: SageOsTaskExecutorResult | void,
+): SageOsRunBudgetUsage {
+  const usage: SageOsRunBudgetUsage = {};
+  const elapsedMinutes = execution?.budgetUsed?.elapsedMinutes;
+  if (elapsedMinutes !== undefined) {
+    usage.elapsedMinutes = elapsedMinutes;
+  }
+  usage.toolCalls = execution?.budgetUsed?.toolCalls ?? execution?.toolCalls ?? 1;
+  const costUsd = execution?.budgetUsed?.costUsd ?? execution?.costUsd;
+  if (costUsd !== undefined) {
+    usage.costUsd = costUsd;
+  }
+  return runBudgetUsage(run, finishedAt, usage);
+}
+
 function runBudgetUsage(
   run: SageOsRun,
   finishedAt: string,
-  usage: Pick<SageOsRunBudgetUsage, "toolCalls" | "costUsd"> = {},
+  usage: SageOsRunBudgetUsage = {},
 ): SageOsRunBudgetUsage {
   return {
-    elapsedMinutes: elapsedMinutes(run.startedAt, finishedAt),
+    elapsedMinutes: usage.elapsedMinutes ?? elapsedMinutes(run.startedAt, finishedAt),
     toolCalls: usage.toolCalls ?? run.budgetUsed?.toolCalls ?? 0,
     ...(usage.costUsd !== undefined ? { costUsd: usage.costUsd } : {}),
   };

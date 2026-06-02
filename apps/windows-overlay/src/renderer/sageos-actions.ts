@@ -35,6 +35,7 @@ const safeIncidentRepairMethods = new Set([
   "sageos.observations.list",
   "sageos.notifications.digest",
   "sageos.runs.list",
+  "sageos.tasks.list",
 ]);
 
 export function loadSageOsOverlayStatus(client: OverlayGatewayClient) {

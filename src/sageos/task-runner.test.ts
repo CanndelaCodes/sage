@@ -5,6 +5,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
 import { createSageOsStateStore, readSageOsState, upsertSageOsTask } from "./state-store.js";
+import { collectSageOsStatus } from "./status.js";
 import { runNextSageOsTaskOnce } from "./task-runner.js";
 
 const execFileAsync = promisify(execFile);
@@ -397,6 +398,68 @@ describe("SageOS task runner", () => {
     const log = await readFile(path.join(root, "sageos", "events.jsonl"), "utf8");
     expect(log).toContain("task_failed");
     expect(log).toContain("executor failed");
+  });
+
+  it("fails over-budget executor runs and surfaces a budget incident", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-task-runner-budget-"));
+    const store = createSageOsStateStore({ stateDir: root });
+    const now = "2026-06-02T05:20:00.000Z";
+    await upsertSageOsTask(store, {
+      id: "task_budget",
+      title: "Respect task budget",
+      objective: "Do not mark work successful after exceeding delegated budget.",
+      state: "queued",
+      requestedBy: "sageos.cli",
+      autonomyTier: "execute_scoped",
+      policyScopes: [],
+      budget: { maxToolCalls: 1, maxMinutes: 10, maxCostUsd: 0.05 },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const result = await runNextSageOsTaskOnce({
+      stateDir: root,
+      requestedBy: "sageos.test",
+      executor: async () => ({
+        summary: "executor used too much budget",
+        budgetUsed: { elapsedMinutes: 2, toolCalls: 3, costUsd: 0.08 },
+      }),
+      now: () => new Date(now),
+    });
+
+    expect(result).toMatchObject({
+      outcome: "failed",
+      task: { id: "task_budget", state: "failed" },
+      run: {
+        id: "run_task_budget_1",
+        state: "failed",
+        error: "Task budget exceeded: tool calls 3/1, cost USD 0.08/0.05",
+        budgetUsed: { elapsedMinutes: 2, toolCalls: 3, costUsd: 0.08 },
+        verificationResult: {
+          outcome: "failed",
+          summary: "Task budget exceeded: tool calls 3/1, cost USD 0.08/0.05",
+        },
+      },
+    });
+    expect(result.status.incidents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "incident_budget_exhausted",
+          category: "budget",
+          repairAction: expect.objectContaining({
+            command: "sage os tasks --json",
+            gatewayMethod: "sageos.tasks.list",
+          }),
+        }),
+      ]),
+    );
+
+    const refreshed = await collectSageOsStatus({ stateDir: root });
+    expect(
+      refreshed.incidents.filter((incident) => incident.id === "incident_budget_exhausted"),
+    ).toHaveLength(1);
+    const log = await readFile(path.join(root, "sageos", "events.jsonl"), "utf8");
+    expect(log).toContain("task_budget_exhausted");
   });
 
   it("optionally sends a task notification after a completed run", async () => {
