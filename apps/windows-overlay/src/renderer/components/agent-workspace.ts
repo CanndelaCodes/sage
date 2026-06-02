@@ -8,6 +8,7 @@ export type AgentWorkspaceTarget = {
     | "approval"
     | "incident"
     | "codingReport"
+    | "repo"
     | "workflow"
     | "skill"
     | "app"

@@ -385,6 +385,7 @@ describe("overlay renderer model", () => {
     expect(model.commandDeck.resources.map((resource) => resource.title)).toEqual([
       "Memory Steward",
       "run_task_1",
+      "Repo: sage",
       "Review repeated Code focus",
       "Skill: Review repeated Code focus",
       "Code Focus Widget",
@@ -469,6 +470,9 @@ describe("overlay renderer model", () => {
     });
     const codingReportModel = renderOverlayModel(state as never, {
       workspaceTarget: { kind: "codingReport", id: "coding_report_task_1" },
+    });
+    const repoModel = renderOverlayModel(state as never, {
+      workspaceTarget: { kind: "repo", id: "C:/Users/jason/Desktop/sage" },
     });
     const employeeModel = renderOverlayModel(state as never, {
       workspaceTarget: { kind: "employee", id: "employee_memory" },
@@ -619,6 +623,24 @@ describe("overlay renderer model", () => {
       label: "Tests",
       value: "node test.js: 0",
     });
+    expect(repoModel.workspace).toMatchObject({
+      title: "Repo: sage",
+      eyebrow: "Repo / allowed",
+    });
+    expect(repoModel.workspace.facts).toEqual(
+      expect.arrayContaining([
+        { label: "Path", value: "C:/Users/jason/Desktop/sage" },
+        { label: "Allowed", value: "true" },
+        { label: "Restrictions", value: "no destructive git" },
+        { label: "Reports", value: "1" },
+        { label: "Running workers", value: "worker_task_1_1" },
+        { label: "Latest report", value: "Summarize coding work (succeeded)" },
+        { label: "Changed files", value: "README.md" },
+        { label: "Tests", value: "node test.js: 0" },
+        { label: "Blockers", value: "None" },
+        { label: "Rollback", value: "Revert README.md changes." },
+      ]),
+    );
     expect(employeeModel.workspace).toMatchObject({
       title: "Memory Steward",
       eyebrow: "Employee / active",

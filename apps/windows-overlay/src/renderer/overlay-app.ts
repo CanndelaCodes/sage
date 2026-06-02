@@ -129,6 +129,7 @@ export type OverlayCodingReportRow = {
 export type OverlayResourceKind =
   | "employee"
   | "run"
+  | "repo"
   | "workflow"
   | "skill"
   | "app"
@@ -1490,6 +1491,7 @@ function buildResourceRows(state: SageOsOverlayStatusState): OverlayResourceRow[
       detail: `${run.taskId} / attempt ${run.attempt}`,
       state: run.state,
     })),
+    ...buildRepoResourceRows(state),
     ...(state.workflows ?? []).map((workflow) => ({
       id: workflow.id,
       kind: "workflow" as const,
@@ -1859,6 +1861,34 @@ function buildWorkspaceModel(
     };
   }
 
+  if (target.kind === "repo") {
+    const repo = repoWorkspaceSummaryByPath(state, target.id);
+    if (!repo) {
+      return missingWorkspaceTarget(target);
+    }
+    return {
+      title: repoTitle(repo.path),
+      eyebrow: `Repo / ${repo.allowed ? "allowed" : "reported"}`,
+      detail: repo.path,
+      facts: [
+        { label: "Path", value: repo.path },
+        { label: "Allowed", value: String(repo.allowed) },
+        { label: "Restrictions", value: formatList(state.status.coding.restrictions) },
+        { label: "Reports", value: String(repo.reports.length) },
+        { label: "Running workers", value: repoRunningWorkerSummary(state, repo) },
+        { label: "Latest report", value: latestCodingReportSummary(repo.latestReport) },
+        { label: "Changed files", value: formatList(repoChangedFiles(repo)) },
+        {
+          label: "Tests",
+          value: formatCodingReportTests(repo.latestReport?.tests ?? []) || "None",
+        },
+        { label: "Blockers", value: formatList(repoBlockers(repo)) },
+        { label: "Rollback", value: repo.latestReport?.rollback ?? "None" },
+      ],
+      actions: [],
+    };
+  }
+
   if (target.kind === "workflow") {
     const workflow = state.workflows?.find((entry) => entry.id === target.id);
     if (!workflow) {
@@ -2081,6 +2111,13 @@ type FilesWorkspaceSummary = {
   deleteApprovalCount: number;
 };
 
+type RepoWorkspaceSummary = {
+  path: string;
+  allowed: boolean;
+  reports: OverlayCodingReportRecord[];
+  latestReport?: OverlayCodingReportRecord;
+};
+
 function fileWorkspaceSummary(state: SageOsOverlayStatusState): FilesWorkspaceSummary {
   const changedFiles = uniqueStrings(
     (state.codingReports ?? []).flatMap((report) => report.diff?.changedFiles ?? []),
@@ -2130,6 +2167,89 @@ function fileWorkspaceSummary(state: SageOsOverlayStatusState): FilesWorkspaceSu
     cleanupPlanCount: cleanupTasks.length,
     deleteApprovalCount: deleteApprovals.length,
   };
+}
+
+function buildRepoResourceRows(state: SageOsOverlayStatusState): OverlayResourceRow[] {
+  return repoWorkspaceSummaries(state).map((repo) => ({
+    id: repo.path,
+    kind: "repo" as const,
+    title: repoTitle(repo.path),
+    detail: repoResourceDetail(repo),
+    state: repo.allowed ? "allowed" : "reported",
+  }));
+}
+
+function repoWorkspaceSummaryByPath(
+  state: SageOsOverlayStatusState,
+  repoPath: string,
+): RepoWorkspaceSummary | undefined {
+  const targetKey = normalizeRepoPath(repoPath);
+  return repoWorkspaceSummaries(state).find((repo) => normalizeRepoPath(repo.path) === targetKey);
+}
+
+function repoWorkspaceSummaries(state: SageOsOverlayStatusState): RepoWorkspaceSummary[] {
+  const allowedRepos = state.status.coding.allowedRepos;
+  const reports = state.codingReports ?? [];
+  const pathsByKey = new Map<string, string>();
+  for (const path of [...allowedRepos, ...reports.map((report) => report.repoPath)]) {
+    const key = normalizeRepoPath(path);
+    if (key && !pathsByKey.has(key)) {
+      pathsByKey.set(key, path);
+    }
+  }
+  return [...pathsByKey.entries()].map(([key, path]) => {
+    const repoReports = reports.filter((report) => normalizeRepoPath(report.repoPath) === key);
+    return {
+      path,
+      allowed: allowedRepos.some((allowed) => normalizeRepoPath(allowed) === key),
+      reports: repoReports,
+      latestReport: latestByTimestamp(
+        repoReports,
+        (report) => report.updatedAt ?? report.finishedAt ?? report.startedAt ?? report.createdAt,
+      ),
+    };
+  });
+}
+
+function normalizeRepoPath(path: string): string {
+  return path.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+}
+
+function repoTitle(path: string): string {
+  const normalized = path.replace(/\\/g, "/").replace(/\/+$/, "");
+  const name = normalized.split("/").filter(Boolean).at(-1) ?? normalized;
+  return `Repo: ${name}`;
+}
+
+function repoResourceDetail(repo: RepoWorkspaceSummary): string {
+  return [
+    repo.path,
+    `${repo.reports.length} report${repo.reports.length === 1 ? "" : "s"}`,
+    `${repoChangedFiles(repo).length} changed`,
+    `${repoBlockers(repo).length} blocker${repoBlockers(repo).length === 1 ? "" : "s"}`,
+  ].join(" / ");
+}
+
+function repoChangedFiles(repo: RepoWorkspaceSummary): string[] {
+  return uniqueStrings(repo.reports.flatMap((report) => report.diff?.changedFiles ?? []));
+}
+
+function repoBlockers(repo: RepoWorkspaceSummary): string[] {
+  return uniqueStrings(repo.reports.flatMap((report) => report.blockers ?? []));
+}
+
+function repoRunningWorkerSummary(
+  state: SageOsOverlayStatusState,
+  repo: RepoWorkspaceSummary,
+): string {
+  const taskIds = new Set(repo.reports.map((report) => report.taskId));
+  const workers = uniqueStrings(
+    (state.runs ?? [])
+      .filter((run) => taskIds.has(run.taskId))
+      .filter((run) => run.state === "running" || run.state === "queued")
+      .map((run) => run.workerSessionId ?? run.id),
+  );
+  return formatList(workers);
 }
 
 function uniqueStrings(values: string[]): string[] {
