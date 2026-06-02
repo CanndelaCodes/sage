@@ -37,6 +37,7 @@ const {
   mockSendApprovalNotificationOnce,
   mockSendIncidentNotificationOnce,
   mockSendCompletionNotificationOnce,
+  mockFlushNotificationBatchOnce,
   mockDiscoverWorkflowCandidates,
   mockDraftSkillFromWorkflow,
   mockDiscoverAppCandidates,
@@ -54,6 +55,7 @@ const {
   mockSendApprovalNotificationOnce: vi.fn(),
   mockSendIncidentNotificationOnce: vi.fn(),
   mockSendCompletionNotificationOnce: vi.fn(),
+  mockFlushNotificationBatchOnce: vi.fn(),
   mockDiscoverWorkflowCandidates: vi.fn(),
   mockDraftSkillFromWorkflow: vi.fn(),
   mockDiscoverAppCandidates: vi.fn(),
@@ -84,6 +86,7 @@ vi.mock("../../sageos/notifications.js", () => ({
   sendSageOsApprovalNotificationOnce: mockSendApprovalNotificationOnce,
   sendSageOsIncidentNotificationOnce: mockSendIncidentNotificationOnce,
   sendSageOsCompletionNotificationOnce: mockSendCompletionNotificationOnce,
+  flushSageOsTelegramNotificationBatchOnce: mockFlushNotificationBatchOnce,
 }));
 vi.mock("../../sageos/workflow-compiler.js", () => ({
   discoverSageOsWorkflowCandidates: mockDiscoverWorkflowCandidates,
@@ -193,6 +196,7 @@ describe("SageOS gateway methods", () => {
     expect(listGatewayMethods()).toContain("sageos.notifications.approval");
     expect(listGatewayMethods()).toContain("sageos.notifications.incident");
     expect(listGatewayMethods()).toContain("sageos.notifications.completion");
+    expect(listGatewayMethods()).toContain("sageos.notifications.flush");
     expect(listGatewayMethods()).toContain("sageos.control");
     expect(GATEWAY_EVENTS).toContain("sageos");
   });
@@ -242,6 +246,7 @@ describe("SageOS gateway methods", () => {
       "sageos.notifications.approval",
       "sageos.notifications.incident",
       "sageos.notifications.completion",
+      "sageos.notifications.flush",
       "sageos.control",
     ];
 
@@ -1438,6 +1443,35 @@ describe("SageOS gateway methods", () => {
       }),
       { dropIfSlow: true },
     );
+  });
+
+  it("flushes batched Telegram notifications through gateway controls", async () => {
+    mockLoadConfig.mockReturnValue({
+      sageos: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+    });
+    mockFlushNotificationBatchOnce.mockResolvedValue({
+      outcome: "sent",
+      target: "telegram:123",
+      count: 2,
+      notification: {
+        kind: "digest",
+        title: "SageOS: Batched updates",
+        text: "SageOS: Batched updates",
+        target: "telegram:123",
+        redactedObservationCount: 0,
+      },
+    });
+
+    const { response } = await invoke("sageos.notifications.flush", {});
+
+    expect(response?.ok).toBe(true);
+    expect(response?.payload).toMatchObject({
+      result: { outcome: "sent", target: "telegram:123", count: 2 },
+    });
+    expect(mockFlushNotificationBatchOnce).toHaveBeenCalledWith({
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+      target: undefined,
+    });
   });
 
   it("sends Telegram lifecycle, incident, and completion notifications through gateway controls", async () => {

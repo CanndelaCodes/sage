@@ -210,6 +210,7 @@ export type SageOsStatusSnapshot = {
       target?: string;
       digestSchedule?: string;
       urgentOnlyDuringFocus?: boolean;
+      batchWindowMinutes?: number;
       quietHours?: {
         start: string;
         end: string;
@@ -677,6 +678,7 @@ export type SageOsConfig = {
       target?: string;
       digestSchedule?: string;
       urgentOnlyDuringFocus?: boolean;
+      batchWindowMinutes?: number;
       quietHours?: {
         start: string;
         end: string;

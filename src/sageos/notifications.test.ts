@@ -10,6 +10,8 @@ import {
   buildSageOsIncidentNotification,
   buildSageOsLifecycleNotification,
   buildSageOsTaskNotification,
+  flushSageOsTelegramNotificationBatchOnce,
+  listSageOsNotificationBatch,
   sendSageOsApprovalNotificationOnce,
   sendSageOsCompletionNotificationOnce,
   sendSageOsIncidentNotificationOnce,
@@ -297,6 +299,82 @@ describe("SageOS notifications", () => {
     expect(sender).not.toHaveBeenCalled();
   });
 
+  it("batches completed task notifications and flushes one Telegram summary", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-task-notification-batch-"));
+    const now = "2026-05-28T02:45:00.000Z";
+    const task = {
+      id: "task_batch",
+      title: "Summarize workspace",
+      objective: "Summarize the local workspace changes.",
+      state: "completed" as const,
+      requestedBy: "sageos.task_runner",
+      autonomyTier: "execute_scoped" as const,
+      policyScopes: [{ kind: "repo" as const, allow: ["C:/repo"], risk: "low" as const }],
+      createdAt: now,
+      updatedAt: now,
+    };
+    const run = {
+      id: "run_task_batch_1",
+      taskId: task.id,
+      attempt: 1,
+      state: "succeeded" as const,
+      traceId: "trace_task_batch",
+      startedAt: now,
+      finishedAt: now,
+    };
+    const cfg = {
+      notifications: {
+        telegram: {
+          enabled: true,
+          target: "telegram:123",
+          batchWindowMinutes: 15,
+        },
+      },
+    };
+    const sender = vi.fn(async () => ({ messageId: "batched", chatId: "123" }));
+
+    const batched = await sendSageOsTaskNotificationOnce({
+      stateDir: root,
+      cfg,
+      task,
+      run,
+      sender,
+      now: () => new Date(now),
+    });
+
+    expect(batched).toMatchObject({
+      outcome: "batched",
+      target: "telegram:123",
+      count: 1,
+      notification: { kind: "task" },
+    });
+    expect(sender).not.toHaveBeenCalled();
+    await expect(listSageOsNotificationBatch({ stateDir: root })).resolves.toMatchObject({
+      counts: { total: 1, pending: 1 },
+      entries: [expect.objectContaining({ kind: "task", title: "SageOS: Task completed" })],
+    });
+
+    const flushed = await flushSageOsTelegramNotificationBatchOnce({
+      stateDir: root,
+      cfg,
+      sender,
+    });
+
+    expect(flushed).toMatchObject({ outcome: "sent", target: "telegram:123", count: 1 });
+    expect(sender).toHaveBeenCalledWith(
+      "telegram:123",
+      expect.stringContaining("SageOS: Batched updates"),
+      expect.objectContaining({ plainText: expect.stringContaining("Summarize workspace") }),
+    );
+    await expect(listSageOsNotificationBatch({ stateDir: root })).resolves.toMatchObject({
+      counts: { total: 0, pending: 0 },
+      entries: [],
+    });
+    const logPath = createSageOsEventLog({ stateDir: root }).path;
+    await expect(readFile(logPath, "utf8")).resolves.toContain("notification_batched");
+    await expect(readFile(logPath, "utf8")).resolves.toContain("notification_sent");
+  });
+
   it("builds and sends startup lifecycle notifications with audit evidence", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "sageos-lifecycle-notification-"));
     const status = createSageOsStatusSnapshot({
@@ -546,5 +624,62 @@ describe("SageOS notifications", () => {
       expect.stringContaining("SageOS: Night Shift completed"),
       expect.objectContaining({ plainText: expect.stringContaining("Tests: 1 passed / 0 failed") }),
     );
+  });
+
+  it("batches successful Night Shift completion notifications", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-completion-notification-batch-"));
+    const now = "2026-05-28T00:15:00.000Z";
+    const report = {
+      id: "coding_report_task_batch_1",
+      taskId: "task_batch",
+      runId: "run_task_batch_1",
+      repoPath: "C:\\repo",
+      objective: "Summarize successful coding work.",
+      outcome: "succeeded" as const,
+      startedAt: now,
+      finishedAt: now,
+      preState: { branch: "main", dirty: false, changedFiles: [] },
+      postState: { branch: "main", dirty: true, changedFiles: ["README.md"] },
+      diff: { stat: "README.md | 1 +", preview: "+done", changedFiles: ["README.md"] },
+      tests: [{ command: "node test.js", exitCode: 0, stdoutPreview: "ok", stderrPreview: "" }],
+      blockers: [],
+      verificationRefs: ["test:node test.js"],
+      rollback: "Review git diff and revert changed files if needed.",
+      createdAt: now,
+      updatedAt: now,
+    };
+    const store = createSageOsStateStore({ stateDir: root });
+    await writeSageOsState(store, createSageOsStatusSnapshot());
+    await upsertSageOsCodingReport(store, report);
+    const sender = vi.fn(async () => ({ messageId: "completion-batch", chatId: "123" }));
+
+    const batched = await sendSageOsCompletionNotificationOnce({
+      reportId: "coding_report_task_batch_1",
+      stateDir: root,
+      cfg: {
+        notifications: {
+          telegram: { enabled: true, target: "telegram:123", batchWindowMinutes: 15 },
+        },
+      },
+      sender,
+    });
+
+    expect(batched).toMatchObject({
+      outcome: "batched",
+      target: "telegram:123",
+      count: 1,
+      notification: { kind: "completion" },
+    });
+    expect(sender).not.toHaveBeenCalled();
+    await expect(listSageOsNotificationBatch({ stateDir: root })).resolves.toMatchObject({
+      counts: { total: 1, pending: 1 },
+      entries: [
+        expect.objectContaining({
+          kind: "completion",
+          title: "SageOS: Night Shift completed",
+          reportId: "coding_report_task_batch_1",
+        }),
+      ],
+    });
   });
 });

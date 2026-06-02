@@ -51,6 +51,7 @@ const state = {
         enabled: true,
         target: "Jason",
         digestSchedule: "0 8 * * *",
+        batchWindowMinutes: 15,
         quietHours: { start: "22:00", end: "07:00", timezone: "UTC" },
       },
       urgentPending: 1,
@@ -365,7 +366,7 @@ describe("overlay renderer model", () => {
     expect(model.overview[2].rows).toContainEqual({
       label: "Notifications",
       value: "1 urgent",
-      detail: "Telegram enabled / digest 0 8 * * * / quiet 22:00-07:00 UTC",
+      detail: "Telegram enabled / digest 0 8 * * * / batch 15m / quiet 22:00-07:00 UTC",
     });
     expect(model.overview[2].rows).toContainEqual({
       label: "Audit",
@@ -578,6 +579,7 @@ describe("overlay renderer model", () => {
     expect(notificationModel.workspace.facts).toEqual(
       expect.arrayContaining([
         { label: "Digest schedule", value: "0 8 * * *" },
+        { label: "Batch window", value: "15m" },
         { label: "Quiet hours", value: "22:00-07:00 UTC" },
         { label: "Recent", value: "2 sent / 1 failed / 1 skipped" },
         { label: "Last outcome", value: "skipped" },

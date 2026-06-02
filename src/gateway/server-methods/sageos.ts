@@ -29,6 +29,7 @@ import {
   buildSageOsDigestNotification,
   buildSageOsIncidentNotification,
   buildSageOsLifecycleNotification,
+  flushSageOsTelegramNotificationBatchOnce,
   sendSageOsApprovalNotificationOnce,
   sendSageOsCompletionNotificationOnce,
   sendSageOsIncidentNotificationOnce,
@@ -813,6 +814,13 @@ export const sageOsHandlers: GatewayRequestHandlers = {
     const state = await readSageOsState(stateStore);
     const notification = buildSageOsDigestNotification({ state, status, cfg, target });
     respond(true, { notification, state }, undefined);
+  },
+  "sageos.notifications.flush": async ({ params, respond }) => {
+    const cfg = loadConfig().sageos;
+    const target =
+      typeof params.target === "string" && params.target.trim() ? params.target.trim() : undefined;
+    const result = await flushSageOsTelegramNotificationBatchOnce({ cfg, target });
+    respond(true, { result }, undefined);
   },
   "sageos.notifications.startup": async ({ params, respond, context }) => {
     const cfg = loadConfig().sageos;

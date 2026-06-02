@@ -30,6 +30,7 @@ import {
   buildSageOsDigestNotification,
   buildSageOsIncidentNotification,
   buildSageOsLifecycleNotification,
+  flushSageOsTelegramNotificationBatchOnce,
   sendSageOsApprovalNotificationOnce,
   sendSageOsCompletionNotificationOnce,
   sendSageOsIncidentNotificationOnce,
@@ -86,6 +87,7 @@ export type SageOsCliDeps = {
   sendApprovalNotificationOnce?: typeof sendSageOsApprovalNotificationOnce;
   sendIncidentNotificationOnce?: typeof sendSageOsIncidentNotificationOnce;
   sendCompletionNotificationOnce?: typeof sendSageOsCompletionNotificationOnce;
+  flushNotificationBatchOnce?: typeof flushSageOsTelegramNotificationBatchOnce;
   launchWindowsOverlay?: typeof launchWindowsOverlay;
   loadConfig?: typeof loadConfig;
 };
@@ -383,6 +385,8 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
     deps.sendIncidentNotificationOnce ?? sendSageOsIncidentNotificationOnce;
   const sendCompletionNotification =
     deps.sendCompletionNotificationOnce ?? sendSageOsCompletionNotificationOnce;
+  const flushNotificationBatch =
+    deps.flushNotificationBatchOnce ?? flushSageOsTelegramNotificationBatchOnce;
   const loadSageConfig = deps.loadConfig ?? loadConfig;
   const os = program.command("os").description("SageOS command center controls");
 
@@ -1138,6 +1142,25 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
         target: cliOpts.target?.trim() || undefined,
       });
       outputJsonOrText(cliOpts, { notification, status }, () => notification.text);
+    });
+
+  notifications
+    .command("flush")
+    .description("Flush batched SageOS Telegram notifications")
+    .option("--target <target>", "Telegram target override")
+    .option("--json", "Output JSON", false)
+    .action(async (opts: { target?: string; json?: boolean }) => {
+      const cliOpts = commandOptions(opts);
+      const cfg = loadSageConfig().sageos;
+      const result = await flushNotificationBatch({
+        cfg,
+        target: cliOpts.target?.trim() || undefined,
+      });
+      outputJsonOrText(cliOpts, { result }, () =>
+        result.outcome === "sent"
+          ? `Sent Telegram notification batch: ${result.count} updates to ${result.target}`
+          : `${result.outcome}: ${"reason" in result ? result.reason : result.target}`,
+      );
     });
 
   notifications

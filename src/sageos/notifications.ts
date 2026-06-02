@@ -1,3 +1,6 @@
+import { randomUUID } from "node:crypto";
+import * as fs from "node:fs/promises";
+import path from "node:path";
 import type {
   SageOsConfig,
   SageOsApproval,
@@ -9,7 +12,7 @@ import type {
   SageOsTaskSpec,
 } from "./types.js";
 import { sendMessageTelegram } from "../telegram/send.js";
-import { appendSageOsEvent, createSageOsEventLog } from "./event-log.js";
+import { appendSageOsEvent, createSageOsEventLog, resolveSageOsStateDir } from "./event-log.js";
 import {
   createSageOsStateStore,
   readSageOsState,
@@ -69,6 +72,12 @@ export type SageOsTelegramTaskResult =
       chatId?: string;
     }
   | {
+      outcome: "batched";
+      target: string;
+      notification: SageOsNotificationMessage;
+      count: number;
+    }
+  | {
       outcome: "skipped";
       reason: "telegram_disabled" | "missing_target";
       notification?: SageOsNotificationMessage;
@@ -90,6 +99,13 @@ export type SageOsTelegramStatusNotificationResult =
       status: SageOsStatusSnapshot;
     }
   | {
+      outcome: "batched";
+      target: string;
+      notification: SageOsNotificationMessage;
+      count: number;
+      status: SageOsStatusSnapshot;
+    }
+  | {
       outcome: "skipped";
       reason: "telegram_disabled" | "missing_target";
       notification?: SageOsNotificationMessage;
@@ -102,6 +118,52 @@ export type SageOsTelegramStatusNotificationResult =
       error: string;
       status: SageOsStatusSnapshot;
     };
+
+export type SageOsNotificationBatchEntry = SageOsNotificationMessage & {
+  id: string;
+  status: "pending";
+  createdAt: string;
+  updatedAt: string;
+  taskId?: string;
+  runId?: string;
+  reportId?: string;
+};
+
+export type SageOsNotificationBatchSummary = {
+  path: string;
+  counts: { total: number; pending: number };
+  entries: SageOsNotificationBatchEntry[];
+};
+
+export type SageOsTelegramBatchFlushResult =
+  | {
+      outcome: "sent";
+      target: string;
+      count: number;
+      notification: SageOsNotificationMessage;
+      messageId?: string;
+      chatId?: string;
+    }
+  | {
+      outcome: "skipped";
+      reason: "empty" | "telegram_disabled" | "missing_target";
+      count: number;
+      notification?: SageOsNotificationMessage;
+    }
+  | {
+      outcome: "failed";
+      target: string;
+      count: number;
+      notification: SageOsNotificationMessage;
+      error: string;
+    };
+
+type NotificationBatchFile = {
+  version: 1;
+  entries: SageOsNotificationBatchEntry[];
+};
+
+const batchLocks = new Map<string, Promise<unknown>>();
 
 export function buildSageOsDigestNotification(params: {
   state: SageOsPersistedState;
@@ -214,6 +276,94 @@ export async function sendSageOsTelegramDigestOnce(params: {
       summary: `Failed to send SageOS Telegram digest to ${target}: ${error}`,
     });
     return { outcome: "failed", target, notification, error, status };
+  }
+}
+
+export function resolveSageOsNotificationBatchPath(params: { stateDir?: string } = {}): string {
+  return path.join(resolveSageOsStateDir(params.stateDir), "notification-batch.json");
+}
+
+export async function listSageOsNotificationBatch(
+  params: {
+    stateDir?: string;
+    queuePath?: string;
+  } = {},
+): Promise<SageOsNotificationBatchSummary> {
+  const queuePath = params.queuePath ?? resolveSageOsNotificationBatchPath(params);
+  const store = await loadNotificationBatch(queuePath);
+  const entries = store.entries.toSorted((a, b) => a.createdAt.localeCompare(b.createdAt));
+  return {
+    path: queuePath,
+    counts: { total: entries.length, pending: entries.length },
+    entries,
+  };
+}
+
+export async function flushSageOsTelegramNotificationBatchOnce(
+  params: {
+    stateDir?: string;
+    queuePath?: string;
+    cfg?: SageOsConfig;
+    target?: string;
+    sender?: SageOsTelegramSender;
+  } = {},
+): Promise<SageOsTelegramBatchFlushResult> {
+  const queuePath = params.queuePath ?? resolveSageOsNotificationBatchPath(params);
+  const eventLog = createSageOsEventLog({ stateDir: params.stateDir });
+  const summary = await listSageOsNotificationBatch({ queuePath });
+  if (summary.entries.length === 0) {
+    await appendSageOsEvent(eventLog, {
+      type: "notification_skipped",
+      actor: "sageos.notification_manager",
+      summary: "Skipped SageOS Telegram notification batch because the batch queue is empty.",
+    });
+    return { outcome: "skipped", reason: "empty", count: 0 };
+  }
+  if (!params.cfg?.notifications?.telegram?.enabled) {
+    await appendSageOsEvent(eventLog, {
+      type: "notification_skipped",
+      actor: "sageos.notification_manager",
+      summary:
+        "Skipped SageOS Telegram notification batch because Telegram notifications are disabled.",
+    });
+    return { outcome: "skipped", reason: "telegram_disabled", count: summary.entries.length };
+  }
+  const target = params.target ?? summary.entries[0]?.target ?? telegramTarget(params.cfg);
+  if (!target) {
+    await appendSageOsEvent(eventLog, {
+      type: "notification_skipped",
+      actor: "sageos.notification_manager",
+      summary: "Skipped SageOS Telegram notification batch because no target is configured.",
+    });
+    return { outcome: "skipped", reason: "missing_target", count: summary.entries.length };
+  }
+
+  const notification = buildSageOsBatchedNotification(summary.entries, target);
+  const sender = params.sender ?? sendMessageTelegram;
+  try {
+    const result = await sender(target, notification.text, { plainText: notification.text });
+    await clearNotificationBatch(queuePath, new Set(summary.entries.map((entry) => entry.id)));
+    await appendSageOsEvent(eventLog, {
+      type: "notification_sent",
+      actor: "sageos.notification_manager",
+      summary: `Sent SageOS Telegram notification batch with ${summary.entries.length} updates to ${target}.`,
+    });
+    return {
+      outcome: "sent",
+      target,
+      count: summary.entries.length,
+      notification,
+      messageId: result.messageId,
+      chatId: result.chatId,
+    };
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    await appendSageOsEvent(eventLog, {
+      type: "notification_failed",
+      actor: "sageos.notification_manager",
+      summary: `Failed to send SageOS Telegram notification batch to ${target}: ${error}`,
+    });
+    return { outcome: "failed", target, count: summary.entries.length, notification, error };
   }
 }
 
@@ -392,6 +542,7 @@ export async function sendSageOsTaskNotificationOnce(params: {
   task: SageOsTaskSpec;
   run: SageOsRun;
   sender?: SageOsTelegramSender;
+  now?: () => Date;
 }): Promise<SageOsTelegramTaskResult> {
   const cfg = params.cfg;
   const target = params.target ?? telegramTarget(cfg);
@@ -423,6 +574,23 @@ export async function sendSageOsTaskNotificationOnce(params: {
     cfg,
     target,
   });
+  if (shouldBatchTaskNotification(cfg, params.run)) {
+    const entry = await enqueueNotificationBatch({
+      stateDir: params.stateDir,
+      notification,
+      taskId: params.task.id,
+      runId: params.run.id,
+      now: params.now,
+    });
+    await appendSageOsEvent(eventLog, {
+      type: "notification_batched",
+      actor: "sageos.notification_manager",
+      summary: `Batched SageOS task notification for ${params.task.id}.`,
+      taskId: params.task.id,
+      runId: params.run.id,
+    });
+    return { outcome: "batched", target, notification, count: entry.count };
+  }
   const sender = params.sender ?? sendMessageTelegram;
   try {
     const result = await sender(target, notification.text, { plainText: notification.text });
@@ -559,6 +727,31 @@ export async function sendSageOsCompletionNotificationOnce(params: {
     cfg: params.cfg,
     target: params.target,
   });
+  if (
+    shouldBatchCompletionNotification(params.cfg, report) &&
+    params.cfg?.notifications?.telegram?.enabled &&
+    notification.target
+  ) {
+    const entry = await enqueueNotificationBatch({
+      stateDir: params.stateDir,
+      notification,
+      reportId: report.id,
+    });
+    await appendSageOsEvent(createSageOsEventLog({ stateDir: params.stateDir }), {
+      type: "notification_batched",
+      actor: "sageos.notification_manager",
+      summary: `Batched SageOS completion notification for ${report.id}.`,
+      taskId: report.taskId,
+      runId: report.runId,
+    });
+    return {
+      outcome: "batched",
+      target: notification.target,
+      notification,
+      count: entry.count,
+      status,
+    };
+  }
   return sendStatusNotification({
     stateDir: params.stateDir,
     cfg: params.cfg,
@@ -633,6 +826,168 @@ async function sendStatusNotification(params: {
       status: params.status,
     };
   }
+}
+
+function buildSageOsBatchedNotification(
+  entries: SageOsNotificationBatchEntry[],
+  target: string,
+): SageOsNotificationMessage {
+  const lines = [
+    "SageOS: Batched updates",
+    `Updates: ${entries.length}`,
+    ...entries.flatMap((entry, index) => [
+      "",
+      `${index + 1}. ${entry.title}`,
+      ...entry.text
+        .split(/\r?\n/)
+        .slice(1, 5)
+        .map((line) => `   ${line}`),
+    ]),
+    "",
+    "Actions: Open Command Center | Pause SageOS",
+  ];
+  return {
+    kind: "digest",
+    title: "SageOS: Batched updates",
+    text: lines.join("\n"),
+    target,
+    redactedObservationCount: entries.reduce(
+      (total, entry) => total + entry.redactedObservationCount,
+      0,
+    ),
+  };
+}
+
+async function enqueueNotificationBatch(params: {
+  stateDir?: string;
+  queuePath?: string;
+  notification: SageOsNotificationMessage;
+  taskId?: string;
+  runId?: string;
+  reportId?: string;
+  now?: () => Date;
+}): Promise<{ entry: SageOsNotificationBatchEntry; count: number }> {
+  const queuePath = params.queuePath ?? resolveSageOsNotificationBatchPath(params);
+  const now = (params.now?.() ?? new Date()).toISOString();
+  let entry: SageOsNotificationBatchEntry | undefined;
+  let count = 0;
+  await updateNotificationBatch(queuePath, (store) => {
+    entry = {
+      ...params.notification,
+      id: `notification_batch_${randomUUID()}`,
+      status: "pending",
+      createdAt: now,
+      updatedAt: now,
+      taskId: params.taskId,
+      runId: params.runId,
+      reportId: params.reportId,
+    };
+    store.entries.push(entry);
+    count = store.entries.length;
+  });
+  if (!entry) {
+    throw new Error("failed to enqueue SageOS notification batch entry");
+  }
+  return { entry, count };
+}
+
+async function clearNotificationBatch(queuePath: string, ids: Set<string>): Promise<void> {
+  await updateNotificationBatch(queuePath, (store) => {
+    store.entries = store.entries.filter((entry) => !ids.has(entry.id));
+  });
+}
+
+async function updateNotificationBatch<T>(
+  queuePath: string,
+  update: (store: NotificationBatchFile) => T | Promise<T>,
+): Promise<T> {
+  return await withNotificationBatchLock(queuePath, async () => {
+    const store = await loadNotificationBatch(queuePath);
+    const result = await update(store);
+    await saveNotificationBatch(queuePath, store);
+    return result;
+  });
+}
+
+async function withNotificationBatchLock<T>(queuePath: string, run: () => Promise<T>): Promise<T> {
+  const previous = batchLocks.get(queuePath) ?? Promise.resolve();
+  const current = previous.catch(() => undefined).then(run);
+  const keepAlive = current.then(
+    () => undefined,
+    () => undefined,
+  );
+  batchLocks.set(queuePath, keepAlive);
+  try {
+    return await current;
+  } finally {
+    if (batchLocks.get(queuePath) === keepAlive) {
+      batchLocks.delete(queuePath);
+    }
+  }
+}
+
+async function loadNotificationBatch(queuePath: string): Promise<NotificationBatchFile> {
+  try {
+    const raw = await fs.readFile(queuePath, "utf-8");
+    const parsed = JSON.parse(raw) as Partial<NotificationBatchFile>;
+    return {
+      version: 1,
+      entries: Array.isArray(parsed.entries) ? parsed.entries.filter(isNotificationBatchEntry) : [],
+    };
+  } catch {
+    return { version: 1, entries: [] };
+  }
+}
+
+async function saveNotificationBatch(
+  queuePath: string,
+  store: NotificationBatchFile,
+): Promise<void> {
+  await fs.mkdir(path.dirname(queuePath), { recursive: true });
+  const body = `${JSON.stringify({ version: 1, entries: store.entries }, null, 2)}\n`;
+  if (process.platform === "win32") {
+    await fs.writeFile(queuePath, body, "utf-8");
+    return;
+  }
+  const tmp = `${queuePath}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    await fs.writeFile(tmp, body, { encoding: "utf-8", mode: 0o600 });
+    await fs.rename(tmp, queuePath);
+    await fs.chmod(queuePath, 0o600);
+  } finally {
+    await fs.rm(tmp, { force: true });
+  }
+}
+
+function isNotificationBatchEntry(input: unknown): input is SageOsNotificationBatchEntry {
+  const entry = input as Partial<SageOsNotificationBatchEntry>;
+  return (
+    !!entry &&
+    typeof entry.id === "string" &&
+    entry.status === "pending" &&
+    typeof entry.kind === "string" &&
+    typeof entry.title === "string" &&
+    typeof entry.text === "string" &&
+    typeof entry.createdAt === "string" &&
+    typeof entry.updatedAt === "string" &&
+    typeof entry.redactedObservationCount === "number"
+  );
+}
+
+function shouldBatchTaskNotification(cfg: SageOsConfig | undefined, run: SageOsRun): boolean {
+  return telegramBatchWindowMinutes(cfg) > 0 && run.state === "succeeded";
+}
+
+function shouldBatchCompletionNotification(
+  cfg: SageOsConfig | undefined,
+  report: SageOsCodingReport,
+): boolean {
+  return telegramBatchWindowMinutes(cfg) > 0 && report.outcome === "succeeded";
+}
+
+function telegramBatchWindowMinutes(cfg: SageOsConfig | undefined): number {
+  const value = cfg?.notifications?.telegram?.batchWindowMinutes;
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : 0;
 }
 
 function telegramTarget(cfg: SageOsConfig | undefined): string | undefined {

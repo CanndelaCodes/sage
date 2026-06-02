@@ -44,6 +44,9 @@ function renderNotificationLine(snapshot: SageOsStatusSnapshot): string {
   if (snapshot.notifications.telegram.digestSchedule) {
     parts.push(`digest ${snapshot.notifications.telegram.digestSchedule}`);
   }
+  if (snapshot.notifications.telegram.batchWindowMinutes) {
+    parts.push(`batch ${snapshot.notifications.telegram.batchWindowMinutes}m`);
+  }
   const quietHours = snapshot.notifications.telegram.quietHours;
   if (quietHours) {
     parts.push(

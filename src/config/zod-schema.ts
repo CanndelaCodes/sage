@@ -274,6 +274,7 @@ const SageOsSchema = z
             target: z.string().optional(),
             digestSchedule: z.string().optional(),
             urgentOnlyDuringFocus: z.boolean().optional(),
+            batchWindowMinutes: z.number().positive().optional(),
             quietHours: z
               .object({
                 start: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/),

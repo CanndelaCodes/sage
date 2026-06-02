@@ -481,6 +481,7 @@ function summarizeNotifications(
 ): SageOsStatusSnapshot["notifications"] {
   const target = cfg?.notifications?.telegram?.target?.trim();
   const digestSchedule = cfg?.notifications?.telegram?.digestSchedule?.trim();
+  const batchWindowMinutes = cfg?.notifications?.telegram?.batchWindowMinutes;
   const quietHours = cfg?.notifications?.telegram?.quietHours;
   const quietStart = quietHours?.start.trim();
   const quietEnd = quietHours?.end.trim();
@@ -491,6 +492,11 @@ function summarizeNotifications(
       enabled: cfg?.notifications?.telegram?.enabled === true,
       ...(target ? { target } : {}),
       ...(digestSchedule ? { digestSchedule } : {}),
+      ...(typeof batchWindowMinutes === "number" &&
+      Number.isFinite(batchWindowMinutes) &&
+      batchWindowMinutes > 0
+        ? { batchWindowMinutes }
+        : {}),
       ...(quietStart && quietEnd
         ? {
             quietHours: {

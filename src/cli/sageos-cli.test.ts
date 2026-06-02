@@ -1045,6 +1045,43 @@ describe("sage os CLI", () => {
     });
   });
 
+  it("flushes batched Telegram notifications through CLI controls", async () => {
+    const flushCalls: unknown[] = [];
+    const deps = {
+      loadConfig: () => ({
+        sageos: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+      }),
+      flushNotificationBatchOnce: async (params: unknown) => {
+        flushCalls.push(params);
+        return {
+          outcome: "sent" as const,
+          target: "telegram:123",
+          count: 2,
+          notification: {
+            kind: "digest" as const,
+            title: "SageOS: Batched updates",
+            text: "SageOS: Batched updates",
+            target: "telegram:123",
+            redactedObservationCount: 0,
+          },
+        };
+      },
+    } as unknown as SageOsCliDeps;
+    const program = makeProgram(deps);
+
+    await program.parseAsync(["os", "notifications", "flush", "--json"], {
+      from: "user",
+    });
+
+    expect(lastJson()).toMatchObject({
+      result: { outcome: "sent", target: "telegram:123", count: 2 },
+    });
+    expect(flushCalls).toHaveLength(1);
+    expect(flushCalls[0]).toMatchObject({
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+    });
+  });
+
   it("sends Telegram lifecycle, incident, and completion notifications through CLI controls", async () => {
     const lifecycleCalls: unknown[] = [];
     const approvalCalls: unknown[] = [];

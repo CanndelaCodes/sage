@@ -126,6 +126,7 @@ const WRITE_METHODS = new Set([
   "sageos.memory.replay",
   "sageos.memory.doctor",
   "sageos.notifications.digest",
+  "sageos.notifications.flush",
   "sageos.notifications.startup",
   "sageos.notifications.shutdown",
   "sageos.notifications.approval",

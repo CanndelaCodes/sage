@@ -1749,6 +1749,9 @@ function formatNotificationStatusDetail(notifications: OverlayNotifications): st
   if (notifications.telegram.digestSchedule) {
     parts.push(`digest ${notifications.telegram.digestSchedule}`);
   }
+  if (notifications.telegram.batchWindowMinutes) {
+    parts.push(`batch ${notifications.telegram.batchWindowMinutes}m`);
+  }
   const quietHours = formatNotificationQuietHours(notifications.telegram.quietHours);
   if (quietHours) {
     parts.push(`quiet ${quietHours}`);
@@ -1766,6 +1769,9 @@ function notificationWorkspaceFacts(
   ];
   if (notifications.telegram.digestSchedule) {
     facts.push({ label: "Digest schedule", value: notifications.telegram.digestSchedule });
+  }
+  if (notifications.telegram.batchWindowMinutes) {
+    facts.push({ label: "Batch window", value: `${notifications.telegram.batchWindowMinutes}m` });
   }
   const quietHours = formatNotificationQuietHours(notifications.telegram.quietHours);
   if (quietHours) {

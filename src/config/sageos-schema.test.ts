@@ -77,6 +77,7 @@ describe("SageOS config schema", () => {
             enabled: true,
             target: "telegram:123",
             digestSchedule: "0 8 * * *",
+            batchWindowMinutes: 15,
             quietHours: {
               start: "22:00",
               end: "07:00",
@@ -92,6 +93,7 @@ describe("SageOS config schema", () => {
       end: "07:00",
       timezone: "America/New_York",
     });
+    expect(parsed.sageos?.notifications?.telegram?.batchWindowMinutes).toBe(15);
   });
 
   it("rejects invalid SageOS overlay config values", () => {

@@ -46,6 +46,7 @@ describe("SageOS status renderer", () => {
           target: "urgent",
           digestSchedule: "0 8 * * *",
           urgentOnlyDuringFocus: true,
+          batchWindowMinutes: 15,
           quietHours: { start: "22:00", end: "07:00", timezone: "UTC" },
         },
         urgentPending: 1,
@@ -85,7 +86,7 @@ describe("SageOS status renderer", () => {
     expect(output).toContain("Policy: execute_scoped, approvals destructive, external_writes");
     expect(output).toContain("Sources: 1 enabled, 1 disabled, 0 failing");
     expect(output).toContain(
-      "Notifications: Telegram enabled, urgent pending 1, digest 0 8 * * *, quiet 22:00-07:00 UTC, focus urgent-only, recent 2 sent / 1 failed / 3 skipped, last failed",
+      "Notifications: Telegram enabled, urgent pending 1, digest 0 8 * * *, batch 15m, quiet 22:00-07:00 UTC, focus urgent-only, recent 2 sent / 1 failed / 3 skipped, last failed",
     );
     expect(output).toContain("Coding: enabled, 1 repos, 1 reports, restrictions no_release");
     expect(output).toContain("Audit: 4 recent events, events.jsonl");
