@@ -55,6 +55,26 @@ describe("SageOsOverlayController", () => {
     });
   });
 
+  it("marks gateway mutations as loading while they are in flight", async () => {
+    let resolveRequest: (value: unknown) => void = () => {};
+    const request = <T = unknown>(_method: string, _params: Record<string, unknown>) =>
+      new Promise<T>((resolve) => {
+        resolveRequest = resolve as (value: unknown) => void;
+      });
+    const controller = new SageOsOverlayController({ request });
+
+    const pending = controller.pause();
+
+    expect(controller.state.loading).toBe(true);
+    expect(controller.state.error).toBeNull();
+
+    resolveRequest(stateFixture("execute_scoped"));
+    await pending;
+
+    expect(controller.state.loading).toBe(false);
+    expect(controller.state.sageOsState?.status.mode).toBe("execute_scoped");
+  });
+
   it("stops SageOS without the emergency flag through the existing control RPC", async () => {
     const request = vi.fn().mockResolvedValue(stateFixture("execute_scoped"));
     const controller = new SageOsOverlayController({ request });

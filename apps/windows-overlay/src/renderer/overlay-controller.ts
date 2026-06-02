@@ -155,16 +155,18 @@ export class SageOsOverlayController {
   }
 
   private async runMutation(run: () => Promise<unknown>) {
-    this.state = { ...this.state, error: null };
+    this.state = { ...this.state, loading: true, error: null };
     this.onChange();
     try {
       const result = await run();
       const sageOsState = extractSageOsOverlayStatusState(result);
       if (sageOsState) {
-        this.state = { ...this.state, connected: true, sageOsState };
+        this.state = { ...this.state, connected: true, loading: false, sageOsState };
+      } else {
+        this.state = { ...this.state, loading: false };
       }
     } catch (err) {
-      this.state = { ...this.state, error: String(err) };
+      this.state = { ...this.state, loading: false, error: String(err) };
     }
     this.onChange();
   }
