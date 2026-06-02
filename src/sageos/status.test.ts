@@ -237,6 +237,45 @@ describe("SageOS status collector", () => {
       actor: "sageos.notification_manager",
       summary: "Sent SageOS digest.",
     });
+    await fs.mkdir(path.join(root, "sageos"), { recursive: true });
+    await fs.writeFile(
+      path.join(root, "sageos", "notification-batch.json"),
+      `${JSON.stringify(
+        {
+          version: 1,
+          entries: [
+            {
+              id: "batch_task_running",
+              kind: "task",
+              title: "SageOS: Task completed",
+              text: "SageOS: Task completed\nTask: task_running - task_running",
+              target: "telegram:123",
+              redactedObservationCount: 0,
+              status: "pending",
+              createdAt: "2026-05-27T11:50:00.000Z",
+              updatedAt: "2026-05-27T11:50:00.000Z",
+              taskId: "task_running",
+              runId: "run_active",
+            },
+          ],
+        },
+        null,
+        2,
+      )}\n`,
+      "utf8",
+    );
+    await fs.writeFile(
+      path.join(root, "sageos", "notification-digest.json"),
+      `${JSON.stringify(
+        {
+          version: 1,
+          lastScheduledFor: "2026-05-27T11:59:00.000Z",
+        },
+        null,
+        2,
+      )}\n`,
+      "utf8",
+    );
 
     const memoryQueuePath = path.join(root, "agents", "main", "sage-memory", "capture-queue.json");
     const sessionFile = path.join(root, "session.jsonl");
@@ -293,7 +332,7 @@ describe("SageOS status collector", () => {
           telegram: {
             enabled: true,
             target: "telegram:123",
-            digestSchedule: "0 8 * * *",
+            digestSchedule: "* * * * *",
             urgentOnlyDuringFocus: true,
             batchWindowMinutes: 15,
             quietHours: { start: "22:00", end: "07:00", timezone: "UTC" },
@@ -346,7 +385,7 @@ describe("SageOS status collector", () => {
       telegram: {
         enabled: true,
         target: "telegram:123",
-        digestSchedule: "0 8 * * *",
+        digestSchedule: "* * * * *",
         urgentOnlyDuringFocus: true,
         batchWindowMinutes: 15,
         quietHours: { start: "22:00", end: "07:00", timezone: "UTC" },
@@ -357,6 +396,19 @@ describe("SageOS status collector", () => {
         skipped: 1,
         lastOutcome: "sent",
         lastSummary: "Sent SageOS digest.",
+      },
+      batch: {
+        path: path.join(root, "sageos", "notification-batch.json"),
+        pending: 1,
+        total: 1,
+        firstQueuedAt: "2026-05-27T11:50:00.000Z",
+        dueAt: "2026-05-27T12:05:00.000Z",
+      },
+      digest: {
+        path: path.join(root, "sageos", "notification-digest.json"),
+        schedule: "* * * * *",
+        lastScheduledFor: "2026-05-27T11:59:00.000Z",
+        nextDueAt: "2026-05-27T12:01:00.000Z",
       },
     });
     expect(snapshot.notifications.recent.lastAt).toEqual(expect.any(String));

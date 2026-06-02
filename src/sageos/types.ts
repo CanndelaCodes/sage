@@ -226,6 +226,20 @@ export type SageOsStatusSnapshot = {
       lastOutcome?: "sent" | "failed" | "skipped";
       lastSummary?: string;
     };
+    batch?: {
+      path: string;
+      pending: number;
+      total: number;
+      firstQueuedAt?: string;
+      dueAt?: string;
+    };
+    digest?: {
+      path: string;
+      schedule: string;
+      lastScheduledFor?: string;
+      nextDueAt?: string;
+      error?: string;
+    };
   };
   incidents: SageOsIncident[];
   audit: { recentEvents: number; eventLogPath?: string };

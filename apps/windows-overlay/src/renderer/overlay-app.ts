@@ -1749,8 +1749,20 @@ function formatNotificationStatusDetail(notifications: OverlayNotifications): st
   if (notifications.telegram.digestSchedule) {
     parts.push(`digest ${notifications.telegram.digestSchedule}`);
   }
+  if (notifications.digest?.nextDueAt) {
+    parts.push(`next ${notifications.digest.nextDueAt}`);
+  }
+  if (notifications.digest?.error) {
+    parts.push(`digest error ${notifications.digest.error}`);
+  }
   if (notifications.telegram.batchWindowMinutes) {
     parts.push(`batch ${notifications.telegram.batchWindowMinutes}m`);
+  }
+  if (notifications.batch) {
+    parts.push(`${notifications.batch.pending} queued`);
+    if (notifications.batch.dueAt) {
+      parts.push(`due ${notifications.batch.dueAt}`);
+    }
   }
   const quietHours = formatNotificationQuietHours(notifications.telegram.quietHours);
   if (quietHours) {
@@ -1770,8 +1782,30 @@ function notificationWorkspaceFacts(
   if (notifications.telegram.digestSchedule) {
     facts.push({ label: "Digest schedule", value: notifications.telegram.digestSchedule });
   }
+  if (notifications.digest?.nextDueAt) {
+    facts.push({ label: "Digest next", value: notifications.digest.nextDueAt });
+  }
+  if (notifications.digest?.lastScheduledFor) {
+    facts.push({ label: "Digest last", value: notifications.digest.lastScheduledFor });
+  }
+  if (notifications.digest?.error) {
+    facts.push({ label: "Digest error", value: notifications.digest.error });
+  }
   if (notifications.telegram.batchWindowMinutes) {
     facts.push({ label: "Batch window", value: `${notifications.telegram.batchWindowMinutes}m` });
+  }
+  if (notifications.batch) {
+    facts.push({
+      label: "Batch queued",
+      value: `${notifications.batch.pending} pending / ${notifications.batch.total} total`,
+    });
+    if (notifications.batch.firstQueuedAt) {
+      facts.push({ label: "Batch first queued", value: notifications.batch.firstQueuedAt });
+    }
+    if (notifications.batch.dueAt) {
+      facts.push({ label: "Batch due", value: notifications.batch.dueAt });
+    }
+    facts.push({ label: "Batch queue", value: notifications.batch.path });
   }
   const quietHours = formatNotificationQuietHours(notifications.telegram.quietHours);
   if (quietHours) {

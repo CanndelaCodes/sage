@@ -58,6 +58,19 @@ describe("SageOS status renderer", () => {
           lastAt: "2026-05-27T12:00:00.000Z",
           lastSummary: "Failed to send digest.",
         },
+        batch: {
+          path: "notification-batch.json",
+          pending: 1,
+          total: 2,
+          firstQueuedAt: "2026-05-27T11:45:00.000Z",
+          dueAt: "2026-05-27T12:00:00.000Z",
+        },
+        digest: {
+          path: "notification-digest.json",
+          schedule: "0 8 * * *",
+          lastScheduledFor: "2026-05-27T11:30:00.000Z",
+          nextDueAt: "2026-05-28T12:00:00.000Z",
+        },
       },
       coding: {
         enabled: true,
@@ -86,7 +99,7 @@ describe("SageOS status renderer", () => {
     expect(output).toContain("Policy: execute_scoped, approvals destructive, external_writes");
     expect(output).toContain("Sources: 1 enabled, 1 disabled, 0 failing");
     expect(output).toContain(
-      "Notifications: Telegram enabled, urgent pending 1, digest 0 8 * * *, batch 15m, quiet 22:00-07:00 UTC, focus urgent-only, recent 2 sent / 1 failed / 3 skipped, last failed",
+      "Notifications: Telegram enabled, urgent pending 1, digest 0 8 * * *, next 2026-05-28T12:00:00.000Z, last digest 2026-05-27T11:30:00.000Z, batch 15m, queued 1/2, due 2026-05-27T12:00:00.000Z, quiet 22:00-07:00 UTC, focus urgent-only, recent 2 sent / 1 failed / 3 skipped, last failed",
     );
     expect(output).toContain("Coding: enabled, 1 repos, 1 reports, restrictions no_release");
     expect(output).toContain("Audit: 4 recent events, events.jsonl");

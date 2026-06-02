@@ -44,8 +44,25 @@ function renderNotificationLine(snapshot: SageOsStatusSnapshot): string {
   if (snapshot.notifications.telegram.digestSchedule) {
     parts.push(`digest ${snapshot.notifications.telegram.digestSchedule}`);
   }
+  if (snapshot.notifications.digest?.nextDueAt) {
+    parts.push(`next ${snapshot.notifications.digest.nextDueAt}`);
+  }
+  if (snapshot.notifications.digest?.lastScheduledFor) {
+    parts.push(`last digest ${snapshot.notifications.digest.lastScheduledFor}`);
+  }
+  if (snapshot.notifications.digest?.error) {
+    parts.push(`digest error ${snapshot.notifications.digest.error}`);
+  }
   if (snapshot.notifications.telegram.batchWindowMinutes) {
     parts.push(`batch ${snapshot.notifications.telegram.batchWindowMinutes}m`);
+  }
+  if (snapshot.notifications.batch) {
+    parts.push(
+      `queued ${snapshot.notifications.batch.pending}/${snapshot.notifications.batch.total}`,
+    );
+    if (snapshot.notifications.batch.dueAt) {
+      parts.push(`due ${snapshot.notifications.batch.dueAt}`);
+    }
   }
   const quietHours = snapshot.notifications.telegram.quietHours;
   if (quietHours) {

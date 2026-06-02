@@ -62,6 +62,19 @@ const state = {
         lastOutcome: "skipped",
         lastSummary: "Skipped SageOS Telegram digest because quiet hours are active.",
       },
+      batch: {
+        path: "notification-batch.json",
+        pending: 1,
+        total: 1,
+        firstQueuedAt: "2026-06-01T13:00:00.000Z",
+        dueAt: "2026-06-01T13:15:00.000Z",
+      },
+      digest: {
+        path: "notification-digest.json",
+        schedule: "0 8 * * *",
+        lastScheduledFor: "2026-06-01T12:00:00.000Z",
+        nextDueAt: "2026-06-02T12:00:00.000Z",
+      },
     },
     audit: { recentEvents: 12, eventLogPath: "events.jsonl" },
     incidents: [
@@ -366,7 +379,8 @@ describe("overlay renderer model", () => {
     expect(model.overview[2].rows).toContainEqual({
       label: "Notifications",
       value: "1 urgent",
-      detail: "Telegram enabled / digest 0 8 * * * / batch 15m / quiet 22:00-07:00 UTC",
+      detail:
+        "Telegram enabled / digest 0 8 * * * / next 2026-06-02T12:00:00.000Z / batch 15m / 1 queued / due 2026-06-01T13:15:00.000Z / quiet 22:00-07:00 UTC",
     });
     expect(model.overview[2].rows).toContainEqual({
       label: "Audit",
@@ -579,7 +593,12 @@ describe("overlay renderer model", () => {
     expect(notificationModel.workspace.facts).toEqual(
       expect.arrayContaining([
         { label: "Digest schedule", value: "0 8 * * *" },
+        { label: "Digest next", value: "2026-06-02T12:00:00.000Z" },
+        { label: "Digest last", value: "2026-06-01T12:00:00.000Z" },
         { label: "Batch window", value: "15m" },
+        { label: "Batch queued", value: "1 pending / 1 total" },
+        { label: "Batch due", value: "2026-06-01T13:15:00.000Z" },
+        { label: "Batch queue", value: "notification-batch.json" },
         { label: "Quiet hours", value: "22:00-07:00 UTC" },
         { label: "Recent", value: "2 sent / 1 failed / 1 skipped" },
         { label: "Last outcome", value: "skipped" },

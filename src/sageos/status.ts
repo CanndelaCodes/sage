@@ -1,4 +1,6 @@
+import { Cron } from "croner";
 import { readFile } from "node:fs/promises";
+import path from "node:path";
 import {
   listLearningEventQueue,
   resolveLearningEventQueuePath,
@@ -7,7 +9,12 @@ import {
   listSageMemoryCaptureQueue,
   resolveSageMemoryCaptureQueuePath,
 } from "../memory/sage-memory-capture-queue.js";
-import { createSageOsEventLog, readSageOsEvents, type SageOsEvent } from "./event-log.js";
+import {
+  createSageOsEventLog,
+  readSageOsEvents,
+  resolveSageOsStateDir,
+  type SageOsEvent,
+} from "./event-log.js";
 import { createSageOsStateStore, readSageOsState } from "./state-store.js";
 import {
   createSageOsStatusSnapshot,
@@ -38,6 +45,9 @@ export type CollectSageOsStatusOptions = {
   now?: () => Date;
 };
 
+type NotificationBatchState = NonNullable<SageOsStatusSnapshot["notifications"]["batch"]>;
+type NotificationDigestState = NonNullable<SageOsStatusSnapshot["notifications"]["digest"]>;
+
 export async function collectSageOsStatus(
   opts: CollectSageOsStatusOptions = {},
 ): Promise<SageOsStatusSnapshot> {
@@ -46,26 +56,29 @@ export async function collectSageOsStatus(
   const store = createSageOsStateStore({ stateDir: opts.stateDir });
   const state = await readSageOsState(store);
   const eventLog = createSageOsEventLog({ stateDir: opts.stateDir });
-  const [memoryQueue, learningQueue, recentEvents, events] = await Promise.all([
-    listSageMemoryCaptureQueue({
-      queuePath:
-        opts.memoryCaptureQueuePath ??
-        resolveSageMemoryCaptureQueuePath({
-          agentId,
-          env: envForStateDir(opts.stateDir),
-        }),
-    }),
-    listLearningEventQueue({
-      queuePath:
-        opts.learningActivityQueuePath ??
-        resolveLearningEventQueuePath({
-          agentId,
-          env: envForStateDir(opts.stateDir),
-        }),
-    }),
-    countEventLogLines(eventLog.path),
-    readSageOsEvents(eventLog, { limit: 100 }),
-  ]);
+  const [memoryQueue, learningQueue, recentEvents, events, notificationBatch, digest] =
+    await Promise.all([
+      listSageMemoryCaptureQueue({
+        queuePath:
+          opts.memoryCaptureQueuePath ??
+          resolveSageMemoryCaptureQueuePath({
+            agentId,
+            env: envForStateDir(opts.stateDir),
+          }),
+      }),
+      listLearningEventQueue({
+        queuePath:
+          opts.learningActivityQueuePath ??
+          resolveLearningEventQueuePath({
+            agentId,
+            env: envForStateDir(opts.stateDir),
+          }),
+      }),
+      countEventLogLines(eventLog.path),
+      readSageOsEvents(eventLog, { limit: 100 }),
+      summarizeNotificationBatch(opts),
+      summarizeDigestSchedule(opts, collectedAt),
+    ]);
   const memoryCaptureQueue = queueSummary(memoryQueue);
   const learningActivityQueue = queueSummary(learningQueue);
   const memoryDoctor = state.status.memory.doctor;
@@ -128,7 +141,7 @@ export async function collectSageOsStatus(
     sources: summarizeSources(opts.cfg, state.observations),
     policy: summarizePolicy(opts.cfg, state.status.mode),
     coding: summarizeCoding(opts.cfg, state.codingReports),
-    notifications: summarizeNotifications(opts.cfg, incidents, events),
+    notifications: summarizeNotifications(opts.cfg, incidents, events, notificationBatch, digest),
     incidents,
     audit: {
       ...state.status.audit,
@@ -478,6 +491,8 @@ function summarizeNotifications(
   cfg: SageOsConfig | undefined,
   incidents: SageOsIncident[],
   events: SageOsEvent[],
+  batch: NotificationBatchState | undefined,
+  digest: NotificationDigestState | undefined,
 ): SageOsStatusSnapshot["notifications"] {
   const target = cfg?.notifications?.telegram?.target?.trim();
   const digestSchedule = cfg?.notifications?.telegram?.digestSchedule?.trim();
@@ -514,7 +529,100 @@ function summarizeNotifications(
       (incident) => incident.severity === "error" || incident.severity === "critical",
     ).length,
     recent,
+    ...(batch ? { batch } : {}),
+    ...(digest ? { digest } : {}),
   };
+}
+
+async function summarizeNotificationBatch(
+  opts: CollectSageOsStatusOptions,
+): Promise<NotificationBatchState | undefined> {
+  const batchWindowMinutes = opts.cfg?.notifications?.telegram?.batchWindowMinutes;
+  const configured =
+    typeof batchWindowMinutes === "number" &&
+    Number.isFinite(batchWindowMinutes) &&
+    batchWindowMinutes > 0;
+  const batchPath = path.join(resolveSageOsStateDir(opts.stateDir), "notification-batch.json");
+  const entries = await readNotificationBatchEntries(batchPath);
+  if (!configured && entries.length === 0) {
+    return undefined;
+  }
+  const pendingEntries = entries.filter((entry) => entry.status === "pending");
+  const firstQueuedAt = pendingEntries
+    .map((entry) => entry.createdAt)
+    .filter((createdAt): createdAt is string => typeof createdAt === "string")
+    .toSorted((a, b) => Date.parse(a) - Date.parse(b))[0];
+  const dueAt =
+    firstQueuedAt && configured ? addMinutesIso(firstQueuedAt, batchWindowMinutes) : undefined;
+  return {
+    path: batchPath,
+    total: entries.length,
+    pending: pendingEntries.length,
+    ...(firstQueuedAt ? { firstQueuedAt } : {}),
+    ...(dueAt ? { dueAt } : {}),
+  };
+}
+
+async function summarizeDigestSchedule(
+  opts: CollectSageOsStatusOptions,
+  now: Date,
+): Promise<NotificationDigestState | undefined> {
+  const schedule = opts.cfg?.notifications?.telegram?.digestSchedule?.trim();
+  if (!schedule) {
+    return undefined;
+  }
+  const digestPath = path.join(resolveSageOsStateDir(opts.stateDir), "notification-digest.json");
+  const state = await readDigestState(digestPath);
+  const nextDue = nextDigestDueAt(schedule, now);
+  return {
+    path: digestPath,
+    schedule,
+    ...(state.lastScheduledFor ? { lastScheduledFor: state.lastScheduledFor } : {}),
+    ...(nextDue.nextDueAt ? { nextDueAt: nextDue.nextDueAt } : {}),
+    ...(nextDue.error ? { error: nextDue.error } : {}),
+  };
+}
+
+async function readNotificationBatchEntries(
+  batchPath: string,
+): Promise<Array<{ status?: string; createdAt?: string }>> {
+  try {
+    const raw = await readFile(batchPath, "utf8");
+    const parsed = JSON.parse(raw) as { entries?: unknown };
+    return Array.isArray(parsed.entries)
+      ? parsed.entries.filter((entry): entry is { status?: string; createdAt?: string } =>
+          Boolean(entry && typeof entry === "object"),
+        )
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+async function readDigestState(digestPath: string): Promise<{ lastScheduledFor?: string }> {
+  try {
+    const raw = await readFile(digestPath, "utf8");
+    const parsed = JSON.parse(raw) as { lastScheduledFor?: unknown };
+    return typeof parsed.lastScheduledFor === "string"
+      ? { lastScheduledFor: parsed.lastScheduledFor }
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function addMinutesIso(value: string, minutes: number): string | undefined {
+  const time = Date.parse(value);
+  return Number.isFinite(time) ? new Date(time + minutes * 60_000).toISOString() : undefined;
+}
+
+function nextDigestDueAt(schedule: string, now: Date): { nextDueAt?: string; error?: string } {
+  try {
+    const next = new Cron(schedule, { catch: false }).nextRun(now);
+    return next ? { nextDueAt: next.toISOString() } : {};
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
 }
 
 function summarizeNotificationEvents(
