@@ -1,10 +1,3 @@
-import type {
-  SageOsConfig,
-  SageOsObservation,
-  SageOsPolicyScope,
-  SageOsStatusSnapshot,
-  SageOsTaskSpec,
-} from "./types.js";
 import { appendSageOsEvent, createSageOsEventLog } from "./event-log.js";
 import {
   createSageOsStateStore,
@@ -14,6 +7,15 @@ import {
   type SageOsStateStore,
 } from "./state-store.js";
 import { collectSageOsStatus } from "./status.js";
+import {
+  createSageOsStatusSnapshot,
+  type SageOsConfig,
+  type SageOsIncident,
+  type SageOsObservation,
+  type SageOsPolicyScope,
+  type SageOsStatusSnapshot,
+  type SageOsTaskSpec,
+} from "./types.js";
 
 export type SageOsAmbientCopilotResult = {
   observed: number;
@@ -35,12 +37,17 @@ export async function runSageOsAmbientCopilotOnce(params: {
   const observations = state.observations;
   const existingTaskIds = new Set(state.tasks.map((task) => task.id));
   const created: SageOsTaskSpec[] = [];
+  const quarantined: SageOsObservation[] = [];
   const maxSuggestions = normalizeLimit(params.maxSuggestions);
 
-  if (params.cfg?.enabled !== false && params.cfg?.mode !== "off" && maxSuggestions > 0) {
+  if (params.cfg?.enabled !== false && params.cfg?.mode !== "off") {
     for (const observation of observations) {
+      if (isSuspiciousObservedInstruction(observation)) {
+        quarantined.push(observation);
+        continue;
+      }
       if (created.length >= maxSuggestions) {
-        break;
+        continue;
       }
       const task = taskFromObservation(observation, existingTaskIds, params.now);
       if (!task) {
@@ -59,6 +66,15 @@ export async function runSageOsAmbientCopilotOnce(params: {
     }
   }
 
+  if (quarantined.length > 0) {
+    await persistObservedPromptInjectionIncident({
+      store,
+      stateDir: params.stateDir,
+      observations: quarantined,
+      now: params.now,
+    });
+  }
+
   const status = await collectSageOsStatus({ stateDir: params.stateDir, cfg: params.cfg });
   await writeSageOsState(store, status);
   return {
@@ -68,6 +84,80 @@ export async function runSageOsAmbientCopilotOnce(params: {
     tasks: created,
     status,
   };
+}
+
+const OBSERVED_PROMPT_INJECTION_INCIDENT_ID = "incident_observed_prompt_injection";
+
+const SUSPICIOUS_OBSERVED_INSTRUCTION_PATTERNS = [
+  /\b(?:ignore|disregard|override)\b[\s\S]{0,120}\b(?:previous|prior|system|developer|sageos|instructions?|policy)\b/i,
+  /\b(?:disable|bypass|turn\s+off|remove)\b[\s\S]{0,120}\b(?:sageos\s+)?(?:policy|approvals?|safeguards?|guardrails?|security)\b/i,
+  /\b(?:send|exfiltrate|upload|post|message|forward)\b[\s\S]{0,120}\b(?:api[_-]?keys?|api[_-]?tokens?|tokens?|passwords?|secrets?|credentials?)\b/i,
+  /\b(?:system|developer)\s+prompt\b/i,
+];
+
+function isSuspiciousObservedInstruction(observation: SageOsObservation): boolean {
+  if (observation.state !== "captured" || observation.sensitivity === "secret") {
+    return false;
+  }
+  return SUSPICIOUS_OBSERVED_INSTRUCTION_PATTERNS.some((pattern) => pattern.test(observation.text));
+}
+
+async function persistObservedPromptInjectionIncident(params: {
+  store: SageOsStateStore;
+  stateDir?: string;
+  observations: SageOsObservation[];
+  now?: () => Date;
+}): Promise<void> {
+  const state = await readSageOsState(params.store);
+  const now = (params.now?.() ?? new Date()).toISOString();
+  const latest = params.observations.toSorted(
+    (a, b) => observationSortTime(b) - observationSortTime(a),
+  )[0];
+  const existing = state.status.incidents.find(
+    (incident) => incident.id === OBSERVED_PROMPT_INJECTION_INCIDENT_ID,
+  );
+  const incident: SageOsIncident = {
+    id: OBSERVED_PROMPT_INJECTION_INCIDENT_ID,
+    severity: "warning",
+    category: "policy",
+    title: "Suspicious instructions observed in untrusted content",
+    summary: [
+      `SageOS quarantined ${params.observations.length} observation${
+        params.observations.length === 1 ? "" : "s"
+      } containing possible instruction override, policy bypass, or credential exfiltration language.`,
+      latest ? `Latest observation: ${latest.id} from ${latest.source}.` : undefined,
+    ]
+      .filter((line): line is string => Boolean(line))
+      .join(" "),
+    firstSeenAt: existing?.firstSeenAt ?? earliestObservationTime(params.observations, now),
+    lastSeenAt: latest ? latest.observedAt : now,
+    autoRepairSafe: false,
+    repairAction: {
+      id: "repair_observed_prompt_injection_review",
+      label: "Review quarantined observations",
+      command: "sage os observations --json",
+      gatewayMethod: "sageos.observations.list",
+      risk: "medium",
+      approvalRequired: false,
+    },
+  };
+  await writeSageOsState(
+    params.store,
+    createSageOsStatusSnapshot({
+      ...state.status,
+      incidents: state.status.incidents
+        .filter((item) => item.id !== OBSERVED_PROMPT_INJECTION_INCIDENT_ID)
+        .concat(incident),
+    }),
+  );
+  await appendSageOsEvent(createSageOsEventLog({ stateDir: params.stateDir }), {
+    type: "incident_created",
+    actor: "sageos.ambient_copilot",
+    summary: latest
+      ? `Created ${OBSERVED_PROMPT_INJECTION_INCIDENT_ID} from observation ${latest.id} (${latest.source}).`
+      : `Created ${OBSERVED_PROMPT_INJECTION_INCIDENT_ID}.`,
+    sensitivity: "private",
+  });
 }
 
 function taskFromObservation(
@@ -98,6 +188,23 @@ function taskFromObservation(
     createdAt: now,
     updatedAt: now,
   };
+}
+
+function earliestObservationTime(observations: SageOsObservation[], fallback: string): string {
+  const earliest = observations.toSorted(
+    (a, b) => observationSortTime(a) - observationSortTime(b),
+  )[0];
+  return earliest?.observedAt ?? fallback;
+}
+
+function observationSortTime(observation: SageOsObservation): number {
+  for (const timestamp of [observation.observedAt, observation.updatedAt, observation.createdAt]) {
+    const millis = Date.parse(timestamp);
+    if (Number.isFinite(millis)) {
+      return millis;
+    }
+  }
+  return 0;
 }
 
 function taskIdForObservation(observation: SageOsObservation): string {
