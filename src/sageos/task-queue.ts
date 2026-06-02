@@ -2,11 +2,11 @@ import type {
   SageOsApproval,
   SageOsApprovalRiskClass,
   SageOsConfig,
-  SageOsPolicyScope,
   SageOsStatusSnapshot,
   SageOsTaskSpec,
 } from "./types.js";
 import { appendSageOsEvent, createSageOsEventLog } from "./event-log.js";
+import { requiredSageOsApprovalRisk } from "./policy.js";
 import {
   createSageOsStateStore,
   readSageOsState,
@@ -45,7 +45,7 @@ export async function queueSageOsTask(params: {
 
   const now = (params.now?.() ?? new Date()).toISOString();
   const requestedBy = params.requestedBy?.trim() || "sageos.task_queue";
-  const riskClass = requiredApprovalRisk(task.policyScopes);
+  const riskClass = requiredSageOsApprovalRisk(task.policyScopes, params.cfg);
   const nextTask: SageOsTaskSpec = {
     ...task,
     state: riskClass ? "waiting_for_policy" : "queued",
@@ -100,34 +100,6 @@ function approvalForTask(
     createdAt: opts.now,
     updatedAt: opts.now,
   };
-}
-
-function requiredApprovalRisk(scopes: SageOsPolicyScope[]): SageOsApprovalRiskClass | undefined {
-  for (const scope of scopes) {
-    if (scope.risk === "high" || scope.risk === "critical") {
-      return riskClassForScope(scope);
-    }
-    if (scope.risk === "medium" && ["channel", "network", "system"].includes(scope.kind)) {
-      return riskClassForScope(scope);
-    }
-  }
-  return undefined;
-}
-
-function riskClassForScope(scope: SageOsPolicyScope): SageOsApprovalRiskClass {
-  if (scope.kind === "channel" || scope.kind === "network") {
-    return "external_write";
-  }
-  if (scope.kind === "system") {
-    return "windows_setting";
-  }
-  if (scope.kind === "memory") {
-    return "private_data_export";
-  }
-  if (scope.kind === "file" || scope.kind === "repo") {
-    return "destructive";
-  }
-  return "policy_change";
 }
 
 function safeId(value: string): string {
