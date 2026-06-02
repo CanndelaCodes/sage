@@ -1557,6 +1557,12 @@ function buildSystemResourceRows(state: SageOsOverlayStatusState): OverlaySystem
       state: "observing",
     },
     {
+      id: "coding",
+      title: "Coding",
+      detail: `${status.coding.reports.total} reports / ${status.coding.allowedRepos.length} allowed repos`,
+      state: status.coding.enabled ? "enabled" : "disabled",
+    },
+    {
       id: "memory",
       title: "Memory",
       detail: `${status.memory.captureQueue.pending} pending / ${status.memory.captureQueue.failed} failed`,
@@ -2111,6 +2117,37 @@ function textMatchesAny(value: string, needles: string[]): boolean {
   return needles.some((needle) => haystack.includes(needle));
 }
 
+function formatCodingReportQueue(summary: { active: number; queued: number; blocked: number }): string {
+  return `${summary.queued} queued / ${summary.active} active / ${summary.blocked} blocked`;
+}
+
+function runningWorkerSummary(state: SageOsOverlayStatusState): string {
+  const workers = uniqueStrings(
+    (state.runs ?? [])
+      .filter((run) => run.state === "running" || run.state === "queued")
+      .map((run) => run.workerSessionId ?? run.id),
+  );
+  return formatList(workers);
+}
+
+function latestCodingReport(
+  state: SageOsOverlayStatusState,
+): OverlayCodingReportRecord | undefined {
+  return (state.codingReports ?? [])
+    .toSorted((a, b) => codingReportTimestamp(b) - codingReportTimestamp(a))
+    .at(0);
+}
+
+function codingReportTimestamp(report: OverlayCodingReportRecord): number {
+  const timestamp = report.updatedAt ?? report.finishedAt ?? report.startedAt ?? report.createdAt;
+  const parsed = timestamp ? Date.parse(timestamp) : 0;
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function latestCodingReportSummary(report: OverlayCodingReportRecord | undefined): string {
+  return report ? `${report.objective} (${report.outcome})` : "None";
+}
+
 type AuditTimelineEntry = {
   at: string;
   summary: string;
@@ -2358,6 +2395,28 @@ function systemWorkspaceModel(
         { label: "Staging moves", value: files.stagingMoves },
         { label: "Cleanup plans", value: files.cleanupPlans },
         { label: "Approval-required deletes", value: files.approvalRequiredDeletes },
+      ],
+      actions: [],
+    };
+  }
+
+  if (id === "coding") {
+    const latestReport = latestCodingReport(state);
+    return {
+      title: "Coding",
+      eyebrow: `System / ${status.coding.enabled ? "enabled" : "disabled"}`,
+      detail: "Night Shift and coding worker readiness for allowed repos, diffs, tests, blockers, and report health.",
+      facts: [
+        { label: "Enabled", value: String(status.coding.enabled) },
+        { label: "Allowed repos", value: formatList(status.coding.allowedRepos) },
+        { label: "Restrictions", value: formatList(status.coding.restrictions) },
+        { label: "Report queue", value: formatCodingReportQueue(status.coding.reports) },
+        { label: "Report total", value: String(status.coding.reports.total) },
+        { label: "Running workers", value: runningWorkerSummary(state) },
+        { label: "Latest report", value: latestCodingReportSummary(latestReport) },
+        { label: "Latest diff", value: formatList(latestReport?.diff?.changedFiles ?? []) },
+        { label: "Latest tests", value: formatCodingReportTests(latestReport?.tests ?? []) || "None" },
+        { label: "Latest blockers", value: formatList(latestReport?.blockers ?? []) },
       ],
       actions: [],
     };

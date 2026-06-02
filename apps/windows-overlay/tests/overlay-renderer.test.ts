@@ -396,6 +396,7 @@ describe("overlay renderer model", () => {
       "Security",
       "PC Management",
       "Files",
+      "Coding",
       "Memory",
       "Learning",
       "Sources",
@@ -512,6 +513,9 @@ describe("overlay renderer model", () => {
     });
     const filesModel = renderOverlayModel(state as never, {
       workspaceTarget: { kind: "system", id: "files" },
+    });
+    const codingModel = renderOverlayModel(state as never, {
+      workspaceTarget: { kind: "system", id: "coding" },
     });
     const memoryModel = renderOverlayModel(state as never, {
       workspaceTarget: { kind: "system", id: "memory" },
@@ -716,6 +720,24 @@ describe("overlay renderer model", () => {
         { label: "Changed files", value: "README.md" },
         { label: "Cleanup plans", value: "None" },
         { label: "Approval-required deletes", value: "None" },
+      ]),
+    );
+    expect(codingModel.workspace).toMatchObject({
+      title: "Coding",
+      eyebrow: "System / enabled",
+    });
+    expect(codingModel.workspace.facts).toEqual(
+      expect.arrayContaining([
+        { label: "Enabled", value: "true" },
+        { label: "Allowed repos", value: "C:/Users/jason/Desktop/sage" },
+        { label: "Restrictions", value: "no destructive git" },
+        { label: "Report queue", value: "1 queued / 0 active / 0 blocked" },
+        { label: "Report total", value: "2" },
+        { label: "Running workers", value: "worker_task_1_1" },
+        { label: "Latest report", value: "Summarize coding work (succeeded)" },
+        { label: "Latest diff", value: "README.md" },
+        { label: "Latest tests", value: "node test.js: 0" },
+        { label: "Latest blockers", value: "None" },
       ]),
     );
     expect(memoryModel.workspace).toMatchObject({
