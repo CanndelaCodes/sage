@@ -488,6 +488,83 @@ describe("SageOS status collector", () => {
     );
   });
 
+  it("tracks notification failure incidents until a later successful send", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "sageos-status-notification-failure-"));
+    const store = createSageOsStateStore({ stateDir: root });
+    const log = createSageOsEventLog({ stateDir: root });
+    const memoryCaptureQueuePath = path.join(root, "memory-queue.json");
+    const learningActivityQueuePath = path.join(root, "learning-queue.json");
+    const cfg = {
+      notifications: { telegram: { enabled: true, target: "telegram:123" } },
+    };
+
+    await writeSageOsState(store, createSageOsStatusSnapshot());
+    await appendSageOsEvent(log, {
+      type: "notification_failed",
+      actor: "sageos.notification_manager",
+      summary: "Failed to send SageOS Telegram digest to telegram:123: network offline",
+    });
+
+    const failed = await collectSageOsStatus({
+      stateDir: root,
+      memoryCaptureQueuePath,
+      learningActivityQueuePath,
+      cfg,
+    });
+
+    expect(failed.notifications.recent).toMatchObject({
+      failed: 1,
+      lastOutcome: "failed",
+    });
+    expect(failed.incidents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "incident_notification_failed",
+          category: "notifications",
+          severity: "warning",
+          title: "SageOS notification delivery failed",
+          summary: expect.stringContaining("network offline"),
+          autoRepairSafe: true,
+          repairAction: expect.objectContaining({
+            command: "sage os notifications digest --json",
+            gatewayMethod: "sageos.notifications.digest",
+            approvalRequired: false,
+          }),
+        }),
+      ]),
+    );
+
+    await writeSageOsState(store, failed);
+    const refreshed = await collectSageOsStatus({
+      stateDir: root,
+      memoryCaptureQueuePath,
+      learningActivityQueuePath,
+      cfg,
+    });
+
+    expect(
+      refreshed.incidents.filter((incident) => incident.id === "incident_notification_failed"),
+    ).toHaveLength(1);
+
+    await appendSageOsEvent(log, {
+      type: "notification_sent",
+      actor: "sageos.notification_manager",
+      summary: "Sent SageOS Telegram digest to telegram:123.",
+    });
+
+    const recovered = await collectSageOsStatus({
+      stateDir: root,
+      memoryCaptureQueuePath,
+      learningActivityQueuePath,
+      cfg,
+    });
+
+    expect(recovered.notifications.recent?.lastOutcome).toBe("sent");
+    expect(recovered.incidents.map((incident) => incident.id)).not.toContain(
+      "incident_notification_failed",
+    );
+  });
+
   it("does not duplicate generated incidents across persisted status refreshes", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "sageos-status-incidents-"));
     const store = createSageOsStateStore({ stateDir: root });

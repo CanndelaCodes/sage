@@ -133,6 +133,38 @@ describe("SageOS overlay actions", () => {
     expect(result).toBe(refreshed);
   });
 
+  it("runs notification incident preview repairs and refreshes overlay state", async () => {
+    const refreshed = { status: { incidents: [] } };
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce({ notification: { title: "SageOS: Daily digest" } })
+      .mockResolvedValueOnce(refreshed);
+    const state = {
+      status: {
+        incidents: [
+          {
+            id: "incident_notification_failed",
+            autoRepairSafe: true,
+            repairAction: {
+              gatewayMethod: "sageos.notifications.digest",
+              approvalRequired: false,
+            },
+          },
+        ],
+      },
+    };
+
+    const result = await runSageOsIncidentRepair(
+      { request },
+      state as never,
+      "incident_notification_failed",
+    );
+
+    expect(request).toHaveBeenNthCalledWith(1, "sageos.notifications.digest", {});
+    expect(request).toHaveBeenNthCalledWith(2, "sageos.status", {});
+    expect(result).toBe(refreshed);
+  });
+
   it("rejects incident repair methods that are not safe for the overlay", async () => {
     const request = vi.fn();
     const state = {

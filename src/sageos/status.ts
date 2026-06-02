@@ -113,6 +113,9 @@ export async function collectSageOsStatus(
       now: state.status.generatedAt,
       observations: state.observations,
     }),
+    ...notificationFailureIncidents({
+      events,
+    }),
   ];
 
   const snapshot = createSageOsStatusSnapshot({
@@ -158,6 +161,7 @@ const GENERATED_INCIDENT_IDS = new Set([
   "incident_policy_blocked",
   "incident_source_failed",
   "incident_memory_doctor_failed",
+  "incident_notification_failed",
 ]);
 
 function isGeneratedIncidentId(id: string): boolean {
@@ -396,6 +400,37 @@ function sourceFailureIncidents(params: {
         label: "Review SageOS observations",
         command: "sage os observations --json",
         gatewayMethod: "sageos.observations.list",
+        risk: "low",
+        approvalRequired: false,
+      },
+    },
+  ];
+}
+
+function notificationFailureIncidents(params: { events: SageOsEvent[] }): SageOsIncident[] {
+  const lastNotificationEvent = params.events
+    .filter((event) =>
+      ["notification_sent", "notification_failed", "notification_skipped"].includes(event.type),
+    )
+    .at(-1);
+  if (lastNotificationEvent?.type !== "notification_failed") {
+    return [];
+  }
+  return [
+    {
+      id: "incident_notification_failed",
+      severity: "warning",
+      category: "notifications",
+      title: "SageOS notification delivery failed",
+      summary: `The latest SageOS notification attempt failed: ${lastNotificationEvent.summary}`,
+      firstSeenAt: lastNotificationEvent.ts,
+      lastSeenAt: lastNotificationEvent.ts,
+      autoRepairSafe: true,
+      repairAction: {
+        id: "repair_notification_preview",
+        label: "Preview Telegram digest",
+        command: "sage os notifications digest --json",
+        gatewayMethod: "sageos.notifications.digest",
         risk: "low",
         approvalRequired: false,
       },
