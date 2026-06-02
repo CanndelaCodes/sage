@@ -16,6 +16,7 @@ import {
   type SageOsStateStore,
 } from "./state-store.js";
 import { collectSageOsStatus } from "./status.js";
+import { applySageOsTaskExecutionContract } from "./task-contract.js";
 
 export type SageOsTaskQueueResult = {
   outcome: "queued" | "approval_required";
@@ -46,11 +47,11 @@ export async function queueSageOsTask(params: {
   const now = (params.now?.() ?? new Date()).toISOString();
   const requestedBy = params.requestedBy?.trim() || "sageos.task_queue";
   const riskClass = requiredSageOsApprovalRisk(task.policyScopes, params.cfg);
-  const nextTask: SageOsTaskSpec = {
+  const nextTask = applySageOsTaskExecutionContract({
     ...task,
     state: riskClass ? "waiting_for_policy" : "queued",
     updatedAt: now,
-  };
+  });
   await upsertSageOsTask(store, nextTask);
 
   let approval: SageOsApproval | undefined;

@@ -57,7 +57,7 @@ describe("SageOS task creation", () => {
         ownerAgentId: "employee_memory_steward",
         requestedBy: "sageos.test",
         autonomyTier: "suggest",
-        evidenceRefs: [],
+        evidenceRefs: ["task_review_memory_queue"],
         toolProfile: "sageos.default",
         budget: { maxMinutes: 30, maxToolCalls: 50 },
         expectedOutput: "Summary of task outcome, evidence, blockers, and next steps.",

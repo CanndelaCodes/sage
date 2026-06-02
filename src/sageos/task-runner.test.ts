@@ -87,11 +87,11 @@ describe("SageOS task runner", () => {
           "Started SageOS task task_build run run_task_build_1",
           "Completed SageOS task task_build: dry-run executor accepted task_build",
         ],
-        artifacts: [],
+        artifacts: ["task_build"],
         verificationResult: {
           outcome: "passed",
           summary: "dry-run executor accepted task_build",
-          refs: [],
+          refs: ["Confirm the task outcome with available local evidence."],
         },
         budgetUsed: { elapsedMinutes: 0, toolCalls: 1 },
         timeline: [
@@ -117,7 +117,16 @@ describe("SageOS task runner", () => {
       runs: { total: 1, active: 0, failed: 0 },
     });
     await expect(readSageOsState(store)).resolves.toMatchObject({
-      tasks: [{ id: "task_build", state: "completed" }],
+      tasks: [
+        {
+          id: "task_build",
+          state: "completed",
+          evidenceRefs: ["task_build"],
+          verificationPlan: ["Confirm the task outcome with available local evidence."],
+          rollback:
+            "Cancel before execution or review generated artifacts before applying changes.",
+        },
+      ],
       runs: [
         {
           id: "run_task_build_1",

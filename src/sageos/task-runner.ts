@@ -27,6 +27,7 @@ import {
   type SageOsStateStore,
 } from "./state-store.js";
 import { collectSageOsStatus } from "./status.js";
+import { applySageOsTaskExecutionContract } from "./task-contract.js";
 
 export type SageOsTaskExecutorResult = {
   summary?: string;
@@ -73,8 +74,8 @@ export async function runNextSageOsTaskOnce(
 ): Promise<SageOsTaskRunnerResult> {
   const store = params.stateStore ?? createSageOsStateStore({ stateDir: params.stateDir });
   const state = await readSageOsState(store);
-  const task = state.tasks.find((entry) => entry.state === "queued");
-  if (!task) {
+  const queuedTask = state.tasks.find((entry) => entry.state === "queued");
+  if (!queuedTask) {
     const status = await collectSageOsStatus({ stateDir: params.stateDir, cfg: params.cfg });
     await writeSageOsState(store, status);
     return { outcome: "idle", status };
@@ -82,6 +83,8 @@ export async function runNextSageOsTaskOnce(
 
   const now = (params.now?.() ?? new Date()).toISOString();
   const requestedBy = params.requestedBy?.trim() || "sageos.task_runner";
+  const task = applySageOsTaskExecutionContract(queuedTask);
+  await upsertSageOsTask(store, task);
   const autonomyDecision = evaluateSageOsAutonomyTier(task.autonomyTier, params.cfg);
   if (!autonomyDecision.allowed && !hasApprovedAutonomyApproval(task, state.approvals)) {
     const blockedTask: SageOsTaskSpec = {

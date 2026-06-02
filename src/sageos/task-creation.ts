@@ -17,6 +17,7 @@ import {
   type SageOsStateStore,
 } from "./state-store.js";
 import { collectSageOsStatus } from "./status.js";
+import { applySageOsTaskExecutionContract } from "./task-contract.js";
 import { normalizeSageOsMode } from "./types.js";
 
 export type SageOsTaskCreationResult =
@@ -79,7 +80,7 @@ export async function createSageOsTask(params: {
     params.policyScopes && params.policyScopes.length > 0
       ? clonePolicyScopes(params.policyScopes)
       : inferTaskPolicyScopes(`${title} ${objective}`);
-  const task: SageOsTaskSpec = {
+  const task = applySageOsTaskExecutionContract({
     id: nextTaskId(params.id?.trim() || `task_${safeId(title)}`, state.tasks),
     title,
     objective,
@@ -90,22 +91,18 @@ export async function createSageOsTask(params: {
     policyScopes,
     evidenceRefs: uniqueStrings(params.evidenceRefs ?? []),
     riskClass: params.riskClass ?? highestRisk(policyScopes),
-    toolProfile: params.toolProfile?.trim() || "sageos.default",
-    budget: normalizeBudget(params.budget),
-    expectedOutput:
-      params.expectedOutput?.trim() ||
-      "Summary of task outcome, evidence, blockers, and next steps.",
-    verificationPlan: uniqueStrings(
-      params.verificationPlan ?? ["Confirm the task outcome with available local evidence."],
-    ),
-    rollback:
-      params.rollback?.trim() ||
-      "Cancel before execution or review generated artifacts before applying changes.",
-    notificationPolicy: normalizeNotificationPolicy(params.notificationPolicy),
+    ...(params.toolProfile !== undefined ? { toolProfile: params.toolProfile } : {}),
+    ...(params.budget !== undefined ? { budget: params.budget } : {}),
+    ...(params.expectedOutput !== undefined ? { expectedOutput: params.expectedOutput } : {}),
+    ...(params.verificationPlan !== undefined ? { verificationPlan: params.verificationPlan } : {}),
+    ...(params.rollback !== undefined ? { rollback: params.rollback } : {}),
+    ...(params.notificationPolicy !== undefined
+      ? { notificationPolicy: params.notificationPolicy }
+      : {}),
     sensitivity: params.sensitivity ?? "normal",
     createdAt: now,
     updatedAt: now,
-  };
+  });
 
   await upsertSageOsTask(store, task);
   await appendSageOsEvent(createSageOsEventLog({ stateDir: params.stateDir }), {
@@ -162,31 +159,6 @@ function highestRisk(policyScopes: SageOsPolicyScope[]): NonNullable<SageOsTaskS
     const risk = scope.risk ?? "low";
     return order.indexOf(risk) > order.indexOf(highest) ? risk : highest;
   }, "low");
-}
-
-function normalizeBudget(budget: SageOsTaskBudget | undefined): SageOsTaskBudget {
-  return {
-    maxMinutes: positiveNumber(budget?.maxMinutes) ?? 30,
-    maxToolCalls: positiveNumber(budget?.maxToolCalls) ?? 50,
-    ...(positiveNumber(budget?.maxCostUsd) !== undefined
-      ? { maxCostUsd: positiveNumber(budget?.maxCostUsd) }
-      : {}),
-  };
-}
-
-function normalizeNotificationPolicy(
-  policy: SageOsTaskNotificationPolicy | undefined,
-): SageOsTaskNotificationPolicy {
-  return {
-    channels: uniqueStrings(policy?.channels?.length ? policy.channels : ["overlay"]),
-    notifyOn: policy?.notifyOn?.length
-      ? [...new Set(policy.notifyOn)]
-      : ["completed", "failed", "blocked"],
-  };
-}
-
-function positiveNumber(value: number | undefined): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : undefined;
 }
 
 function uniquePolicyScopes(scopes: SageOsPolicyScope[]): SageOsPolicyScope[] {

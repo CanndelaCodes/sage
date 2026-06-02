@@ -50,6 +50,61 @@ describe("SageOS task queue policy", () => {
     expect(log).toContain("task_low");
   });
 
+  it("hydrates proposed tasks with execution contract metadata before queueing", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-task-queue-contract-"));
+    const store = createSageOsStateStore({ stateDir: root });
+    const now = "2026-06-02T08:15:00.000Z";
+    await upsertSageOsTask(store, {
+      id: "task_contract",
+      title: "Review bare task",
+      objective: "Queue a task that was inserted without creation defaults.",
+      state: "proposed",
+      requestedBy: "sageos.test_fixture",
+      autonomyTier: "suggest",
+      policyScopes: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const result = await queueSageOsTask({
+      taskId: "task_contract",
+      stateDir: root,
+      requestedBy: "sageos.test",
+      now: () => new Date(now),
+    });
+
+    expect(result).toMatchObject({
+      outcome: "queued",
+      task: {
+        id: "task_contract",
+        state: "queued",
+        evidenceRefs: ["task_contract"],
+        toolProfile: "sageos.default",
+        budget: { maxMinutes: 30, maxToolCalls: 50 },
+        expectedOutput: "Summary of task outcome, evidence, blockers, and next steps.",
+        verificationPlan: ["Confirm the task outcome with available local evidence."],
+        rollback: "Cancel before execution or review generated artifacts before applying changes.",
+        notificationPolicy: {
+          channels: ["overlay"],
+          notifyOn: ["completed", "failed", "blocked"],
+        },
+        sensitivity: "normal",
+      },
+    });
+    await expect(readSageOsState(store)).resolves.toMatchObject({
+      tasks: [
+        expect.objectContaining({
+          id: "task_contract",
+          state: "queued",
+          evidenceRefs: ["task_contract"],
+          verificationPlan: ["Confirm the task outcome with available local evidence."],
+          rollback:
+            "Cancel before execution or review generated artifacts before applying changes.",
+        }),
+      ],
+    });
+  });
+
   it("moves high-risk proposed tasks to waiting_for_policy with approval evidence", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "sageos-task-policy-"));
     const store = createSageOsStateStore({ stateDir: root });

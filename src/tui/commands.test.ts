@@ -23,6 +23,11 @@ describe("tui slash commands", () => {
     const command = getSlashCommands({}).find((entry) => entry.name === "sageos");
     expect(command?.description).toBe("Open SageOS Command Center");
     expect(command?.getArgumentCompletions?.("pa").map((entry) => entry.value)).toContain("pause");
-    expect(helpText()).toContain("/sageos <status|pause|resume|stop|tasks|incidents|approvals>");
+    expect(command?.getArgumentCompletions?.("em").map((entry) => entry.value)).toContain(
+      "emergency-stop",
+    );
+    expect(helpText()).toContain(
+      "/sageos <status|pause|resume|stop|emergency-stop|tasks|task <id>|incidents|approvals>",
+    );
   });
 });

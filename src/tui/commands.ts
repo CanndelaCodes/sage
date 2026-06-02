@@ -165,7 +165,7 @@ export function helpText(options: SlashCommandOptions = {}): string {
     "/help",
     "/commands",
     "/status",
-    "/sageos <status|pause|resume|stop|tasks|incidents|approvals>",
+    "/sageos <status|pause|resume|stop|emergency-stop|tasks|task <id>|incidents|approvals>",
     "/agent <id> (or /agents)",
     "/session <key> (or /sessions)",
     "/model <provider/model> (or /models)",
