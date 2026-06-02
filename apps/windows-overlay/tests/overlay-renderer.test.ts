@@ -372,6 +372,7 @@ describe("overlay renderer model", () => {
       "Supervisor",
       "Security",
       "PC Management",
+      "Files",
       "Memory",
       "Learning",
       "Sources",
@@ -484,6 +485,9 @@ describe("overlay renderer model", () => {
     });
     const pcManagementModel = renderOverlayModel(state as never, {
       workspaceTarget: { kind: "system", id: "pc-management" },
+    });
+    const filesModel = renderOverlayModel(state as never, {
+      workspaceTarget: { kind: "system", id: "files" },
     });
     const memoryModel = renderOverlayModel(state as never, {
       workspaceTarget: { kind: "system", id: "memory" },
@@ -671,6 +675,20 @@ describe("overlay renderer model", () => {
         { label: "Enabled sources", value: "apps, clipboard" },
         { label: "Recent observations", value: "4" },
         { label: "Redacted observations", value: "2" },
+      ]),
+    );
+    expect(filesModel.workspace).toMatchObject({
+      title: "Files",
+      eyebrow: "System / observing",
+    });
+    expect(filesModel.workspace.facts).toEqual(
+      expect.arrayContaining([
+        { label: "Recent suggestions", value: "None" },
+        { label: "Duplicate candidates", value: "Not reported" },
+        { label: "Large files and storage pressure", value: "Not reported" },
+        { label: "Changed files", value: "README.md" },
+        { label: "Cleanup plans", value: "None" },
+        { label: "Approval-required deletes", value: "None" },
       ]),
     );
     expect(memoryModel.workspace).toMatchObject({

@@ -266,7 +266,7 @@ export function renderOverlayModel(
     outcome: report.outcome,
   }));
   const resourceRows = buildResourceRows(state);
-  const systemResourceRows = buildSystemResourceRows(status);
+  const systemResourceRows = buildSystemResourceRows(state);
   const hudBadges: OverlayBadge[] = [{ label: "Tasks", value: activeTasks }];
   if (showApprovalBadge) {
     hudBadges.push({ label: "Approvals", value: pendingApprovals });
@@ -1504,9 +1504,9 @@ function buildResourceRows(state: SageOsOverlayStatusState): OverlayResourceRow[
   ];
 }
 
-function buildSystemResourceRows(
-  status: SageOsOverlayStatusState["status"],
-): OverlaySystemResourceRow[] {
+function buildSystemResourceRows(state: SageOsOverlayStatusState): OverlaySystemResourceRow[] {
+  const status = state.status;
+  const files = fileWorkspaceSummary(state);
   return [
     {
       id: "supervisor",
@@ -1524,6 +1524,12 @@ function buildSystemResourceRows(
       id: "pc-management",
       title: "PC Management",
       detail: `${status.observations.recent} recent observations / ${status.sources.enabled.length} enabled source`,
+      state: "observing",
+    },
+    {
+      id: "files",
+      title: "Files",
+      detail: `${files.changedFileCount} changed / ${files.cleanupPlanCount} cleanup / ${files.deleteApprovalCount} delete approvals`,
       state: "observing",
     },
     {
@@ -1858,7 +1864,7 @@ function buildWorkspaceModel(
   }
 
   if (target.kind === "system") {
-    return systemWorkspaceModel(state.status, target.id);
+    return systemWorkspaceModel(state, target.id);
   }
 
   const incident = state.status.incidents.find((entry) => entry.id === target.id);
@@ -1968,10 +1974,84 @@ function firstIncidentWorkspaceTarget(
   return incident ? { kind: "incident", id: incident.id } : { kind: "system", id: "sources" };
 }
 
+type FilesWorkspaceSummary = {
+  recentSuggestions: string;
+  duplicateCandidates: string;
+  storagePressure: string;
+  changedFiles: string;
+  stagingMoves: string;
+  cleanupPlans: string;
+  approvalRequiredDeletes: string;
+  changedFileCount: number;
+  cleanupPlanCount: number;
+  deleteApprovalCount: number;
+};
+
+function fileWorkspaceSummary(state: SageOsOverlayStatusState): FilesWorkspaceSummary {
+  const changedFiles = uniqueStrings(
+    (state.codingReports ?? []).flatMap((report) => report.diff?.changedFiles ?? []),
+  );
+  const fileScopedTasks = (state.tasks ?? []).filter((task) =>
+    (task.policyScopes ?? []).some((scope) => scope.kind === "file"),
+  );
+  const cleanupTasks = (state.tasks ?? []).filter((task) =>
+    textMatchesAny(`${task.title} ${task.objective}`, [
+      "cleanup",
+      "clean up",
+      "delete",
+      "duplicate",
+      "archive",
+      "large file",
+      "storage",
+      "downloads",
+      "desktop",
+      "documents",
+    ]),
+  );
+  const deleteApprovals = (state.approvals ?? []).filter((approval) =>
+    textMatchesAny(
+      [
+        approval.title,
+        approval.proposedAction,
+        approval.scope,
+        approval.domain,
+        approval.preview,
+      ]
+        .filter((value): value is string => typeof value === "string")
+        .join(" "),
+      ["delete", "remove", "quarantine", "file"],
+    ),
+  );
+  return {
+    recentSuggestions: formatList(fileScopedTasks.map((task) => `${task.title} (${task.state})`)),
+    duplicateCandidates: "Not reported",
+    storagePressure: "Not reported",
+    changedFiles: formatList(changedFiles),
+    stagingMoves: changedFiles.length > 0 ? `${changedFiles.length} changed file(s)` : "None",
+    cleanupPlans: formatList(cleanupTasks.map((task) => `${task.title} (${task.state})`)),
+    approvalRequiredDeletes: formatList(
+      deleteApprovals.map((approval) => `${approval.title} (${approval.state})`),
+    ),
+    changedFileCount: changedFiles.length,
+    cleanupPlanCount: cleanupTasks.length,
+    deleteApprovalCount: deleteApprovals.length,
+  };
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values.filter((value) => value.trim()).map((value) => value.trim()))];
+}
+
+function textMatchesAny(value: string, needles: string[]): boolean {
+  const haystack = value.toLowerCase();
+  return needles.some((needle) => haystack.includes(needle));
+}
+
 function systemWorkspaceModel(
-  status: SageOsOverlayStatusState["status"],
+  state: SageOsOverlayStatusState,
   id: string,
 ): AgentWorkspaceView {
+  const status = state.status;
   if (id === "supervisor") {
     return {
       title: "Supervisor",
@@ -2036,6 +2116,25 @@ function systemWorkspaceModel(
         { label: "Recent observations", value: String(status.observations.recent) },
         { label: "Redacted observations", value: String(status.observations.redacted) },
         { label: "Observation total", value: String(status.observations.total) },
+      ],
+      actions: [],
+    };
+  }
+
+  if (id === "files") {
+    const files = fileWorkspaceSummary(state);
+    return {
+      title: "Files",
+      eyebrow: "System / observing",
+      detail: "File Steward readiness from file-scoped tasks, coding reports, and approval records.",
+      facts: [
+        { label: "Recent suggestions", value: files.recentSuggestions },
+        { label: "Duplicate candidates", value: files.duplicateCandidates },
+        { label: "Large files and storage pressure", value: files.storagePressure },
+        { label: "Changed files", value: files.changedFiles },
+        { label: "Staging moves", value: files.stagingMoves },
+        { label: "Cleanup plans", value: files.cleanupPlans },
+        { label: "Approval-required deletes", value: files.approvalRequiredDeletes },
       ],
       actions: [],
     };
