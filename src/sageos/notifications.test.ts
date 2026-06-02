@@ -13,6 +13,7 @@ import {
   flushDueSageOsTelegramNotificationBatchOnce,
   flushSageOsTelegramNotificationBatchOnce,
   listSageOsNotificationBatch,
+  sendDueSageOsTelegramDigestOnce,
   sendSageOsApprovalNotificationOnce,
   sendSageOsCompletionNotificationOnce,
   sendSageOsIncidentNotificationOnce,
@@ -228,6 +229,62 @@ describe("SageOS notifications", () => {
     await expect(
       readFile(createSageOsEventLog({ stateDir: root }).path, "utf8"),
     ).resolves.toContain("quiet hours");
+  });
+
+  it("sends scheduled Telegram digests once per due occurrence", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-digest-schedule-"));
+    const cfg = {
+      notifications: {
+        telegram: {
+          enabled: true,
+          target: "telegram:123",
+          digestSchedule: "* * * * *",
+        },
+      },
+    };
+    const sender = vi.fn(async () => ({ messageId: "digest-scheduled", chatId: "123" }));
+
+    await expect(
+      sendDueSageOsTelegramDigestOnce({
+        stateDir: root,
+        cfg,
+        sender,
+        now: () => new Date("2026-05-28T03:00:00.000Z"),
+      }),
+    ).resolves.toMatchObject({
+      outcome: "sent",
+      target: "telegram:123",
+      scheduledFor: "2026-05-28T03:00:00.000Z",
+    });
+    expect(sender).toHaveBeenCalledTimes(1);
+
+    await expect(
+      sendDueSageOsTelegramDigestOnce({
+        stateDir: root,
+        cfg,
+        sender,
+        now: () => new Date("2026-05-28T03:00:30.000Z"),
+      }),
+    ).resolves.toMatchObject({
+      outcome: "skipped",
+      reason: "already_sent",
+      scheduledFor: "2026-05-28T03:00:00.000Z",
+    });
+    expect(sender).toHaveBeenCalledTimes(1);
+
+    await expect(
+      sendDueSageOsTelegramDigestOnce({
+        stateDir: root,
+        cfg,
+        sender,
+        now: () => new Date("2026-05-28T03:01:00.000Z"),
+      }),
+    ).resolves.toMatchObject({
+      outcome: "sent",
+      target: "telegram:123",
+      scheduledFor: "2026-05-28T03:01:00.000Z",
+    });
+    expect(sender).toHaveBeenCalledTimes(2);
   });
 
   it("builds and sends task result notifications with audit evidence", async () => {

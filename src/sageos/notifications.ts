@@ -1,3 +1,4 @@
+import { Cron } from "croner";
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs/promises";
 import path from "node:path";
@@ -61,6 +62,22 @@ export type SageOsTelegramDigestResult =
       notification: SageOsNotificationMessage;
       error: string;
       status: SageOsStatusSnapshot;
+    };
+
+export type SageOsTelegramScheduledDigestResult =
+  | (SageOsTelegramDigestResult & { scheduledFor: string; nextDueAt?: string })
+  | {
+      outcome: "skipped";
+      reason:
+        | "schedule_disabled"
+        | "invalid_schedule"
+        | "not_due"
+        | "already_sent"
+        | "telegram_disabled"
+        | "missing_target";
+      scheduledFor?: string;
+      nextDueAt?: string;
+      error?: string;
     };
 
 export type SageOsTelegramTaskResult =
@@ -163,6 +180,11 @@ export type SageOsTelegramBatchFlushResult =
 type NotificationBatchFile = {
   version: 1;
   entries: SageOsNotificationBatchEntry[];
+};
+
+type DigestScheduleFile = {
+  version: 1;
+  lastScheduledFor?: string;
 };
 
 const batchLocks = new Map<string, Promise<unknown>>();
@@ -279,6 +301,86 @@ export async function sendSageOsTelegramDigestOnce(params: {
     });
     return { outcome: "failed", target, notification, error, status };
   }
+}
+
+export function resolveSageOsDigestSchedulePath(params: { stateDir?: string } = {}): string {
+  return path.join(resolveSageOsStateDir(params.stateDir), "notification-digest.json");
+}
+
+export async function sendDueSageOsTelegramDigestOnce(params: {
+  stateDir?: string;
+  schedulePath?: string;
+  cfg?: SageOsConfig;
+  target?: string;
+  sender?: SageOsTelegramSender;
+  now?: () => Date;
+}): Promise<SageOsTelegramScheduledDigestResult> {
+  const cfg = params.cfg;
+  const digestSchedule = cfg?.notifications?.telegram?.digestSchedule?.trim();
+  if (!digestSchedule) {
+    return { outcome: "skipped", reason: "schedule_disabled" };
+  }
+
+  const now = params.now?.() ?? new Date();
+  const occurrence = resolveDigestScheduleOccurrence(digestSchedule, now);
+  if (occurrence.error) {
+    return { outcome: "skipped", reason: "invalid_schedule", error: occurrence.error };
+  }
+  if (!occurrence.scheduledFor) {
+    return {
+      outcome: "skipped",
+      reason: "not_due",
+      ...(occurrence.nextDueAt ? { nextDueAt: occurrence.nextDueAt } : {}),
+    };
+  }
+
+  const schedulePath = params.schedulePath ?? resolveSageOsDigestSchedulePath(params);
+  const scheduleState = await loadDigestScheduleState(schedulePath);
+  if (scheduleState.lastScheduledFor === occurrence.scheduledFor) {
+    return {
+      outcome: "skipped",
+      reason: "already_sent",
+      scheduledFor: occurrence.scheduledFor,
+      ...(occurrence.nextDueAt ? { nextDueAt: occurrence.nextDueAt } : {}),
+    };
+  }
+
+  if (!cfg?.notifications?.telegram?.enabled) {
+    return {
+      outcome: "skipped",
+      reason: "telegram_disabled",
+      scheduledFor: occurrence.scheduledFor,
+      ...(occurrence.nextDueAt ? { nextDueAt: occurrence.nextDueAt } : {}),
+    };
+  }
+  const target = params.target ?? telegramTarget(cfg);
+  if (!target) {
+    return {
+      outcome: "skipped",
+      reason: "missing_target",
+      scheduledFor: occurrence.scheduledFor,
+      ...(occurrence.nextDueAt ? { nextDueAt: occurrence.nextDueAt } : {}),
+    };
+  }
+
+  const result = await sendSageOsTelegramDigestOnce({
+    stateDir: params.stateDir,
+    cfg,
+    target,
+    sender: params.sender,
+    now: params.now,
+  });
+  if (result.outcome === "sent" || ("reason" in result && result.reason === "quiet_hours")) {
+    await saveDigestScheduleState(schedulePath, {
+      version: 1,
+      lastScheduledFor: occurrence.scheduledFor,
+    });
+  }
+  return {
+    ...result,
+    scheduledFor: occurrence.scheduledFor,
+    ...(occurrence.nextDueAt ? { nextDueAt: occurrence.nextDueAt } : {}),
+  };
 }
 
 export function resolveSageOsNotificationBatchPath(params: { stateDir?: string } = {}): string {
@@ -993,6 +1095,41 @@ async function loadNotificationBatch(queuePath: string): Promise<NotificationBat
   }
 }
 
+async function loadDigestScheduleState(schedulePath: string): Promise<DigestScheduleFile> {
+  try {
+    const raw = await fs.readFile(schedulePath, "utf-8");
+    const parsed = JSON.parse(raw) as Partial<DigestScheduleFile>;
+    return {
+      version: 1,
+      ...(typeof parsed.lastScheduledFor === "string"
+        ? { lastScheduledFor: parsed.lastScheduledFor }
+        : {}),
+    };
+  } catch {
+    return { version: 1 };
+  }
+}
+
+async function saveDigestScheduleState(
+  schedulePath: string,
+  store: DigestScheduleFile,
+): Promise<void> {
+  await fs.mkdir(path.dirname(schedulePath), { recursive: true });
+  const body = `${JSON.stringify(store, null, 2)}\n`;
+  if (process.platform === "win32") {
+    await fs.writeFile(schedulePath, body, "utf-8");
+    return;
+  }
+  const tmp = `${schedulePath}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    await fs.writeFile(tmp, body, { encoding: "utf-8", mode: 0o600 });
+    await fs.rename(tmp, schedulePath);
+    await fs.chmod(schedulePath, 0o600);
+  } finally {
+    await fs.rm(tmp, { force: true });
+  }
+}
+
 async function saveNotificationBatch(
   queuePath: string,
   store: NotificationBatchFile,
@@ -1042,6 +1179,23 @@ function shouldBatchCompletionNotification(
 function telegramBatchWindowMinutes(cfg: SageOsConfig | undefined): number {
   const value = cfg?.notifications?.telegram?.batchWindowMinutes;
   return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+function resolveDigestScheduleOccurrence(
+  schedule: string,
+  now: Date,
+): { scheduledFor?: string; nextDueAt?: string; error?: string } {
+  try {
+    const cron = new Cron(schedule, { catch: false });
+    const scheduled = cron.match(now) ? now : cron.previousRuns(1, now)[0];
+    const next = cron.nextRun(now);
+    return {
+      ...(scheduled ? { scheduledFor: scheduled.toISOString() } : {}),
+      ...(next ? { nextDueAt: next.toISOString() } : {}),
+    };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
 }
 
 function telegramTarget(cfg: SageOsConfig | undefined): string | undefined {

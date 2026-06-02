@@ -318,6 +318,39 @@ describe("SageOS supervisor skeleton", () => {
     expect(result.task).toMatchObject({ outcome: "completed", task: { id: "task_a" } });
   });
 
+  it("checks scheduled Telegram digests during supervisor work loops", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-supervisor-digest-schedule-"));
+    const status = createSageOsStatusSnapshot();
+    const runNextTaskOnce = vi.fn().mockResolvedValue({ outcome: "idle", status });
+    const sendDueTelegramDigestOnce = vi
+      .fn()
+      .mockResolvedValue({ outcome: "skipped", reason: "not_due" });
+    const collectStatus = vi.fn().mockResolvedValue(status);
+
+    const result = await runSageOsSupervisorWorkLoopOnce({
+      cfg: {
+        sageos: {
+          notifications: {
+            telegram: { enabled: true, target: "telegram:123", digestSchedule: "* * * * *" },
+          },
+        },
+      },
+      stateDir: root,
+      requestedBy: "sageos.test",
+      deps: { runNextTaskOnce, sendDueTelegramDigestOnce, collectStatus },
+    });
+
+    expect(sendDueTelegramDigestOnce).toHaveBeenCalledWith({
+      stateDir: root,
+      cfg: {
+        notifications: {
+          telegram: { enabled: true, target: "telegram:123", digestSchedule: "* * * * *" },
+        },
+      },
+    });
+    expect(result.digest).toMatchObject({ outcome: "skipped", reason: "not_due" });
+  });
+
   it("preserves task and run resources across concurrent status writes", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "sageos-state-concurrent-"));
     const store = createSageOsStateStore({ stateDir: root });

@@ -1,7 +1,10 @@
 import type { SageConfig } from "../config/types.sage.js";
 import { createSageOsEventLog, appendSageOsEvent, type SageOsEventLog } from "./event-log.js";
 import { runSageOsMemoryStewardOnce } from "./memory-steward.js";
-import { flushDueSageOsTelegramNotificationBatchOnce } from "./notifications.js";
+import {
+  flushDueSageOsTelegramNotificationBatchOnce,
+  sendDueSageOsTelegramDigestOnce,
+} from "./notifications.js";
 import { observeAppFocusOnce } from "./observations.js";
 import {
   createSageOsControlStore,
@@ -38,6 +41,7 @@ export type SageOsSupervisorWorkLoopDeps = {
   runMemoryStewardOnce?: typeof runSageOsMemoryStewardOnce;
   runNextTaskOnce?: typeof runNextSageOsTaskOnce;
   flushDueNotificationBatchOnce?: typeof flushDueSageOsTelegramNotificationBatchOnce;
+  sendDueTelegramDigestOnce?: typeof sendDueSageOsTelegramDigestOnce;
   collectStatus?: typeof collectSageOsStatus;
 };
 
@@ -50,6 +54,7 @@ export type SageOsSupervisorWorkLoopResult = {
   task: SageOsSupervisorTaskResult;
   tasks: SageOsSupervisorTaskResult[];
   notificationBatch?: Awaited<ReturnType<typeof flushDueSageOsTelegramNotificationBatchOnce>>;
+  digest?: Awaited<ReturnType<typeof sendDueSageOsTelegramDigestOnce>>;
   status: SageOsStatusSnapshot;
 };
 
@@ -120,6 +125,12 @@ export async function runSageOsSupervisorWorkLoopOnce(params: {
     result.notificationBatch = await (
       deps.flushDueNotificationBatchOnce ?? flushDueSageOsTelegramNotificationBatchOnce
     )({
+      stateDir: params.stateDir,
+      cfg: sageos,
+    });
+  }
+  if (hasNotificationDigestSchedule(sageos)) {
+    result.digest = await (deps.sendDueTelegramDigestOnce ?? sendDueSageOsTelegramDigestOnce)({
       stateDir: params.stateDir,
       cfg: sageos,
     });
@@ -390,4 +401,8 @@ function normalizeMaxConcurrentTasks(value: number | undefined): number {
 function hasNotificationBatchWindow(cfg: SageOsConfig): boolean {
   const value = cfg.notifications?.telegram?.batchWindowMinutes;
   return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+function hasNotificationDigestSchedule(cfg: SageOsConfig): boolean {
+  return Boolean(cfg.notifications?.telegram?.digestSchedule?.trim());
 }
