@@ -237,7 +237,13 @@ function buildSageOsOverlayLaunchEnv(
     SAGEOS_OVERLAY_HUD_EXPANDS_TO_FULL: boolEnv(overlay.hudExpandsToFull ?? true),
     SAGEOS_OVERLAY_PASS_THROUGH_DEFAULT: boolEnv(overlay.passThroughDefault ?? false),
     SAGEOS_OVERLAY_COLLAPSED_EDGE: overlay.collapsedEdge ?? "right",
+    SAGEOS_OVERLAY_ACTIVE_MONITOR: overlay.activeMonitor?.trim() ?? "",
     SAGEOS_OVERLAY_PINNED_WIDGETS: pinnedWidgets.join(","),
+    SAGEOS_OVERLAY_SHOW_APPROVAL_BADGE: boolEnv(overlay.showApprovalBadge ?? true),
+    SAGEOS_OVERLAY_SHOW_INCIDENT_BADGE: boolEnv(overlay.showIncidentBadge ?? true),
+    SAGEOS_OVERLAY_VOICE_ENABLED: boolEnv(Boolean(overlay.voice?.enabled)),
+    SAGEOS_OVERLAY_VOICE_MODE:
+      overlay.voice?.enabled && overlay.voice.mode === "pushToTalk" ? "pushToTalk" : "",
     SAGEOS_OVERLAY_GATEWAY_URL: gatewayUrl,
     SAGEOS_OVERLAY_TOKEN: firstNonBlank(opts.token, cfg.gateway?.auth?.token) ?? "",
     SAGEOS_OVERLAY_PASSWORD: firstNonBlank(opts.password, cfg.gateway?.auth?.password) ?? "",
