@@ -89,6 +89,7 @@ export type SageOsCliDeps = {
   sendCompletionNotificationOnce?: typeof sendSageOsCompletionNotificationOnce;
   flushNotificationBatchOnce?: typeof flushSageOsTelegramNotificationBatchOnce;
   launchWindowsOverlay?: typeof launchWindowsOverlay;
+  manageWindowsOverlayStartup?: typeof manageWindowsOverlayStartup;
   loadConfig?: typeof loadConfig;
 };
 
@@ -100,6 +101,22 @@ export type SageOsOverlayLaunchParams = {
 export type SageOsOverlayLaunchResult = {
   pid?: number;
   command: string[];
+};
+
+export type SageOsOverlayStartupAction = "install" | "uninstall" | "status";
+
+export type SageOsOverlayStartupParams = {
+  action: SageOsOverlayStartupAction;
+  args: string[];
+  cwd?: string;
+};
+
+export type SageOsOverlayStartupResult = {
+  action: SageOsOverlayStartupAction;
+  command: string[];
+  stdout?: string;
+  stderr?: string;
+  status?: unknown;
 };
 
 const DEFAULT_OVERLAY_WIDGETS: SageOsOverlayWidgetId[] = [
@@ -130,6 +147,52 @@ export async function launchWindowsOverlay(
   child.unref();
 
   return { pid: child.pid, command: [command, ...args] };
+}
+
+export async function manageWindowsOverlayStartup(
+  params: SageOsOverlayStartupParams,
+): Promise<SageOsOverlayStartupResult> {
+  const command = process.platform === "win32" ? "powershell.exe" : "powershell";
+  const args = [
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    "scripts/sageos-windows-overlay-startup.ps1",
+    "-Action",
+    params.action,
+    ...params.args,
+  ];
+  const child = spawn(command, args, {
+    cwd: params.cwd ?? process.cwd(),
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
+  });
+  let stdout = "";
+  let stderr = "";
+  child.stdout?.on("data", (chunk: Buffer | string) => {
+    stdout += String(chunk);
+  });
+  child.stderr?.on("data", (chunk: Buffer | string) => {
+    stderr += String(chunk);
+  });
+
+  const exitCode = await new Promise<number>((resolve, reject) => {
+    child.once("error", reject);
+    child.once("close", (code) => resolve(code ?? 0));
+  });
+  if (exitCode !== 0) {
+    throw new Error(
+      `SageOS overlay startup ${params.action} failed with exit code ${exitCode}: ${stderr || stdout}`,
+    );
+  }
+
+  return {
+    action: params.action,
+    command: [command, ...args],
+    ...(stdout.trim() ? { stdout: stdout.trim() } : {}),
+    ...(stderr.trim() ? { stderr: stderr.trim() } : {}),
+    ...parseStartupStatus(stdout),
+  };
 }
 
 async function updateSupervisorState(
@@ -206,6 +269,10 @@ function boolEnv(value: boolean): string {
   return value ? "1" : "0";
 }
 
+function powerShellBoolArg(name: string, value: boolean): string {
+  return `${name}:${value ? "$true" : "$false"}`;
+}
+
 function firstNonBlank(...values: Array<string | undefined>): string | undefined {
   return values.map((value) => value?.trim()).find((value): value is string => Boolean(value));
 }
@@ -249,6 +316,68 @@ function buildSageOsOverlayLaunchEnv(
     SAGEOS_OVERLAY_PASSWORD: firstNonBlank(opts.password, cfg.gateway?.auth?.password) ?? "",
     SAGEOS_OVERLAY_OPEN_ON_LAUNCH: boolEnv(Boolean(opts.open)),
   };
+}
+
+function buildSageOsOverlayStartupArgs(
+  cfg: SageConfig,
+  opts: OverlayLaunchCommandOptions,
+): string[] {
+  const env = buildSageOsOverlayLaunchEnv(cfg, opts);
+  const args = [
+    "-Hotkey",
+    env.SAGEOS_OVERLAY_HOTKEY,
+    "-OpenMode",
+    env.SAGEOS_OVERLAY_OPEN_MODE,
+    powerShellBoolArg("-HudExpandsToFull", env.SAGEOS_OVERLAY_HUD_EXPANDS_TO_FULL === "1"),
+    "-CollapsedEdge",
+    env.SAGEOS_OVERLAY_COLLAPSED_EDGE,
+    "-PinnedWidgets",
+    env.SAGEOS_OVERLAY_PINNED_WIDGETS,
+    powerShellBoolArg("-ShowApprovalBadge", env.SAGEOS_OVERLAY_SHOW_APPROVAL_BADGE === "1"),
+    powerShellBoolArg("-ShowIncidentBadge", env.SAGEOS_OVERLAY_SHOW_INCIDENT_BADGE === "1"),
+    "-GatewayUrl",
+    env.SAGEOS_OVERLAY_GATEWAY_URL,
+  ];
+
+  if (env.SAGEOS_OVERLAY_PASS_THROUGH_DEFAULT === "1") {
+    args.push("-PassThroughDefault");
+  }
+  if (env.SAGEOS_OVERLAY_ACTIVE_MONITOR) {
+    args.push("-ActiveMonitor", env.SAGEOS_OVERLAY_ACTIVE_MONITOR);
+  }
+  if (env.SAGEOS_OVERLAY_VOICE_ENABLED === "1") {
+    args.push("-VoiceEnabled", "-VoiceMode", env.SAGEOS_OVERLAY_VOICE_MODE || "pushToTalk");
+  }
+  if (env.SAGEOS_OVERLAY_TOKEN) {
+    args.push("-Token", env.SAGEOS_OVERLAY_TOKEN);
+  }
+  if (env.SAGEOS_OVERLAY_PASSWORD) {
+    args.push("-Password", env.SAGEOS_OVERLAY_PASSWORD);
+  }
+  if (env.SAGEOS_OVERLAY_OPEN_ON_LAUNCH === "1") {
+    args.push("-OpenOnLaunch");
+  }
+
+  return args;
+}
+
+function parseStartupStatus(stdout: string): Pick<SageOsOverlayStartupResult, "status"> {
+  const trimmed = stdout.trim();
+  if (!trimmed) {
+    return {};
+  }
+  try {
+    return { status: JSON.parse(trimmed) };
+  } catch {
+    return {};
+  }
+}
+
+function startupInstalledLabel(status: unknown): string {
+  if (typeof status !== "object" || status === null || !("installed" in status)) {
+    return "unknown";
+  }
+  return (status as { installed?: unknown }).installed === true ? "installed" : "not installed";
 }
 
 function fail(message: string): never {
@@ -475,6 +604,58 @@ export function registerSageOsCli(program: Command, deps: SageOsCliDeps = {}) {
         result.pid
           ? `SageOS overlay launched: pid ${result.pid}`
           : "SageOS overlay launch requested",
+      );
+    });
+
+  const overlayStartup = overlay
+    .command("startup")
+    .description("Manage the active-user Windows startup shortcut for the SageOS overlay");
+  const manageStartup = deps.manageWindowsOverlayStartup ?? manageWindowsOverlayStartup;
+  overlayStartup
+    .command("install")
+    .description("Install or update the active-user Windows startup shortcut")
+    .option("--open", "Open the overlay when Windows launches it", false)
+    .option("--gateway-url <url>", "Override the gateway websocket URL")
+    .option("--token <token>", "Override gateway token auth for this shortcut")
+    .option("--password <password>", "Override gateway password auth for this shortcut")
+    .option("--json", "Output JSON", false)
+    .action(async (opts: OverlayLaunchCommandOptions, command: Command) => {
+      const cliOpts = commandOptions<OverlayLaunchCommandOptions>(command ?? opts);
+      const result = await manageStartup({
+        action: "install",
+        args: buildSageOsOverlayStartupArgs(loadSageConfig(), cliOpts),
+        cwd: process.cwd(),
+      });
+      outputJsonOrText(
+        cliOpts,
+        { result },
+        () => `SageOS overlay startup install: ${startupInstalledLabel(result.status)}`,
+      );
+    });
+  overlayStartup
+    .command("status")
+    .description("Show the active-user Windows startup shortcut status")
+    .option("--json", "Output JSON", false)
+    .action(async (opts: { json?: boolean }, command: Command) => {
+      const cliOpts = commandOptions(command ?? opts);
+      const result = await manageStartup({ action: "status", args: [], cwd: process.cwd() });
+      outputJsonOrText(
+        cliOpts,
+        { result },
+        () => `SageOS overlay startup status: ${startupInstalledLabel(result.status)}`,
+      );
+    });
+  overlayStartup
+    .command("uninstall")
+    .description("Remove the active-user Windows startup shortcut")
+    .option("--json", "Output JSON", false)
+    .action(async (opts: { json?: boolean }, command: Command) => {
+      const cliOpts = commandOptions(command ?? opts);
+      const result = await manageStartup({ action: "uninstall", args: [], cwd: process.cwd() });
+      outputJsonOrText(
+        cliOpts,
+        { result },
+        () => `SageOS overlay startup uninstall: ${startupInstalledLabel(result.status)}`,
       );
     });
 

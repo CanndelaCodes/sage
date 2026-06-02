@@ -142,6 +142,100 @@ describe("sage os CLI", () => {
     expect(lastJson()).toMatchObject({ result: { pid: 4242 } });
   });
 
+  it("manages the Windows overlay startup shortcut from SageOS overlay config", async () => {
+    const manageWindowsOverlayStartup = vi
+      .fn()
+      .mockResolvedValueOnce({
+        action: "install",
+        command: ["powershell", "-File", "scripts/sageos-windows-overlay-startup.ps1"],
+        status: { installed: true },
+      })
+      .mockResolvedValueOnce({
+        action: "status",
+        command: ["powershell", "-File", "scripts/sageos-windows-overlay-startup.ps1"],
+        status: { installed: true },
+      })
+      .mockResolvedValueOnce({
+        action: "uninstall",
+        command: ["powershell", "-File", "scripts/sageos-windows-overlay-startup.ps1"],
+        status: { installed: false },
+      });
+    const program = makeProgram({
+      loadConfig: () => ({
+        gateway: { port: 18888 },
+        sageos: {
+          overlay: {
+            hotkey: "Ctrl+Shift+Space",
+            openMode: "hud",
+            hudExpandsToFull: false,
+            passThroughDefault: true,
+            collapsedEdge: "left",
+            activeMonitor: "primary",
+            showApprovalBadge: false,
+            showIncidentBadge: false,
+            pinnedWidgets: ["nightShift", "systemHealth"],
+            voice: { enabled: true, mode: "pushToTalk" },
+          },
+        },
+      }),
+      manageWindowsOverlayStartup,
+    } as unknown as SageOsCliDeps);
+
+    await program.parseAsync(["os", "overlay", "startup", "install", "--open", "--json"], {
+      from: "user",
+    });
+
+    expect(manageWindowsOverlayStartup).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        action: "install",
+        args: expect.arrayContaining([
+          "-Hotkey",
+          "Ctrl+Shift+Space",
+          "-OpenMode",
+          "hud",
+          "-HudExpandsToFull:$false",
+          "-PassThroughDefault",
+          "-CollapsedEdge",
+          "left",
+          "-ActiveMonitor",
+          "primary",
+          "-PinnedWidgets",
+          "nightShift,systemHealth",
+          "-ShowApprovalBadge:$false",
+          "-ShowIncidentBadge:$false",
+          "-VoiceEnabled",
+          "-VoiceMode",
+          "pushToTalk",
+          "-GatewayUrl",
+          "ws://127.0.0.1:18888",
+          "-OpenOnLaunch",
+        ]),
+      }),
+    );
+    expect(lastJson()).toMatchObject({
+      result: { action: "install", status: { installed: true } },
+    });
+
+    await program.parseAsync(["os", "overlay", "startup", "status", "--json"], { from: "user" });
+    expect(manageWindowsOverlayStartup).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ action: "status", args: [] }),
+    );
+    expect(lastJson()).toMatchObject({ result: { action: "status", status: { installed: true } } });
+
+    await program.parseAsync(["os", "overlay", "startup", "uninstall", "--json"], {
+      from: "user",
+    });
+    expect(manageWindowsOverlayStartup).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({ action: "uninstall", args: [] }),
+    );
+    expect(lastJson()).toMatchObject({
+      result: { action: "uninstall", status: { installed: false } },
+    });
+  });
+
   it("pauses, resumes, and emergency-stops through durable state", async () => {
     const stateDir = process.env.SAGE_STATE_DIR!;
     const program = makeProgram({
