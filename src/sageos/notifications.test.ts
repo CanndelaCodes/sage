@@ -28,6 +28,7 @@ import {
   upsertSageOsApproval,
   upsertSageOsCodingReport,
   upsertSageOsObservation,
+  upsertSageOsRun,
   upsertSageOsTask,
   writeSageOsState,
 } from "./state-store.js";
@@ -358,6 +359,43 @@ describe("SageOS notifications", () => {
     expect(sender).not.toHaveBeenCalled();
   });
 
+  it("redacts private task notification fields and secret-looking errors by default", () => {
+    const task = {
+      id: "task_private",
+      title: "Payroll roadmap SECRET_TOKEN=do-not-send",
+      objective: "Handle private payroll planning.",
+      state: "failed" as const,
+      requestedBy: "sageos.task_runner",
+      autonomyTier: "execute_scoped" as const,
+      policyScopes: [],
+      sensitivity: "private" as const,
+      createdAt: "2026-06-02T06:40:00.000Z",
+      updatedAt: "2026-06-02T06:42:00.000Z",
+    };
+    const run = {
+      id: "run_task_private_1",
+      taskId: task.id,
+      attempt: 1,
+      state: "failed" as const,
+      traceId: "trace_task_private",
+      error: "Upload failed with password=do-not-send",
+      startedAt: "2026-06-02T06:41:00.000Z",
+      finishedAt: "2026-06-02T06:42:00.000Z",
+    };
+
+    const notification = buildSageOsTaskNotification({
+      task,
+      run,
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+    });
+
+    expect(notification.text).toContain("Task: task_private - [redacted private]");
+    expect(notification.text).toContain("Error: [redacted private]");
+    expect(notification.text).not.toContain("Payroll roadmap");
+    expect(notification.text).not.toContain("SECRET_TOKEN");
+    expect(notification.text).not.toContain("password=do-not-send");
+  });
+
   it("batches completed task notifications and flushes one Telegram summary", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "sageos-task-notification-batch-"));
     const now = "2026-05-28T02:45:00.000Z";
@@ -627,6 +665,37 @@ describe("SageOS notifications", () => {
     ).resolves.toContain("notification_sent");
   });
 
+  it("redacts private approval previews and secret-looking approval text", () => {
+    const approval = {
+      id: "approval_private_export",
+      state: "pending" as const,
+      riskClass: "private_data_export" as const,
+      title: "Export private wiki bundle",
+      proposedAction: "Export customer payroll notes with API_KEY=do-not-send",
+      evidence: ["task_private_export"],
+      preview: "Payroll notes include token=do-not-send",
+      rollbackPlan: "Delete exported bundle.",
+      scope: "task" as const,
+      taskId: "task_private_export",
+      requestedBy: "sageos.memory_steward",
+      requestedAt: "2026-06-02T06:45:00.000Z",
+      createdAt: "2026-06-02T06:45:00.000Z",
+      updatedAt: "2026-06-02T06:45:00.000Z",
+    };
+
+    const notification = buildSageOsApprovalNotification({
+      approval,
+      status: createSageOsStatusSnapshot({ approvals: { pending: 1 } }),
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+    });
+
+    expect(notification.text).toContain("Action: [redacted private]");
+    expect(notification.text).toContain("Preview: [redacted private]");
+    expect(notification.text).not.toContain("payroll notes");
+    expect(notification.text).not.toContain("API_KEY=do-not-send");
+    expect(notification.text).not.toContain("token=do-not-send");
+  });
+
   it("builds and sends urgent incident notifications with repair actions", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "sageos-incident-notification-"));
     const now = "2026-05-27T23:59:00.000Z";
@@ -694,11 +763,35 @@ describe("SageOS notifications", () => {
     );
   });
 
+  it("redacts secret-looking incident summaries before Telegram delivery", () => {
+    const status = createSageOsStatusSnapshot();
+    const incident = {
+      id: "incident_secret",
+      severity: "warning" as const,
+      category: "system" as const,
+      title: "Credential detector fired",
+      summary: "Observed API_TOKEN=do-not-send in a diagnostic trace.",
+      firstSeenAt: "2026-06-02T06:50:00.000Z",
+      lastSeenAt: "2026-06-02T06:50:00.000Z",
+      autoRepairSafe: false,
+    };
+
+    const notification = buildSageOsIncidentNotification({
+      incident,
+      status,
+      cfg: { notifications: { telegram: { enabled: true, target: "telegram:123" } } },
+    });
+
+    expect(notification.text).toContain("Summary: Observed API_TOKEN=[redacted secret]");
+    expect(notification.text).not.toContain("do-not-send");
+  });
+
   it("sends active incident notifications once with durable dedupe", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "sageos-incident-notification-dedupe-"));
+    const store = createSageOsStateStore({ stateDir: root });
     const now = "2026-06-01T21:00:00.000Z";
     await writeSageOsState(
-      createSageOsStateStore({ stateDir: root }),
+      store,
       createSageOsStatusSnapshot({
         incidents: [
           {
@@ -711,19 +804,31 @@ describe("SageOS notifications", () => {
             lastSeenAt: now,
             autoRepairSafe: true,
           },
-          {
-            id: "incident_worker_failed",
-            severity: "error",
-            category: "worker",
-            title: "SageOS worker failed",
-            summary: "A worker failed during autonomous execution.",
-            firstSeenAt: now,
-            lastSeenAt: now,
-            autoRepairSafe: false,
-          },
         ],
       }),
     );
+    await upsertSageOsTask(store, {
+      id: "task_worker_failed",
+      title: "Run worker",
+      objective: "Exercise worker incident notification coverage.",
+      state: "failed",
+      requestedBy: "sageos.test",
+      autonomyTier: "execute_scoped",
+      policyScopes: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+    await upsertSageOsRun(store, {
+      id: "run_task_worker_failed_1",
+      taskId: "task_worker_failed",
+      attempt: 1,
+      state: "failed",
+      traceId: "trace_worker_failed",
+      workerSessionId: "worker_task_worker_failed_1",
+      startedAt: now,
+      finishedAt: now,
+      error: "A worker failed during autonomous execution.",
+    });
     const cfg = { notifications: { telegram: { enabled: true, target: "telegram:123" } } };
     const sender = vi.fn(async () => ({ messageId: "incident", chatId: "123" }));
 
@@ -806,6 +911,7 @@ describe("SageOS notifications", () => {
     expect(notification.text).toContain("Tests: 1 passed / 0 failed");
     expect(notification.text).toContain("Report: coding_report_task_fix_1");
     expect(notification.text).not.toContain("+done");
+    expect(notification.text).not.toContain("C:\\repo");
 
     const sender = vi.fn(async () => ({ messageId: "13", chatId: "123" }));
     const sent = await sendSageOsCompletionNotificationOnce({

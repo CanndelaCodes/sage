@@ -9,6 +9,7 @@ import type {
   SageOsIncident,
   SageOsObservation,
   SageOsRun,
+  SageOsSensitivity,
   SageOsStatusSnapshot,
   SageOsTaskSpec,
 } from "./types.js";
@@ -561,9 +562,12 @@ export function buildSageOsTaskNotification(params: {
 }): SageOsNotificationMessage {
   const completed = params.run.state === "succeeded";
   const target = params.target ?? telegramTarget(params.cfg);
+  const taskTitle = redactTelegramText(params.task.title, params.cfg, {
+    sensitivity: params.task.sensitivity,
+  });
   const lines = [
     completed ? "SageOS: Task completed" : "SageOS: Task failed",
-    `Task: ${params.task.id} - ${params.task.title}`,
+    `Task: ${params.task.id} - ${taskTitle}`,
     `Run: ${params.run.id} (${params.run.state})`,
     `Result: ${completed ? "completed" : "failed"}`,
     `Risk: ${riskSummary(params.task)}`,
@@ -571,7 +575,13 @@ export function buildSageOsTaskNotification(params: {
     "Actions: Open Command Center | Pause SageOS",
   ];
   if (params.run.error) {
-    lines.splice(4, 0, `Error: ${params.run.error}`);
+    lines.splice(
+      4,
+      0,
+      `Error: ${redactTelegramText(params.run.error, params.cfg, {
+        sensitivity: params.task.sensitivity,
+      })}`,
+    );
   }
   return {
     kind: "task",
@@ -617,22 +627,31 @@ export function buildSageOsApprovalNotification(params: {
   target?: string;
 }): SageOsNotificationMessage {
   const target = params.target ?? telegramTarget(params.cfg);
+  const sensitivity = approvalSensitivity(params.approval);
   const lines = [
     "SageOS: Approval required",
-    `Approval: ${params.approval.id} - ${params.approval.title}`,
+    `Approval: ${params.approval.id} - ${redactTelegramText(params.approval.title, params.cfg, {
+      sensitivity,
+    })}`,
     `Risk: ${params.approval.riskClass}`,
     `Scope: ${params.approval.scope}`,
     `Requested by: ${params.approval.requestedBy}`,
-    `Action: ${params.approval.proposedAction}`,
+    `Action: ${redactTelegramText(params.approval.proposedAction, params.cfg, {
+      sensitivity,
+    })}`,
   ];
   if (params.approval.taskId) {
     lines.push(`Task: ${params.approval.taskId}`);
   }
   if (params.approval.preview) {
-    lines.push(`Preview: ${params.approval.preview}`);
+    lines.push(
+      `Preview: ${redactTelegramText(params.approval.preview, params.cfg, { sensitivity })}`,
+    );
   }
   if (params.approval.rollbackPlan) {
-    lines.push(`Rollback: ${params.approval.rollbackPlan}`);
+    lines.push(
+      `Rollback: ${redactTelegramText(params.approval.rollbackPlan, params.cfg, { sensitivity })}`,
+    );
   }
   if (params.approval.expiresAt) {
     lines.push(`Expires: ${params.approval.expiresAt}`);
@@ -662,12 +681,14 @@ export function buildSageOsIncidentNotification(params: {
     "SageOS: Incident",
     `Severity: ${params.incident.severity}`,
     `Category: ${params.incident.category}`,
-    `Title: ${params.incident.title}`,
-    `Summary: ${params.incident.summary}`,
-    repair ? `Repair: ${repair.label}` : "Repair: manual review required",
+    `Title: ${redactTelegramText(params.incident.title, params.cfg)}`,
+    `Summary: ${redactTelegramText(params.incident.summary, params.cfg)}`,
+    repair
+      ? `Repair: ${redactTelegramText(repair.label, params.cfg)}`
+      : "Repair: manual review required",
   ];
   if (repair?.command) {
-    lines.push(`Command: ${repair.command}`);
+    lines.push(`Command: ${redactTelegramText(repair.command, params.cfg)}`);
   }
   if (repair?.gatewayMethod) {
     lines.push(`Gateway: ${repair.gatewayMethod}`);
@@ -703,7 +724,7 @@ export function buildSageOsCompletionNotification(params: {
     `Result: ${params.report.outcome}`,
     `Task: ${params.report.taskId}`,
     `Run: ${params.report.runId}`,
-    `Repo: ${params.report.repoPath}`,
+    `Repo: ${redactTelegramPath(params.report.repoPath, params.cfg)}`,
     `Diff: ${changed} file${changed === 1 ? "" : "s"} changed`,
     `Tests: ${passed} passed / ${failed} failed`,
     `Report: ${params.report.id}`,
@@ -1449,6 +1470,47 @@ function localMinutes(date: Date, timezone: string | undefined): number {
 
 function formatQuietHours(quietHours: TelegramQuietHours): string {
   return `${quietHours.start}-${quietHours.end}${quietHours.timezone ? ` ${quietHours.timezone}` : ""}`;
+}
+
+function approvalSensitivity(approval: SageOsApproval): SageOsSensitivity | undefined {
+  return approval.riskClass === "private_data_export" ? "private" : undefined;
+}
+
+function redactTelegramPath(value: string, cfg: SageOsConfig | undefined): string {
+  if (!telegramAllowsPrivateContent(cfg)) {
+    return "[redacted private path]";
+  }
+  return redactTelegramText(value, cfg);
+}
+
+function redactTelegramText(
+  value: string,
+  cfg: SageOsConfig | undefined,
+  opts: { sensitivity?: SageOsSensitivity } = {},
+): string {
+  if (opts.sensitivity === "secret" && cfg?.privacy?.secretRedaction !== false) {
+    return "[redacted secret]";
+  }
+  if (opts.sensitivity === "private" && !telegramAllowsPrivateContent(cfg)) {
+    return "[redacted private]";
+  }
+  return redactSecretText(value, cfg);
+}
+
+function redactSecretText(value: string, cfg: SageOsConfig | undefined): string {
+  if (cfg?.privacy?.secretRedaction === false) {
+    return value;
+  }
+  return value
+    .replace(
+      /\b([A-Z0-9_]*(?:API[_-]?KEY|ACCESS[_-]?KEY|PRIVATE[_-]?KEY|TOKEN|SECRET|PASSWORD|AUTH)[A-Z0-9_]*)\s*=\s*([^\s,;]+)/gi,
+      "$1=[redacted secret]",
+    )
+    .replace(/\b(?:sk-[A-Za-z0-9_-]{8,}|ghp_[A-Za-z0-9_]{8,})\b/g, "[redacted secret]");
+}
+
+function telegramAllowsPrivateContent(cfg: SageOsConfig | undefined): boolean {
+  return cfg?.privacy?.telegramPrivateContent === true;
 }
 
 function riskSummary(task: SageOsTaskSpec): string {
