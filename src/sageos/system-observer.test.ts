@@ -2,7 +2,7 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { createSageOsStateStore, readSageOsState } from "./state-store.js";
+import { createSageOsStateStore, readSageOsState, upsertSageOsObservation } from "./state-store.js";
 import { observeSystemStatusOnce, readSystemStatusSnapshot } from "./system-observer.js";
 
 describe("SageOS system observer", () => {
@@ -113,6 +113,60 @@ describe("SageOS system observer", () => {
     ]);
     const eventLog = await readFile(path.join(root, "sageos", "events.jsonl"), "utf8");
     expect(eventLog).toContain("observation_failed");
+  });
+
+  it("prunes observations older than retention before recording system status", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-system-retention-"));
+    const store = createSageOsStateStore({ stateDir: root });
+    const now = new Date("2026-06-10T12:00:00.000Z");
+
+    await upsertSageOsObservation(store, {
+      id: "obs_old_system",
+      source: "system",
+      state: "captured",
+      title: "Old system status",
+      text: "Old system status should expire.",
+      sensitivity: "private",
+      observedAt: "2026-05-01T12:00:00.000Z",
+      payload: {},
+      provenance: {},
+      createdAt: "2026-05-01T12:00:00.000Z",
+      updatedAt: "2026-05-01T12:00:00.000Z",
+    });
+    await upsertSageOsObservation(store, {
+      id: "obs_recent_system",
+      source: "system",
+      state: "captured",
+      title: "Recent system status",
+      text: "Recent system status should remain.",
+      sensitivity: "private",
+      observedAt: "2026-06-09T12:00:00.000Z",
+      payload: {},
+      provenance: {},
+      createdAt: "2026-06-09T12:00:00.000Z",
+      updatedAt: "2026-06-09T12:00:00.000Z",
+    });
+
+    const result = await observeSystemStatusOnce({
+      stateDir: root,
+      cfg: {
+        sources: { system: true },
+        privacy: { observationRetentionDays: 7 },
+      },
+      now: () => now,
+      readSystemStatus: async () => ({
+        platform: "win32",
+        checkedAt: now.toISOString(),
+        checks: [{ id: "runtime", label: "Runtime", status: "ok", summary: "Runtime ok" }],
+      }),
+    });
+
+    expect(result).toMatchObject({ status: "recorded" });
+    const state = await readSageOsState(store);
+    expect(state.observations.map((observation) => observation.id)).toEqual(
+      expect.arrayContaining(["obs_recent_system", result.observation.id]),
+    );
+    expect(state.observations.map((observation) => observation.id)).not.toContain("obs_old_system");
   });
 
   it("normalizes Windows read-only checks from PowerShell JSON", async () => {

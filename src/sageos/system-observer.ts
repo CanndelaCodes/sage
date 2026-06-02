@@ -4,6 +4,7 @@ import os from "node:os";
 import { promisify } from "node:util";
 import type { SageOsConfig, SageOsObservation } from "./types.js";
 import { appendSageOsEvent, createSageOsEventLog } from "./event-log.js";
+import { applySageOsObservationRetention } from "./observation-retention.js";
 import {
   createSageOsStateStore,
   upsertSageOsObservation,
@@ -51,6 +52,7 @@ export async function observeSystemStatusOnce(params: {
   try {
     const snapshot = await (params.readSystemStatus ?? (() => readSystemStatusSnapshot()))();
     const observation = await persistSystemObservation({
+      cfg: params.cfg,
       stateDir: params.stateDir,
       stateStore: params.stateStore,
       now,
@@ -59,6 +61,7 @@ export async function observeSystemStatusOnce(params: {
     return { status: "recorded", observation };
   } catch (err) {
     const observation = await persistSystemFailureObservation({
+      cfg: params.cfg,
       stateDir: params.stateDir,
       stateStore: params.stateStore,
       now,
@@ -110,6 +113,7 @@ function isSystemSourceEnabled(cfg: SageOsConfig | undefined): boolean {
 }
 
 async function persistSystemObservation(params: {
+  cfg?: SageOsConfig;
   stateDir?: string;
   stateStore?: SageOsStateStore;
   now: Date;
@@ -134,6 +138,9 @@ async function persistSystemObservation(params: {
     createdAt: params.now.toISOString(),
     updatedAt: params.now.toISOString(),
   };
+  const stateStore = params.stateStore ?? createSageOsStateStore({ stateDir: params.stateDir });
+  await applySageOsObservationRetention({ store: stateStore, cfg: params.cfg, now: params.now });
+
   const event = await appendSageOsEvent(createSageOsEventLog({ stateDir: params.stateDir }), {
     type: "observation_recorded",
     actor: "sageos.system_observer",
@@ -141,14 +148,12 @@ async function persistSystemObservation(params: {
     sensitivity: "private",
   });
   const observationWithEvent = { ...observation, eventId: event.id };
-  await upsertSageOsObservation(
-    params.stateStore ?? createSageOsStateStore({ stateDir: params.stateDir }),
-    observationWithEvent,
-  );
+  await upsertSageOsObservation(stateStore, observationWithEvent);
   return observationWithEvent;
 }
 
 async function persistSystemFailureObservation(params: {
+  cfg?: SageOsConfig;
   stateDir?: string;
   stateStore?: SageOsStateStore;
   now: Date;
@@ -168,6 +173,9 @@ async function persistSystemFailureObservation(params: {
     createdAt: params.now.toISOString(),
     updatedAt: params.now.toISOString(),
   };
+  const stateStore = params.stateStore ?? createSageOsStateStore({ stateDir: params.stateDir });
+  await applySageOsObservationRetention({ store: stateStore, cfg: params.cfg, now: params.now });
+
   const event = await appendSageOsEvent(createSageOsEventLog({ stateDir: params.stateDir }), {
     type: "observation_failed",
     actor: "sageos.system_observer",
@@ -175,10 +183,7 @@ async function persistSystemFailureObservation(params: {
     sensitivity: "private",
   });
   const observationWithEvent = { ...observation, eventId: event.id };
-  await upsertSageOsObservation(
-    params.stateStore ?? createSageOsStateStore({ stateDir: params.stateDir }),
-    observationWithEvent,
-  );
+  await upsertSageOsObservation(stateStore, observationWithEvent);
   return observationWithEvent;
 }
 
