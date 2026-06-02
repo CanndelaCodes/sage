@@ -8,6 +8,23 @@
 
 **Tech Stack:** TypeScript, Electron, Lit, Vitest, existing gateway WebSocket RPC protocol, pnpm workspaces, Windows user-session startup.
 
+## Execution Status
+
+Status: implemented and verified for the Windows overlay MVP shell as of 2026-06-02.
+
+Current evidence:
+
+- `pnpm exec vitest run --config vitest.config.ts src/config/sageos-schema.test.ts src/sageos/overlay-state.test.ts` passed with 8 tests.
+- `pnpm --dir apps/windows-overlay test` passed with 71 tests.
+- `pnpm --dir apps/windows-overlay typecheck` passed.
+- `pnpm --dir apps/windows-overlay build` passed.
+- `pnpm tsgo`, `pnpm lint`, and `pnpm build` passed during the same 2026-06-02 continuation after the startup CLI integration.
+- `git diff --check` passed for the startup CLI slice and this plan reconciliation.
+- `docs/superpowers/artifacts/sageos-windows-overlay-smoke.md` records the current smoke evidence, screenshot paths, keyboard checks, pass-through probe, tray controls, voice availability behavior, and Liquid Linear visual contract evidence.
+- Follow-up CLI integration is complete in `sage os overlay startup install|status|uninstall`, so the active-user Windows startup shortcut can be managed from SageOS config instead of only the package script.
+
+The checked steps below reflect completed implementation work. Keep the original task details as the implementation recipe and acceptance mapping for future audits.
+
 ---
 
 ## File Structure
@@ -42,7 +59,7 @@
 - Modify: `src/config/zod-schema.ts`
 - Modify: `src/config/sageos-schema.test.ts`
 
-- [ ] **Step 1: Write failing config tests**
+- [x] **Step 1: Write failing config tests**
 
 Add these cases to `src/config/sageos-schema.test.ts`.
 
@@ -102,7 +119,7 @@ pnpm exec vitest run --config vitest.config.ts src/config/sageos-schema.test.ts
 
 Expected: FAIL because `sageos.overlay` is not in the schema or `SageOsConfig`.
 
-- [ ] **Step 2: Add overlay types**
+- [x] **Step 2: Add overlay types**
 
 Add these exports near the existing SageOS config types in `src/sageos/types.ts`.
 
@@ -150,7 +167,7 @@ Then extend `SageOsConfig`:
   sources?: Partial<Record<string, boolean>>;
 ```
 
-- [ ] **Step 3: Add schema validation**
+- [x] **Step 3: Add schema validation**
 
 In `src/config/zod-schema.ts`, add the overlay schema beside `commandCenter`.
 
@@ -195,7 +212,7 @@ Inside `SageOsSchema`, insert:
       .optional(),
 ```
 
-- [ ] **Step 4: Verify config tests pass**
+- [x] **Step 4: Verify config tests pass**
 
 Run:
 
@@ -205,7 +222,7 @@ pnpm exec vitest run --config vitest.config.ts src/config/sageos-schema.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit config contract**
+- [x] **Step 5: Commit config contract**
 
 Run:
 
@@ -220,7 +237,7 @@ Run:
 - Create: `src/sageos/overlay-state.ts`
 - Create: `src/sageos/overlay-state.test.ts`
 
-- [ ] **Step 1: Write failing reducer tests**
+- [x] **Step 1: Write failing reducer tests**
 
 Create `src/sageos/overlay-state.test.ts`.
 
@@ -269,7 +286,7 @@ pnpm exec vitest run --config vitest.config.ts src/sageos/overlay-state.test.ts
 
 Expected: FAIL because `src/sageos/overlay-state.ts` does not exist.
 
-- [ ] **Step 2: Add the reducer**
+- [x] **Step 2: Add the reducer**
 
 Create `src/sageos/overlay-state.ts`.
 
@@ -364,7 +381,7 @@ export function reduceSageOsOverlayState(
 }
 ```
 
-- [ ] **Step 3: Verify reducer tests pass**
+- [x] **Step 3: Verify reducer tests pass**
 
 Run:
 
@@ -374,7 +391,7 @@ pnpm exec vitest run --config vitest.config.ts src/sageos/overlay-state.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 4: Commit state machine**
+- [x] **Step 4: Commit state machine**
 
 Run:
 
@@ -394,7 +411,7 @@ Run:
 - Create: `apps/windows-overlay/src/renderer/index.html`
 - Create: `apps/windows-overlay/src/renderer/styles.css`
 
-- [ ] **Step 1: Add the workspace package**
+- [x] **Step 1: Add the workspace package**
 
 Update `pnpm-workspace.yaml`:
 
@@ -433,7 +450,7 @@ Create `apps/windows-overlay/package.json`.
 }
 ```
 
-- [ ] **Step 2: Add TypeScript and Vitest config**
+- [x] **Step 2: Add TypeScript and Vitest config**
 
 Create `apps/windows-overlay/tsconfig.json`.
 
@@ -467,7 +484,7 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 3: Add renderer asset copy script**
+- [x] **Step 3: Add renderer asset copy script**
 
 Create `apps/windows-overlay/scripts/copy-renderer-assets.mjs`.
 
@@ -489,7 +506,7 @@ await copyFile(
 );
 ```
 
-- [ ] **Step 4: Add renderer host files**
+- [x] **Step 4: Add renderer host files**
 
 Create `apps/windows-overlay/src/renderer/index.html`.
 
@@ -541,7 +558,7 @@ input {
 }
 ```
 
-- [ ] **Step 5: Install workspace dependencies**
+- [x] **Step 5: Install workspace dependencies**
 
 Run:
 
@@ -551,7 +568,7 @@ pnpm install
 
 Expected: `pnpm-lock.yaml` updates with the overlay package dependencies.
 
-- [ ] **Step 6: Verify package typecheck starts cleanly**
+- [x] **Step 6: Verify package typecheck starts cleanly**
 
 Run:
 
@@ -561,7 +578,7 @@ pnpm --dir apps/windows-overlay typecheck
 
 Expected: PASS because no TypeScript source exists yet beyond config.
 
-- [ ] **Step 7: Commit package scaffold**
+- [x] **Step 7: Commit package scaffold**
 
 Run:
 
@@ -578,7 +595,7 @@ Run:
 - Create: `apps/windows-overlay/src/main/main.ts`
 - Create: `apps/windows-overlay/tests/window-controller.test.ts`
 
-- [ ] **Step 1: Write failing window controller tests**
+- [x] **Step 1: Write failing window controller tests**
 
 Create `apps/windows-overlay/tests/window-controller.test.ts`.
 
@@ -643,7 +660,7 @@ pnpm --dir apps/windows-overlay test -- tests/window-controller.test.ts
 
 Expected: FAIL because the controller does not exist.
 
-- [ ] **Step 2: Add platform-neutral controller**
+- [x] **Step 2: Add platform-neutral controller**
 
 Create `apps/windows-overlay/src/main/window-controller.ts`.
 
@@ -716,7 +733,7 @@ export function createOverlayWindowController(
 }
 ```
 
-- [ ] **Step 3: Add Electron adapter**
+- [x] **Step 3: Add Electron adapter**
 
 Create `apps/windows-overlay/src/main/electron-adapter.ts`.
 
@@ -806,7 +823,7 @@ export function createElectronOverlayAdapter(params: {
 }
 ```
 
-- [ ] **Step 4: Add main entrypoint**
+- [x] **Step 4: Add main entrypoint**
 
 Create `apps/windows-overlay/src/main/main.ts`.
 
@@ -840,7 +857,7 @@ app.on("will-quit", () => {
 });
 ```
 
-- [ ] **Step 5: Verify controller tests pass**
+- [x] **Step 5: Verify controller tests pass**
 
 Run:
 
@@ -850,7 +867,7 @@ pnpm --dir apps/windows-overlay test -- tests/window-controller.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit shell controller**
+- [x] **Step 6: Commit shell controller**
 
 Run:
 
@@ -867,7 +884,7 @@ Run:
 - Create: `apps/windows-overlay/src/renderer/sageos-actions.ts`
 - Create: `apps/windows-overlay/tests/sageos-actions.test.ts`
 
-- [ ] **Step 1: Write failing action tests**
+- [x] **Step 1: Write failing action tests**
 
 Create `apps/windows-overlay/tests/sageos-actions.test.ts`.
 
@@ -941,7 +958,7 @@ pnpm --dir apps/windows-overlay test -- tests/sageos-actions.test.ts
 
 Expected: FAIL because action wrappers do not exist.
 
-- [ ] **Step 2: Add preload bridge**
+- [x] **Step 2: Add preload bridge**
 
 Create `apps/windows-overlay/src/preload/preload.ts`.
 
@@ -955,7 +972,7 @@ contextBridge.exposeInMainWorld("sageOsOverlay", {
 });
 ```
 
-- [ ] **Step 3: Add gateway client interface and action wrappers**
+- [x] **Step 3: Add gateway client interface and action wrappers**
 
 Create `apps/windows-overlay/src/renderer/gateway-client.ts`.
 
@@ -1036,7 +1053,7 @@ export function cancelSageOsTask(client: OverlayGatewayClient, id: string) {
 }
 ```
 
-- [ ] **Step 4: Verify action tests pass**
+- [x] **Step 4: Verify action tests pass**
 
 Run:
 
@@ -1046,7 +1063,7 @@ pnpm --dir apps/windows-overlay test -- tests/sageos-actions.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit gateway bridge**
+- [x] **Step 5: Commit gateway bridge**
 
 Run:
 
@@ -1068,7 +1085,7 @@ Run:
 - Modify: `apps/windows-overlay/src/renderer/styles.css`
 - Create: `apps/windows-overlay/tests/overlay-renderer.test.ts`
 
-- [ ] **Step 1: Write failing renderer tests**
+- [x] **Step 1: Write failing renderer tests**
 
 Create `apps/windows-overlay/tests/overlay-renderer.test.ts`.
 
@@ -1119,7 +1136,7 @@ pnpm --dir apps/windows-overlay test -- tests/overlay-renderer.test.ts
 
 Expected: FAIL because the renderer model does not exist.
 
-- [ ] **Step 2: Add renderer model and root component**
+- [x] **Step 2: Add renderer model and root component**
 
 Create `apps/windows-overlay/src/renderer/overlay-app.ts`.
 
@@ -1184,7 +1201,7 @@ export class SageOsOverlayApp extends LitElement {
 customElements.define("sageos-overlay-app", SageOsOverlayApp);
 ```
 
-- [ ] **Step 3: Add component modules**
+- [x] **Step 3: Add component modules**
 
 Create each component with exported pure render helpers first, then attach them to the root component once tests pass.
 
@@ -1286,7 +1303,7 @@ export function renderPinnedWidgets(widgets: SageOsOverlayWidgetId[]) {
 }
 ```
 
-- [ ] **Step 4: Add overlay styles**
+- [x] **Step 4: Add overlay styles**
 
 Append to `apps/windows-overlay/src/renderer/styles.css`.
 
@@ -1366,7 +1383,7 @@ Append to `apps/windows-overlay/src/renderer/styles.css`.
 }
 ```
 
-- [ ] **Step 5: Verify renderer tests pass**
+- [x] **Step 5: Verify renderer tests pass**
 
 Run:
 
@@ -1376,7 +1393,7 @@ pnpm --dir apps/windows-overlay test -- tests/overlay-renderer.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit renderer surfaces**
+- [x] **Step 6: Commit renderer surfaces**
 
 Run:
 
@@ -1393,7 +1410,7 @@ Run:
 - Modify: `apps/windows-overlay/src/main/window-controller.ts`
 - Create: `apps/windows-overlay/tests/pass-through.test.ts`
 
-- [ ] **Step 1: Write failing pass-through tests**
+- [x] **Step 1: Write failing pass-through tests**
 
 Create `apps/windows-overlay/tests/pass-through.test.ts`.
 
@@ -1436,7 +1453,7 @@ pnpm --dir apps/windows-overlay test -- tests/pass-through.test.ts
 
 Expected: PASS if Task 4 set pointer modes correctly. If it fails, update `window-controller.ts` so `collapse()` sends pass-through and `expand()` sends focused mode.
 
-- [ ] **Step 2: Extend preload bridge with user actions**
+- [x] **Step 2: Extend preload bridge with user actions**
 
 Update `apps/windows-overlay/src/preload/preload.ts`.
 
@@ -1459,7 +1476,7 @@ contextBridge.exposeInMainWorld("sageOsOverlay", {
 });
 ```
 
-- [ ] **Step 3: Wire IPC handlers**
+- [x] **Step 3: Wire IPC handlers**
 
 Update `apps/windows-overlay/src/main/main.ts` so controller methods are reachable from renderer controls.
 
@@ -1498,7 +1515,7 @@ app.on("will-quit", () => {
 });
 ```
 
-- [ ] **Step 4: Add renderer controls for surface switching**
+- [x] **Step 4: Add renderer controls for surface switching**
 
 Update `SageOsOverlayApp.render()` in `apps/windows-overlay/src/renderer/overlay-app.ts` to include controls with stable labels.
 
@@ -1532,7 +1549,7 @@ declare global {
 }
 ```
 
-- [ ] **Step 5: Verify pass-through tests pass**
+- [x] **Step 5: Verify pass-through tests pass**
 
 Run:
 
@@ -1542,7 +1559,7 @@ pnpm --dir apps/windows-overlay test -- tests/pass-through.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit pass-through behavior**
+- [x] **Step 6: Commit pass-through behavior**
 
 Run:
 
@@ -1558,7 +1575,7 @@ Run:
 - Create: `scripts/sageos-windows-overlay.ps1`
 - Create: `docs/superpowers/artifacts/sageos-windows-overlay-smoke.md`
 
-- [ ] **Step 1: Add app launch script**
+- [x] **Step 1: Add app launch script**
 
 Create `scripts/sageos-windows-overlay.ps1`.
 
@@ -1575,7 +1592,7 @@ $env:SAGEOS_OVERLAY_OPEN_MODE = $OpenMode
 pnpm --dir apps/windows-overlay dev
 ```
 
-- [ ] **Step 2: Add package scripts**
+- [x] **Step 2: Add package scripts**
 
 Update `apps/windows-overlay/package.json` scripts:
 
@@ -1591,7 +1608,7 @@ Update `apps/windows-overlay/package.json` scripts:
 }
 ```
 
-- [ ] **Step 3: Add manual smoke checklist**
+- [x] **Step 3: Add manual smoke checklist**
 
 Create `docs/superpowers/artifacts/sageos-windows-overlay-smoke.md`.
 
@@ -1629,7 +1646,7 @@ Build:
 - Notes:
 ```
 
-- [ ] **Step 4: Verify packaging scripts**
+- [x] **Step 4: Verify packaging scripts**
 
 Run:
 
@@ -1641,7 +1658,7 @@ pnpm --dir apps/windows-overlay build
 
 Expected: all three commands PASS.
 
-- [ ] **Step 5: Commit startup and smoke docs**
+- [x] **Step 5: Commit startup and smoke docs**
 
 Run:
 
@@ -1674,7 +1691,7 @@ SageOS should adopt Liquid Linear command glass for the MVP overlay: Apple-like 
 
 The implementation should keep the Sage-specific Vitreus/Vitreous Liquor foundation: neutral charcoal and cool platinum surfaces, layered glass elevation, crisp borders, rim highlights, restrained blur, scan-friendly operational density, and spring-calibrated motion. Do not copy PeakHQ, Apple, or Linear branding directly.
 
-- [ ] **Step 1: Write visual contract tests**
+- [x] **Step 1: Write visual contract tests**
 
 Add tests that assert the overlay stylesheet exposes SageOS material tokens and state classes:
 
@@ -1691,7 +1708,7 @@ pnpm --dir apps/windows-overlay test -- tests/overlay-visual-contract.test.ts
 
 Expected: FAIL until the visual token layer and state classes exist.
 
-- [ ] **Step 2: Add SageOS Vitreous Liquor token layer**
+- [x] **Step 2: Add SageOS Vitreous Liquor token layer**
 
 Refactor `styles.css` so visual constants live in a small token section:
 
@@ -1702,7 +1719,7 @@ Refactor `styles.css` so visual constants live in a small token section:
 - Motion: fast, normal, slow, snappy, responsive, smooth, reduced-motion fallbacks.
 - Radius and spacing: compact system controls, 8px default cards, stable dimensions for buttons/badges/widgets.
 
-- [ ] **Step 3: Polish every overlay surface**
+- [x] **Step 3: Polish every overlay surface**
 
 Apply the token layer to:
 
@@ -1717,7 +1734,7 @@ Apply the token layer to:
 
 Every visible control must have hover, focus-visible, pressed, disabled, loading or pending, and success/error affordances where applicable.
 
-- [ ] **Step 4: Verify GUI/UX/CX/DX quality with screenshots**
+- [x] **Step 4: Verify GUI/UX/CX/DX quality with screenshots**
 
 Run automated and manual visual checks:
 
@@ -1747,7 +1764,7 @@ Manual acceptance:
 - Apple-like liquid glass depth is visible, but Linear-like row density, command hierarchy, and contrast remain dominant.
 - No in-app explanatory filler text replaces actual controls.
 
-- [ ] **Step 5: Record visual evidence and commit**
+- [x] **Step 5: Record visual evidence and commit**
 
 Update `docs/superpowers/artifacts/sageos-windows-overlay-smoke.md` with visual polish evidence:
 
@@ -1769,7 +1786,7 @@ Run:
 
 - All files changed by Tasks 1 through 9
 
-- [ ] **Step 1: Run focused tests**
+- [x] **Step 1: Run focused tests**
 
 Run:
 
@@ -1780,7 +1797,7 @@ pnpm --dir apps/windows-overlay test
 
 Expected: PASS.
 
-- [ ] **Step 2: Run type and build checks**
+- [x] **Step 2: Run type and build checks**
 
 Run:
 
@@ -1793,7 +1810,7 @@ pnpm build
 
 Expected: PASS.
 
-- [ ] **Step 3: Run formatting and diff checks**
+- [x] **Step 3: Run formatting and diff checks**
 
 Run:
 
@@ -1804,7 +1821,7 @@ git diff --check
 
 Expected: PASS.
 
-- [ ] **Step 4: Run Windows smoke**
+- [x] **Step 4: Run Windows smoke**
 
 Run:
 
@@ -1824,7 +1841,7 @@ Manual expected result:
 
 Record the date, build, screenshot path, and notes in `docs/superpowers/artifacts/sageos-windows-overlay-smoke.md`.
 
-- [ ] **Step 5: Commit final verification notes**
+- [x] **Step 5: Commit final verification notes**
 
 Run:
 
