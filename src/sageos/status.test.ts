@@ -565,6 +565,96 @@ describe("SageOS status collector", () => {
     );
   });
 
+  it("tracks worker failure incidents until failed runs recover", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "sageos-status-worker-failure-"));
+    const store = createSageOsStateStore({ stateDir: root });
+    const memoryCaptureQueuePath = path.join(root, "memory-queue.json");
+    const learningActivityQueuePath = path.join(root, "learning-queue.json");
+    const now = "2026-06-02T05:10:00.000Z";
+
+    await writeSageOsState(store, createSageOsStatusSnapshot());
+    await upsertSageOsTask(store, {
+      id: "task_worker_failed",
+      title: "Run worker",
+      objective: "Exercise worker failure incident coverage.",
+      state: "failed",
+      requestedBy: "sageos.test",
+      autonomyTier: "execute_scoped",
+      policyScopes: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+    await upsertSageOsRun(store, {
+      id: "run_task_worker_failed_1",
+      taskId: "task_worker_failed",
+      attempt: 1,
+      state: "failed",
+      traceId: "trace_worker_failed",
+      workerSessionId: "worker_task_worker_failed_1",
+      startedAt: now,
+      finishedAt: now,
+      error: "executor failed",
+    });
+
+    const failed = await collectSageOsStatus({
+      stateDir: root,
+      memoryCaptureQueuePath,
+      learningActivityQueuePath,
+    });
+
+    expect(failed.runs).toMatchObject({ total: 1, failed: 1 });
+    expect(failed.incidents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "incident_worker_failed",
+          category: "worker",
+          severity: "error",
+          title: "SageOS worker run failed",
+          summary: expect.stringContaining("executor failed"),
+          autoRepairSafe: true,
+          repairAction: expect.objectContaining({
+            command: "sage os status --json",
+            gatewayMethod: "sageos.runs.list",
+            approvalRequired: false,
+          }),
+        }),
+      ]),
+    );
+
+    await writeSageOsState(store, failed);
+    const refreshed = await collectSageOsStatus({
+      stateDir: root,
+      memoryCaptureQueuePath,
+      learningActivityQueuePath,
+    });
+
+    expect(
+      refreshed.incidents.filter((incident) => incident.id === "incident_worker_failed"),
+    ).toHaveLength(1);
+
+    await upsertSageOsRun(store, {
+      id: "run_task_worker_failed_1",
+      taskId: "task_worker_failed",
+      attempt: 1,
+      state: "succeeded",
+      traceId: "trace_worker_failed",
+      workerSessionId: "worker_task_worker_failed_1",
+      startedAt: now,
+      finishedAt: now,
+    });
+
+    const recovered = await collectSageOsStatus({
+      stateDir: root,
+      memoryCaptureQueuePath,
+      learningActivityQueuePath,
+    });
+
+    expect(recovered.runs).toMatchObject({ total: 1, failed: 0 });
+    expect(recovered.incidents.map((incident) => incident.id)).not.toContain(
+      "incident_worker_failed",
+    );
+  });
+
   it("does not duplicate generated incidents across persisted status refreshes", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "sageos-status-incidents-"));
     const store = createSageOsStateStore({ stateDir: root });

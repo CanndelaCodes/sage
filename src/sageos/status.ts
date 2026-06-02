@@ -116,6 +116,9 @@ export async function collectSageOsStatus(
     ...notificationFailureIncidents({
       events,
     }),
+    ...workerFailureIncidents({
+      runs: state.runs,
+    }),
   ];
 
   const snapshot = createSageOsStatusSnapshot({
@@ -162,6 +165,7 @@ const GENERATED_INCIDENT_IDS = new Set([
   "incident_source_failed",
   "incident_memory_doctor_failed",
   "incident_notification_failed",
+  "incident_worker_failed",
 ]);
 
 function isGeneratedIncidentId(id: string): boolean {
@@ -438,6 +442,46 @@ function notificationFailureIncidents(params: { events: SageOsEvent[] }): SageOs
   ];
 }
 
+function workerFailureIncidents(params: { runs: SageOsRun[] }): SageOsIncident[] {
+  const failedRuns = params.runs.filter(
+    (run) => run.state === "failed" || run.state === "timed_out",
+  );
+  const latest = failedRuns.toSorted((a, b) => runSortTime(b) - runSortTime(a))[0];
+  if (!latest) {
+    return [];
+  }
+  const first = failedRuns.toSorted((a, b) => runSortTime(a) - runSortTime(b))[0] ?? latest;
+  const timedOut = failedRuns.filter((run) => run.state === "timed_out").length;
+  const failed = failedRuns.length - timedOut;
+  const summary = [
+    `${failedRuns.length} SageOS worker run${failedRuns.length === 1 ? "" : "s"} failed or timed out (${failed} failed / ${timedOut} timed out).`,
+    `Latest: ${latest.id} for task ${latest.taskId}.`,
+    latest.error ? `Error: ${latest.error}` : undefined,
+  ]
+    .filter((line): line is string => Boolean(line))
+    .join(" ");
+  return [
+    {
+      id: "incident_worker_failed",
+      severity: "error",
+      category: "worker",
+      title: "SageOS worker run failed",
+      summary,
+      firstSeenAt: first.finishedAt ?? first.startedAt ?? new Date(0).toISOString(),
+      lastSeenAt: latest.finishedAt ?? latest.startedAt ?? new Date(0).toISOString(),
+      autoRepairSafe: true,
+      repairAction: {
+        id: "repair_worker_runs_review",
+        label: "Inspect failed runs",
+        command: "sage os status --json",
+        gatewayMethod: "sageos.runs.list",
+        risk: "low",
+        approvalRequired: false,
+      },
+    },
+  ];
+}
+
 function summarizeSources(
   cfg: SageOsConfig | undefined,
   observations: SageOsObservation[],
@@ -467,6 +511,16 @@ function activeFailedObservationSources(observations: SageOsObservation[]): stri
 function observationSortTime(observation: SageOsObservation): number {
   for (const timestamp of [observation.observedAt, observation.updatedAt, observation.createdAt]) {
     const millis = Date.parse(timestamp);
+    if (Number.isFinite(millis)) {
+      return millis;
+    }
+  }
+  return 0;
+}
+
+function runSortTime(run: SageOsRun): number {
+  for (const timestamp of [run.finishedAt, run.startedAt]) {
+    const millis = Date.parse(timestamp ?? "");
     if (Number.isFinite(millis)) {
       return millis;
     }
