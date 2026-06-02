@@ -198,6 +198,64 @@ describe("SageOS task runner", () => {
     expect(log).toContain("coding_task_completed");
   });
 
+  it("sends Night Shift completion notifications for notified coding execution plans", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "sageos-task-runner-coding-notify-"));
+    const repo = await createFixtureRepo("sageos-task-runner-coding-notify-repo-");
+    const store = createSageOsStateStore({ stateDir: root });
+    const now = "2026-06-01T18:02:00.000Z";
+    await upsertSageOsTask(store, {
+      id: "task_coding_notify",
+      title: "Run notified coding plan",
+      objective: "Append a fixture marker, run the fixture test, and notify the completion report.",
+      state: "queued",
+      requestedBy: "sageos.overlay",
+      autonomyTier: "execute_scoped",
+      policyScopes: [{ kind: "repo", allow: [repo], risk: "low" }],
+      execution: {
+        kind: "coding",
+        append: { relativePath: "README.md", text: "\nnight shift\n" },
+        testCommand: "node test.js",
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+    const cfg = {
+      coding: { enabled: true, allowedRepos: [repo], requireCleanGit: true },
+      notifications: { telegram: { enabled: true, target: "telegram:123" } },
+    };
+    const taskNotificationCalls: unknown[] = [];
+    const completionNotificationCalls: unknown[] = [];
+
+    const result = await runNextSageOsTaskOnce({
+      stateDir: root,
+      requestedBy: "sageos.supervisor",
+      notify: true,
+      cfg,
+      sendTaskNotificationOnce: async (params: unknown) => {
+        taskNotificationCalls.push(params);
+        return { outcome: "sent", target: "telegram:123" };
+      },
+      sendCompletionNotificationOnce: async (params: unknown) => {
+        completionNotificationCalls.push(params);
+        return { outcome: "sent", target: "telegram:123" };
+      },
+      now: () => new Date(now),
+    });
+
+    expect(result).toMatchObject({
+      outcome: "completed",
+      task: { id: "task_coding_notify", state: "completed" },
+      run: { id: "run_task_coding_notify_1", state: "succeeded" },
+    });
+    expect(taskNotificationCalls).toHaveLength(1);
+    expect(completionNotificationCalls).toHaveLength(1);
+    expect(completionNotificationCalls[0]).toMatchObject({
+      stateDir: root,
+      cfg,
+      reportId: "coding_report_task_coding_notify_1",
+    });
+  });
+
   it("records coding dispatch preflight failures as failed task runs", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "sageos-task-runner-coding-disabled-"));
     const store = createSageOsStateStore({ stateDir: root });

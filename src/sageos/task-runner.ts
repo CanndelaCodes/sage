@@ -9,7 +9,10 @@ import type {
 } from "./types.js";
 import { runSageOsNightShiftTask } from "./coding/night-shift.js";
 import { appendSageOsEvent, createSageOsEventLog } from "./event-log.js";
-import { sendSageOsTaskNotificationOnce } from "./notifications.js";
+import {
+  sendSageOsCompletionNotificationOnce,
+  sendSageOsTaskNotificationOnce,
+} from "./notifications.js";
 import {
   createSageOsStateStore,
   readSageOsState,
@@ -58,6 +61,7 @@ export async function runNextSageOsTaskOnce(
     notify?: boolean;
     cfg?: SageOsConfig;
     sendTaskNotificationOnce?: typeof sendSageOsTaskNotificationOnce;
+    sendCompletionNotificationOnce?: typeof sendSageOsCompletionNotificationOnce;
     now?: () => Date;
   } = {},
 ): Promise<SageOsTaskRunnerResult> {
@@ -89,6 +93,7 @@ export async function runNextSageOsTaskOnce(
         now: params.now,
       });
       await maybeSendTaskNotification(params, result.task, result.run);
+      await maybeSendCompletionNotification(params, result.report.id);
       return {
         outcome:
           result.outcome === "succeeded"
@@ -311,6 +316,27 @@ async function maybeSendTaskNotification(
     cfg: params.cfg,
     task,
     run,
+  });
+}
+
+async function maybeSendCompletionNotification(
+  params: {
+    stateDir?: string;
+    notify?: boolean;
+    cfg?: SageOsConfig;
+    sendCompletionNotificationOnce?: typeof sendSageOsCompletionNotificationOnce;
+  },
+  reportId: string,
+): Promise<void> {
+  if (!params.notify) {
+    return;
+  }
+  const sendCompletionNotification =
+    params.sendCompletionNotificationOnce ?? sendSageOsCompletionNotificationOnce;
+  await sendCompletionNotification({
+    stateDir: params.stateDir,
+    cfg: params.cfg,
+    reportId,
   });
 }
 
