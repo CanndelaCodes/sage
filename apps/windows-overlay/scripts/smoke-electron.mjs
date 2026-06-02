@@ -114,12 +114,8 @@ async function smokeFullOverlay(gatewayUrl) {
     await waitForRecordedMethod("sageos.tasks.queue");
     await memoryReplayRow.getByRole("button", { name: "Cancel" }).click();
     await waitForRecordedMethod("sageos.tasks.cancel");
-    await page.getByLabel("SageOS command").fill("Assign Memory Steward to replay capture queue");
-    await page.getByRole("button", { name: "Run", exact: true }).click();
-    await waitForRecordedMethod("sageos.tasks.create");
-    await page.getByLabel("SageOS command").fill("Summarize SageOS overlay smoke");
-    await page.getByRole("button", { name: "Run", exact: true }).click();
-    await waitForRecordedMethod("chat.send");
+    await submitLauncherCommand(page, "Assign Memory Steward to replay capture queue", "sageos.tasks.create");
+    await submitLauncherCommand(page, "Summarize SageOS overlay smoke", "chat.send");
 
     await page.evaluate(() => window.sageOsOverlay?.collapse());
     await page.waitForSelector(".edge-rail--left", { timeout: 5_000 });
@@ -688,6 +684,7 @@ function createSmokeState() {
         title: "Night Shift report",
         objective: "Summarize coding work",
         state: "running",
+        ownerAgentId: "employee_memory",
         requestedBy: "Jason",
         autonomyTier: "execute_scoped",
         policyScopes: [],
@@ -721,7 +718,40 @@ function createSmokeState() {
         updatedAt: now,
       },
     ],
-    runs: [],
+    runs: [
+      {
+        id: "run_task_1_1",
+        taskId: "task_1",
+        attempt: 1,
+        state: "running",
+        traceId: "trace_task_1",
+        workerSessionId: "worker_task_1_1",
+        currentToolCall: "node test.js",
+        budgetUsed: { elapsedMinutes: 12, toolCalls: 9, costUsd: 0.02 },
+        timeline: [
+          {
+            at: now,
+            label: "Started run",
+            state: "running",
+            ref: "run_task_1_1",
+          },
+          {
+            at: now,
+            label: "Ran tests",
+            state: "running",
+            ref: "test:node test.js",
+          },
+        ],
+        logs: ["Started SageOS task task_1 run run_task_1_1"],
+        artifacts: ["coding_report_task_1"],
+        verificationResult: {
+          outcome: "skipped",
+          summary: "Verification is running.",
+          refs: ["test:node test.js"],
+        },
+        startedAt: now,
+      },
+    ],
     codingReports: [],
     workflows: [],
     skills: [],
@@ -738,6 +768,28 @@ function assertRecordedMethods(recorded, requiredMethods) {
       throw new Error(`Expected smoke gateway method was not called: ${method}`);
     }
   }
+}
+
+async function submitLauncherCommand(page, command, expectedMethod) {
+  await page.getByLabel("SageOS command").fill(command);
+  await page.waitForFunction(
+    (expectedCommand) => {
+      const input = document.querySelector('input[aria-label="SageOS command"]');
+      const runButton = Array.from(document.querySelectorAll("button")).find(
+        (button) => button.textContent?.trim() === "Run",
+      );
+      return input?.value === expectedCommand && runButton instanceof HTMLButtonElement && !runButton.disabled;
+    },
+    command,
+    { timeout: 5_000 },
+  );
+  await page.getByRole("button", { name: "Run", exact: true }).click();
+  await waitForRecordedMethod(expectedMethod);
+  await page.waitForFunction(
+    () => document.querySelector('input[aria-label="SageOS command"]')?.value === "",
+    undefined,
+    { timeout: 5_000 },
+  );
 }
 
 async function waitForRecordedMethod(method, count = 1, timeoutMs = 5_000) {

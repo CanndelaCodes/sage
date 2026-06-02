@@ -2,7 +2,7 @@
 
 Date: 2026-06-01
 Operator: Codex
-Build: native default-hotkey smoke slice after 26bd6bfbb6
+Build: Liquid Linear command glass visual polish slice after aa02911462
 
 ## Preconditions
 
@@ -35,6 +35,8 @@ Build: native default-hotkey smoke slice after 26bd6bfbb6
 - [x] `SAGEOS_OVERLAY_VOICE_ENABLED=1` plus `SAGEOS_OVERLAY_VOICE_MODE=pushToTalk` exposes the Voice entry point.
 - [x] The Voice entry point is omitted when voice config is missing, disabled, or invalid.
 - [x] Liquid Linear material tokens cover ambient, command, focus, and summit glass elevations.
+- [x] Liquid Linear command glass tokens cover refraction, specular highlights, platinum tint, command/focus/control shadows, runway highlights, and spring motion.
+- [x] Command Deck opens on active run telemetry when a live run exists, including worker session, current tool, budget used, verification, timeline, logs, and artifacts.
 - [x] Automated smoke captures the overlay over bright, text-heavy, and IDE-like visual backdrops.
 - [x] Edge Rail collapse keeps health, approval, and incident indicators visible.
 - [x] Pass-through surfaces can temporarily restore overlay pointer capture over active controls.
@@ -52,7 +54,8 @@ Build: native default-hotkey smoke slice after 26bd6bfbb6
 - IDE-like backdrop HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud-ide.png`
 - Notes: Automated overlay package test, typecheck, build, `pnpm tsgo`, `pnpm lint`, and
   `git diff --check` passed on 2026-06-01 during the visual/layout pass. The visual contract
-  now enforces the Liquid Linear command glass token layer, focus states, reduced-motion handling,
+  now enforces the Liquid Linear command glass token layer, refraction/specular surface overlays,
+  forced-colors fallback, focus states, reduced-motion handling,
   edge anchoring classes, state classes, text overflow guards, and full-overlay pinned widget flow.
   The `smoke:electron` package script
   launches the packaged Electron overlay against a mock gateway, verifies that
@@ -66,6 +69,10 @@ Build: native default-hotkey smoke slice after 26bd6bfbb6
   verifies the Voice button focuses the Universal Launcher,
   captures full Command Deck over a bright synthetic desktop, captures Edge Rail and pinned widgets
   over a text-heavy synthetic app, captures HUD over an IDE-like dark surface,
+  seeds the mock gateway with an active run that includes `workerSessionId`, `currentToolCall`,
+  `budgetUsed`, `timeline`, logs, artifacts, and verification metadata,
+  waits for launcher submissions to enable before clicking and for the launcher field to clear
+  before sending the next command,
   verifies the `sageos-overlay:interactive-pointer` preload bridge and exercises temporary pointer
   capture while Edge Rail is active,
   creates a native Electron underlay probe and sends a Windows user32 mouse click through the

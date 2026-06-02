@@ -200,7 +200,7 @@ export function renderOverlayModel(
       systemResources: systemResourceRows satisfies OverlaySystemResourceRow[],
     },
     overview: buildOverviewGroups(status),
-    workspace: buildWorkspaceModel(state, opts.workspaceTarget),
+    workspace: buildWorkspaceModel(state, opts.workspaceTarget ?? defaultWorkspaceTarget(state)),
     pinnedWidgets: buildPinnedWidgets(status, opts.pinnedWidgets),
     hud: {
       badges: [
@@ -454,13 +454,13 @@ export class SageOsOverlayApp extends LitElement {
                   : nothing}
                 ${surfaceVisibility.commandDeck ? renderCommandDeck(model.commandDeck.cards) : nothing}
                 ${surfaceVisibility.overview ? this.renderOverviewGroups(model.overview) : nothing}
-                ${surfaceVisibility.operationalRows
-                  ? this.renderOperationalRows(model.commandDeck)
-                  : nothing}
                 ${surfaceVisibility.agentWorkspace
                   ? renderAgentWorkspace(model.workspace, {
                       onAction: (action) => void this.runWorkspaceAction(action),
                     })
+                  : nothing}
+                ${surfaceVisibility.operationalRows
+                  ? this.renderOperationalRows(model.commandDeck)
                   : nothing}
                 ${surfaceVisibility.compactHud ? renderCompactHud(model.hud.badges) : nothing}
                 ${surfaceVisibility.edgeRail
@@ -1381,6 +1381,14 @@ function buildWorkspaceModel(
       },
     ],
   };
+}
+
+function defaultWorkspaceTarget(state: SageOsOverlayStatusState): AgentWorkspaceTarget | undefined {
+  const runs = state.runs ?? [];
+  const run =
+    runs.find((entry) => entry.state === "running" || entry.state === "queued") ??
+    runs.toSorted((a, b) => b.attempt - a.attempt)[0];
+  return run ? { kind: "run", id: run.id } : undefined;
 }
 
 function buildPinnedWidgets(

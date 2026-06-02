@@ -240,6 +240,17 @@ describe("overlay renderer model", () => {
   it("maps tasks, approvals, and incidents into operational rows", () => {
     const model = renderOverlayModel(state as never);
 
+    expect(model.workspace).toMatchObject({
+      title: "run_task_1",
+      eyebrow: "Run / running",
+    });
+    expect(model.workspace.facts).toEqual(
+      expect.arrayContaining([
+        { label: "Worker", value: "worker_task_1_1" },
+        { label: "Current tool", value: "node test.js" },
+        { label: "Budget used", value: "12 min / 9 tool calls / $0.02" },
+      ]),
+    );
     expect(model.commandDeck.tasks).toEqual([
       {
         id: "task_1",

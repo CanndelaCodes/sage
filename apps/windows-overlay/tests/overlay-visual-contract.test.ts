@@ -16,6 +16,9 @@ describe("overlay visual contract", () => {
       "--sageos-glass-blur-md",
       "--sageos-glass-opacity-floor",
       "--sageos-glass-saturation",
+      "--sageos-glass-refraction",
+      "--sageos-glass-specular",
+      "--sageos-glass-platinum",
       "--sageos-liquid-ambient",
       "--sageos-liquid-command",
       "--sageos-liquid-focus",
@@ -24,8 +27,12 @@ describe("overlay visual contract", () => {
       "--sageos-border-strong",
       "--sageos-rim-highlight",
       "--sageos-shadow-ambient",
+      "--sageos-shadow-command",
+      "--sageos-shadow-focus",
+      "--sageos-shadow-control",
       "--sageos-shadow-elevated",
       "--sageos-shadow-summit",
+      "--sageos-highlight-runway",
       "--sageos-accent-primary",
       "--sageos-accent-success",
       "--sageos-accent-warning",
@@ -35,6 +42,9 @@ describe("overlay visual contract", () => {
       "--sageos-motion-snappy",
       "--sageos-motion-responsive",
       "--sageos-motion-smooth",
+      "--sageos-motion-spring-snappy",
+      "--sageos-motion-spring-responsive",
+      "--sageos-motion-spring-smooth",
     ];
 
     for (const token of requiredTokens) {
@@ -45,12 +55,16 @@ describe("overlay visual contract", () => {
   it("has explicit classes for polished surface and control states", () => {
     const requiredSelectors = [
       ".overlay-shell",
+      ".overlay-shell::before",
       ".overlay-toolbar",
       ".overlay-content",
       ".overlay-card",
+      ".overlay-card::after",
       ".overlay-panel",
+      ".overlay-panel::after",
       ".universal-launcher",
       ".agent-workspace",
+      ".agent-workspace::after",
       ".compact-hud",
       ".hud-badge",
       ".edge-rail",
@@ -65,6 +79,7 @@ describe("overlay visual contract", () => {
       ".pinned-widgets--bottom",
       ".overlay-shell--commandDeck .pinned-widgets",
       ".pinned-widget",
+      ".pinned-widget::after",
       ".overlay-callout--loading",
       ".overlay-callout--error",
       ".overlay-callout--empty",
@@ -84,6 +99,7 @@ describe("overlay visual contract", () => {
       ".overlay-button--pending",
       ".overlay-button--success",
       ".overlay-button--error",
+      ".overlay-button::after",
     ];
 
     for (const selector of requiredSelectors) {
@@ -94,6 +110,7 @@ describe("overlay visual contract", () => {
   it("guards keyboard focus, reduced motion, and text overflow", () => {
     expect(styles).toContain(":focus-visible");
     expect(styles).toContain("@media (prefers-reduced-motion: reduce)");
+    expect(styles).toContain("@media (forced-colors: active)");
 
     for (const selector of [
       ".overlay-card__title",
