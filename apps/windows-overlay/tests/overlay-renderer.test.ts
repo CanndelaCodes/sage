@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   getOverlaySurfaceVisibility,
+  getOverlayToolbarControls,
   handleOverlayKeyboardShortcut,
   isOverlayInteractiveElement,
   readInitialOverlaySurface,
@@ -752,6 +753,18 @@ describe("overlay renderer model", () => {
     ).createRenderRoot();
 
     expect(renderRoot).toBe(app);
+  });
+
+  it("exposes normal stop as a first-class command deck toolbar control", () => {
+    expect(getOverlayToolbarControls("commandDeck").map((control) => control.label)).toEqual([
+      "Pause",
+      "Resume",
+      "Stop",
+      "Emergency stop",
+      "Full",
+      "Rail",
+      "Close",
+    ]);
   });
 
   it("maps overlay keyboard shortcuts to close and launcher focus actions", () => {

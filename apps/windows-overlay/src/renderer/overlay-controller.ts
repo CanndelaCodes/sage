@@ -16,6 +16,7 @@ import {
   runSageOsIncidentRepair,
   runNextSageOsTask,
   runSageOsLauncherCommand,
+  stopSageOs,
   type SageOsOverlayStatusState,
 } from "./sageos-actions.js";
 
@@ -88,6 +89,10 @@ export class SageOsOverlayController {
 
   async resume() {
     await this.runMutation(() => resumeSageOs(this.client));
+  }
+
+  async stopSageOs() {
+    await this.runMutation(() => stopSageOs(this.client));
   }
 
   async emergencyStop() {

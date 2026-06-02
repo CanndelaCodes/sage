@@ -55,6 +55,19 @@ describe("SageOsOverlayController", () => {
     });
   });
 
+  it("stops SageOS without the emergency flag through the existing control RPC", async () => {
+    const request = vi.fn().mockResolvedValue(stateFixture("execute_scoped"));
+    const controller = new SageOsOverlayController({ request });
+
+    await controller.stopSageOs();
+
+    expect(request).toHaveBeenCalledWith("sageos.control", {
+      state: "stopped",
+      emergency: false,
+      reason: "windows-overlay",
+    });
+  });
+
   it("resolves approvals and task actions through existing RPC methods", async () => {
     const request = vi.fn().mockResolvedValue(stateFixture("execute_scoped"));
     const controller = new SageOsOverlayController({ request });

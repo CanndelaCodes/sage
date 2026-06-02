@@ -23,6 +23,19 @@ import { canRunSageOsIncidentRepair } from "./sageos-actions.js";
 import type { SageOsOverlayStatusState } from "./sageos-actions.js";
 
 export type OverlaySurface = "commandDeck" | "hud" | "edgeRail";
+export type OverlayToolbarControlKind =
+  | "pause"
+  | "resume"
+  | "stop"
+  | "emergencyStop"
+  | "expand"
+  | "collapse"
+  | "close";
+export type OverlayToolbarControl = {
+  kind: OverlayToolbarControlKind;
+  label: string;
+  tone?: "primary" | "danger";
+};
 export type OverlaySurfaceVisibility = {
   toolbar: boolean;
   launcher: boolean;
@@ -328,6 +341,30 @@ export function getOverlaySurfaceVisibility(surface: OverlaySurface): OverlaySur
   };
 }
 
+export function getOverlayToolbarControls(surface: OverlaySurface): OverlayToolbarControl[] {
+  if (surface === "edgeRail") {
+    return [];
+  }
+
+  const shellControls: OverlayToolbarControl[] = [
+    { kind: "expand", label: "Full", tone: "primary" },
+    { kind: "close", label: "Close" },
+  ];
+  if (surface !== "commandDeck") {
+    return shellControls;
+  }
+
+  return [
+    { kind: "pause", label: "Pause" },
+    { kind: "resume", label: "Resume", tone: "primary" },
+    { kind: "stop", label: "Stop" },
+    { kind: "emergencyStop", label: "Emergency stop", tone: "danger" },
+    { kind: "expand", label: "Full", tone: "primary" },
+    { kind: "collapse", label: "Rail" },
+    { kind: "close", label: "Close" },
+  ];
+}
+
 export function isOverlayInteractiveElement(element: Element | null): boolean {
   return Boolean(element?.closest(OVERLAY_INTERACTIVE_SELECTOR));
 }
@@ -502,42 +539,40 @@ export class SageOsOverlayApp extends LitElement {
   }
 
   private renderToolbar() {
-    const isCommandDeck = this.surface === "commandDeck";
     return html`
       <nav class=${`overlay-toolbar overlay-toolbar--${this.surface}`} aria-label="SageOS overlay controls">
         <span class="overlay-connection">${this.overlayConnected ? "Connected" : "Connecting"}</span>
-        ${isCommandDeck
-          ? html`
-              <button class="overlay-button" type="button" @click=${() => void this.controller?.pause()}>Pause</button>
-              <button
-                class="overlay-button overlay-button--primary"
-                type="button"
-                @click=${() => void this.controller?.resume()}
-              >
-                Resume
-              </button>
-              <button
-                class="overlay-button overlay-button--danger"
-                type="button"
-                @click=${() => void this.controller?.emergencyStop()}
-              >
-                Emergency stop
-              </button>
-            `
-          : nothing}
-        <button
-          class="overlay-button overlay-button--primary"
-          type="button"
-          @click=${() => window.sageOsOverlay?.expand()}
-        >
-          Full
-        </button>
-        ${isCommandDeck
-          ? html`<button class="overlay-button" type="button" @click=${() => window.sageOsOverlay?.collapse()}>Rail</button>`
-          : nothing}
-        <button class="overlay-button" type="button" @click=${() => window.sageOsOverlay?.close()}>Close</button>
+        ${getOverlayToolbarControls(this.surface).map(
+          (control) => html`
+            <button
+              class=${control.tone ? `overlay-button overlay-button--${control.tone}` : "overlay-button"}
+              type="button"
+              @click=${() => this.runToolbarControl(control.kind)}
+            >
+              ${control.label}
+            </button>
+          `,
+        )}
       </nav>
     `;
+  }
+
+  private runToolbarControl(kind: OverlayToolbarControlKind) {
+    if (kind === "pause") {
+      void this.controller?.pause();
+    } else if (kind === "resume") {
+      void this.controller?.resume();
+    } else if (kind === "stop") {
+      void this.controller?.stopSageOs();
+    } else if (kind === "emergencyStop") {
+      void this.controller?.emergencyStop();
+    } else if (kind === "expand") {
+      void window.sageOsOverlay?.expand();
+    } else if (kind === "collapse") {
+      void window.sageOsOverlay?.collapse();
+    } else {
+      void window.sageOsOverlay?.close();
+    }
   }
 
   private renderLauncher() {

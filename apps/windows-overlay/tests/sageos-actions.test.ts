@@ -4,14 +4,17 @@ import {
   approveSageOsApproval,
   pauseSageOsEmployee,
   createSageOsTask,
+  emergencyStopSageOs,
   loadSageOsOverlayStatus,
   pauseSageOs,
   queueSageOsTask,
+  resumeSageOs,
   resumeSageOsEmployee,
   retireSageOsEmployee,
   runSageOsIncidentRepair,
   runSageOsLauncherCommand,
   sendSageOsLauncherCommand,
+  stopSageOs,
 } from "../src/renderer/sageos-actions.js";
 
 describe("SageOS overlay actions", () => {
@@ -26,6 +29,9 @@ describe("SageOS overlay actions", () => {
   it("uses existing control, approval, and task RPC methods", async () => {
     const request = vi.fn().mockResolvedValue({ state: {} });
     await pauseSageOs({ request });
+    await resumeSageOs({ request });
+    await stopSageOs({ request });
+    await emergencyStopSageOs({ request });
     await approveSageOsApproval({ request }, "approval_1");
     await queueSageOsTask({ request }, "task_1");
     await createSageOsTask({ request }, {
@@ -37,6 +43,21 @@ describe("SageOS overlay actions", () => {
     expect(request).toHaveBeenCalledWith("sageos.control", {
       state: "paused",
       emergency: false,
+      reason: "windows-overlay",
+    });
+    expect(request).toHaveBeenCalledWith("sageos.control", {
+      state: "running",
+      emergency: false,
+      reason: "windows-overlay",
+    });
+    expect(request).toHaveBeenCalledWith("sageos.control", {
+      state: "stopped",
+      emergency: false,
+      reason: "windows-overlay",
+    });
+    expect(request).toHaveBeenCalledWith("sageos.control", {
+      state: "stopped",
+      emergency: true,
       reason: "windows-overlay",
     });
     expect(request).toHaveBeenCalledWith("sageos.approvals.resolve", {

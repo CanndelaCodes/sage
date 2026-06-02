@@ -55,6 +55,14 @@ export function resumeSageOs(client: OverlayGatewayClient) {
   });
 }
 
+export function stopSageOs(client: OverlayGatewayClient) {
+  return client.request<SageOsOverlayStatusState>("sageos.control", {
+    state: "stopped",
+    emergency: false,
+    reason: "windows-overlay",
+  });
+}
+
 export function emergencyStopSageOs(client: OverlayGatewayClient) {
   return client.request<SageOsOverlayStatusState>("sageos.control", {
     state: "stopped",
