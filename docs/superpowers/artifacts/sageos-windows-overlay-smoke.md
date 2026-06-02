@@ -70,7 +70,8 @@ Build: Windows overlay MVP shell verification after SageOS policy hardening swee
   `pnpm exec vitest run --config vitest.unit.config.ts src/sageos src/cli/sageos-cli.test.ts
 src/auto-reply/reply/commands.test.ts src/telegram/bot-native-commands.test.ts
 src/telegram/bot.test.ts` passed with 28 files
-  and 252 tests, including destructive queued-execution approval gating.
+  and 253 tests, including destructive queued-execution approval gating and stopped-control
+  task-runner gating.
 - Current gateway SageOS method gate after the latest policy hardening sweep:
   `pnpm exec vitest run --config vitest.config.ts src/gateway/server-methods/sageos.test.ts`
   passed with 1 file and 35 tests.
