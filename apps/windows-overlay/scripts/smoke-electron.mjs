@@ -48,6 +48,7 @@ try {
           fullBright: path.join(screenshotDir, "overlay-smoke-full-bright.png"),
           edgeLeft: path.join(screenshotDir, "overlay-smoke-edge-left.png"),
           edgeTextHeavy: path.join(screenshotDir, "overlay-smoke-edge-text-heavy.png"),
+          edgeBrowser: path.join(screenshotDir, "overlay-smoke-edge-browser.png"),
           hud: path.join(screenshotDir, "overlay-smoke-hud.png"),
           hudIde: path.join(screenshotDir, "overlay-smoke-hud-ide.png"),
         },
@@ -130,6 +131,11 @@ async function smokeFullOverlay(gatewayUrl) {
     await setVisualBackdrop(page, "text-heavy");
     await page.screenshot({
       path: path.join(screenshotDir, "overlay-smoke-edge-text-heavy.png"),
+      animations: "disabled",
+    });
+    await setVisualBackdrop(page, "browser");
+    await page.screenshot({
+      path: path.join(screenshotDir, "overlay-smoke-edge-browser.png"),
       animations: "disabled",
     });
 
@@ -475,12 +481,34 @@ async function setVisualBackdrop(page, kind) {
       document.body.prepend(backdrop);
     }
     backdrop.className = `overlay-smoke-visual-backdrop overlay-smoke-visual-backdrop--${backdropKind}`;
-    backdrop.textContent =
-      backdropKind === "text-heavy"
-        ? Array.from({ length: 80 }, (_, index) => `Log ${index + 1}: Gateway event / task queue / memory status`).join(
-            "\n",
-          )
-        : "";
+    if (backdropKind === "text-heavy") {
+      backdrop.textContent = Array.from(
+        { length: 80 },
+        (_, index) => `Log ${index + 1}: Gateway event / task queue / memory status`,
+      ).join("\n");
+      return;
+    }
+    if (backdropKind === "browser") {
+      backdrop.innerHTML = `
+        <div class="overlay-smoke-browser">
+          <div class="overlay-smoke-browser__chrome">
+            <span></span><span></span><span></span>
+            <strong>https://ops.example.com/sageos/review</strong>
+          </div>
+          <div class="overlay-smoke-browser__hero">
+            <h1>Operations Review</h1>
+            <p>Dense browser content behind pinned SageOS widgets.</p>
+          </div>
+          <div class="overlay-smoke-browser__grid">
+            ${Array.from(
+              { length: 12 },
+              (_, index) => `<section><b>Metric ${index + 1}</b><span>Queue / approvals / source health</span></section>`,
+            ).join("")}
+          </div>
+        </div>`;
+      return;
+    }
+    backdrop.textContent = "";
   }, kind);
 }
 
@@ -541,6 +569,90 @@ async function ensureVisualBackdropStyle(page) {
           linear-gradient(90deg, rgba(34, 197, 94, 0.12), transparent 42%),
           #020617;
         content: "";
+      }
+
+      .overlay-smoke-visual-backdrop--browser {
+        background: #eef2f7;
+        color: #0f172a;
+        font: 14px/1.45 "Segoe UI", sans-serif;
+        white-space: normal;
+      }
+
+      .overlay-smoke-browser {
+        display: grid;
+        gap: 22px;
+        width: min(1180px, calc(100vw - 88px));
+        margin: 42px auto;
+      }
+
+      .overlay-smoke-browser__chrome {
+        display: grid;
+        grid-template-columns: 12px 12px 12px minmax(0, 1fr);
+        gap: 8px;
+        align-items: center;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.88);
+        box-shadow: 0 18px 50px rgba(15, 23, 42, 0.12);
+        padding: 12px 16px;
+      }
+
+      .overlay-smoke-browser__chrome span {
+        width: 12px;
+        height: 12px;
+        border-radius: 999px;
+        background: #cbd5e1;
+      }
+
+      .overlay-smoke-browser__chrome strong {
+        overflow: hidden;
+        color: rgba(15, 23, 42, 0.64);
+        font-weight: 520;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .overlay-smoke-browser__hero,
+      .overlay-smoke-browser__grid section {
+        border: 1px solid rgba(15, 23, 42, 0.1);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.78);
+        box-shadow: 0 12px 34px rgba(15, 23, 42, 0.1);
+        padding: 22px;
+      }
+
+      .overlay-smoke-browser__hero h1 {
+        margin: 0;
+        font-size: 42px;
+        letter-spacing: 0;
+      }
+
+      .overlay-smoke-browser__hero p {
+        margin: 8px 0 0;
+        color: rgba(15, 23, 42, 0.66);
+      }
+
+      .overlay-smoke-browser__grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .overlay-smoke-browser__grid section {
+        display: grid;
+        gap: 8px;
+        min-height: 96px;
+      }
+
+      .overlay-smoke-browser__grid b,
+      .overlay-smoke-browser__grid span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .overlay-smoke-browser__grid span {
+        color: rgba(15, 23, 42, 0.58);
       }
     `,
   });
