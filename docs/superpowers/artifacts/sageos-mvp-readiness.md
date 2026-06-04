@@ -137,12 +137,23 @@ Root-gate fix slice verified after the blockers above:
   - `pnpm exec vitest run --config vitest.config.ts src/sageos/status.test.ts src/sageos/status-renderer.test.ts src/tui/tui-sageos-command-center.test.ts src/tui/tui-command-handlers.test.ts --reporter verbose` passed with 4 files and 16 tests.
   - `pnpm check`, `pnpm build`, and `git diff --check` passed.
   - `pnpm --dir apps/windows-overlay smoke:electron` passed with `buildSha: b6e187ae86ce`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, and `rendererErrors: 0`.
+- Overview autonomy-control closeout on 2026-06-04:
+  - `pnpm --dir apps/windows-overlay exec vitest run tests/overlay-renderer.test.ts --reporter verbose` first failed on the missing Operations overview autonomy-control row, then passed with 1 file and 28 tests after the row was added.
+  - The Operations overview now directly answers how to intervene in autonomy with a visible `Autonomy` row: `Pause/Stop` and `Narrow via Policy`.
+  - `pnpm --dir apps/windows-overlay test` passed with 13 files and 87 tests.
+  - `pnpm --dir apps/windows-overlay typecheck` passed.
+  - `pnpm --dir apps/windows-overlay build` passed.
+  - `pnpm check` passed with `pnpm tsgo`, oxlint 0 warnings and 0 errors, and repo-wide `oxfmt --check`.
+  - `git diff --check -- apps/windows-overlay/src/renderer/overlay-app.ts apps/windows-overlay/tests/overlay-renderer.test.ts` passed.
+  - `pnpm --dir apps/windows-overlay smoke:electron` passed post-commit with `buildSha: 56a61b710959`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, and `rendererErrors: 0`.
+  - `apps/windows-overlay/dist/overlay-smoke-styled.png` was visually inspected after the shorter copy change and showed the `Autonomy`, `Pause/Stop`, and `Narrow via Policy` row fitting without text overlap.
 
 ## Current Green Areas
 
 - Overlay-first product direction is now explicit and repeatedly encoded in spec, plan, smoke evidence, and this readiness map.
 - The Windows overlay has a real Electron shell, global hotkey, tray controls, startup shortcut management, HUD-first configuration, Edge Rail, pinned widgets, pass-through behavior, gateway client, and renderer model.
 - The overlay no longer exposes only a narrow dashboard; it covers operations, employees, tasks, approvals, security, PC management, files, memory, observations, workflows, skills, apps/widgets, coding, repositories, policy, audit, incidents, collaboration, settings, and active runs.
+- The Overview now explicitly shows autonomy intervention controls, including pause/stop and the path to narrow autonomy through Policy, so the default overlay answers how to interrupt autonomous work without first drilling into another workspace.
 - The Memory workspace now exposes the full MVP Memory/SecondBrain surface: health, capture queue, Telegram ingestion, wiki export proof, recent captures, review cards, duplicate/stale candidates, graph health, and doctor status.
 - Liquid Linear command glass is tokenized and test-covered in the overlay visual contract, including HUD, Edge Rail, ambient pinned widgets, foreground stacking above specular material layers, and practical AA normal-text contrast over representative Windows app backdrops.
 - Incidents now cover source failure, queue backlog, policy block, memory doctor failure, notification failure, worker failure, budget exhaustion, and security findings.
