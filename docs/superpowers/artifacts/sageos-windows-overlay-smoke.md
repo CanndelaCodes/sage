@@ -3,6 +3,7 @@
 Date: 2026-06-04
 Operator: Codex
 Build: Windows overlay MVP shell verification after Liquid Linear material pass
+Verification build SHA: `742ed9660b97`
 
 ## Preconditions
 
@@ -89,8 +90,9 @@ Build: Windows overlay MVP shell verification after Liquid Linear material pass
 - HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud.png`
 - IDE-like backdrop HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud-ide.png`
 - Current verification update: `pnpm --dir apps/windows-overlay smoke:electron` passed on
-  2026-06-04 after the Liquid Linear material pass. The packaged overlay reported `ok: true`,
-  `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, no renderer page errors,
+  2026-06-04 after the Liquid Linear material pass. The packaged overlay reported
+  `buildSha: 742ed9660b97`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`,
+  no renderer page errors,
   four `sageos.control` calls for pause, resume, stop, and emergency stop, verified the
   availability-aware Voice entry state, and refreshed the full, bright, edge-left, text-heavy edge,
   browser edge, IDE edge, HUD, and IDE HUD screenshots above.
@@ -119,7 +121,7 @@ src/telegram/bot.test.ts` passed with 28 files
   practical AA contrast for normal text tokens over ambient, command, focus, and summit glass,
   refraction/specular surface overlays, forced-colors fallback, focus states, reduced-motion handling,
   edge anchoring classes, state classes, text overflow guards, and full-overlay pinned widget flow.
-  The `smoke:electron` package script
+  The `smoke:electron` package script reports the current Git build SHA in its JSON output,
   launches the packaged Electron overlay against a mock gateway, verifies that
   `SAGEOS_OVERLAY_COLLAPSED_EDGE=left`,
   `SAGEOS_OVERLAY_ACTIVE_MONITOR=auto`, and
