@@ -1,11 +1,13 @@
 import type { OverlayGatewayClient, OverlayGatewayEventFrame } from "./gateway-client.js";
 import {
   activateSageOsEmployee,
+  abortSageAiChatSession,
   approveSageOsApproval,
   cancelSageOsTask,
   createSageOsTask,
   denySageOsApproval,
   emergencyStopSageOs,
+  loadSageAiChatHistory,
   loadSageOsOverlayStatus,
   pauseSageOsEmployee,
   pauseSageOs,
@@ -16,15 +18,29 @@ import {
   runSageOsIncidentRepair,
   runNextSageOsTask,
   runSageOsLauncherCommand,
+  sendSageAiChatMessage,
   stopSageOs,
+  type SageAiChatHistory,
   type SageOsOverlayStatusState,
 } from "./sageos-actions.js";
+
+export type SageOsOverlayChatState = {
+  sessionKey: string;
+  runId: string | null;
+  state: "idle" | "sending" | "delta" | "final" | "aborted" | "error";
+  stream: string | null;
+  lastUserMessage: string | null;
+  error: string | null;
+  history: unknown[];
+  historyLoading: boolean;
+};
 
 export type SageOsOverlayControllerState = {
   connected: boolean;
   loading: boolean;
   error: string | null;
   sageOsState: SageOsOverlayStatusState | null;
+  chat: SageOsOverlayChatState;
 };
 
 export type StartableOverlayGatewayClient = OverlayGatewayClient & {
@@ -38,6 +54,7 @@ export class SageOsOverlayController {
     loading: false,
     error: null,
     sageOsState: null,
+    chat: createInitialChatState(),
   };
 
   constructor(
@@ -71,6 +88,11 @@ export class SageOsOverlayController {
   }
 
   handleGatewayEvent(event: OverlayGatewayEventFrame) {
+    if (event.event === "chat") {
+      this.handleChatGatewayEvent(event.payload);
+      return;
+    }
+
     if (event.event !== "sageos" || !isSageOsOverlayStatusState(event.payload)) {
       return;
     }
@@ -154,6 +176,182 @@ export class SageOsOverlayController {
     );
   }
 
+  async loadChatHistory(sessionKey = this.state.chat.sessionKey, limit = 50): Promise<SageAiChatHistory | null> {
+    this.state = {
+      ...this.state,
+      chat: { ...this.state.chat, sessionKey, historyLoading: true, error: null },
+    };
+    this.onChange();
+    try {
+      const history = await loadSageAiChatHistory(this.client, sessionKey, limit);
+      this.state = {
+        ...this.state,
+        chat: {
+          ...this.state.chat,
+          sessionKey,
+          history: Array.isArray(history.messages) ? history.messages : [],
+          historyLoading: false,
+        },
+      };
+      return history;
+    } catch (err) {
+      this.state = {
+        ...this.state,
+        chat: { ...this.state.chat, historyLoading: false, error: String(err) },
+      };
+      return null;
+    } finally {
+      this.onChange();
+    }
+  }
+
+  async sendChatMessage(
+    message: string,
+    idempotencyKey?: string,
+    sessionKey = this.state.chat.sessionKey,
+  ) {
+    const trimmed = message.trim();
+    if (!trimmed) {
+      return null;
+    }
+    this.state = {
+      ...this.state,
+      chat: {
+        ...this.state.chat,
+        sessionKey,
+        runId: idempotencyKey ?? this.state.chat.runId,
+        state: "sending",
+        stream: "",
+        lastUserMessage: trimmed,
+        error: null,
+      },
+    };
+    this.onChange();
+    try {
+      const result = await sendSageAiChatMessage(this.client, trimmed, {
+        sessionKey,
+        idempotencyKey,
+      });
+      const runId = extractRunId(result) ?? idempotencyKey ?? this.state.chat.runId;
+      this.state = {
+        ...this.state,
+        chat: {
+          ...this.state.chat,
+          sessionKey,
+          runId,
+          state: "sending",
+          stream: this.state.chat.stream ?? "",
+        },
+      };
+      return result;
+    } catch (err) {
+      this.state = {
+        ...this.state,
+        chat: {
+          ...this.state.chat,
+          sessionKey,
+          runId: null,
+          state: "error",
+          stream: null,
+          error: String(err),
+        },
+      };
+      return null;
+    } finally {
+      this.onChange();
+    }
+  }
+
+  async abortChatSession(sessionKey = this.state.chat.sessionKey) {
+    const runId = this.state.chat.runId;
+    try {
+      const result = await abortSageAiChatSession(this.client, sessionKey, runId);
+      this.state = {
+        ...this.state,
+        chat: {
+          ...this.state.chat,
+          sessionKey,
+          runId: null,
+          state: "aborted",
+          stream: null,
+        },
+      };
+      return result;
+    } catch (err) {
+      this.state = {
+        ...this.state,
+        chat: { ...this.state.chat, state: "error", error: String(err) },
+      };
+      return null;
+    } finally {
+      this.onChange();
+    }
+  }
+
+  startNewChatSession(sessionKey = `overlay-${Date.now().toString(36)}`) {
+    this.state = {
+      ...this.state,
+      chat: createInitialChatState(sessionKey),
+    };
+    this.onChange();
+    return sessionKey;
+  }
+
+  private handleChatGatewayEvent(payload: unknown) {
+    if (!isOverlayChatEventPayload(payload)) {
+      return;
+    }
+    if (payload.sessionKey !== this.state.chat.sessionKey) {
+      return;
+    }
+
+    if (payload.state === "delta") {
+      this.state = {
+        ...this.state,
+        chat: {
+          ...this.state.chat,
+          runId: payload.runId,
+          state: "delta",
+          stream: extractChatEventText(payload.message) ?? this.state.chat.stream ?? "",
+          error: null,
+        },
+      };
+    } else if (payload.state === "final") {
+      this.state = {
+        ...this.state,
+        chat: {
+          ...this.state.chat,
+          runId: null,
+          state: "final",
+          stream: null,
+          error: null,
+        },
+      };
+    } else if (payload.state === "aborted") {
+      this.state = {
+        ...this.state,
+        chat: {
+          ...this.state.chat,
+          runId: null,
+          state: "aborted",
+          stream: null,
+        },
+      };
+    } else {
+      this.state = {
+        ...this.state,
+        chat: {
+          ...this.state.chat,
+          runId: null,
+          state: "error",
+          stream: null,
+          error: payload.errorMessage ?? "chat error",
+        },
+      };
+    }
+    this.onChange();
+  }
+
   private async runMutation(run: () => Promise<unknown>) {
     this.state = { ...this.state, loading: true, error: null };
     this.onChange();
@@ -192,4 +390,77 @@ function isSageOsOverlayStatusState(value: unknown): value is SageOsOverlayStatu
     typeof (value as { status?: unknown }).status === "object" &&
     (value as { status?: unknown }).status !== null
   );
+}
+
+function createInitialChatState(sessionKey = "main"): SageOsOverlayChatState {
+  return {
+    sessionKey,
+    runId: null,
+    state: "idle",
+    stream: null,
+    lastUserMessage: null,
+    error: null,
+    history: [],
+    historyLoading: false,
+  };
+}
+
+function extractRunId(value: unknown): string | null {
+  return typeof value === "object" &&
+    value !== null &&
+    "runId" in value &&
+    typeof (value as { runId?: unknown }).runId === "string"
+    ? (value as { runId: string }).runId
+    : null;
+}
+
+type OverlayChatEventPayload = {
+  runId: string;
+  sessionKey: string;
+  state: "delta" | "final" | "aborted" | "error";
+  message?: unknown;
+  errorMessage?: string;
+};
+
+function isOverlayChatEventPayload(value: unknown): value is OverlayChatEventPayload {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const payload = value as { runId?: unknown; sessionKey?: unknown; state?: unknown };
+  return (
+    typeof payload.runId === "string" &&
+    typeof payload.sessionKey === "string" &&
+    (payload.state === "delta" ||
+      payload.state === "final" ||
+      payload.state === "aborted" ||
+      payload.state === "error")
+  );
+}
+
+function extractChatEventText(message: unknown): string | null {
+  if (typeof message === "string") {
+    return message;
+  }
+  if (typeof message !== "object" || message === null) {
+    return null;
+  }
+  if ("text" in message && typeof (message as { text?: unknown }).text === "string") {
+    return (message as { text: string }).text;
+  }
+  const content = (message as { content?: unknown }).content;
+  if (!Array.isArray(content)) {
+    return null;
+  }
+  const text = content
+    .map((entry) =>
+      typeof entry === "object" &&
+      entry !== null &&
+      "text" in entry &&
+      typeof (entry as { text?: unknown }).text === "string"
+        ? (entry as { text: string }).text
+        : "",
+    )
+    .join("")
+    .trim();
+  return text || null;
 }

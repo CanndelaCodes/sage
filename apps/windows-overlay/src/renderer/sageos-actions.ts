@@ -28,6 +28,14 @@ export type SageOsOverlayStatusState = {
   collaborations?: SageOsCollaborationEvent[];
 } & Record<string, unknown>;
 
+export type SageAiChatHistory = {
+  sessionKey: string;
+  sessionId?: string;
+  messages?: unknown[];
+  thinkingLevel?: string;
+  verboseLevel?: string;
+};
+
 const safeIncidentRepairMethods = new Set([
   "sageos.memory.replay",
   "sageos.memory.doctor",
@@ -40,6 +48,39 @@ const safeIncidentRepairMethods = new Set([
 
 export function loadSageOsOverlayStatus(client: OverlayGatewayClient) {
   return client.request<SageOsOverlayStatusState>("sageos.status", {});
+}
+
+export function loadSageAiChatHistory(
+  client: OverlayGatewayClient,
+  sessionKey = "main",
+  limit = 50,
+) {
+  return client.request<SageAiChatHistory>("chat.history", { sessionKey, limit });
+}
+
+export function sendSageAiChatMessage(
+  client: OverlayGatewayClient,
+  message: string,
+  opts: { idempotencyKey?: string; sessionKey?: string } = {},
+) {
+  const trimmed = message.trim();
+  if (!trimmed) {
+    throw new Error("Sage AI chat message is required");
+  }
+  return client.request("chat.send", {
+    sessionKey: opts.sessionKey ?? "main",
+    message: trimmed,
+    deliver: false,
+    idempotencyKey: opts.idempotencyKey ?? createOverlayGatewayRequestId("windows-overlay-chat"),
+  });
+}
+
+export function abortSageAiChatSession(
+  client: OverlayGatewayClient,
+  sessionKey = "main",
+  runId?: string | null,
+) {
+  return client.request("chat.abort", runId ? { sessionKey, runId } : { sessionKey });
 }
 
 export function pauseSageOs(client: OverlayGatewayClient) {
@@ -295,6 +336,10 @@ export async function runSageOsIncidentRepair(
 }
 
 function createLauncherCommandId() {
+  return createOverlayGatewayRequestId("windows-overlay");
+}
+
+function createOverlayGatewayRequestId(prefix: string) {
   const cryptoApi = globalThis.crypto as { randomUUID?: () => string } | undefined;
-  return `windows-overlay-${cryptoApi?.randomUUID?.() ?? Date.now().toString(36)}`;
+  return `${prefix}-${cryptoApi?.randomUUID?.() ?? Date.now().toString(36)}`;
 }

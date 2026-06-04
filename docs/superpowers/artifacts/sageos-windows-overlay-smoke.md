@@ -46,6 +46,11 @@ Verification build SHA: `01aecb784212`
 - [x] The Voice entry point is omitted when voice config is missing, disabled, or invalid.
 - [x] Universal Launcher exposes quick actions for employees, tasks, workflows, memory replay, Night Shift coding, app/widget drafting, and safe incident repair.
 - [x] Universal Launcher disabled input, run, and voice states expose operator-facing reasons.
+- [x] Sage AI Chat appears as an overlay-native full-mode panel, not as a replacement web Command Center.
+- [x] Sage AI Chat exposes session, transport, delivery, and Gateway session-state facts plus visible transcript, composer, Send, Stop, and New session controls.
+- [x] Sage AI Chat actions use the existing Gateway chat protocol: `chat.history`, `chat.send`, and `chat.abort`, with overlay sends using `deliver: false`.
+- [x] Sage AI Chat tracks incoming Gateway `chat` events for streaming, final, aborted, and error states.
+- [x] Sage AI Chat visual contract prevents the panel body from collapsing underneath the Command Deck.
 - [x] Gateway disconnected, reconnecting, loading, refreshing, and error states render explicit overlay callouts and toolbar labels.
 - [x] Gateway-backed toolbar, row, and Agent Workspace actions disable with reasons when the gateway is unavailable or busy.
 - [x] Agent Workspace active-operation controls expose cancel, pause, ask for update, increase budget, reassign, and request review actions.
@@ -128,6 +133,15 @@ Verification build SHA: `01aecb784212`
   browser canvas with `imageContentFailures: []`, found 0 horizontal overflow, saved
   `apps/windows-overlay/dist/overlay-visual-review-render.png` for review, and wrote
   `apps/windows-overlay/dist/overlay-visual-review-report.json` with `humanAcceptance: "required"`.
+- Sage AI Chat overlay update: focused TDD first failed on the missing chat model, missing
+  `loadSageAiChatHistory`/`sendSageAiChatMessage`/`abortSageAiChatSession` helpers, missing
+  controller chat send/abort methods, and missing Gateway `chat` event tracking. The focused tests
+  then passed after the overlay added a first-class Sage AI Chat panel, Command Deck system resource,
+  `system/chat` workspace, overlay-safe chat RPC helpers, controller chat event state, and distinct
+  ARIA labels for chat controls. A packaged Electron smoke initially caught a `Stop` button
+  accessibility-name collision, then passed after chat controls received disambiguating ARIA labels.
+  Visual inspection then caught the chat panel body collapsing underneath the Command Deck; the
+  visual contract now enforces explicit chat panel rows and `min-height: 336px`.
 - Apple+Linear glass correction: the current visual contract forbids the live overlay dot-matrix
   texture, requires the live overlay root to avoid full-screen blur, and requires clear glass,
   edge-light, inner-sheen, panel, and control material tokens.
@@ -136,8 +150,9 @@ Verification build SHA: `01aecb784212`
   while reading as a sleeker glass control surface. Smoke fixtures now use app-like desktop,
   sheet, terminal, browser, and IDE underlays rather than decorative grids or repeated-line textures.
 - Current package gates after the latest verification sweep: `pnpm --dir apps/windows-overlay test`
-  passed with 14 files and 95 tests, `pnpm --dir apps/windows-overlay typecheck` passed,
-  `pnpm --dir apps/windows-overlay build` passed, `pnpm --dir apps/windows-overlay review:visual:all`
+  passed with 14 files and 101 tests, `pnpm --dir apps/windows-overlay typecheck` passed,
+  `pnpm --dir apps/windows-overlay build` passed, `pnpm --dir apps/windows-overlay smoke:electron`
+  passed with `rendererErrors: 0`, and `pnpm --dir apps/windows-overlay review:visual:all`
   passed with 11 screenshots and 0 pixel-content failures.
 - Production launch hardening update: `pnpm --dir apps/windows-overlay exec vitest run
 tests/smoke-script.test.ts --reporter verbose` first failed because the overlay package lacked a

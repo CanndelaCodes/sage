@@ -22,7 +22,10 @@ import {
   type UniversalLauncherQuickAction,
 } from "./components/universal-launcher.js";
 import { OverlayGatewayBrowserClient } from "./gateway-client.js";
-import { SageOsOverlayController } from "./overlay-controller.js";
+import {
+  SageOsOverlayController,
+  type SageOsOverlayChatState,
+} from "./overlay-controller.js";
 import { canRunSageOsIncidentRepair } from "./sageos-actions.js";
 import type { SageOsOverlayStatusState } from "./sageos-actions.js";
 
@@ -60,6 +63,7 @@ export type OverlaySurfaceVisibility = {
   launcher: boolean;
   commandDeck: boolean;
   overview: boolean;
+  chat: boolean;
   operationalRows: boolean;
   agentWorkspace: boolean;
   pinnedWidgets: boolean;
@@ -74,6 +78,15 @@ export type OverlayHudView = {
   status: string;
   target: AgentWorkspaceTarget;
   badges: OverlayBadge[];
+};
+export type OverlayChatView = {
+  title: string;
+  sessionKey: string;
+  transport: string;
+  delivery: string;
+  composerPlaceholder: string;
+  facts: { label: string; value: string }[];
+  controls: string[];
 };
 export type OverlayConnectionTone = "neutral" | "success" | "loading" | "warning" | "error";
 export type OverlayConnectionState = {
@@ -189,6 +202,7 @@ type OverlaySpeechRecognition = {
 };
 export type RenderOverlayModelOptions = {
   workspaceTarget?: AgentWorkspaceTarget;
+  chatSessionKey?: string;
   pinnedWidgets?: SageOsOverlayWidgetId[];
   showApprovalBadge?: boolean;
   showIncidentBadge?: boolean;
@@ -341,6 +355,7 @@ export function renderOverlayModel(
     launcher: {
       quickActions: buildUniversalLauncherQuickActions(state),
     },
+    chat: buildSageAiChatView(opts.chatSessionKey ?? "main"),
     overview: buildOverviewGroups(state),
     workspace: buildWorkspaceModel(state, opts.workspaceTarget ?? defaultWorkspaceTarget(state)),
     pinnedWidgets: buildPinnedWidgets(status, opts.pinnedWidgets),
@@ -377,6 +392,23 @@ function buildCompactHudView(
     status: status.supervisor.state,
     target,
     badges,
+  };
+}
+
+function buildSageAiChatView(sessionKey: string): OverlayChatView {
+  return {
+    title: "Sage AI Chat",
+    sessionKey,
+    transport: "Gateway chat",
+    delivery: "Overlay only",
+    composerPlaceholder: "Ask Sage to explain, plan, summarize, or operate SageOS...",
+    facts: [
+      { label: "Session", value: sessionKey },
+      { label: "Transport", value: "chat.send / chat.history / chat.abort" },
+      { label: "Delivery", value: "deliver: false" },
+      { label: "Backbone", value: "Sage Gateway session state" },
+    ],
+    controls: ["Send", "Stop", "New session"],
   };
 }
 
@@ -546,6 +578,41 @@ function normalizeOverlayErrorMessage(error: string | null): string | null {
   return message || null;
 }
 
+function fallbackChatState(sessionKey: string): SageOsOverlayChatState {
+  return {
+    sessionKey,
+    runId: null,
+    state: "idle",
+    stream: null,
+    lastUserMessage: null,
+    error: null,
+    history: [],
+    historyLoading: false,
+  };
+}
+
+function formatOverlayChatStatus(chat: SageOsOverlayChatState): string {
+  if (chat.historyLoading) {
+    return "Loading history";
+  }
+  if (chat.state === "sending") {
+    return "Sending";
+  }
+  if (chat.state === "delta") {
+    return "Streaming";
+  }
+  if (chat.state === "final") {
+    return "Ready";
+  }
+  if (chat.state === "aborted") {
+    return "Stopped";
+  }
+  if (chat.state === "error") {
+    return "Needs review";
+  }
+  return "Ready";
+}
+
 export function getOverlaySurfaceVisibility(surface: OverlaySurface): OverlaySurfaceVisibility {
   if (surface === "hud") {
     return {
@@ -553,6 +620,7 @@ export function getOverlaySurfaceVisibility(surface: OverlaySurface): OverlaySur
       launcher: false,
       commandDeck: false,
       overview: false,
+      chat: false,
       operationalRows: false,
       agentWorkspace: false,
       pinnedWidgets: false,
@@ -567,6 +635,7 @@ export function getOverlaySurfaceVisibility(surface: OverlaySurface): OverlaySur
       launcher: false,
       commandDeck: false,
       overview: false,
+      chat: false,
       operationalRows: false,
       agentWorkspace: false,
       pinnedWidgets: true,
@@ -580,6 +649,7 @@ export function getOverlaySurfaceVisibility(surface: OverlaySurface): OverlaySur
     launcher: true,
     commandDeck: true,
     overview: true,
+    chat: true,
     operationalRows: true,
     agentWorkspace: true,
     pinnedWidgets: true,
@@ -720,6 +790,7 @@ export class SageOsOverlayApp extends LitElement {
     error: { state: true },
     sageOsState: { state: true },
     launcherCommand: { state: true },
+    chatDraft: { state: true },
     workspaceTarget: { state: true },
   };
 
@@ -732,6 +803,7 @@ export class SageOsOverlayApp extends LitElement {
   private error: string | null = null;
   private sageOsState: SageOsOverlayStatusState | null = null;
   private launcherCommand = "";
+  private chatDraft = "";
   private workspaceTarget: AgentWorkspaceTarget | null = null;
   private interactivePointerActive = false;
   private activeVoiceRecognition: OverlaySpeechRecognition | null = null;
@@ -786,6 +858,7 @@ export class SageOsOverlayApp extends LitElement {
     const model = this.sageOsState
       ? renderOverlayModel(this.sageOsState, {
           workspaceTarget: this.workspaceTarget ?? undefined,
+          chatSessionKey: this.controller?.state.chat.sessionKey,
           pinnedWidgets: this.layout.pinnedWidgets,
           showApprovalBadge: this.layout.showApprovalBadge,
           showIncidentBadge: this.layout.showIncidentBadge,
@@ -824,6 +897,7 @@ export class SageOsOverlayApp extends LitElement {
                 ${surfaceVisibility.pinnedWidgets
                   ? renderPinnedWidgets(model.pinnedWidgets, this.layout.collapsedEdge)
                   : nothing}
+                ${surfaceVisibility.chat ? this.renderSageAiChat(model.chat) : nothing}
                 ${surfaceVisibility.commandDeck ? renderCommandDeck(model.commandDeck.cards) : nothing}
                 ${promoteAgentWorkspace ? agentWorkspace : nothing}
                 ${surfaceVisibility.overview ? this.renderOverviewGroups(model.overview) : nothing}
@@ -944,6 +1018,112 @@ export class SageOsOverlayApp extends LitElement {
     });
   }
 
+  private renderSageAiChat(view: OverlayChatView) {
+    const chat = this.controller?.state.chat ?? fallbackChatState(view.sessionKey);
+    const sendAction = this.gatewayActionState(Boolean(this.chatDraft.trim()), "Message required");
+    const stopAction = this.gatewayActionState(
+      Boolean(chat.runId) || chat.state === "sending" || chat.state === "delta",
+      "No active chat run",
+    );
+    return html`
+      <section class="sage-ai-chat overlay-panel overlay-panel--summit" aria-label="Sage AI Chat">
+        <div class="overlay-panel__header">
+          <div>
+            <h2>${view.title}</h2>
+            <p class="sage-ai-chat__subtitle">
+              ${view.transport} / ${view.delivery} / session ${chat.sessionKey}
+            </p>
+          </div>
+          <span class=${`sage-ai-chat__status sage-ai-chat__status--${chat.state}`}>
+            ${formatOverlayChatStatus(chat)}
+          </span>
+        </div>
+        <dl class="sage-ai-chat__facts">
+          ${view.facts.map(
+            (fact) => html`
+              <div>
+                <dt>${fact.label}</dt>
+                <dd>${fact.value}</dd>
+              </div>
+            `,
+          )}
+        </dl>
+        <div class="sage-ai-chat__transcript" aria-label="Sage AI Chat stream">
+          ${chat.lastUserMessage
+            ? html`
+                <div class="sage-ai-chat__message sage-ai-chat__message--user">
+                  <span>You</span>
+                  <p>${chat.lastUserMessage}</p>
+                </div>
+              `
+            : html`
+                <div class="sage-ai-chat__message sage-ai-chat__message--system">
+                  <span>Sage</span>
+                  <p>Use this overlay chat for local SageOS context, operational questions, and safe command planning.</p>
+                </div>
+              `}
+          ${chat.stream
+            ? html`
+                <div class="sage-ai-chat__message sage-ai-chat__message--assistant">
+                  <span>Sage</span>
+                  <p>${chat.stream}</p>
+                </div>
+              `
+            : nothing}
+          ${chat.error
+            ? html`
+                <div class="sage-ai-chat__message sage-ai-chat__message--error">
+                  <span>Error</span>
+                  <p>${chat.error}</p>
+                </div>
+              `
+            : nothing}
+        </div>
+        <form
+          class="sage-ai-chat__composer"
+          @submit=${(event: Event) => {
+            event.preventDefault();
+            void this.sendChatDraft();
+          }}
+        >
+          <textarea
+            aria-label="Sage AI chat message"
+            placeholder=${view.composerPlaceholder}
+            .value=${this.chatDraft}
+            ?disabled=${!this.gatewayActionState(true).enabled}
+            @input=${(event: Event) => {
+              this.chatDraft = (event.target as HTMLTextAreaElement).value;
+            }}
+          ></textarea>
+          <div class="sage-ai-chat__controls">
+            <button
+              class="overlay-button overlay-button--primary"
+              aria-label="Send Sage AI chat message"
+              type="submit"
+              title=${sendAction.disabledReason ?? "Send"}
+              ?disabled=${!sendAction.enabled}
+            >
+              Send
+            </button>
+            <button
+              class="overlay-button"
+              aria-label="Stop Sage AI chat"
+              type="button"
+              title=${stopAction.disabledReason ?? "Stop active chat run"}
+              ?disabled=${!stopAction.enabled}
+              @click=${() => void this.controller?.abortChatSession()}
+            >
+              Stop
+            </button>
+            <button class="overlay-button" type="button" @click=${() => this.startNewChatSession()}>
+              New session
+            </button>
+          </div>
+        </form>
+      </section>
+    `;
+  }
+
   private applyLauncherQuickAction(action: UniversalLauncherQuickAction) {
     if (action.disabled) {
       return;
@@ -951,6 +1131,24 @@ export class SageOsOverlayApp extends LitElement {
     this.launcherCommand = action.command;
     this.requestUpdate();
     void this.updateComplete.then(() => this.focusLauncher());
+  }
+
+  private async sendChatDraft() {
+    const message = this.chatDraft.trim();
+    if (!message || !this.controller) {
+      return;
+    }
+    const result = await this.controller.sendChatMessage(message);
+    if (result) {
+      this.chatDraft = "";
+    }
+    this.requestUpdate();
+  }
+
+  private startNewChatSession() {
+    this.chatDraft = "";
+    this.controller?.startNewChatSession();
+    this.requestUpdate();
   }
 
   private startVoiceCommand() {
@@ -1763,6 +1961,12 @@ function buildSystemResourceRows(state: SageOsOverlayStatusState): OverlaySystem
       title: "Supervisor",
       detail: status.supervisor.paused ? "Paused" : "Running",
       state: status.supervisor.state,
+    },
+    {
+      id: "chat",
+      title: "Sage AI Chat",
+      detail: "Gateway chat session for local overlay questions and SageOS planning",
+      state: "ready",
     },
     {
       id: "security",
@@ -3126,6 +3330,16 @@ function systemWorkspaceModel(
         { label: "Last tick", value: status.supervisor.lastTickAt ?? "None" },
         { label: "Next tick", value: status.supervisor.nextTickAt ?? "None" },
       ],
+      actions: [],
+    };
+  }
+
+  if (id === "chat") {
+    return {
+      title: "Sage AI Chat",
+      eyebrow: "System / chat",
+      detail: "Overlay-native chat runs through the local Sage Gateway without replacing SageOS.",
+      facts: buildSageAiChatView("main").facts,
       actions: [],
     };
   }

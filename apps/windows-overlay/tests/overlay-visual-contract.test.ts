@@ -149,6 +149,10 @@ describe("overlay visual contract", () => {
       ".overlay-card::after",
       ".overlay-panel",
       ".overlay-panel::after",
+      ".sage-ai-chat",
+      ".sage-ai-chat__facts",
+      ".sage-ai-chat__transcript",
+      ".sage-ai-chat__composer",
       ".universal-launcher",
       ".agent-workspace",
       ".agent-workspace::after",
@@ -192,6 +196,19 @@ describe("overlay visual contract", () => {
     for (const selector of requiredSelectors) {
       expect(styles).toContain(selector);
     }
+  });
+
+  it("keeps the Sage AI chat panel sized to its body content", () => {
+    const chatBlock = readCssBlock(".sage-ai-chat");
+    expect(chatBlock).toContain("grid-template-rows:");
+    expect(chatBlock).toContain("min-height: 336px;");
+
+    const transcriptBlock = readCssBlock(".sage-ai-chat__transcript");
+    expect(transcriptBlock).toContain("min-height: 86px;");
+    expect(transcriptBlock).toContain("overflow: auto;");
+
+    const composerBlock = readCssBlock(".sage-ai-chat__composer");
+    expect(composerBlock).toContain("grid-template-columns: minmax(0, 1fr) auto;");
   });
 
   it("guards keyboard focus, reduced motion, and text overflow", () => {

@@ -580,6 +580,7 @@ describe("overlay renderer model", () => {
     ]);
     expect(model.commandDeck.systemResources.map((resource) => resource.title)).toEqual([
       "Supervisor",
+      "Sage AI Chat",
       "Security",
       "PC Management",
       "Observations",
@@ -597,6 +598,43 @@ describe("overlay renderer model", () => {
       "Audit",
       "Settings",
     ]);
+  });
+
+  it("exposes Sage AI Chat as a first-class overlay workspace", () => {
+    const model = renderOverlayModel(state as never);
+
+    expect(model.chat).toMatchObject({
+      title: "Sage AI Chat",
+      sessionKey: "main",
+      transport: "Gateway chat",
+      delivery: "Overlay only",
+      composerPlaceholder: "Ask Sage to explain, plan, summarize, or operate SageOS...",
+    });
+    expect(model.chat.controls).toEqual(["Send", "Stop", "New session"]);
+    expect(model.chat.facts).toEqual(
+      expect.arrayContaining([
+        { label: "Session", value: "main" },
+        { label: "Transport", value: "chat.send / chat.history / chat.abort" },
+        { label: "Delivery", value: "deliver: false" },
+      ]),
+    );
+
+    const workspaceModel = renderOverlayModel(state as never, {
+      workspaceTarget: { kind: "system", id: "chat" },
+    });
+    expect(workspaceModel.workspace).toMatchObject({
+      title: "Sage AI Chat",
+      eyebrow: "System / chat",
+      detail: "Overlay-native chat runs through the local Sage Gateway without replacing SageOS.",
+    });
+    expect(workspaceModel.workspace.facts).toEqual(
+      expect.arrayContaining([
+        { label: "Session", value: "main" },
+        { label: "Transport", value: "chat.send / chat.history / chat.abort" },
+        { label: "Delivery", value: "deliver: false" },
+        { label: "Backbone", value: "Sage Gateway session state" },
+      ]),
+    );
   });
 
   it("maps the full SageOS contract into overview groups", () => {

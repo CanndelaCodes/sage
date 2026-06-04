@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   activateSageOsEmployee,
+  abortSageAiChatSession,
   approveSageOsApproval,
   pauseSageOsEmployee,
   createSageOsTask,
   emergencyStopSageOs,
+  loadSageAiChatHistory,
   loadSageOsOverlayStatus,
   pauseSageOs,
   queueSageOsTask,
@@ -13,6 +15,7 @@ import {
   retireSageOsEmployee,
   runSageOsIncidentRepair,
   runSageOsLauncherCommand,
+  sendSageAiChatMessage,
   sendSageOsLauncherCommand,
   stopSageOs,
 } from "../src/renderer/sageos-actions.js";
@@ -308,6 +311,31 @@ describe("SageOS overlay actions", () => {
       message: "check SageOS health",
       deliver: false,
       idempotencyKey: "overlay-run-2",
+    });
+  });
+
+  it("loads and controls Sage AI chat through the existing Gateway chat RPCs", async () => {
+    const request = vi.fn().mockResolvedValue({ ok: true });
+
+    await loadSageAiChatHistory({ request }, "main", 20);
+    await sendSageAiChatMessage({ request }, "  explain current SageOS state  ", {
+      sessionKey: "main",
+      idempotencyKey: "overlay-chat-1",
+    });
+    await abortSageAiChatSession({ request }, "main");
+
+    expect(request).toHaveBeenNthCalledWith(1, "chat.history", {
+      sessionKey: "main",
+      limit: 20,
+    });
+    expect(request).toHaveBeenNthCalledWith(2, "chat.send", {
+      sessionKey: "main",
+      message: "explain current SageOS state",
+      deliver: false,
+      idempotencyKey: "overlay-chat-1",
+    });
+    expect(request).toHaveBeenNthCalledWith(3, "chat.abort", {
+      sessionKey: "main",
     });
   });
 });

@@ -244,4 +244,67 @@ describe("SageOsOverlayController", () => {
     expect(request).toHaveBeenNthCalledWith(2, "sageos.status", {});
     expect(controller.state.sageOsState).toBe(refreshed);
   });
+
+  it("sends and aborts overlay-native Sage AI chat without forcing a status refresh", async () => {
+    const request = vi.fn().mockResolvedValue({ runId: "run_chat_1", status: "started" });
+    const controller = new SageOsOverlayController({ request });
+
+    await controller.sendChatMessage("  explain current work  ", "overlay-chat-1");
+    await controller.abortChatSession();
+
+    expect(request).toHaveBeenNthCalledWith(1, "chat.send", {
+      sessionKey: "main",
+      message: "explain current work",
+      deliver: false,
+      idempotencyKey: "overlay-chat-1",
+    });
+    expect(request).toHaveBeenNthCalledWith(2, "chat.abort", {
+      sessionKey: "main",
+      runId: "run_chat_1",
+    });
+    expect(controller.state.loading).toBe(false);
+    expect(controller.state.sageOsState).toBeNull();
+  });
+
+  it("tracks Gateway chat events for the overlay chat surface", () => {
+    const request = vi.fn();
+    const controller = new SageOsOverlayController({ request });
+
+    controller.handleGatewayEvent({
+      type: "event",
+      event: "chat",
+      payload: {
+        runId: "run_chat_1",
+        sessionKey: "main",
+        seq: 1,
+        state: "delta",
+        message: { content: [{ type: "text", text: "Working through the active operations." }] },
+      },
+    });
+
+    expect(controller.state.chat).toMatchObject({
+      sessionKey: "main",
+      runId: "run_chat_1",
+      state: "delta",
+      stream: "Working through the active operations.",
+    });
+
+    controller.handleGatewayEvent({
+      type: "event",
+      event: "chat",
+      payload: {
+        runId: "run_chat_1",
+        sessionKey: "main",
+        seq: 2,
+        state: "final",
+      },
+    });
+
+    expect(controller.state.chat).toMatchObject({
+      sessionKey: "main",
+      runId: null,
+      state: "final",
+      stream: null,
+    });
+  });
 });
