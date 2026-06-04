@@ -2540,8 +2540,24 @@ function formatRepoState(state: { branch?: string; dirty?: boolean } | undefined
   return `${state.branch ?? "unknown"} ${state.dirty ? "dirty" : "clean"}`;
 }
 
-function formatNightShiftSchedule(): string {
-  return "Manual / no schedule reported";
+function formatNightShiftSchedule(state: SageOsOverlayStatusState): string {
+  const supervisor = state.status.supervisor;
+  if (supervisor.nightShiftWindow) {
+    return `${supervisor.nightShiftEnabled === false ? "Disabled" : "Enabled"} / ${
+      supervisor.nightShiftWindow
+    }`;
+  }
+  if (supervisor.nightShiftEnabled) {
+    return "Enabled / window not configured";
+  }
+  const employeeSchedules = uniqueStrings(
+    (state.agents ?? [])
+      .filter((agent) => textMatchesAny(`${agent.name} ${agent.role}`, ["night shift", "coding"]))
+      .flatMap((agent) => agent.schedules ?? []),
+  );
+  return employeeSchedules.length > 0
+    ? `Employee schedule / ${formatList(employeeSchedules)}`
+    : "Manual / no schedule reported";
 }
 
 function latestWorkflowRecord(state: SageOsOverlayStatusState): OverlayWorkflowRecord | undefined {
@@ -3173,7 +3189,7 @@ function systemWorkspaceModel(
         { label: "Latest tests", value: formatCodingReportTests(latestReport?.tests ?? []) || "None" },
         { label: "Latest blockers", value: formatList(latestReport?.blockers ?? []) },
         { label: "Branch/workspace", value: formatCodingBranchWorkspace(latestReport) },
-        { label: "Night Shift schedule", value: formatNightShiftSchedule() },
+        { label: "Night Shift schedule", value: formatNightShiftSchedule(state) },
       ],
       actions: [],
     };

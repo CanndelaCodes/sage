@@ -99,6 +99,8 @@ export type SageOsSupervisorStatus = {
   enabled: boolean;
   paused: boolean;
   state: SageOsSupervisorState;
+  nightShiftEnabled?: boolean;
+  nightShiftWindow?: string;
   startedAt?: string;
   stoppedAt?: string;
   lastTickAt?: string;
@@ -328,6 +330,7 @@ export function createSageOsStatusSnapshot(
       enabled: false,
       paused: false,
       state: "stopped",
+      nightShiftEnabled: false,
       ...overrides.supervisor,
     },
     employees: overrides.employees ?? emptySummary(),

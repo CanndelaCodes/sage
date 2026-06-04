@@ -28,6 +28,8 @@ const state = {
       enabled: true,
       paused: false,
       nextTickAt: "2026-06-01T13:05:00.000Z",
+      nightShiftEnabled: true,
+      nightShiftWindow: "23:00-06:00",
     },
     employees: { total: 7, active: 3, queued: 1, blocked: 0 },
     approvals: { pending: 2 },
@@ -1055,7 +1057,7 @@ describe("overlay renderer model", () => {
           label: "Branch/workspace",
           value: "main clean -> codex/activity-events-ingest dirty / README.md",
         },
-        { label: "Night Shift schedule", value: "Manual / no schedule reported" },
+        { label: "Night Shift schedule", value: "Enabled / 23:00-06:00" },
       ]),
     );
     expect(workflowsModel.workspace).toMatchObject({

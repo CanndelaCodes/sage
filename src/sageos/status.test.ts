@@ -821,6 +821,28 @@ describe("SageOS status collector", () => {
     ).toHaveLength(1);
   });
 
+  it("surfaces configured Night Shift schedule in supervisor status", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "sageos-status-night-shift-"));
+    const store = createSageOsStateStore({ stateDir: root });
+
+    await writeSageOsState(store, createSageOsStatusSnapshot());
+
+    const snapshot = await collectSageOsStatus({
+      stateDir: root,
+      cfg: {
+        supervisor: {
+          nightShiftEnabled: true,
+          nightShiftWindow: "23:00-06:00",
+        },
+      },
+    });
+
+    expect(snapshot.supervisor).toMatchObject({
+      nightShiftEnabled: true,
+      nightShiftWindow: "23:00-06:00",
+    });
+  });
+
   it("preserves memory doctor export proof and raises failed doctor incidents", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "sageos-status-memory-doctor-"));
     const store = createSageOsStateStore({ stateDir: root });

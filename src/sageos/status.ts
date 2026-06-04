@@ -134,6 +134,7 @@ export async function collectSageOsStatus(
   const snapshot = createSageOsStatusSnapshot({
     ...state.status,
     generatedAt: collectedAt.toISOString(),
+    supervisor: summarizeSupervisor(state.status.supervisor, opts.cfg),
     employees: summarizeAgents(state.agents),
     tasks: summarizeTasks(state.tasks),
     runs: summarizeRuns(state.runs),
@@ -167,6 +168,20 @@ export async function collectSageOsStatus(
     },
   });
   return memoryDoctor ? applySageOsMemoryDoctorSummary(snapshot, memoryDoctor) : snapshot;
+}
+
+function summarizeSupervisor(
+  supervisor: SageOsStatusSnapshot["supervisor"],
+  cfg: SageOsConfig | undefined,
+): SageOsStatusSnapshot["supervisor"] {
+  const nightShiftEnabled =
+    cfg?.supervisor?.nightShiftEnabled ?? supervisor.nightShiftEnabled ?? false;
+  const nightShiftWindow = cfg?.supervisor?.nightShiftWindow?.trim() || supervisor.nightShiftWindow;
+  return {
+    ...supervisor,
+    nightShiftEnabled,
+    ...(nightShiftWindow ? { nightShiftWindow } : {}),
+  };
 }
 
 const GENERATED_INCIDENT_IDS = new Set([
