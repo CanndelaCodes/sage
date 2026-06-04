@@ -18,7 +18,9 @@ param(
   [string]$GatewayUrl = "ws://127.0.0.1:18789",
   [string]$Token = "",
   [string]$Password = "",
-  [switch]$OpenOnLaunch
+  [switch]$OpenOnLaunch,
+  [ValidateSet("auto", "always", "never")]
+  [string]$Build = "auto"
 )
 
 $ErrorActionPreference = "Stop"
@@ -70,7 +72,9 @@ function Get-ShortcutArguments {
     "-ShowIncidentBadge",
     (ConvertTo-ShortcutArgument ([string]$ShowIncidentBadge)),
     "-GatewayUrl",
-    (ConvertTo-ShortcutArgument $GatewayUrl)
+    (ConvertTo-ShortcutArgument $GatewayUrl),
+    "-Build",
+    (ConvertTo-ShortcutArgument $Build)
   )
 
   if ($ActiveMonitor) {

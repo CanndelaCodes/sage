@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsdown --config tsdown.config.ts && node scripts/copy-renderer-assets.mjs",
     "dev": "pnpm build && electron .",
+    "start": "electron .",
     "review:visual": "node scripts/build-visual-review.mjs",
     "review:visual:all": "node scripts/run-visual-review.mjs",
     "review:visual:verify": "node scripts/verify-visual-review.mjs",

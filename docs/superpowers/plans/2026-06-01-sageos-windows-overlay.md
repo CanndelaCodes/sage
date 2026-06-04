@@ -1583,13 +1583,16 @@ Create `scripts/sageos-windows-overlay.ps1`.
 param(
   [string]$Hotkey = "Ctrl+Alt+Space",
   [ValidateSet("full", "hud")]
-  [string]$OpenMode = "full"
+  [string]$OpenMode = "full",
+  [ValidateSet("auto", "always", "never")]
+  [string]$Build = "auto"
 )
 
 $ErrorActionPreference = "Stop"
+# Build required Electron assets when needed, then run the built app.
 $env:SAGEOS_OVERLAY_HOTKEY = $Hotkey
 $env:SAGEOS_OVERLAY_OPEN_MODE = $OpenMode
-pnpm --dir apps/windows-overlay dev
+pnpm --dir apps/windows-overlay start
 ```
 
 - [x] **Step 2: Add package scripts**
@@ -1601,6 +1604,7 @@ Update `apps/windows-overlay/package.json` scripts:
   "scripts": {
     "build": "tsdown src/main/main.ts src/preload/preload.ts src/renderer/overlay-app.ts --format esm --dts false --out-dir dist && node scripts/copy-renderer-assets.mjs",
     "dev": "pnpm build && electron .",
+    "start": "electron .",
     "smoke": "powershell -ExecutionPolicy Bypass -File ../../scripts/sageos-windows-overlay.ps1",
     "test": "vitest run --config vitest.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"

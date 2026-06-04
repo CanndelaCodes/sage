@@ -292,6 +292,7 @@ Note: signed builds required for macOS permissions to stick across rebuilds (see
 
 - Local SageOS desktop overlay for the active Windows session.
 - Configurable hotkey, full overlay, HUD-first mode, Edge Rail, and pinned widgets.
+- Production launch script builds missing overlay assets automatically, then starts the built Electron shell.
 - Connects to a reachable Sage Gateway, usually running through WSL2 on Windows.
 
 Runbook: [Windows](https://docs.sage.ai/platforms/windows).

@@ -16,10 +16,49 @@ param(
   [string]$GatewayUrl = "ws://127.0.0.1:18789",
   [string]$Token = "",
   [string]$Password = "",
-  [switch]$OpenOnLaunch
+  [switch]$OpenOnLaunch,
+  [ValidateSet("auto", "always", "never")]
+  [string]$Build = "auto"
 )
 
 $ErrorActionPreference = "Stop"
+$repoRoot = Split-Path -Parent $PSScriptRoot
+
+function Test-OverlayBuildAssets {
+  $requiredAssets = @(
+    "apps\windows-overlay\dist\main\main.js",
+    "apps\windows-overlay\dist\preload.cjs",
+    "apps\windows-overlay\dist\renderer\index.html",
+    "apps\windows-overlay\dist\renderer\overlay-app.js",
+    "apps\windows-overlay\dist\renderer\styles.css"
+  )
+
+  foreach ($asset in $requiredAssets) {
+    if (-not (Test-Path -LiteralPath (Join-Path $repoRoot $asset))) {
+      return $false
+    }
+  }
+
+  return $true
+}
+
+function Invoke-OverlayBuild {
+  Push-Location $repoRoot
+  try {
+    pnpm --dir apps/windows-overlay build
+  }
+  finally {
+    Pop-Location
+  }
+}
+
+if ($Build -eq "always" -or ($Build -eq "auto" -and -not (Test-OverlayBuildAssets))) {
+  Invoke-OverlayBuild
+}
+elseif ($Build -eq "never" -and -not (Test-OverlayBuildAssets)) {
+  throw "SageOS Windows overlay build assets are missing. Run pnpm --dir apps/windows-overlay build or launch with -Build auto."
+}
+
 $env:SAGEOS_OVERLAY_HOTKEY = $Hotkey
 $env:SAGEOS_OVERLAY_OPEN_MODE = $OpenMode
 $env:SAGEOS_OVERLAY_HUD_EXPANDS_TO_FULL = if ($HudExpandsToFull) { "1" } else { "0" }
@@ -56,4 +95,10 @@ if ($OpenOnLaunch) {
 } else {
   $env:SAGEOS_OVERLAY_OPEN_ON_LAUNCH = "0"
 }
-pnpm --dir apps/windows-overlay dev
+Push-Location $repoRoot
+try {
+  pnpm --dir apps/windows-overlay start
+}
+finally {
+  Pop-Location
+}

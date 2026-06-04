@@ -5,6 +5,7 @@ import packageJson from "../package.json" with { type: "json" };
 describe("Electron overlay smoke script", () => {
   it("is wired as a repeatable package script", () => {
     expect(packageJson.scripts["smoke:electron"]).toBe("node scripts/smoke-electron.mjs");
+    expect(packageJson.scripts.start).toBe("electron .");
   });
 
   it("covers bridge, layout, HUD, edge rail, and RPC controls", () => {
@@ -122,12 +123,36 @@ describe("Electron overlay smoke script", () => {
     );
 
     for (const expected of [
+      '[ValidateSet("auto", "always", "never")]',
+      '[string]$Build = "auto"',
+      "function Test-OverlayBuildAssets",
+      "function Invoke-OverlayBuild",
+      'if ($Build -eq "always" -or ($Build -eq "auto" -and -not (Test-OverlayBuildAssets)))',
+      "pnpm --dir apps/windows-overlay start",
       "[bool]$ShowApprovalBadge = $true",
       "[bool]$ShowIncidentBadge = $true",
       "$env:SAGEOS_OVERLAY_SHOW_APPROVAL_BADGE",
       "$env:SAGEOS_OVERLAY_SHOW_INCIDENT_BADGE",
       "Remove-Item Env:SAGEOS_OVERLAY_TOKEN",
       "Remove-Item Env:SAGEOS_OVERLAY_PASSWORD",
+    ]) {
+      expect(script).toContain(expected);
+    }
+
+    expect(script).not.toContain("pnpm --dir apps/windows-overlay dev");
+  });
+
+  it("startup shortcut preserves the selected production build mode", () => {
+    const script = readFileSync(
+      new URL("../../../scripts/sageos-windows-overlay-startup.ps1", import.meta.url),
+      "utf8",
+    );
+
+    for (const expected of [
+      '[ValidateSet("auto", "always", "never")]',
+      '[string]$Build = "auto"',
+      '"-Build"',
+      "(ConvertTo-ShortcutArgument $Build)",
     ]) {
       expect(script).toContain(expected);
     }

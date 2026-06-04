@@ -166,13 +166,17 @@ From the repo root in PowerShell:
 
 ```powershell
 pnpm install
-pnpm --dir apps/windows-overlay build
 powershell -ExecutionPolicy Bypass -File scripts/sageos-windows-overlay.ps1 `
   -GatewayUrl "ws://127.0.0.1:18789" `
   -Hotkey "Ctrl+Alt+Space" `
   -OpenMode full `
   -OpenOnLaunch
 ```
+
+The launch script defaults to `-Build auto`: it builds the Electron overlay only
+when the required `dist/` assets are missing, then runs the built app with
+`pnpm --dir apps/windows-overlay start`. Use `-Build always` after source
+changes or `-Build never` when you want startup to fail instead of rebuilding.
 
 Use a Gateway URL that the Windows session can reach. The default
 `ws://127.0.0.1:18789` works when the Gateway is reachable from Windows on
@@ -197,6 +201,9 @@ powershell -ExecutionPolicy Bypass -File scripts/sageos-windows-overlay-startup.
 powershell -ExecutionPolicy Bypass -File scripts/sageos-windows-overlay-startup.ps1 -Action status
 powershell -ExecutionPolicy Bypass -File scripts/sageos-windows-overlay-startup.ps1 -Action uninstall
 ```
+
+Startup shortcuts preserve the selected launch options, including `-Build auto`,
+`-Build always`, or `-Build never`.
 
 ## Windows node companion
 

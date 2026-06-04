@@ -16,12 +16,15 @@ Verification build SHA: `01aecb784212`
 - [x] `pnpm --dir apps/windows-overlay typecheck` passes.
 - [x] `pnpm --dir apps/windows-overlay test` passes.
 - [x] `pnpm --dir apps/windows-overlay build` passes.
+- [x] `pnpm --dir apps/windows-overlay start` runs the built Electron app without using the development build script.
 - [x] Full-mode launch script starts the overlay:
   ```powershell
   powershell -ExecutionPolicy Bypass -File scripts/sageos-windows-overlay.ps1 `
     -Hotkey "Ctrl+Alt+Space" -OpenMode full `
     -GatewayUrl "ws://127.0.0.1:18789" -Token "overlay-smoke-token" -OpenOnLaunch
   ```
+- [x] Full-mode launch script defaults to `-Build auto`, builds only when required assets are missing, supports `-Build always`, and fails fast with `-Build never` when built assets are unavailable.
+- [x] Current-user startup shortcut preserves the selected production build mode through `-Build auto|always|never`.
 - [x] `-OpenOnLaunch` opens the full-screen translucent overlay without requiring a synthetic hotkey.
 - [x] The window controller fails startup explicitly if Electron cannot register the configured hotkey.
 - [x] `Ctrl+Alt+Space` opens the full-screen translucent overlay.
@@ -136,6 +139,11 @@ Verification build SHA: `01aecb784212`
   passed with 14 files and 95 tests, `pnpm --dir apps/windows-overlay typecheck` passed,
   `pnpm --dir apps/windows-overlay build` passed, `pnpm --dir apps/windows-overlay review:visual:all`
   passed with 11 screenshots and 0 pixel-content failures.
+- Production launch hardening update: `pnpm --dir apps/windows-overlay exec vitest run
+tests/smoke-script.test.ts --reporter verbose` first failed because the overlay package lacked a
+  built-app `start` script and the Windows launch/startup scripts did not expose build-mode control,
+  then passed after `start`, `-Build auto|always|never`, required-asset checks, and startup-shortcut
+  build-mode preservation were added.
 - Active-run artifact preview update: `pnpm --dir apps/windows-overlay exec vitest run
 tests/overlay-renderer.test.ts -t "workspace details" --reporter verbose` first failed because the
   run workspace only exposed raw artifact IDs, then passed after the Agent Workspace started resolving
