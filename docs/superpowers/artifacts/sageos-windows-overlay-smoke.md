@@ -2,8 +2,8 @@
 
 Date: 2026-06-04
 Operator: Codex
-Build: Windows overlay MVP shell verification after Liquid Linear material pass
-Verification build SHA: `636fa258c347`
+Build: Windows overlay MVP shell verification after Night Shift schedule pass
+Verification build SHA: `fe3797b09444`
 
 ## Preconditions
 
@@ -90,8 +90,8 @@ Verification build SHA: `636fa258c347`
 - HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud.png`
 - IDE-like backdrop HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud-ide.png`
 - Current verification update: `pnpm --dir apps/windows-overlay smoke:electron` passed on
-  2026-06-04 after the Liquid Linear material pass. The packaged overlay reported
-  `buildSha: 636fa258c347`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`,
+  2026-06-04 after the Night Shift schedule pass. The packaged overlay reported
+  `buildSha: fe3797b09444`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`,
   `rendererErrors: 0`,
   four `sageos.control` calls for pause, resume, stop, and emergency stop, verified the
   availability-aware Voice entry state, verified first-pass keyboard Tab order through Pause,
@@ -99,8 +99,16 @@ Verification build SHA: `636fa258c347`
   the full, bright, edge-left, text-heavy edge, browser edge, IDE edge, HUD, and IDE HUD
   screenshots above.
 - Current package gates after the latest verification sweep: `pnpm --dir apps/windows-overlay test`
-  passed with 13 files and 87 tests, `pnpm --dir apps/windows-overlay typecheck` passed, and
+  passed with 13 files and 88 tests, `pnpm --dir apps/windows-overlay typecheck` passed, and
   `pnpm --dir apps/windows-overlay build` passed.
+- Visual spot check after the latest smoke run: Codex inspected
+  `apps/windows-overlay/dist/overlay-smoke-styled.png`,
+  `apps/windows-overlay/dist/overlay-smoke-hud-ide.png`,
+  `apps/windows-overlay/dist/overlay-smoke-edge-text-heavy.png`, and
+  `apps/windows-overlay/dist/overlay-smoke-edge-browser.png`. Full overlay rows and controls were
+  legible with expected ellipsis truncation for dense details, HUD over the IDE-like backdrop was
+  compact and readable, and Edge Rail plus pinned widgets remained readable over text-heavy and
+  browser-like backdrops while leaving the rest of the underlying app visible.
 - Current shared SageOS/control-surface gate after the latest policy hardening sweep:
   `pnpm exec vitest run --config vitest.unit.config.ts src/sageos src/cli/sageos-cli.test.ts
 src/auto-reply/reply/commands.test.ts src/telegram/bot-native-commands.test.ts
