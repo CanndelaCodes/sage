@@ -6,7 +6,11 @@ const electronMocks = vi.hoisted(() => {
     loadFile: ReturnType<typeof vi.fn>;
     setFullScreenable: ReturnType<typeof vi.fn>;
     show: ReturnType<typeof vi.fn>;
+    showInactive: ReturnType<typeof vi.fn>;
+    hide: ReturnType<typeof vi.fn>;
     focus: ReturnType<typeof vi.fn>;
+    setIgnoreMouseEvents: ReturnType<typeof vi.fn>;
+    setBackgroundMaterial: ReturnType<typeof vi.fn>;
     webContents: { send: ReturnType<typeof vi.fn> };
   }> = [];
   const trays: Array<{
@@ -35,6 +39,7 @@ const electronMocks = vi.hoisted(() => {
         showInactive: vi.fn(),
         hide: vi.fn(),
         setIgnoreMouseEvents: vi.fn(),
+        setBackgroundMaterial: vi.fn(),
         webContents: { send: vi.fn() },
       };
       windows.push(window);
@@ -91,7 +96,11 @@ describe("Electron overlay adapter", () => {
       y: 0,
       width: 1280,
       height: 720,
+      transparent: true,
+      backgroundColor: "#00000000",
+      backgroundMaterial: "none",
     });
+    expect(electronMocks.windows[0]?.setBackgroundMaterial).toHaveBeenLastCalledWith("acrylic");
   });
 
   it("pins to a configured display id when activeMonitor names one", async () => {
@@ -110,6 +119,30 @@ describe("Electron overlay adapter", () => {
       width: 1920,
       height: 1080,
     });
+  });
+
+  it("disables native acrylic while pass-through surfaces are visible", async () => {
+    const { createElectronOverlayAdapter } = await import("../src/main/electron-adapter.js");
+    const adapter = createElectronOverlayAdapter({
+      rendererHtmlPath: "renderer.html",
+      preloadPath: "preload.cjs",
+    });
+
+    adapter.showFullOverlay();
+    adapter.setPassThrough(false);
+    expect(electronMocks.windows[0]?.setBackgroundMaterial).toHaveBeenLastCalledWith("acrylic");
+
+    adapter.showEdgeRail();
+    adapter.setPassThrough(true);
+    expect(electronMocks.windows[0]?.setIgnoreMouseEvents).toHaveBeenLastCalledWith(true, { forward: true });
+    expect(electronMocks.windows[0]?.setBackgroundMaterial).toHaveBeenLastCalledWith("none");
+
+    adapter.setPassThrough(false);
+    expect(electronMocks.windows[0]?.setBackgroundMaterial).toHaveBeenLastCalledWith("none");
+
+    adapter.showFullOverlay();
+    adapter.setPassThrough(false);
+    expect(electronMocks.windows[0]?.setBackgroundMaterial).toHaveBeenLastCalledWith("acrylic");
   });
 
   it("adds mouse-first tray commands for overlay control", async () => {

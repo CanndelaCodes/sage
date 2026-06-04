@@ -64,8 +64,36 @@ describe("overlay visual contract", () => {
 
     const appBlock = readCssBlock("sageos-overlay-app");
     expect(appBlock).toContain("background: var(--sageos-bg-overlay);");
-    expect(appBlock).toContain("backdrop-filter: none;");
+    expect(appBlock).toContain(
+      "backdrop-filter: blur(var(--sageos-glass-blur-lg)) saturate(var(--sageos-glass-saturation));",
+    );
     expect(appBlock).not.toContain("radial-gradient");
+  });
+
+  it("keeps Liquid Linear materials in the see-through glass range", () => {
+    const tokenAlphaCeilings = new Map([
+      ["--sageos-bg-overlay-strong", 0.18],
+      ["--sageos-surface-ambient", 0.42],
+      ["--sageos-surface-default", 0.44],
+      ["--sageos-surface-featured", 0.48],
+      ["--sageos-surface-summit", 0.54],
+      ["--sageos-liquid-ambient", 0.44],
+      ["--sageos-liquid-command", 0.46],
+      ["--sageos-liquid-focus", 0.46],
+      ["--sageos-liquid-summit", 0.54],
+    ]);
+
+    for (const [token, ceiling] of tokenAlphaCeilings) {
+      const alpha = parseCssColor(readCssToken(token))[3];
+      expect(alpha, `${token} should stay translucent enough to reveal the desktop`).toBeLessThanOrEqual(
+        ceiling,
+      );
+    }
+
+    for (const token of ["--sageos-liquid-hud", "--sageos-liquid-rail", "--sageos-liquid-control"]) {
+      const maxDarkAlpha = Math.max(...extractDarkSurfaceAlphas(readCssToken(token)));
+      expect(maxDarkAlpha, `${token} should not use opaque fallback fills`).toBeLessThanOrEqual(0.48);
+    }
   });
 
   it("uses liquid glass material tokens instead of Vitreous texture as the visual depth source", () => {
@@ -105,7 +133,7 @@ describe("overlay visual contract", () => {
     }
   });
 
-  it("keeps normal text tokens at practical AA contrast over glass opacity floors", () => {
+  it("keeps text legibility treatments explicit over transparent glass", () => {
     const textTokens = ["--sageos-text-primary", "--sageos-text-secondary", "--sageos-text-muted"] as const;
     const surfaceTokens = [
       "--sageos-liquid-ambient",
@@ -113,10 +141,8 @@ describe("overlay visual contract", () => {
       "--sageos-liquid-focus",
       "--sageos-liquid-summit",
     ] as const;
-    const backdrops = [
+    const lowLuminanceBackdrops = [
       ["dark", [0, 0, 0]],
-      ["bright", [248, 250, 252]],
-      ["browser", [238, 242, 247]],
       ["ide", [2, 6, 23]],
     ] as const;
 
@@ -126,16 +152,25 @@ describe("overlay visual contract", () => {
       for (const surfaceToken of surfaceTokens) {
         const surfaceColor = parseCssColor(readCssToken(surfaceToken));
 
-        for (const [backdropName, backdropColor] of backdrops) {
+        for (const [backdropName, backdropColor] of lowLuminanceBackdrops) {
           const effectiveSurface = blendRgba(surfaceColor, backdropColor);
           const contrast = contrastRatio(textColor, effectiveSurface);
 
           expect(
             contrast,
-            `${textToken} over ${surfaceToken} on ${backdropName} backdrop should keep normal text readable`,
+            `${textToken} over ${surfaceToken} on ${backdropName} backdrop should keep normal text readable without opacity fallback`,
           ).toBeGreaterThanOrEqual(4.5);
         }
       }
+    }
+
+    const appBlock = readCssBlock("sageos-overlay-app");
+    expect(appBlock).toContain("text-shadow: 0 1px 2px rgba(0, 0, 0, 0.48);");
+
+    for (const selector of [".overlay-card", ".overlay-callout", ".sage-ai-chat__transcript", ".overlay-toolbar--hud"]) {
+      const block = readCssBlock(selector);
+      expect(block).toContain("backdrop-filter: blur(");
+      expect(block).toContain("saturate(var(--sageos-glass-saturation))");
     }
   });
 
@@ -263,6 +298,23 @@ function parseCssColor(value: string): readonly [number, number, number, number]
   }
 
   throw new Error(`Unsupported CSS color value: ${value}`);
+}
+
+function extractDarkSurfaceAlphas(value: string): number[] {
+  const alphas = Array.from(
+    value.matchAll(/rgba\(\s*(?<r>\d+),\s*(?<g>\d+),\s*(?<b>\d+),\s*(?<a>0|1|0?\.\d+)\s*\)/g),
+  )
+    .filter((match) => {
+      const groups = match.groups;
+      if (!groups) {
+        return false;
+      }
+      return Number(groups.r) < 80 && Number(groups.g) < 90 && Number(groups.b) < 110;
+    })
+    .map((match) => Number(match.groups!.a));
+
+  expect(alphas.length, `Expected at least one dark surface fill in ${value}`).toBeGreaterThan(0);
+  return alphas;
 }
 
 function blendRgba(

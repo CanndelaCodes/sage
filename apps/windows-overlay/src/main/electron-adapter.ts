@@ -9,7 +9,7 @@ import {
   type MenuItemConstructorOptions,
 } from "electron";
 import path from "node:path";
-import type { SageOsOverlayState } from "../../../../src/sageos/overlay-state.js";
+import type { SageOsOverlayState, SageOsOverlaySurface } from "../../../../src/sageos/overlay-state.js";
 import type { OverlayRendererQuery } from "./launch-config.js";
 import type { OverlayShellAdapter, OverlayTrayActions } from "./window-controller.js";
 
@@ -22,6 +22,8 @@ export function createElectronOverlayAdapter(params: {
   let window: BrowserWindow | null = null;
   let tray: Tray | null = null;
   let trayState: SageOsOverlayState | null = null;
+  let currentSurface: SageOsOverlaySurface = "commandDeck";
+  let passThroughEnabled = false;
   let trayActions: OverlayTrayActions = {
     open: () => {},
     showHud: () => {},
@@ -43,6 +45,8 @@ export function createElectronOverlayAdapter(params: {
       height: display.bounds.height,
       frame: false,
       transparent: true,
+      backgroundColor: "#00000000",
+      backgroundMaterial: "none",
       alwaysOnTop: true,
       skipTaskbar: true,
       hasShadow: false,
@@ -58,6 +62,11 @@ export function createElectronOverlayAdapter(params: {
       query: params.rendererQuery,
     });
     return window;
+  };
+
+  const applyWindowMaterial = () => {
+    const material = currentSurface === "commandDeck" && !passThroughEnabled ? "acrylic" : "none";
+    window?.setBackgroundMaterial(material);
   };
 
   const ensureTray = () => {
@@ -76,27 +85,35 @@ export function createElectronOverlayAdapter(params: {
 
   return {
     showFullOverlay() {
+      currentSurface = "commandDeck";
       const overlay = ensureWindow();
       overlay.setFullScreenable(false);
       overlay.show();
       overlay.focus();
       overlay.webContents.send("sageos-overlay:surface", "commandDeck");
+      applyWindowMaterial();
     },
     showHud() {
+      currentSurface = "hud";
       const overlay = ensureWindow();
       overlay.showInactive();
       overlay.webContents.send("sageos-overlay:surface", "hud");
+      applyWindowMaterial();
     },
     showEdgeRail() {
+      currentSurface = "edgeRail";
       const overlay = ensureWindow();
       overlay.showInactive();
       overlay.webContents.send("sageos-overlay:surface", "edgeRail");
+      applyWindowMaterial();
     },
     hideOverlay() {
       window?.hide();
     },
     setPassThrough(enabled) {
+      passThroughEnabled = enabled;
       window?.setIgnoreMouseEvents(enabled, { forward: true });
+      applyWindowMaterial();
     },
     registerHotkey(hotkey, callback) {
       globalShortcut.unregister(hotkey);

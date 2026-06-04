@@ -729,6 +729,19 @@ Research pass on 2026-06-04 covered Hermes Agent desktop and OpenClaw as current
 - Hermes release/source status observed on 2026-06-04: GitHub listed `Hermes Agent v0.15.2 (2026.5.29.2)` as latest, and the desktop docs describe the native app as the same agent core, config, API keys, sessions, skills, memory, and gateway rather than a separate product.
 - OpenClaw sources: `https://openclaw.ai/` and `https://arxiv.org/abs/2604.04759`.
 
+### Hermes Replacement Requirement
+
+SageOS MVP must be capable of replacing Hermes Agent and Hermes Desktop as Jason's primary AI agent. Hermes is the current benchmark because its desktop app is positioned as a native, daily-use UI over the same agent core, sessions, skills, memory, config, API keys, gateway, CLI/TUI, and management surface. SageOS should not ship as "supplemental to Hermes" for Jason's real workflows.
+
+For MVP acceptance, "capable of replacing Hermes" means:
+
+- The Windows overlay is productive enough to be Jason's daily AI agent home, not only a status dashboard or web companion.
+- Overlay, web Command Center, TUI, CLI, and Telegram operate the same SageOS/Gateway state so a session or task can move between surfaces without losing context.
+- Sage AI Chat supports history, safe sends, aborts, current run awareness, and enough planning/summarization/debugging usefulness that Jason does not need Hermes Desktop open for ordinary agent work.
+- Agent Workspace exposes live tool activity, current files/artifacts, logs/evidence, previews where available, approvals, incidents, and verification state without forcing a terminal-only workflow.
+- Sage Memory, workflow/skill candidates, scheduled work, profiles or mode-equivalent policy, messaging, and audit/rollback evidence are visible and controllable enough from SageOS surfaces for daily operation.
+- Any material Hermes parity gap must be tracked as a release blocker, a scoped MVP exception approved by Jason, or a post-MVP item that does not leave Hermes required for the main daily loop.
+
 Adopt for SageOS MVP:
 
 1. Same-agent invariance across surfaces. Hermes' strongest product pattern is that desktop, CLI, TUI, and gateway all use the same config, keys, sessions, skills, memory, and core agent. SageOS must keep the Windows overlay as another first-class renderer of the shared SageOS contract, not a separate overlay-only product.

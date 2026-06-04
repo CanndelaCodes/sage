@@ -27,7 +27,7 @@ Use Liquid Linear command glass as the production target:
 
 - Liquid material: translucent glass, backdrop blur, saturation, rim highlights, soft internal light, and material depth that responds to elevation.
 - Linear precision: crisp information hierarchy, small controls, compact rows, command-first layout, clear state colors, and low-noise motion.
-- Windows overlay fit: strong opacity floors, readable over bright and dark apps, no dependence on full-page browser backgrounds, no marketing-style hero composition.
+- Windows overlay fit: genuinely see-through surfaces, readable over bright and dark apps through blur/saturation/rim/shadow treatment, no dependence on full-page browser backgrounds, no marketing-style hero composition.
 
 Do not copy Apple, Linear, or PeakHQ branding. Borrow material logic, motion discipline, hierarchy, and polish standards.
 
@@ -42,7 +42,7 @@ The overlay should use a four-level glass elevation scale:
 
 Each level should have tokenized values for:
 
-- Background alpha and opacity floor.
+- Background alpha band and transparent-material legibility guard.
 - Blur and saturation.
 - Border/rim highlight.
 - Inner highlight and shadow.
@@ -114,8 +114,9 @@ Every visible control needs hover, focus-visible, pressed, disabled, pending/loa
 
 Liquid Linear command glass is an MVP release gate. The MVP is not visually accepted until:
 
-- Screenshots prove full overlay, HUD, Edge Rail, and pinned widgets are legible.
+- Screenshots prove full overlay, HUD, Edge Rail, and pinned widgets remain legible while the active desktop context is still visible underneath.
 - Pinned widgets remain readable over representative dark, light, text-heavy, browser, and IDE backgrounds.
+- Full-screen dot/textures and solid page fills are absent from the live overlay; depth comes from translucent glass, native acrylic, backdrop blur, saturation, rim light, specular highlights, and shadow.
 - Text does not clip or overlap in cards, rows, badges, buttons, widgets, or command input.
 - Contrast meets practical WCAG 2.2 AA expectations for normal text and controls.
 - Reduced motion is honored.

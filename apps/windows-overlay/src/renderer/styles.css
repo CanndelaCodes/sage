@@ -6,18 +6,18 @@
   color: #f8fafc;
 
   --sageos-bg-overlay: rgba(3, 6, 12, 0.04);
-  --sageos-bg-overlay-strong: rgba(3, 6, 12, 0.48);
-  --sageos-surface-ambient: rgba(24, 28, 36, 0.8);
-  --sageos-surface-default: rgba(23, 27, 35, 0.84);
-  --sageos-surface-featured: rgba(28, 32, 41, 0.88);
-  --sageos-surface-summit: rgba(39, 39, 47, 0.92);
+  --sageos-bg-overlay-strong: rgba(3, 6, 12, 0.1);
+  --sageos-surface-ambient: rgba(24, 28, 36, 0.26);
+  --sageos-surface-default: rgba(23, 27, 35, 0.3);
+  --sageos-surface-featured: rgba(28, 32, 41, 0.34);
+  --sageos-surface-summit: rgba(39, 39, 47, 0.42);
   --sageos-surface-control: rgba(248, 250, 252, 0.09);
   --sageos-surface-control-hover: rgba(248, 250, 252, 0.16);
-  --sageos-glass-blur-sm: 10px;
-  --sageos-glass-blur-md: 22px;
-  --sageos-glass-blur-lg: 34px;
-  --sageos-glass-opacity-floor: 0.82;
-  --sageos-glass-saturation: 1.36;
+  --sageos-glass-blur-sm: 12px;
+  --sageos-glass-blur-md: 24px;
+  --sageos-glass-blur-lg: 32px;
+  --sageos-glass-opacity-floor: 0.26;
+  --sageos-glass-saturation: 1.9;
   --sageos-glass-clear: rgba(255, 255, 255, 0.072);
   --sageos-glass-edge-light: rgba(255, 255, 255, 0.48);
   --sageos-glass-inner-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 44%);
@@ -29,19 +29,19 @@
     rgba(255, 255, 255, 0.105) 22%,
     transparent 52%
   );
-  --sageos-glass-platinum: rgba(247, 249, 252, 0.76);
-  --sageos-liquid-ambient: rgba(22, 26, 34, 0.82);
-  --sageos-liquid-command: rgba(18, 22, 30, 0.86);
-  --sageos-liquid-focus: rgba(22, 26, 34, 0.86);
-  --sageos-liquid-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 42%),
-    linear-gradient(145deg, rgba(125, 211, 252, 0.055), transparent 44%), var(--sageos-liquid-focus);
-  --sageos-liquid-control: linear-gradient(180deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.045)),
-    rgba(28, 33, 42, 0.72);
+  --sageos-glass-platinum: rgba(247, 249, 252, 0.28);
+  --sageos-liquid-ambient: rgba(22, 26, 34, 0.28);
+  --sageos-liquid-command: rgba(18, 22, 30, 0.31);
+  --sageos-liquid-focus: rgba(22, 26, 34, 0.34);
+  --sageos-liquid-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 38%),
+    linear-gradient(145deg, rgba(125, 211, 252, 0.075), transparent 48%), var(--sageos-liquid-focus);
+  --sageos-liquid-control: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05)),
+    rgba(28, 33, 42, 0.26);
   --sageos-liquid-hud: linear-gradient(135deg, rgba(255, 255, 255, 0.22), transparent 32%),
-    linear-gradient(180deg, rgba(27, 31, 40, 0.88), rgba(13, 17, 24, 0.76));
+    linear-gradient(180deg, rgba(27, 31, 40, 0.32), rgba(13, 17, 24, 0.26));
   --sageos-liquid-rail: linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.06)),
-    rgba(24, 28, 36, 0.78);
-  --sageos-liquid-summit: rgba(42, 40, 48, 0.92);
+    rgba(24, 28, 36, 0.28);
+  --sageos-liquid-summit: rgba(42, 40, 48, 0.42);
   --sageos-border-subtle: rgba(226, 232, 240, 0.14);
   --sageos-border-default: rgba(226, 232, 240, 0.2);
   --sageos-border-strong: rgba(226, 232, 240, 0.34);
@@ -97,8 +97,9 @@ sageos-overlay-app {
   width: 100vw;
   height: 100vh;
   background: var(--sageos-bg-overlay);
-  backdrop-filter: none;
+  backdrop-filter: blur(var(--sageos-glass-blur-lg)) saturate(var(--sageos-glass-saturation));
   color: var(--sageos-text-primary);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.48);
 }
 
 sageos-overlay-app::before {
@@ -376,20 +377,21 @@ textarea::placeholder {
 .overlay-callout {
   border: 1px solid color-mix(in srgb, var(--sageos-accent-info) 42%, transparent);
   border-radius: var(--sageos-radius-card);
-  background: rgba(14, 34, 46, 0.88);
+  background: rgba(14, 34, 46, 0.38);
   color: #dbeafe;
   padding: 12px 14px;
   box-shadow: var(--sageos-shadow-ambient);
+  backdrop-filter: blur(var(--sageos-glass-blur-md)) saturate(var(--sageos-glass-saturation));
 }
 
 .overlay-callout--loading {
   border-color: color-mix(in srgb, var(--sageos-accent-primary) 50%, transparent);
-  background: rgba(12, 35, 48, 0.9);
+  background: rgba(12, 35, 48, 0.4);
 }
 
 .overlay-callout--error {
   border-color: color-mix(in srgb, var(--sageos-accent-danger) 60%, transparent);
-  background: rgba(58, 15, 20, 0.9);
+  background: rgba(58, 15, 20, 0.44);
 }
 
 .overlay-callout--empty {
@@ -400,18 +402,18 @@ textarea::placeholder {
 
 .overlay-callout--success {
   border-color: color-mix(in srgb, var(--sageos-accent-success) 58%, transparent);
-  background: rgba(9, 45, 27, 0.9);
+  background: rgba(9, 45, 27, 0.4);
 }
 
 .overlay-callout--warning,
 .overlay-callout--degraded {
   border-color: color-mix(in srgb, var(--sageos-accent-warning) 58%, transparent);
-  background: rgba(51, 34, 8, 0.9);
+  background: rgba(51, 34, 8, 0.42);
 }
 
 .overlay-callout--critical {
   border-color: color-mix(in srgb, var(--sageos-accent-danger) 66%, transparent);
-  background: rgba(58, 15, 20, 0.94);
+  background: rgba(58, 15, 20, 0.48);
   box-shadow: var(--sageos-shadow-summit);
 }
 
@@ -684,7 +686,8 @@ textarea::placeholder {
   overflow: auto;
   border: 1px solid var(--sageos-border-subtle);
   border-radius: var(--sageos-radius-card);
-  background: rgba(3, 6, 12, 0.2);
+  background: rgba(3, 6, 12, 0.1);
+  backdrop-filter: blur(var(--sageos-glass-blur-sm)) saturate(var(--sageos-glass-saturation));
   padding: 10px;
 }
 

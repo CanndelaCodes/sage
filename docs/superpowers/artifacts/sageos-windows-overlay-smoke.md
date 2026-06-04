@@ -180,8 +180,8 @@ apps/windows-overlay smoke:electron` passed with `passThroughProbeClicks: 1`, re
   `chat.history` calls, and `rendererErrors: 0`; `pnpm --dir apps/windows-overlay
 review:visual:all` passed with 11 screenshots and 0 pixel-content failures.
 - Apple+Linear glass correction: the current visual contract forbids the live overlay dot-matrix
-  texture, requires the live overlay root to avoid full-screen blur, and requires clear glass,
-  edge-light, inner-sheen, panel, and control material tokens.
+  texture, requires the live overlay root to use a light transparent blur instead of a solid page
+  fill, and requires clear glass, edge-light, inner-sheen, panel, and control material tokens.
   Codex visually inspected the refreshed full, bright, Edge Rail browser, HUD over IDE, and
   visual-review contact-sheet screenshots and confirmed the overlay now preserves desktop context
   while reading as a sleeker glass control surface. Smoke fixtures now use app-like desktop,
@@ -191,6 +191,25 @@ review:visual:all` passed with 11 screenshots and 0 pixel-content failures.
   `pnpm --dir apps/windows-overlay build` passed, `pnpm --dir apps/windows-overlay smoke:electron`
   passed with `rendererErrors: 0`, and `pnpm --dir apps/windows-overlay review:visual:all`
   passed with 11 screenshots and 0 pixel-content failures.
+- See-through glass correction: `pnpm --dir apps/windows-overlay exec vitest run
+tests/overlay-visual-contract.test.ts tests/electron-adapter.test.ts --reporter verbose` first
+  exposed the need to replace opaque bright-backdrop contrast assumptions with an explicit
+  transparent-glass legibility contract, then passed with 2 files and 14 tests. The renderer now uses
+  lighter Liquid Linear alpha bands, less full-screen blur, stronger saturation, text shadow, and
+  blur/rim/shadow legibility treatments instead of solid panels. The Electron adapter now creates a
+  transparent window with neutral native material, enables native acrylic only for focused full
+  overlay mode, and disables native material for HUD/Edge Rail pass-through surfaces after
+  `backgroundMaterial: "acrylic"` was proven to intercept the native pass-through click. `pnpm --dir
+apps/windows-overlay build`, `pnpm --dir apps/windows-overlay smoke:electron`, and `pnpm --dir
+apps/windows-overlay review:visual:all` passed on 2026-06-04 with `passThroughProbeClicks: 1`,
+  `rendererErrors: 0`, 11 refreshed screenshots, 0 broken images, 0 pixel-content failures, and
+  `humanAcceptance: "required"`. Codex then loaded `http://127.0.0.1:58232/` in the in-app browser,
+  verified title `SageOS Overlay MVP Visual Review`, no console warnings or errors, 8 acceptance
+  controls, and restored the visible acceptance recorder to `All criteria accepted` for Jason review.
+- Hermes replacement benchmark update: the MVP spec now states SageOS must be capable of replacing
+  Hermes Agent and Hermes Desktop as Jason's primary AI agent. The readiness map tracks this as a
+  Yellow MVP benchmark pending Jason's daily Hermes parity audit, rather than a green implementation
+  claim.
 - Production launch hardening update: `pnpm --dir apps/windows-overlay exec vitest run
 tests/smoke-script.test.ts --reporter verbose` first failed because the overlay package lacked a
   built-app `start` script and the Windows launch/startup scripts did not expose build-mode control,
