@@ -85,6 +85,7 @@ async function smokeFullOverlay(gatewayUrl) {
     await page.waitForFunction(() => document.body.innerText.includes("Memory Queue"));
     await assertPreloadBridge(page);
     await assertVoiceEntry(page);
+    await assertKeyboardFocusOrder(page);
 
     await page.screenshot({
       path: path.join(screenshotDir, "overlay-smoke-styled.png"),
@@ -483,6 +484,40 @@ async function assertVoiceEntry(page) {
     "Voice input is not available in this Electron runtime.",
     "Voice input explains unavailable runtime support",
   );
+}
+
+async function assertKeyboardFocusOrder(page) {
+  const expectedOrder = ["Pause", "Resume", "Stop", "Emergency stop", "Full", "Rail", "Close", "SageOS command"];
+  await page.evaluate(() => {
+    const host = document.querySelector("sageos-overlay-app");
+    const active = host?.shadowRoot?.activeElement ?? document.activeElement;
+    if (active instanceof HTMLElement) {
+      active.blur();
+    }
+  });
+
+  for (const expectedName of expectedOrder) {
+    await page.keyboard.press("Tab");
+    const focusedName = await readFocusedControlName(page);
+    assertEqual(focusedName, expectedName, `Keyboard focus order should visit ${expectedName}`);
+  }
+}
+
+async function readFocusedControlName(page) {
+  return page.evaluate(() => {
+    const host = document.querySelector("sageos-overlay-app");
+    const active = host?.shadowRoot?.activeElement ?? document.activeElement;
+    if (!active) {
+      return "";
+    }
+
+    const ariaLabel = active.getAttribute("aria-label");
+    if (ariaLabel) {
+      return ariaLabel.trim();
+    }
+
+    return (active.textContent ?? "").replace(/\s+/g, " ").trim();
+  });
 }
 
 async function isVoiceInputAvailable(page) {

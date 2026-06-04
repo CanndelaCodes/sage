@@ -38,6 +38,8 @@ describe("Electron overlay smoke script", () => {
       "setVisualBackdrop(page, \"text-heavy\")",
       "setVisualBackdrop(page, \"browser\")",
       "setVisualBackdrop(page, \"ide\")",
+      "assertKeyboardFocusOrder(page)",
+      "readFocusedControlName",
       "overlay-smoke-full-bright.png",
       "overlay-smoke-edge-text-heavy.png",
       "overlay-smoke-edge-browser.png",
