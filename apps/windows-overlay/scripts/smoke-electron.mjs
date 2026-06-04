@@ -35,6 +35,7 @@ try {
     "sageos.tasks.cancel",
     "sageos.tasks.runNext",
     "sageos.memory.replay",
+    "chat.history",
     "chat.send",
   ]);
   assertNoRendererErrors(rendererErrors);
@@ -153,6 +154,9 @@ async function smokeFullOverlay(gatewayUrl, rendererErrors) {
     await assertCriticalTextFit(page);
     const passThroughProbe = await createPassThroughProbe(app);
     await armOverlayClickProbe(page);
+    await page.evaluate(() => window.sageOsOverlay?.setInteractivePointer(false));
+    await forceOverlayPassThrough(app);
+    await page.waitForTimeout(150);
     const nativeClick = await sendNativeMouseClick(passThroughProbe.nativeClickPoint);
     const passThroughProbeClicks = await waitForPassThroughProbeClick(
       app,
@@ -330,7 +334,12 @@ async function createPassThroughProbe(app) {
     </html>`;
   const probe = await app.evaluate(
     async ({ BrowserWindow, screen }, probeHtml) => {
-      const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+      const overlayWindow = BrowserWindow.getAllWindows().find(
+        (candidate) => candidate.getTitle() === "SageOS Overlay",
+      );
+      const display = overlayWindow
+        ? screen.getDisplayMatching(overlayWindow.getBounds())
+        : screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
       const width = 360;
       const height = 180;
       const x = display.bounds.x + display.bounds.width - width - 96;
@@ -392,10 +401,38 @@ async function waitForPageTitle(app, title, timeoutMs = 5_000) {
   throw new Error(`Timed out waiting for Electron window title: ${title}`);
 }
 
-async function sendNativeMouseClick({ x, y }) {
+async function forceOverlayPassThrough(app) {
+  await app.evaluate(({ BrowserWindow }) => {
+    const overlayWindow = BrowserWindow.getAllWindows().find(
+      (candidate) => candidate.getTitle() === "SageOS Overlay",
+    );
+    if (!overlayWindow) {
+      throw new Error("SageOS overlay BrowserWindow was not available for pass-through smoke");
+    }
+    overlayWindow.setIgnoreMouseEvents(true, { forward: true });
+  });
+}
+
+async function sendNativeMouseClick(point) {
+  return runNativeMouseInput(point, { click: true });
+}
+
+async function runNativeMouseInput({ x, y }, { click }) {
   if (process.platform !== "win32") {
     throw new Error("SageOS pass-through smoke requires native Windows mouse input");
   }
+  const clickScript = click
+    ? `
+$beforeClick = Read-SageOsWindowAtPoint $target
+[SageOsMouseInput]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero)
+Start-Sleep -Milliseconds 60
+[SageOsMouseInput]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero)
+$afterClick = Read-SageOsWindowAtPoint $target
+`
+    : `
+$beforeClick = $null
+$afterClick = $null
+`;
   const script = `
 Add-Type @"
 using System;
@@ -439,11 +476,7 @@ $beforeTarget = Read-SageOsWindowAtPoint $target
 Start-Sleep -Milliseconds 60
 $cursor = New-Object SageOsMouseInput+POINT
 [SageOsMouseInput]::GetCursorPos([ref]$cursor) | Out-Null
-$beforeClick = Read-SageOsWindowAtPoint $target
-[SageOsMouseInput]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero)
-Start-Sleep -Milliseconds 60
-[SageOsMouseInput]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero)
-$afterClick = Read-SageOsWindowAtPoint $target
+${clickScript}
 @{
   target = @{ x = $target.X; y = $target.Y }
   cursor = @{ x = $cursor.X; y = $cursor.Y }
@@ -943,6 +976,10 @@ async function assertSageAiChatPanelLayout(page) {
   await panel.waitFor({ state: "visible", timeout: 5_000 });
   await page.locator(".sage-ai-chat__facts").waitFor({ state: "visible", timeout: 5_000 });
   await page.getByLabel("Sage AI Chat stream").waitFor({ state: "visible", timeout: 5_000 });
+  await page.getByText("Recent overlay planning note").waitFor({ state: "visible", timeout: 5_000 });
+  await page
+    .getByText("Keep the Windows overlay as the primary SageOS UI.")
+    .waitFor({ state: "visible", timeout: 5_000 });
   await page.locator(".sage-ai-chat__composer").waitFor({ state: "visible", timeout: 5_000 });
   await page.getByRole("button", { name: "Send Sage AI chat message" }).waitFor({
     state: "visible",
@@ -1577,12 +1614,15 @@ async function startMockGateway(recorded) {
                   "sageos.tasks.cancel",
                   "sageos.tasks.runNext",
                   "sageos.memory.replay",
+                  "chat.history",
                   "chat.send",
                 ],
                 events: ["sageos"],
               },
             }
-          : createSmokeState();
+          : frame.method === "chat.history"
+            ? createSmokeChatHistory()
+            : createSmokeState();
       ws.send(JSON.stringify({ type: "res", id: frame.id, ok: true, payload }));
     });
   });
@@ -1782,6 +1822,36 @@ function createSmokeState() {
     apps: [],
     observations: [],
     collaborations: [],
+  };
+}
+
+function createSmokeChatHistory() {
+  return {
+    sessionKey: "main",
+    messages: [
+      {
+        id: "history_user_1",
+        role: "user",
+        content: "Recent overlay planning note",
+      },
+      {
+        id: "history_assistant_1",
+        role: "assistant",
+        content: [
+          {
+            type: "text",
+            text: "Keep the Windows overlay as the primary SageOS UI.",
+          },
+        ],
+      },
+      {
+        id: "history_tool_1",
+        role: "toolResult",
+        text: "Gateway history loaded for MVP smoke.",
+      },
+    ],
+    thinkingLevel: "low",
+    verboseLevel: "medium",
   };
 }
 

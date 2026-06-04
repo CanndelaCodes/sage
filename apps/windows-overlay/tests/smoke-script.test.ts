@@ -10,6 +10,7 @@ describe("Electron overlay smoke script", () => {
 
   it("covers bridge, layout, HUD, edge rail, and RPC controls", () => {
     const script = readFileSync(new URL("../scripts/smoke-electron.mjs", import.meta.url), "utf8");
+    const overlayApp = readFileSync(new URL("../src/renderer/overlay-app.ts", import.meta.url), "utf8");
 
     for (const expected of [
       "window.sageOsOverlay?.collapse",
@@ -17,8 +18,10 @@ describe("Electron overlay smoke script", () => {
       "window.sageOsOverlay?.setInteractivePointer",
       "sageos-overlay:interactive-pointer",
       "createPassThroughProbe",
+      "forceOverlayPassThrough",
       "sendNativeMouseClick",
       "nativeClickPoint",
+      "getDisplayMatching",
       "waitForPassThroughProbeClick",
       "readPassThroughProbeDiagnostics",
       "Timed out waiting for pass-through probe click",
@@ -85,6 +88,10 @@ describe("Electron overlay smoke script", () => {
       "sageos.tasks.runNext",
       "sageos.memory.replay",
       "chat.send",
+      "chat.history",
+      "createSmokeChatHistory",
+      "Recent overlay planning note",
+      "Keep the Windows overlay as the primary SageOS UI.",
       "submitLauncherCommand(page",
       "assertSageAiChatPanelLayout(page)",
       "Sage AI Chat stream",
@@ -123,6 +130,7 @@ describe("Electron overlay smoke script", () => {
 
     expect(script).not.toContain("repeating-linear-gradient");
     expect(script).not.toContain("32px 32px");
+    expect(overlayApp).toContain("controller.loadChatHistory");
   });
 
   it("launch script exposes badge visibility environment controls", () => {

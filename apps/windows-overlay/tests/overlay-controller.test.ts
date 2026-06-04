@@ -266,6 +266,48 @@ describe("SageOsOverlayController", () => {
     expect(controller.state.sageOsState).toBeNull();
   });
 
+  it("loads recent Sage AI chat history into displayable transcript messages", async () => {
+    const request = vi.fn().mockResolvedValue({
+      sessionKey: "main",
+      messages: [
+        { id: "msg_user", role: "user", content: "What changed overnight?" },
+        {
+          id: "msg_assistant",
+          role: "assistant",
+          content: [{ type: "text", text: "Night Shift finished the queue replay." }],
+        },
+        { id: "msg_tool", role: "toolResult", text: "memory replay: 6 reviewed" },
+      ],
+      thinkingLevel: "low",
+    });
+    const controller = new SageOsOverlayController({ request });
+
+    await controller.loadChatHistory("main", 3);
+
+    expect(request).toHaveBeenCalledWith("chat.history", { sessionKey: "main", limit: 3 });
+    expect(controller.state.chat.historyLoading).toBe(false);
+    expect(controller.state.chat.history).toEqual([
+      {
+        key: "msg_user",
+        role: "user",
+        label: "You",
+        text: "What changed overnight?",
+      },
+      {
+        key: "msg_assistant",
+        role: "assistant",
+        label: "Sage",
+        text: "Night Shift finished the queue replay.",
+      },
+      {
+        key: "msg_tool",
+        role: "tool",
+        label: "Tool",
+        text: "memory replay: 6 reviewed",
+      },
+    ]);
+  });
+
   it("tracks Gateway chat events for the overlay chat surface", () => {
     const request = vi.fn();
     const controller = new SageOsOverlayController({ request });

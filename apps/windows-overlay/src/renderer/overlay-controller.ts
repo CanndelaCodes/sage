@@ -31,8 +31,15 @@ export type SageOsOverlayChatState = {
   stream: string | null;
   lastUserMessage: string | null;
   error: string | null;
-  history: unknown[];
+  history: SageOsOverlayChatMessage[];
   historyLoading: boolean;
+};
+
+export type SageOsOverlayChatMessage = {
+  key: string;
+  role: "user" | "assistant" | "system" | "tool" | "unknown";
+  label: string;
+  text: string;
 };
 
 export type SageOsOverlayControllerState = {
@@ -189,7 +196,7 @@ export class SageOsOverlayController {
         chat: {
           ...this.state.chat,
           sessionKey,
-          history: Array.isArray(history.messages) ? history.messages : [],
+          history: normalizeChatHistoryMessages(history.messages),
           historyLoading: false,
         },
       };
@@ -405,6 +412,69 @@ function createInitialChatState(sessionKey = "main"): SageOsOverlayChatState {
   };
 }
 
+function normalizeChatHistoryMessages(messages: unknown): SageOsOverlayChatMessage[] {
+  if (!Array.isArray(messages)) {
+    return [];
+  }
+
+  return messages.flatMap((message, index) => {
+    const text = extractChatEventText(message)?.trim();
+    if (!text) {
+      return [];
+    }
+    const role = normalizeChatHistoryRole(readStringField(message, "role"));
+    return [
+      {
+        key: readStringField(message, "id") ?? `history-${index}`,
+        role,
+        label: formatChatHistoryRoleLabel(role),
+        text,
+      },
+    ];
+  });
+}
+
+function normalizeChatHistoryRole(role: string | null): SageOsOverlayChatMessage["role"] {
+  const normalized = role?.toLowerCase();
+  if (normalized === "user" || normalized === "assistant" || normalized === "system") {
+    return normalized;
+  }
+  if (
+    normalized === "tool" ||
+    normalized === "toolresult" ||
+    normalized === "tool_result" ||
+    normalized === "function"
+  ) {
+    return "tool";
+  }
+  return "unknown";
+}
+
+function formatChatHistoryRoleLabel(role: SageOsOverlayChatMessage["role"]) {
+  if (role === "user") {
+    return "You";
+  }
+  if (role === "assistant") {
+    return "Sage";
+  }
+  if (role === "system") {
+    return "System";
+  }
+  if (role === "tool") {
+    return "Tool";
+  }
+  return "Message";
+}
+
+function readStringField(value: unknown, field: string): string | null {
+  return typeof value === "object" &&
+    value !== null &&
+    field in value &&
+    typeof (value as Record<string, unknown>)[field] === "string"
+    ? ((value as Record<string, unknown>)[field] as string)
+    : null;
+}
+
 function extractRunId(value: unknown): string | null {
   return typeof value === "object" &&
     value !== null &&
@@ -448,6 +518,10 @@ function extractChatEventText(message: unknown): string | null {
     return (message as { text: string }).text;
   }
   const content = (message as { content?: unknown }).content;
+  if (typeof content === "string") {
+    const text = content.trim();
+    return text || null;
+  }
   if (!Array.isArray(content)) {
     return null;
   }

@@ -833,7 +833,10 @@ export class SageOsOverlayApp extends LitElement {
       url: settings.url,
       token: settings.token,
       password: settings.password,
-      onHello: () => void controller.loadStatus(),
+      onHello: () => {
+        void controller.loadStatus();
+        void controller.loadChatHistory();
+      },
       onEvent: (event) => controller.handleGatewayEvent(event),
       onClose: () => controller.setConnected(false),
     });
@@ -1049,6 +1052,22 @@ export class SageOsOverlayApp extends LitElement {
           )}
         </dl>
         <div class="sage-ai-chat__transcript" aria-label="Sage AI Chat stream">
+          ${chat.history.map(
+            (message) => html`
+              <div class=${`sage-ai-chat__message sage-ai-chat__message--${message.role}`}>
+                <span>${message.label}</span>
+                <p>${message.text}</p>
+              </div>
+            `,
+          )}
+          ${chat.historyLoading
+            ? html`
+                <div class="sage-ai-chat__message sage-ai-chat__message--system">
+                  <span>Sage</span>
+                  <p>Loading recent Sage AI chat history...</p>
+                </div>
+              `
+            : nothing}
           ${chat.lastUserMessage
             ? html`
                 <div class="sage-ai-chat__message sage-ai-chat__message--user">
@@ -1056,12 +1075,14 @@ export class SageOsOverlayApp extends LitElement {
                   <p>${chat.lastUserMessage}</p>
                 </div>
               `
-            : html`
-                <div class="sage-ai-chat__message sage-ai-chat__message--system">
-                  <span>Sage</span>
-                  <p>Use this overlay chat for local SageOS context, operational questions, and safe command planning.</p>
-                </div>
-              `}
+            : chat.history.length === 0 && !chat.historyLoading
+              ? html`
+                  <div class="sage-ai-chat__message sage-ai-chat__message--system">
+                    <span>Sage</span>
+                    <p>Use this overlay chat for local SageOS context, operational questions, and safe command planning.</p>
+                  </div>
+                `
+              : nothing}
           ${chat.stream
             ? html`
                 <div class="sage-ai-chat__message sage-ai-chat__message--assistant">

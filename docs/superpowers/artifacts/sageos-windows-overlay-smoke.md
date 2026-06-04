@@ -169,6 +169,16 @@ Verification build SHA: `741b70695473`
   smoke-script TDD check first failed because the packaged Electron smoke had no runtime
   `assertSageAiChatPanelLayout(page)` guard, then passed after the smoke added visible-region,
   minimum-height, accessible-control, and no-Command-Deck-overlap assertions.
+- Sage AI Chat history update: focused TDD first failed because `loadChatHistory` kept raw
+  Gateway messages and the packaged Electron smoke did not exercise `chat.history`, then passed
+  after the controller normalized recent history into transcript rows and the renderer loaded
+  history on Gateway hello. The packaged Electron smoke now exposes `chat.history`, returns a
+  visible history fixture, verifies the historical user and Sage messages render in the
+  overlay-native chat panel, pins the pass-through probe to the overlay display, and forces
+  the test BrowserWindow into pass-through before the native underlay click. `pnpm --dir
+apps/windows-overlay smoke:electron` passed with `passThroughProbeClicks: 1`, repeated
+  `chat.history` calls, and `rendererErrors: 0`; `pnpm --dir apps/windows-overlay
+review:visual:all` passed with 11 screenshots and 0 pixel-content failures.
 - Apple+Linear glass correction: the current visual contract forbids the live overlay dot-matrix
   texture, requires the live overlay root to avoid full-screen blur, and requires clear glass,
   edge-light, inner-sheen, panel, and control material tokens.
@@ -177,7 +187,7 @@ Verification build SHA: `741b70695473`
   while reading as a sleeker glass control surface. Smoke fixtures now use app-like desktop,
   sheet, terminal, browser, and IDE underlays rather than decorative grids or repeated-line textures.
 - Current package gates after the latest verification sweep: `pnpm --dir apps/windows-overlay test`
-  passed with 14 files and 101 tests, `pnpm --dir apps/windows-overlay typecheck` passed,
+  passed with 14 files and 103 tests, `pnpm --dir apps/windows-overlay typecheck` passed,
   `pnpm --dir apps/windows-overlay build` passed, `pnpm --dir apps/windows-overlay smoke:electron`
   passed with `rendererErrors: 0`, and `pnpm --dir apps/windows-overlay review:visual:all`
   passed with 11 screenshots and 0 pixel-content failures.

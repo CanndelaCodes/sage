@@ -25,6 +25,9 @@ describe("overlay pass-through behavior", () => {
     expect(adapter.setPassThrough).toHaveBeenNthCalledWith(1, false);
     expect(adapter.setPassThrough).toHaveBeenNthCalledWith(2, true);
     expect(adapter.setPassThrough).toHaveBeenNthCalledWith(3, false);
+    expect(adapter.showEdgeRail.mock.invocationCallOrder[0]).toBeLessThan(
+      adapter.setPassThrough.mock.invocationCallOrder[1],
+    );
   });
 
   it("temporarily captures overlay controls while a pass-through surface is visible", () => {

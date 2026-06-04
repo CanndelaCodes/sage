@@ -37,7 +37,6 @@ export function createOverlayWindowController(
       return;
     }
 
-    adapter.setPassThrough(state.pointerMode === "passThrough");
     if (state.surface === "hud") {
       adapter.showHud();
     } else if (state.surface === "edgeRail") {
@@ -45,6 +44,7 @@ export function createOverlayWindowController(
     } else {
       adapter.showFullOverlay();
     }
+    adapter.setPassThrough(state.pointerMode === "passThrough");
     adapter.setTrayState(state);
   };
 
