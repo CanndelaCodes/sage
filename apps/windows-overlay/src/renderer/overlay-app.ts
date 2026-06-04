@@ -1464,6 +1464,7 @@ function buildOverviewGroups(
             "warning",
           )}`,
         },
+        nextScheduledWorkRow(status),
       ],
     },
     {
@@ -1543,6 +1544,28 @@ function countUrgentIncidents(status: SageOsOverlayStatusState["status"]): numbe
 
 function countWarningIncidents(status: SageOsOverlayStatusState["status"]): number {
   return status.incidents.filter((incident) => incident.severity === "warning").length;
+}
+
+function nextScheduledWorkRow(status: SageOsOverlayStatusState["status"]): OverlayOverviewRow {
+  const candidates = [
+    status.supervisor.nextTickAt
+      ? { label: "Supervisor tick", at: status.supervisor.nextTickAt }
+      : undefined,
+    status.notifications.batch?.dueAt
+      ? { label: "Notification batch", at: status.notifications.batch.dueAt }
+      : undefined,
+    status.notifications.digest?.nextDueAt
+      ? { label: "Telegram digest", at: status.notifications.digest.nextDueAt }
+      : undefined,
+  ].filter((candidate): candidate is { label: string; at: string } => Boolean(candidate));
+  const next = candidates.toSorted(
+    (a, b) => timestampSortValue(a.at) - timestampSortValue(b.at),
+  )[0];
+  return {
+    label: "Scheduled Work",
+    value: next?.label ?? "None",
+    detail: next?.at ?? "No scheduled work reported",
+  };
 }
 
 function securitySystemState(status: SageOsOverlayStatusState["status"]): "degraded" | "ok" {

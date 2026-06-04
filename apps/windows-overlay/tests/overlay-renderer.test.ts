@@ -23,7 +23,12 @@ const state = {
   status: {
     generatedAt: "2026-06-01T13:00:00.000Z",
     mode: "execute_scoped",
-    supervisor: { state: "running", enabled: true, paused: false },
+    supervisor: {
+      state: "running",
+      enabled: true,
+      paused: false,
+      nextTickAt: "2026-06-01T13:05:00.000Z",
+    },
     employees: { total: 7, active: 3, queued: 1, blocked: 0 },
     approvals: { pending: 2 },
     tasks: { total: 3, active: 1, queued: 1, blocked: 1 },
@@ -499,6 +504,11 @@ describe("overlay renderer model", () => {
       label: "Incidents",
       value: "1 active",
       detail: "0 urgent / 1 warning",
+    });
+    expect(model.overview[1].rows).toContainEqual({
+      label: "Scheduled Work",
+      value: "Supervisor tick",
+      detail: "2026-06-01T13:05:00.000Z",
     });
     expect(model.overview[2].rows).toContainEqual({
       label: "Observations",
