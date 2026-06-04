@@ -35,6 +35,9 @@ try {
     overflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
     criteriaCount: document.querySelectorAll(".criteria li").length,
     figureCount: document.querySelectorAll("figure").length,
+    rubricRowCount: document.querySelectorAll(".rubric-row").length,
+    decisionControlCount: document.querySelectorAll(".decision-control").length,
+    decisionSummaryCount: document.querySelectorAll(".decision-summary .decision-card").length,
   }));
 
   if (result.title !== "SageOS Overlay MVP Visual Review") {
@@ -47,6 +50,17 @@ try {
   }
   if (result.criteriaCount !== 8) {
     throw new Error(`Expected 8 visual acceptance criteria, saw ${result.criteriaCount}.`);
+  }
+  if (result.rubricRowCount !== 8) {
+    throw new Error(`Expected 8 acceptance rubric rows, saw ${result.rubricRowCount}.`);
+  }
+  if (result.decisionControlCount !== 24) {
+    throw new Error(
+      `Expected 24 acceptance decision controls, saw ${result.decisionControlCount}.`,
+    );
+  }
+  if (result.decisionSummaryCount !== 3) {
+    throw new Error(`Expected 3 release decision cards, saw ${result.decisionSummaryCount}.`);
   }
   if (result.brokenImages > 0) {
     throw new Error(`Visual review has ${result.brokenImages} broken image(s).`);

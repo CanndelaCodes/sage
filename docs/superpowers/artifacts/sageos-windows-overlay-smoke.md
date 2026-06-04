@@ -78,7 +78,7 @@ Verification build SHA: `26a023428698`
 - [x] Automated smoke captures the overlay over dark, bright, text-heavy, browser-like, and IDE-like visual backdrops.
 - [x] Automated smoke fails if critical toolbar, launcher, HUD, or Edge Rail controls clip text, have sub-20px hit targets, or overlap.
 - [x] Automated smoke emulates `prefers-reduced-motion: reduce` in Electron and fails if visible critical controls keep transition or animation durations above 1ms.
-- [x] Visual review verifier loads all smoke screenshots, lists the MVP visual acceptance criteria, and renders without horizontal overflow.
+- [x] Visual review verifier loads all smoke screenshots, lists the MVP visual acceptance criteria, renders the release decision cards and reviewer rubric controls, and renders without horizontal overflow.
 - [x] Edge Rail collapse keeps health, active-operation, approval, and incident indicators visible.
 - [x] Edge Rail health, active-operation, approval, and incident badges carry drill-down targets and expand to the relevant workspace.
 - [x] Pass-through surfaces can temporarily restore overlay pointer capture over active controls.
@@ -117,7 +117,8 @@ Verification build SHA: `26a023428698`
   on 2026-06-04. It ran the packaged Electron smoke, regenerated
   `apps/windows-overlay/dist/overlay-visual-review.html`, launched
   `C:\Program Files\Google\Chrome\Application\chrome.exe`, loaded all 10 smoke screenshots,
-  found 8 acceptance criteria, found 0 broken images, found 0 horizontal overflow, and saved
+  found 8 acceptance criteria, 8 reviewer rubric rows, 24 acceptance decision controls,
+  3 release decision cards, found 0 broken images, found 0 horizontal overflow, and saved
   `apps/windows-overlay/dist/overlay-visual-review-render.png` for review.
 - Current package gates after the latest verification sweep: `pnpm --dir apps/windows-overlay test`
   passed with 14 files and 93 tests, `pnpm --dir apps/windows-overlay typecheck` passed, and
@@ -173,7 +174,8 @@ src/telegram/bot.test.ts` passed with 28 files
   and overlap in the live Electron layout,
   emulates `prefers-reduced-motion: reduce` and fails if visible critical controls keep transition
   or animation durations above 1ms,
-  generates and verifies a local visual review contact sheet with all smoke screenshots and MVP acceptance criteria,
+  generates and verifies a local visual review acceptance packet with all smoke screenshots,
+  MVP acceptance criteria, release decision cards, and reviewer rubric controls,
   fails on renderer `pageerror` or console error events,
   captures full Command Deck under reduced motion and over a bright synthetic desktop, captures Edge Rail and pinned widgets
   over dark, text-heavy, browser-like, and IDE-like synthetic apps, captures the richer Compact HUD command island over an IDE-like dark surface,

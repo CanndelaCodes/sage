@@ -42,6 +42,15 @@ describe("overlay visual review generator", () => {
       "operations-grade",
       "Apple-like liquid glass depth",
       "Linear-like row density",
+      "Release Decision",
+      "Automated gate",
+      "Human decision",
+      "Release state",
+      "Reviewer Acceptance Rubric",
+      "Needs polish",
+      "MVP blocker",
+      "rubric-row",
+      "decision-control",
     ]) {
       expect(script).toContain(expected);
     }
@@ -61,6 +70,9 @@ describe("overlay visual review generator", () => {
       "SageOS Overlay MVP Visual Review",
       "imageCount !== 10",
       "criteriaCount !== 8",
+      "rubricRowCount !== 8",
+      "decisionControlCount !== 24",
+      "decisionSummaryCount !== 3",
       "brokenImages",
       "overflowX",
       "bodyTextLength",
