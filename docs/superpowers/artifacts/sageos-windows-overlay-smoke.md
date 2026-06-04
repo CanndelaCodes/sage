@@ -3,7 +3,7 @@
 Date: 2026-06-04
 Operator: Codex
 Build: Windows overlay MVP shell verification after Liquid Linear material pass
-Verification build SHA: `d5b4ab54e67f`
+Verification build SHA: `636fa258c347`
 
 ## Preconditions
 
@@ -91,8 +91,8 @@ Verification build SHA: `d5b4ab54e67f`
 - IDE-like backdrop HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud-ide.png`
 - Current verification update: `pnpm --dir apps/windows-overlay smoke:electron` passed on
   2026-06-04 after the Liquid Linear material pass. The packaged overlay reported
-  `buildSha: d5b4ab54e67f`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`,
-  no renderer page errors,
+  `buildSha: 636fa258c347`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`,
+  `rendererErrors: 0`,
   four `sageos.control` calls for pause, resume, stop, and emergency stop, verified the
   availability-aware Voice entry state, verified first-pass keyboard Tab order through Pause,
   Resume, Stop, Emergency stop, Full, Rail, Close, and the SageOS command input, and refreshed
@@ -123,7 +123,7 @@ src/telegram/bot.test.ts` passed with 28 files
   practical AA contrast for normal text tokens over ambient, command, focus, and summit glass,
   refraction/specular surface overlays, forced-colors fallback, focus states, reduced-motion handling,
   edge anchoring classes, state classes, text overflow guards, and full-overlay pinned widget flow.
-  The `smoke:electron` package script reports the current Git build SHA in its JSON output,
+  The `smoke:electron` package script reports the current Git build SHA and renderer error count in its JSON output,
   launches the packaged Electron overlay against a mock gateway, verifies that
   `SAGEOS_OVERLAY_COLLAPSED_EDGE=left`,
   `SAGEOS_OVERLAY_ACTIVE_MONITOR=auto`, and
@@ -135,6 +135,7 @@ src/telegram/bot.test.ts` passed with 28 files
   verifies the Voice control is enabled only when browser speech recognition exists and is otherwise
   disabled with an unavailable-runtime reason,
   verifies first-pass keyboard Tab order across the primary toolbar and launcher controls,
+  fails on renderer `pageerror` or console error events,
   captures full Command Deck over a bright synthetic desktop, captures Edge Rail and pinned widgets
   over text-heavy, browser-like, and IDE-like synthetic apps, captures the richer Compact HUD command island over an IDE-like dark surface,
   seeds the mock gateway with an active run that includes `workerSessionId`, `currentToolCall`,
@@ -162,4 +163,5 @@ src/telegram/bot.test.ts` passed with 28 files
   and Universal Launcher disabled reasons for gateway and empty-command states. The smoke
   now presses `Ctrl+K`, verifies launcher focus, presses
   `Escape`, and waits for the Electron BrowserWindow to hide through the close bridge. The smoke
-  emitted Electron's development CSP warning only; no renderer page errors were observed.
+  emitted Electron's development CSP warning only; renderer page and console errors are now guarded
+  by smoke output `rendererErrors: 0`.
