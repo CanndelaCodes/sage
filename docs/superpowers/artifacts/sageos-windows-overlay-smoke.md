@@ -3,7 +3,7 @@
 Date: 2026-06-04
 Operator: Codex
 Build: Windows overlay MVP shell verification after Liquid Linear material pass
-Verification build SHA: `742ed9660b97`
+Verification build SHA: `d5b4ab54e67f`
 
 ## Preconditions
 
@@ -91,11 +91,13 @@ Verification build SHA: `742ed9660b97`
 - IDE-like backdrop HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud-ide.png`
 - Current verification update: `pnpm --dir apps/windows-overlay smoke:electron` passed on
   2026-06-04 after the Liquid Linear material pass. The packaged overlay reported
-  `buildSha: 742ed9660b97`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`,
+  `buildSha: d5b4ab54e67f`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`,
   no renderer page errors,
   four `sageos.control` calls for pause, resume, stop, and emergency stop, verified the
-  availability-aware Voice entry state, and refreshed the full, bright, edge-left, text-heavy edge,
-  browser edge, IDE edge, HUD, and IDE HUD screenshots above.
+  availability-aware Voice entry state, verified first-pass keyboard Tab order through Pause,
+  Resume, Stop, Emergency stop, Full, Rail, Close, and the SageOS command input, and refreshed
+  the full, bright, edge-left, text-heavy edge, browser edge, IDE edge, HUD, and IDE HUD
+  screenshots above.
 - Current package gates after the latest verification sweep: `pnpm --dir apps/windows-overlay test`
   passed with 13 files and 87 tests, `pnpm --dir apps/windows-overlay typecheck` passed, and
   `pnpm --dir apps/windows-overlay build` passed.
@@ -132,6 +134,7 @@ src/telegram/bot.test.ts` passed with 28 files
   enables `SAGEOS_OVERLAY_VOICE_ENABLED=1` with `SAGEOS_OVERLAY_VOICE_MODE=pushToTalk`,
   verifies the Voice control is enabled only when browser speech recognition exists and is otherwise
   disabled with an unavailable-runtime reason,
+  verifies first-pass keyboard Tab order across the primary toolbar and launcher controls,
   captures full Command Deck over a bright synthetic desktop, captures Edge Rail and pinned widgets
   over text-heavy, browser-like, and IDE-like synthetic apps, captures the richer Compact HUD command island over an IDE-like dark surface,
   seeds the mock gateway with an active run that includes `workerSessionId`, `currentToolCall`,

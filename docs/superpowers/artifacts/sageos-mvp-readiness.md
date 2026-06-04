@@ -127,7 +127,7 @@ Root-gate fix slice verified after the blockers above:
   - `pnpm --dir apps/windows-overlay test` passed with 13 files and 87 tests.
   - `pnpm --dir apps/windows-overlay typecheck` passed.
   - `pnpm --dir apps/windows-overlay build` passed.
-  - `pnpm --dir apps/windows-overlay smoke:electron` passed with `buildSha: 742ed9660b97`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, and refreshed full, bright, Edge Rail, text-heavy Edge Rail, browser Edge Rail, IDE Edge Rail, HUD, and IDE HUD screenshots.
+  - `pnpm --dir apps/windows-overlay smoke:electron` passed with `buildSha: d5b4ab54e67f`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, first-pass keyboard Tab order through the primary toolbar and launcher controls, and refreshed full, bright, Edge Rail, text-heavy Edge Rail, browser Edge Rail, IDE Edge Rail, HUD, and IDE HUD screenshots.
 
 ## Current Green Areas
 
