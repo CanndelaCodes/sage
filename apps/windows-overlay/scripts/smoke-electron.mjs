@@ -50,6 +50,7 @@ try {
         methods: recordedMethods.map((entry) => entry.method),
         screenshots: {
           full: path.join(screenshotDir, "overlay-smoke-styled.png"),
+          workspaceRun: path.join(screenshotDir, "overlay-smoke-workspace-run.png"),
           fullBright: path.join(screenshotDir, "overlay-smoke-full-bright.png"),
           fullReducedMotion: path.join(screenshotDir, "overlay-smoke-full-reduced-motion.png"),
           edgeLeft: path.join(screenshotDir, "overlay-smoke-edge-left.png"),
@@ -89,6 +90,7 @@ async function smokeFullOverlay(gatewayUrl, rendererErrors) {
       timeout: 15_000,
     });
     await page.waitForFunction(() => document.body.innerText.includes("Memory Queue"));
+    await waitForGatewayActionsReady(page);
     await assertPreloadBridge(page);
     await assertVoiceEntry(page);
     await assertKeyboardFocusOrder(page);
@@ -97,6 +99,15 @@ async function smokeFullOverlay(gatewayUrl, rendererErrors) {
 
     await page.screenshot({
       path: path.join(screenshotDir, "overlay-smoke-styled.png"),
+      animations: "disabled",
+    });
+    const nightShiftRow = page.locator(".overlay-row").filter({ hasText: "Night Shift report" });
+    await nightShiftRow.getByRole("button", { name: "Open run" }).click();
+    await page.waitForFunction(() => document.body.innerText.includes("Artifact previews"));
+    await waitForAgentWorkspaceInViewport(page, "Artifact previews");
+    await assertCriticalTextFit(page);
+    await page.screenshot({
+      path: path.join(screenshotDir, "overlay-smoke-workspace-run.png"),
       animations: "disabled",
     });
     await assertReducedMotion(page);
@@ -139,8 +150,13 @@ async function smokeFullOverlay(gatewayUrl, rendererErrors) {
     await page.waitForSelector(".edge-rail--left", { timeout: 5_000 });
     await assertCriticalTextFit(page);
     const passThroughProbe = await createPassThroughProbe(app);
-    await sendNativeMouseClick(passThroughProbe.clickPoint);
-    const passThroughProbeClicks = await waitForPassThroughProbeClick(app, passThroughProbe);
+    await armOverlayClickProbe(page);
+    const nativeClick = await sendNativeMouseClick(passThroughProbe.clickPoint);
+    const passThroughProbeClicks = await waitForPassThroughProbeClick(
+      app,
+      passThroughProbe,
+      nativeClick,
+    );
     await page.evaluate(() => window.sageOsOverlay?.setInteractivePointer(true));
     await page.evaluate(() => window.sageOsOverlay?.setInteractivePointer(false));
     await page.screenshot({
@@ -336,6 +352,7 @@ async function createPassThroughProbe(app) {
       window.showInactive();
       return {
         id: window.id,
+        nativeHandle: window.getNativeWindowHandle().toString("hex"),
         clickPoint: {
           x: x + Math.floor(width / 2),
           y: y + Math.floor(height / 2),
@@ -368,23 +385,64 @@ async function sendNativeMouseClick({ x, y }) {
 Add-Type @"
 using System;
 using System.Runtime.InteropServices;
+using System.Text;
 
 public static class SageOsMouseInput {
+  [StructLayout(LayoutKind.Sequential)]
+  public struct POINT {
+    public int X;
+    public int Y;
+  }
+
   [DllImport("user32.dll")] public static extern bool SetCursorPos(int X, int Y);
+  [DllImport("user32.dll")] public static extern bool GetCursorPos(out POINT point);
+  [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(POINT point);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetClassName(IntPtr hWnd, StringBuilder text, int count);
   [DllImport("user32.dll")] public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, UIntPtr dwExtraInfo);
 }
 "@
-[SageOsMouseInput]::SetCursorPos(${Math.round(x)}, ${Math.round(y)}) | Out-Null
+$target = New-Object SageOsMouseInput+POINT
+$target.X = ${Math.round(x)}
+$target.Y = ${Math.round(y)}
+
+function Read-SageOsWindowAtPoint([SageOsMouseInput+POINT]$Point) {
+  $handle = [SageOsMouseInput]::WindowFromPoint($Point)
+  $title = New-Object System.Text.StringBuilder 512
+  $className = New-Object System.Text.StringBuilder 512
+  [SageOsMouseInput]::GetWindowText($handle, $title, $title.Capacity) | Out-Null
+  [SageOsMouseInput]::GetClassName($handle, $className, $className.Capacity) | Out-Null
+  return @{
+    hwnd = ("0x{0:X}" -f $handle.ToInt64())
+    title = $title.ToString()
+    className = $className.ToString()
+  }
+}
+
+$beforeTarget = Read-SageOsWindowAtPoint $target
+[SageOsMouseInput]::SetCursorPos($target.X, $target.Y) | Out-Null
 Start-Sleep -Milliseconds 60
+$cursor = New-Object SageOsMouseInput+POINT
+[SageOsMouseInput]::GetCursorPos([ref]$cursor) | Out-Null
+$beforeClick = Read-SageOsWindowAtPoint $target
 [SageOsMouseInput]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero)
 Start-Sleep -Milliseconds 60
 [SageOsMouseInput]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero)
+$afterClick = Read-SageOsWindowAtPoint $target
+@{
+  target = @{ x = $target.X; y = $target.Y }
+  cursor = @{ x = $cursor.X; y = $cursor.Y }
+  beforeMove = $beforeTarget
+  beforeClick = $beforeClick
+  afterClick = $afterClick
+} | ConvertTo-Json -Depth 4 -Compress
 `;
-  await execFileAsync(
+  const { stdout } = await execFileAsync(
     "powershell.exe",
     ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
     { windowsHide: true },
   );
+  return JSON.parse(stdout.trim().split(/\r?\n/).at(-1) ?? "{}");
 }
 
 async function sendNativeHotkey(accelerator) {
@@ -437,7 +495,7 @@ function virtualKeyCode(key) {
   return keyCode;
 }
 
-async function waitForPassThroughProbeClick(app, probe, timeoutMs = 5_000) {
+async function waitForPassThroughProbeClick(app, probe, nativeClick, timeoutMs = 5_000) {
   try {
     await probe.page.waitForFunction(
       () => Number(document.body.dataset.clicks || "0") > 0,
@@ -445,7 +503,7 @@ async function waitForPassThroughProbeClick(app, probe, timeoutMs = 5_000) {
       { timeout: timeoutMs },
     );
   } catch (error) {
-    const diagnostics = await readPassThroughProbeDiagnostics(app, probe);
+    const diagnostics = await readPassThroughProbeDiagnostics(app, probe, nativeClick);
     throw new Error(
       [
         `Timed out waiting for pass-through probe click after ${timeoutMs}ms.`,
@@ -457,7 +515,27 @@ async function waitForPassThroughProbeClick(app, probe, timeoutMs = 5_000) {
   return probe.page.evaluate(() => Number(document.body.dataset.clicks || "0"));
 }
 
-async function readPassThroughProbeDiagnostics(app, probe) {
+async function armOverlayClickProbe(page) {
+  await page.evaluate(() => {
+    window.__sageOsSmokeOverlayClicks = 0;
+    window.__sageOsSmokeOverlayClickTargets = [];
+    document.addEventListener(
+      "click",
+      (event) => {
+        window.__sageOsSmokeOverlayClicks += 1;
+        const target = event.target;
+        window.__sageOsSmokeOverlayClickTargets.push(
+          target instanceof HTMLElement
+            ? target.getAttribute("aria-label") || target.textContent?.trim() || target.tagName
+            : "non-element click target",
+        );
+      },
+      { capture: true },
+    );
+  });
+}
+
+async function readPassThroughProbeDiagnostics(app, probe, nativeClick) {
   const probePage = await probe.page
     .evaluate(() => ({
       clicks: Number(document.body.dataset.clicks || "0"),
@@ -470,6 +548,16 @@ async function readPassThroughProbeDiagnostics(app, probe) {
   }));
   const electron = await app.evaluate(({ BrowserWindow, screen }, probeId) => {
     const probeWindow = BrowserWindow.fromId(probeId);
+    const windows = BrowserWindow.getAllWindows().map((candidate) => ({
+      id: candidate.id,
+      title: candidate.getTitle(),
+      bounds: candidate.getBounds(),
+      visible: candidate.isVisible(),
+      focused: candidate.isFocused(),
+      alwaysOnTop: candidate.isAlwaysOnTop(),
+      focusable: candidate.isFocusable(),
+      nativeHandle: candidate.getNativeWindowHandle().toString("hex"),
+    }));
     return {
       cursor: screen.getCursorScreenPoint(),
       displays: screen.getAllDisplays().map((display) => ({
@@ -480,11 +568,43 @@ async function readPassThroughProbeDiagnostics(app, probe) {
       })),
       probeBounds: probeWindow?.getBounds() ?? null,
       probeVisible: probeWindow?.isVisible() ?? null,
+      windows,
     };
   }, probe.id);
+  const overlayWindow = electron.windows.find((candidate) => candidate.id !== probe.id);
+  const overlayPage = await app
+    .windows()
+    .find((candidate) => candidate !== probe.page)
+    ?.evaluate(
+      ({ point, bounds }) => {
+        const clientX = point.x - (bounds?.x ?? 0);
+        const clientY = point.y - (bounds?.y ?? 0);
+        const element = document.elementFromPoint(clientX, clientY);
+        return {
+          clicks: window.__sageOsSmokeOverlayClicks ?? 0,
+          clickTargets: window.__sageOsSmokeOverlayClickTargets ?? [],
+          clientPoint: { x: clientX, y: clientY },
+          elementAtClick:
+            element instanceof HTMLElement
+              ? {
+                  tagName: element.tagName,
+                  className: element.className,
+                  ariaLabel: element.getAttribute("aria-label"),
+                  text: element.textContent?.trim().slice(0, 120) ?? "",
+                }
+              : null,
+          surface: document.querySelector("sageos-overlay-app")?.dataset.surface ?? null,
+        };
+      },
+      { point: probe.clickPoint, bounds: overlayWindow?.bounds ?? null },
+    )
+    .catch((error) => ({ error: String(error) }));
   return {
     clickPoint: probe.clickPoint,
+    probeNativeHandle: probe.nativeHandle,
+    nativeClick,
     probePage,
+    overlayPage,
     targetBox,
     electron,
   };
@@ -568,6 +688,108 @@ async function assertVoiceEntry(page) {
     "Voice input is not available in this Electron runtime.",
     "Voice input explains unavailable runtime support",
   );
+}
+
+async function waitForGatewayActionsReady(page) {
+  await page.waitForFunction(
+    () => {
+      const buttonByLabel = (label) =>
+        Array.from(document.querySelectorAll("button")).find(
+          (button) => button.textContent?.trim() === label,
+        );
+      return ["Pause", "Resume", "Stop", "Emergency stop", "Run next"].every((label) => {
+        const button = buttonByLabel(label);
+        return button instanceof HTMLButtonElement && !button.disabled;
+      });
+    },
+    undefined,
+    { timeout: 5_000 },
+  );
+}
+
+async function waitForAgentWorkspaceInViewport(page, expectedText) {
+  try {
+    await page.waitForFunction(
+      (text) => {
+        const workspace = document.querySelector(".agent-workspace");
+        if (!(workspace instanceof HTMLElement) || !workspace.textContent?.includes(text)) {
+          return false;
+        }
+        const workspaceRect = workspace.getBoundingClientRect();
+        const previewFact = Array.from(workspace.querySelectorAll(".agent-workspace__fact")).find(
+          (fact) => fact.textContent?.includes(text),
+        );
+        const previewRect =
+          previewFact instanceof HTMLElement ? previewFact.getBoundingClientRect() : null;
+        return (
+          workspaceRect.top >= 0 &&
+          workspaceRect.top < window.innerHeight * 0.45 &&
+          workspaceRect.height > 160 &&
+          Boolean(previewRect) &&
+          previewRect.top >= 0 &&
+          previewRect.bottom <= window.innerHeight &&
+          previewRect.height > 24
+        );
+      },
+      expectedText,
+      { timeout: 5_000 },
+    );
+  } catch (error) {
+    const diagnostics = await page.evaluate((text) => {
+      const workspace = document.querySelector(".agent-workspace");
+      const content = document.querySelector(".overlay-content");
+      const workspaceRect =
+        workspace instanceof HTMLElement ? workspace.getBoundingClientRect() : null;
+      const contentRect = content instanceof HTMLElement ? content.getBoundingClientRect() : null;
+      return {
+        expectedText: text,
+        hasWorkspace: workspace instanceof HTMLElement,
+        workspaceIncludesText: workspace?.textContent?.includes(text) ?? false,
+        factRects:
+          workspace instanceof HTMLElement
+            ? Array.from(workspace.querySelectorAll(".agent-workspace__fact")).map((fact) => {
+                const rect = fact.getBoundingClientRect();
+                return {
+                  text: fact.textContent?.replace(/\s+/g, " ").trim().slice(0, 90) ?? "",
+                  top: rect.top,
+                  bottom: rect.bottom,
+                  height: rect.height,
+                };
+              })
+            : [],
+        workspaceRect: workspaceRect
+          ? {
+              top: workspaceRect.top,
+              bottom: workspaceRect.bottom,
+              height: workspaceRect.height,
+            }
+          : null,
+        contentRect: contentRect
+          ? {
+              top: contentRect.top,
+              bottom: contentRect.bottom,
+              height: contentRect.height,
+            }
+          : null,
+        contentScroll:
+          content instanceof HTMLElement
+            ? {
+                scrollTop: content.scrollTop,
+                scrollHeight: content.scrollHeight,
+                clientHeight: content.clientHeight,
+              }
+            : null,
+        viewportHeight: window.innerHeight,
+      };
+    }, expectedText);
+    throw new Error(
+      [
+        `Timed out waiting for Agent Workspace to scroll into view with text: ${expectedText}`,
+        JSON.stringify(diagnostics, null, 2),
+      ].join("\n"),
+      { cause: error },
+    );
+  }
 }
 
 async function assertKeyboardFocusOrder(page) {
@@ -1203,7 +1425,30 @@ function createSmokeState() {
         startedAt: now,
       },
     ],
-    codingReports: [],
+    codingReports: [
+      {
+        id: "coding_report_task_1",
+        taskId: "task_1",
+        repoPath: repoRoot,
+        objective: "Summarize coding work",
+        outcome: "succeeded",
+        tests: [{ command: "node test.js", exitCode: 0 }],
+        blockers: [],
+        preState: { branch: "main", dirty: false, changedFiles: [] },
+        postState: {
+          branch: "codex/activity-events-ingest",
+          dirty: true,
+          changedFiles: ["README.md"],
+        },
+        diff: { changedFiles: ["README.md"] },
+        verificationRefs: ["test:node test.js"],
+        rollback: "Revert README.md changes.",
+        startedAt: now,
+        finishedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
     workflows: [],
     skills: [],
     apps: [],

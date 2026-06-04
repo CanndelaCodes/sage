@@ -73,6 +73,7 @@ Verification build SHA: `26a023428698`
 - [x] Liquid Linear command glass tokens cover refraction, specular highlights, platinum tint, command/focus/control shadows, runway highlights, and spring motion.
 - [x] Live overlay no longer uses dot-matrix or full-screen texture; Vitreous Liquor remains inspiration while depth comes from clear glass material, rim light, blur, specular highlights, and shadow.
 - [x] Command Deck opens on active run telemetry when a live run exists, including worker session, current tool, budget used, verification, timeline, logs, and artifacts.
+- [x] Agent Workspace resolves active-run artifact refs into operator-readable previews for known coding reports, app candidates, workflows, skills, collaborations, and approvals.
 - [x] Command Deck exposes first-class Security and PC Management system resources with Agent Workspace drill-downs.
 - [x] Private and secret observation bodies are redacted in Command Deck resource rows and Agent Workspace detail.
 - [x] Approval workspace detail exposes scope, preview, rollback, evidence, linked resources, expiration, and approve/deny actions.
@@ -118,7 +119,7 @@ Verification build SHA: `26a023428698`
 - Visual review companion update: `pnpm --dir apps/windows-overlay review:visual:all` passed
   on 2026-06-04. It ran the packaged Electron smoke, regenerated
   `apps/windows-overlay/dist/overlay-visual-review.html`, launched
-  `C:\Program Files\Google\Chrome\Application\chrome.exe`, loaded all 10 smoke screenshots,
+  `C:\Program Files\Google\Chrome\Application\chrome.exe`, loaded all 11 smoke screenshots,
   found 8 acceptance criteria, 8 reviewer rubric rows, 24 acceptance decision controls,
   3 release decision cards, found 0 broken images, found 0 horizontal overflow, saved
   `apps/windows-overlay/dist/overlay-visual-review-render.png` for review, and wrote
@@ -129,10 +130,19 @@ Verification build SHA: `26a023428698`
   visual-review contact-sheet screenshots and confirmed the overlay now preserves desktop context
   while reading as a sleeker glass control surface.
 - Current package gates after the latest verification sweep: `pnpm --dir apps/windows-overlay test`
-  passed with 14 files and 95 tests, `pnpm --dir apps/windows-overlay typecheck` passed, and
-  `pnpm --dir apps/windows-overlay build` passed.
+  passed with 14 files and 95 tests, `pnpm --dir apps/windows-overlay typecheck` passed,
+  `pnpm --dir apps/windows-overlay build` passed, `pnpm --dir apps/windows-overlay review:visual:all`
+  passed with 11 screenshots, and root `pnpm check` passed.
+- Active-run artifact preview update: `pnpm --dir apps/windows-overlay exec vitest run
+tests/overlay-renderer.test.ts -t "workspace details" --reporter verbose` first failed because the
+  run workspace only exposed raw artifact IDs, then passed after the Agent Workspace started resolving
+  known artifact refs into preview summaries such as coding report outcome, changed files, and tests.
+  `pnpm --dir apps/windows-overlay test`, `pnpm --dir apps/windows-overlay typecheck`, and targeted
+  `pnpm exec oxlint apps/windows-overlay/src/renderer/overlay-app.ts
+apps/windows-overlay/tests/overlay-renderer.test.ts` passed after the change.
 - Visual spot check after the latest smoke run: Codex inspected
   `apps/windows-overlay/dist/overlay-smoke-styled.png`,
+  `apps/windows-overlay/dist/overlay-smoke-workspace-run.png`,
   `apps/windows-overlay/dist/overlay-smoke-full-reduced-motion.png`,
   `apps/windows-overlay/dist/overlay-smoke-edge-dark.png`,
   `apps/windows-overlay/dist/overlay-smoke-hud-ide.png`,

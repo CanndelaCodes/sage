@@ -16,6 +16,11 @@ const screenshots = [
     note: "Primary full-screen control tower with pinned widgets and active run context.",
   },
   {
+    file: "overlay-smoke-workspace-run.png",
+    title: "Run Workspace",
+    note: "Focused Agent Workspace with current tool, logs, and artifact previews.",
+  },
+  {
     file: "overlay-smoke-full-bright.png",
     title: "Bright Desktop",
     note: "Full overlay over a light app/desktop backdrop.",
@@ -91,7 +96,7 @@ const acceptanceCriteria = [
   {
     id: "operations-grade",
     label: "The UI reads as enterprise operations-grade, not marketing-style.",
-    evidence: "Full Command Deck, Agent Workspace content, HUD, Edge Rail",
+    evidence: "Full Command Deck, Run Workspace, HUD, Edge Rail",
   },
   {
     id: "liquid-depth",
@@ -101,7 +106,7 @@ const acceptanceCriteria = [
   {
     id: "linear-density",
     label: "Linear-like row density, command hierarchy, and contrast remain dominant.",
-    evidence: "Full Command Deck, Text-Heavy App, Browser App, IDE App",
+    evidence: "Full Command Deck, Run Workspace, Text-Heavy App, Browser App, IDE App",
   },
 ];
 

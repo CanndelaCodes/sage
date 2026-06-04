@@ -536,7 +536,9 @@ input::placeholder {
 
 .agent-workspace {
   display: grid;
+  align-content: start;
   gap: 10px;
+  min-height: 300px;
 }
 
 .agent-workspace__header {

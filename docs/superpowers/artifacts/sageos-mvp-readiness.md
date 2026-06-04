@@ -245,6 +245,9 @@ Root-gate fix slice verified after the blockers above:
 - Hermes/OpenClaw benchmark pass on 2026-06-04:
   - The main MVP spec now records source-backed lessons from Hermes desktop and OpenClaw: same-agent invariance across surfaces, chat plus operations, live tool/artifact preview, cross-surface continuity, skills/memory separation, gateway security approvals, and keeping web supplemental to the overlay.
   - The benchmark pass adds post-MVP candidates for richer session search/resume, an overlay preview rail, isolated profiles/modes, device pairing/token management, and scoped media preview authorization without expanding the current MVP acceptance gate.
+- Active-run artifact preview closeout on 2026-06-04:
+  - `pnpm --dir apps/windows-overlay exec vitest run tests/overlay-renderer.test.ts -t "workspace details" --reporter verbose` first failed because the run workspace only showed raw artifact IDs, then passed after known artifact refs started resolving to preview summaries in Agent Workspace.
+  - `pnpm --dir apps/windows-overlay test` passed with 14 files and 95 tests, `pnpm --dir apps/windows-overlay typecheck` passed, and targeted oxlint passed for the renderer and renderer test.
 - Public Windows docs closeout on 2026-06-04:
   - The Windows platform docs and README no longer say there is no Windows desktop app. They now document the SageOS Windows overlay MVP shell, its PowerShell launch path, startup shortcut helper, smoke/review commands, and the distinction from the still-planned general Windows node companion.
   - `pnpm exec oxfmt --check README.md docs/platforms/windows.md docs/platforms/index.md docs/superpowers/artifacts/sageos-mvp-readiness.md` passed.
@@ -262,6 +265,7 @@ Root-gate fix slice verified after the blockers above:
 - The Files workspace now maps existing file-scoped tasks, coding diffs, deletion approvals, and system disk checks into file organization suggestions, duplicate candidates, storage pressure, staging moves, cleanup plans, and approval-required deletes.
 - The Coding, Workflows, and Skills workspaces now expose the explicit MVP rows for branch/workspace state, configured Night Shift schedule, repeated patterns, workflow candidates, dry-runs, enabled workflows, skill candidates, and skill provenance.
 - The Memory workspace now exposes the full MVP Memory/SecondBrain surface: health, capture queue, Telegram ingestion, wiki export proof, recent captures, review cards, duplicate/stale candidates, graph health, and doctor status.
+- The Agent Workspace now resolves active-run artifact refs into operator-readable previews for coding reports, app candidates, workflows, skills, collaborations, and approvals, keeping live tool/artifact context in the overlay instead of forcing a browser handoff.
 - Universal Launcher quick actions now support keyboard arrow navigation from the command input with disabled-action skipping, and the Electron smoke exercises the quick-action keyboard path in the built overlay.
 - Electron smoke now fails on clipped or overlapping critical toolbar, launcher, HUD, and Edge Rail controls, adding runtime proof behind the visual text-fit requirement.
 - Overlay visual smoke now explicitly covers dark, bright, text-heavy, browser-like, and IDE-like representative backdrops.

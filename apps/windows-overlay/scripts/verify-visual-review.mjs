@@ -44,9 +44,9 @@ try {
   if (result.title !== "SageOS Overlay MVP Visual Review") {
     throw new Error(`Unexpected visual review title: ${result.title}`);
   }
-  if (result.imageCount !== 10 || result.figureCount !== 10) {
+  if (result.imageCount !== 11 || result.figureCount !== 11) {
     throw new Error(
-      `Expected 10 smoke screenshots, saw ${result.imageCount} images and ${result.figureCount} figures.`,
+      `Expected 11 smoke screenshots, saw ${result.imageCount} images and ${result.figureCount} figures.`,
     );
   }
   if (result.criteriaCount !== 8) {

@@ -108,6 +108,7 @@ export type OverlayTaskRow = {
   state: string;
   owner: string;
   progress: string;
+  latestRunId?: string;
   canQueue: boolean;
   canCancel: boolean;
 };
@@ -240,16 +241,20 @@ export function renderOverlayModel(
   const showIncidentBadge = opts.showIncidentBadge !== false;
   const employeeNames = new Map((state.agents ?? []).map((agent) => [agent.id, agent.name]));
   const runs = state.runs ?? [];
-  const taskRows = (state.tasks ?? []).map((task) => ({
-    id: task.id,
-    title: task.title,
-    detail: task.objective,
-    state: task.state,
-    owner: ownerLabel(task.ownerAgentId, employeeNames),
-    progress: formatRunProgress(latestRunForTask(runs, task.id)),
-    canQueue: task.state === "proposed" || task.state === "waiting_for_policy",
-    canCancel: !["completed", "failed", "cancelled", "expired"].includes(task.state),
-  }));
+  const taskRows = (state.tasks ?? []).map((task) => {
+    const latestRun = latestRunForTask(runs, task.id);
+    return {
+      id: task.id,
+      title: task.title,
+      detail: task.objective,
+      state: task.state,
+      owner: ownerLabel(task.ownerAgentId, employeeNames),
+      progress: formatRunProgress(latestRun),
+      latestRunId: latestRun?.id,
+      canQueue: task.state === "proposed" || task.state === "waiting_for_policy",
+      canCancel: !["completed", "failed", "cancelled", "expired"].includes(task.state),
+    };
+  });
   const approvalRows = (state.approvals ?? []).map((approval) => ({
     id: approval.id,
     title: approval.title,
@@ -793,6 +798,13 @@ export class SageOsOverlayApp extends LitElement {
       error: this.error,
       hasState: Boolean(model),
     });
+    const agentWorkspace =
+      model && surfaceVisibility.agentWorkspace
+        ? renderAgentWorkspace(this.workspaceWithAvailability(model.workspace), {
+            onAction: (action) => void this.runWorkspaceAction(action),
+          })
+        : nothing;
+    const promoteAgentWorkspace = Boolean(this.workspaceTarget);
 
     return html`
       <main class=${`overlay-shell overlay-shell--${this.surface}`}>
@@ -813,12 +825,9 @@ export class SageOsOverlayApp extends LitElement {
                   ? renderPinnedWidgets(model.pinnedWidgets, this.layout.collapsedEdge)
                   : nothing}
                 ${surfaceVisibility.commandDeck ? renderCommandDeck(model.commandDeck.cards) : nothing}
+                ${promoteAgentWorkspace ? agentWorkspace : nothing}
                 ${surfaceVisibility.overview ? this.renderOverviewGroups(model.overview) : nothing}
-                ${surfaceVisibility.agentWorkspace
-                  ? renderAgentWorkspace(this.workspaceWithAvailability(model.workspace), {
-                      onAction: (action) => void this.runWorkspaceAction(action),
-                    })
-                  : nothing}
+                ${promoteAgentWorkspace ? nothing : agentWorkspace}
                 ${surfaceVisibility.operationalRows
                   ? this.renderOperationalRows(model.commandDeck)
                   : nothing}
@@ -1070,6 +1079,18 @@ export class SageOsOverlayApp extends LitElement {
                         Open
                       </button>
                       <button
+                        class="overlay-button"
+                        type="button"
+                        title=${task.latestRunId ? "Open latest run" : "No run yet"}
+                        ?disabled=${!task.latestRunId}
+                        @click=${() =>
+                          task.latestRunId
+                            ? this.openWorkspace({ kind: "run", id: task.latestRunId })
+                            : undefined}
+                      >
+                        Open run
+                      </button>
+                      <button
                         class="overlay-button overlay-button--primary"
                         type="button"
                         title=${this.gatewayActionTitle("Queue", task.canQueue, "Task is not queueable")}
@@ -1285,6 +1306,7 @@ export class SageOsOverlayApp extends LitElement {
   private openWorkspace(target: AgentWorkspaceTarget) {
     this.workspaceTarget = target;
     this.requestUpdate();
+    void this.updateComplete.then(() => this.scrollWorkspaceIntoView());
   }
 
   private openEdgeRailBadge(badge: EdgeRailBadge) {
@@ -1292,6 +1314,15 @@ export class SageOsOverlayApp extends LitElement {
     this.setSurface("commandDeck");
     void window.sageOsOverlay?.expand();
     this.requestUpdate();
+    void this.updateComplete.then(() => this.scrollWorkspaceIntoView());
+  }
+
+  private scrollWorkspaceIntoView() {
+    this.querySelector(".agent-workspace")?.scrollIntoView({
+      block: "start",
+      inline: "nearest",
+      behavior: "auto",
+    });
   }
 
   private workspaceWithAvailability(workspace: AgentWorkspaceView): AgentWorkspaceView {
@@ -1994,6 +2025,7 @@ function buildWorkspaceModel(
         { label: "Timeline", value: formatRunTimeline(run.timeline ?? []) },
         { label: "Logs", value: formatList(run.logs ?? []) },
         { label: "Artifacts", value: formatList(run.artifacts ?? []) },
+        { label: "Artifact previews", value: formatRunArtifactPreviews(state, run.artifacts ?? []) },
         { label: "Error", value: run.error ?? "None" },
       ],
       actions: [],
@@ -3688,6 +3720,62 @@ function formatRunTimeline(
       return `${event.label}${state}${ref}`;
     })
     .join(", ");
+}
+
+function formatRunArtifactPreviews(state: SageOsOverlayStatusState, artifactRefs: string[]): string {
+  return formatList(uniqueStrings(artifactRefs.map((ref) => formatArtifactPreview(state, ref))));
+}
+
+function formatArtifactPreview(state: SageOsOverlayStatusState, ref: string): string {
+  const codingReport = state.codingReports?.find((report) => report.id === ref);
+  if (codingReport) {
+    const changedFiles =
+      codingReport.diff?.changedFiles && codingReport.diff.changedFiles.length > 0
+        ? codingReport.diff.changedFiles.join(", ")
+        : "no changed files";
+    const tests = formatCodingReportTests(codingReport.tests ?? []) || "no tests";
+    return `${ref}: ${codingReport.outcome} / ${changedFiles} / ${tests}`;
+  }
+
+  const appCandidate = state.apps?.find(
+    (app) => app.id === ref || (app.artifactRefs ?? []).includes(ref),
+  );
+  if (appCandidate) {
+    const preview = appCandidate.previewCommand ?? formatList(appCandidate.artifactRefs ?? []);
+    return `${ref}: ${appCandidate.state} ${appCandidate.targetSurface} / ${preview}`;
+  }
+
+  const workflow = state.workflows?.find(
+    (entry) =>
+      entry.id === ref || entry.implementationRefs.includes(ref) || entry.evalRefs.includes(ref),
+  );
+  if (workflow) {
+    const refs = formatList([...workflow.implementationRefs, ...workflow.evalRefs]);
+    return `${ref}: workflow ${workflow.state} / ${refs}`;
+  }
+
+  const skill = state.skills?.find(
+    (entry) => entry.id === ref || entry.provenance.includes(ref) || entry.tests.includes(ref),
+  );
+  if (skill) {
+    return `${ref}: skill ${skill.state} / ${formatList(skill.tests)}`;
+  }
+
+  const collaboration = state.collaborations?.find(
+    (entry) => entry.id === ref || entry.artifactRefs.includes(ref),
+  );
+  if (collaboration) {
+    return `${ref}: ${collaboration.kind} ${collaboration.state} / ${previewInlineText(collaboration.summary)}`;
+  }
+
+  const approval = state.approvals?.find(
+    (entry) => entry.id === ref || entry.evidence.includes(ref),
+  );
+  if (approval) {
+    return `${ref}: approval ${approval.state} / ${previewInlineText(approval.preview ?? approval.proposedAction)}`;
+  }
+
+  return `${ref}: no preview available`;
 }
 
 function formatUsd(value: number): string {

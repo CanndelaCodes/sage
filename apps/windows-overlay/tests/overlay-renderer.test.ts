@@ -529,6 +529,7 @@ describe("overlay renderer model", () => {
         state: "running",
         owner: "Memory Steward",
         progress: "node test.js / 12 min / 9 tool calls",
+        latestRunId: "run_task_1",
         canQueue: false,
         canCancel: true,
       },
@@ -539,6 +540,7 @@ describe("overlay renderer model", () => {
         state: "proposed",
         owner: "Unassigned",
         progress: "No run yet",
+        latestRunId: undefined,
         canQueue: true,
         canCancel: true,
       },
@@ -926,6 +928,7 @@ describe("overlay renderer model", () => {
         },
         { label: "Logs", value: "Started SageOS task task_1 run run_task_1" },
         { label: "Artifacts", value: "coding_report_task_1" },
+        { label: "Artifact previews", value: "coding_report_task_1: succeeded / README.md / node test.js: 0" },
       ]),
     );
     expect(workflowModel.workspace).toMatchObject({
