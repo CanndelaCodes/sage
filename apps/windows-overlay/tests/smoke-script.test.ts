@@ -88,7 +88,11 @@ describe("Electron overlay smoke script", () => {
       "assertVoiceEntry(page)",
       "isVoiceInputAvailable(page)",
       "assertCriticalTextFit(page)",
+      "assertReducedMotion(page)",
+      'reducedMotion: "reduce"',
+      'matchMedia("(prefers-reduced-motion: reduce)")',
       "scrollWidth",
+      "overlay-smoke-full-reduced-motion.png",
       'page.keyboard.press("Escape")',
       'waitForOverlayWindowHidden(app)',
     ]) {

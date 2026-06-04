@@ -74,7 +74,7 @@ Core model:
 | Telegram redacted urgent alerts, digests, approvals, task completion reports                                                                         | Green  | notification module, supervisor digest checks, gateway notification methods, Telegram control tests                                                                                                                                 | Re-run Telegram/notification tests      |
 | Tests, typecheck, lint, and `git diff --check` pass                                                                                                  | Green  | SageOS, overlay, UI, typecheck, lint, build, smoke, and `git diff --check` passed; root `pnpm test` exits 0 after the root-gate and PTY deadline fixes; fresh `pnpm check` passes typecheck, oxlint, and repo-wide formatter checks | Keep gates in final release checklist   |
 | MVP decision log reconciled with implementation                                                                                                      | Green  | May 18 spec `MVP decisions` section now resolves the previous open decisions against current config, state store, event log, policy, notification, observer, app candidate, and overlay defaults                                    | Re-read before final release            |
-| Enterprise-grade Liquid Linear overlay visual gate                                                                                                   | Yellow | Visual contract tests, practical AA text contrast guard, refreshed smoke screenshots, Liquid Linear spec, smoke artifact, `smoke:electron` pass                                                                                     | Jason visual acceptance                 |
+| Enterprise-grade Liquid Linear overlay visual gate                                                                                                   | Yellow | Visual contract tests, practical AA text contrast guard, runtime reduced-motion smoke, refreshed smoke screenshots, Liquid Linear spec, smoke artifact, `smoke:electron` pass                                                       | Jason visual acceptance                 |
 
 ## Verification Results
 
@@ -224,6 +224,10 @@ Root-gate fix slice verified after the blockers above:
   - `pnpm --dir apps/windows-overlay build` passed.
   - `pnpm --dir apps/windows-overlay smoke:electron` passed with `buildSha: 82b329a738d1`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, and `rendererErrors: 0`.
   - `apps/windows-overlay/dist/overlay-smoke-edge-dark.png` was visually inspected and showed readable Edge Rail controls and pinned widgets over the dark synthetic backdrop.
+- Reduced-motion runtime closeout on 2026-06-04:
+  - `pnpm --dir apps/windows-overlay exec vitest run tests/smoke-script.test.ts --reporter verbose` first failed because the Electron smoke runner did not enforce reduced-motion behavior, then passed with 1 file and 4 tests after the smoke emulated `prefers-reduced-motion: reduce` and rejected visible critical controls with transition or animation durations above 1ms.
+  - `pnpm --dir apps/windows-overlay smoke:electron` passed with `buildSha: 26a023428698`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, `rendererErrors: 0`, and refreshed `overlay-smoke-full-reduced-motion.png`.
+  - `apps/windows-overlay/dist/overlay-smoke-full-reduced-motion.png` was visually inspected and showed the full Command Deck remained stable and readable under the reduced-motion media setting.
 
 ## Current Green Areas
 
@@ -239,6 +243,7 @@ Root-gate fix slice verified after the blockers above:
 - Universal Launcher quick actions now support keyboard arrow navigation from the command input with disabled-action skipping, and the Electron smoke exercises the quick-action keyboard path in the built overlay.
 - Electron smoke now fails on clipped or overlapping critical toolbar, launcher, HUD, and Edge Rail controls, adding runtime proof behind the visual text-fit requirement.
 - Overlay visual smoke now explicitly covers dark, bright, text-heavy, browser-like, and IDE-like representative backdrops.
+- Electron smoke now emulates `prefers-reduced-motion: reduce`, fails if visible critical controls keep transition or animation durations above 1ms, and captures a reduced-motion full-overlay screenshot.
 - Liquid Linear command glass is tokenized and test-covered in the overlay visual contract, including HUD, Edge Rail, ambient pinned widgets, foreground stacking above specular material layers, and practical AA normal-text contrast over representative Windows app backdrops.
 - Incidents now cover source failure, queue backlog, policy block, memory doctor failure, notification failure, worker failure, budget exhaustion, and security findings.
 - Web supplemental incident repair now uses the same safe repair method allowlist as the overlay for the generated safe incident classes.

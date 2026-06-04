@@ -51,6 +51,7 @@ try {
         screenshots: {
           full: path.join(screenshotDir, "overlay-smoke-styled.png"),
           fullBright: path.join(screenshotDir, "overlay-smoke-full-bright.png"),
+          fullReducedMotion: path.join(screenshotDir, "overlay-smoke-full-reduced-motion.png"),
           edgeLeft: path.join(screenshotDir, "overlay-smoke-edge-left.png"),
           edgeDark: path.join(screenshotDir, "overlay-smoke-edge-dark.png"),
           edgeTextHeavy: path.join(screenshotDir, "overlay-smoke-edge-text-heavy.png"),
@@ -98,6 +99,12 @@ async function smokeFullOverlay(gatewayUrl, rendererErrors) {
       path: path.join(screenshotDir, "overlay-smoke-styled.png"),
       animations: "disabled",
     });
+    await assertReducedMotion(page);
+    await page.screenshot({
+      path: path.join(screenshotDir, "overlay-smoke-full-reduced-motion.png"),
+      animations: "disabled",
+    });
+    await page.emulateMedia({ reducedMotion: "no-preference" });
     await setVisualBackdrop(page, "bright");
     await page.screenshot({
       path: path.join(screenshotDir, "overlay-smoke-full-bright.png"),
@@ -646,6 +653,64 @@ async function assertCriticalTextFit(page) {
 
   if (failures.length > 0) {
     throw new Error(`Critical overlay text/control fit failed:\n${failures.join("\n")}`);
+  }
+}
+
+async function assertReducedMotion(page) {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const failures = await page.evaluate(() => {
+    const issues = [];
+    const parseCssDurationMs = (value) => {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return 0;
+      }
+      if (trimmed.endsWith("ms")) {
+        return Number.parseFloat(trimmed) || 0;
+      }
+      if (trimmed.endsWith("s")) {
+        return (Number.parseFloat(trimmed) || 0) * 1000;
+      }
+      return Number.parseFloat(trimmed) || 0;
+    };
+    const visibleElements = Array.from(
+      document.querySelectorAll(
+        ".overlay-shell, .overlay-toolbar button, .universal-launcher button, .universal-launcher input, .pinned-widget, .compact-hud, .edge-rail",
+      ),
+    ).filter((element) => {
+      if (!(element instanceof HTMLElement)) {
+        return false;
+      }
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+    });
+
+    if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      issues.push("prefers-reduced-motion media query did not match reduce");
+    }
+
+    for (const element of visibleElements) {
+      const style = getComputedStyle(element);
+      const durations = [
+        ...style.transitionDuration.split(","),
+        ...style.animationDuration.split(","),
+      ].map(parseCssDurationMs);
+      const longestDuration = Math.max(0, ...durations);
+      if (longestDuration > 1) {
+        const label =
+          element.getAttribute("aria-label") ||
+          element.textContent?.replace(/\s+/g, " ").trim() ||
+          element.tagName.toLowerCase();
+        issues.push(`${label} keeps ${longestDuration}ms motion under reduced motion`);
+      }
+    }
+
+    return issues;
+  });
+
+  if (failures.length > 0) {
+    throw new Error(`Reduced-motion overlay smoke failed:\n${failures.join("\n")}`);
   }
 }
 
