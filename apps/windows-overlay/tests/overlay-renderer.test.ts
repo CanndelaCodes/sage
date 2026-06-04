@@ -305,6 +305,59 @@ const state = {
       text: "Active app focus: Code - SageOS",
       observedAt: "2026-06-01T12:55:00.000Z",
     },
+    {
+      id: "obs_system_security",
+      source: "system",
+      state: "captured",
+      title: "System status",
+      text: "System status: 7 check(s), 1 warning(s), 0 failure(s).",
+      observedAt: "2026-06-01T12:54:00.000Z",
+      payload: {
+        checkedAt: "2026-06-01T12:54:00.000Z",
+        checks: [
+          {
+            id: "defender",
+            label: "Defender",
+            status: "warning",
+            summary: "Defender needs review.",
+          },
+          {
+            id: "startup",
+            label: "Startup",
+            status: "ok",
+            summary: "3 startup item(s) visible.",
+          },
+          {
+            id: "scheduled_tasks",
+            label: "Scheduled Tasks",
+            status: "ok",
+            summary: "12 scheduled task(s) visible.",
+          },
+          {
+            id: "firewall",
+            label: "Firewall",
+            status: "ok",
+            summary: "Firewall profiles enabled.",
+          },
+          {
+            id: "ports",
+            label: "Listening Ports",
+            status: "ok",
+            summary: "8 listening TCP port(s) visible.",
+          },
+          {
+            id: "downloads",
+            label: "Downloaded Executables",
+            status: "ok",
+            summary: "2 recent executable installer(s).",
+            details: {
+              count: 2,
+              latest: "C:/Users/jason/Downloads/setup.exe",
+            },
+          },
+        ],
+      },
+    },
   ],
   collaborations: [
     {
@@ -448,6 +501,7 @@ describe("overlay renderer model", () => {
       "Skill: Review repeated Code focus",
       "Code Focus Widget",
       "Code: SageOS",
+      "System status",
       "Review memory queue",
     ]);
     expect(model.commandDeck.systemResources.map((resource) => resource.title)).toEqual([
@@ -831,6 +885,24 @@ describe("overlay renderer model", () => {
         { label: "Urgent incidents", value: "0" },
         { label: "Warning incidents", value: "1" },
         { label: "Failing sources", value: "screen" },
+        { label: "Defender/Security", value: "warning / Defender needs review." },
+        { label: "Suspicious process incidents", value: "0 active" },
+        {
+          label: "Startup/tasks",
+          value:
+            "Startup: 3 startup item(s) visible. / Scheduled Tasks: 12 scheduled task(s) visible.",
+        },
+        {
+          label: "Firewall/listeners",
+          value:
+            "Firewall: Firewall profiles enabled. / Listening Ports: 8 listening TCP port(s) visible.",
+        },
+        {
+          label: "Downloaded executables",
+          value: "2 recent / latest C:/Users/jason/Downloads/setup.exe",
+        },
+        { label: "Security Sentinel activity", value: "1 pending approval / latest Approve repair" },
+        { label: "Pending remediation approvals", value: "1 pending" },
       ]),
     );
     expect(pcManagementModel.workspace).toMatchObject({

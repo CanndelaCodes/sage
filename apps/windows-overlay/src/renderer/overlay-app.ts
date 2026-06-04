@@ -2738,6 +2738,182 @@ function formatAuditIncidentBundle(state: SageOsOverlayStatusState): string {
   return bundles.length > 0 ? bundles.join("; ") : `No active incidents / event log ${eventLog}`;
 }
 
+function securityWorkspaceFacts(state: SageOsOverlayStatusState): AgentWorkspaceView["facts"] {
+  const status = state.status;
+  const checks = systemChecksFromObservation(latestSystemObservationRecord(state));
+  const defender = findSystemCheck(checks, /defender|security/);
+  const startup = findSystemCheck(checks, /startup/);
+  const scheduledTasks = findSystemCheck(checks, /scheduled.*task|task scheduler/);
+  const firewall = findSystemCheck(checks, /firewall/);
+  const listeners = findSystemCheck(checks, /listening.*port|listener|ports?/);
+  const downloads = findSystemCheck(checks, /download|installer|executable/);
+  const remediationApprovals = securityRemediationApprovals(state);
+  const pendingRemediationApprovals = remediationApprovals.filter(
+    (approval) => approval.state === "pending",
+  );
+
+  return [
+    { label: "Urgent incidents", value: String(countUrgentIncidents(status)) },
+    { label: "Warning incidents", value: String(countWarningIncidents(status)) },
+    { label: "Failing sources", value: status.sources.failing.join(", ") || "None" },
+    { label: "Incident total", value: String(status.incidents.length) },
+    {
+      label: "Approval gates",
+      value: status.policy.approvalsRequired.join(", ") || "No extra approvals",
+    },
+    { label: "Defender/Security", value: formatSystemCheckStatus(defender) },
+    {
+      label: "Suspicious process incidents",
+      value: `${securityProcessIncidentCount(status)} active`,
+    },
+    {
+      label: "Startup/tasks",
+      value: formatSystemCheckPair("Startup", startup, "Scheduled Tasks", scheduledTasks),
+    },
+    {
+      label: "Firewall/listeners",
+      value: formatSystemCheckPair("Firewall", firewall, "Listening Ports", listeners),
+    },
+    { label: "Downloaded executables", value: formatDownloadedExecutables(downloads) },
+    {
+      label: "Security Sentinel activity",
+      value: securitySentinelActivity(pendingRemediationApprovals),
+    },
+    {
+      label: "Pending remediation approvals",
+      value: countLabel(pendingRemediationApprovals.length, "pending"),
+    },
+  ];
+}
+
+type OverlaySystemCheck = {
+  id: string;
+  label: string;
+  status: string;
+  summary: string;
+  details?: Record<string, unknown>;
+};
+
+function latestSystemObservationRecord(
+  state: SageOsOverlayStatusState,
+): OverlayObservationRecord | undefined {
+  return latestByTimestamp(
+    (state.observations ?? []).filter(
+      (observation) => observation.source === "system" && observation.state === "captured",
+    ),
+    (observation) => observation.observedAt ?? observation.updatedAt ?? observation.createdAt,
+  );
+}
+
+function systemChecksFromObservation(
+  observation: OverlayObservationRecord | undefined,
+): OverlaySystemCheck[] {
+  const payload = isPlainRecord(observation?.payload) ? observation.payload : {};
+  const checks = Array.isArray(payload.checks) ? payload.checks : [];
+  return checks.map(readOverlaySystemCheck).filter((check): check is OverlaySystemCheck => Boolean(check));
+}
+
+function readOverlaySystemCheck(value: unknown): OverlaySystemCheck | undefined {
+  if (!isPlainRecord(value)) {
+    return undefined;
+  }
+  const id = readRecordString(value, "id");
+  const label = readRecordString(value, "label");
+  if (!id && !label) {
+    return undefined;
+  }
+  const details = isPlainRecord(value.details) ? value.details : undefined;
+  return {
+    id,
+    label: label || id,
+    status: readRecordString(value, "status") || "unknown",
+    summary: readRecordString(value, "summary"),
+    ...(details ? { details } : {}),
+  };
+}
+
+function findSystemCheck(
+  checks: OverlaySystemCheck[],
+  pattern: RegExp,
+): OverlaySystemCheck | undefined {
+  return checks.find((check) => pattern.test(`${check.id} ${check.label}`));
+}
+
+function formatSystemCheckStatus(check: OverlaySystemCheck | undefined): string {
+  return check ? `${check.status} / ${check.summary || "No summary"}` : "Not reported";
+}
+
+function formatSystemCheckPair(
+  firstLabel: string,
+  first: OverlaySystemCheck | undefined,
+  secondLabel: string,
+  second: OverlaySystemCheck | undefined,
+): string {
+  return `${first?.label ?? firstLabel}: ${first?.summary ?? "Not reported"} / ${
+    second?.label ?? secondLabel
+  }: ${second?.summary ?? "Not reported"}`;
+}
+
+function formatDownloadedExecutables(check: OverlaySystemCheck | undefined): string {
+  if (!check) {
+    return "Not reported";
+  }
+  const count = readRecordNumber(check.details, "count");
+  const latest =
+    readRecordString(check.details, "latest") ||
+    readRecordString(check.details, "latestPath") ||
+    readRecordString(check.details, "path");
+  if (typeof count === "number") {
+    return `${count} recent / latest ${latest || "unknown"}`;
+  }
+  return check.summary || "No summary";
+}
+
+function securityProcessIncidentCount(status: SageOsOverlayStatusState["status"]): number {
+  return status.incidents.filter((incident) =>
+    /security|suspicious|process|malware|defender/i.test(
+      `${incident.category} ${incident.title} ${incident.summary}`,
+    ),
+  ).length;
+}
+
+function securityRemediationApprovals(state: SageOsOverlayStatusState): OverlayApprovalRecord[] {
+  return (state.approvals ?? []).filter((approval) =>
+    /security sentinel|security|firewall|quarantine|remediation|repair/i.test(
+      `${approval.requestedBy ?? ""} ${approval.domain ?? ""} ${approval.riskClass ?? ""} ${
+        approval.proposedAction ?? ""
+      } ${approval.title}`,
+    ),
+  );
+}
+
+function securitySentinelActivity(approvals: OverlayApprovalRecord[]): string {
+  const latestApproval = latestByTimestamp(approvals, (approval) => approval.requestedAt);
+  return `${countLabel(approvals.length, "pending approval")} / latest ${
+    latestApproval?.title ?? "None"
+  }`;
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readRecordString(
+  record: Record<string, unknown> | undefined,
+  key: string,
+): string {
+  const value = record?.[key];
+  return typeof value === "string" ? value : "";
+}
+
+function readRecordNumber(
+  record: Record<string, unknown> | undefined,
+  key: string,
+): number | undefined {
+  const value = record?.[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
 function systemWorkspaceModel(
   state: SageOsOverlayStatusState,
   id: string,
@@ -2773,16 +2949,7 @@ function systemWorkspaceModel(
       title: "Security",
       eyebrow: `System / ${securitySystemState(status)}`,
       detail: "Security posture from urgent incidents, warning incidents, and failing PC sources.",
-      facts: [
-        { label: "Urgent incidents", value: String(countUrgentIncidents(status)) },
-        { label: "Warning incidents", value: String(countWarningIncidents(status)) },
-        { label: "Failing sources", value: status.sources.failing.join(", ") || "None" },
-        { label: "Incident total", value: String(status.incidents.length) },
-        {
-          label: "Approval gates",
-          value: status.policy.approvalsRequired.join(", ") || "No extra approvals",
-        },
-      ],
+      facts: securityWorkspaceFacts(state),
       actions: [],
     };
   }
@@ -3124,6 +3291,7 @@ function ownerLabel(ownerAgentId: string | undefined, employeeNames: Map<string,
 type OverlayEmployeeRecord = NonNullable<SageOsOverlayStatusState["agents"]>[number];
 type OverlayTaskRecord = NonNullable<SageOsOverlayStatusState["tasks"]>[number];
 type OverlayRunRecordForState = NonNullable<SageOsOverlayStatusState["runs"]>[number];
+type OverlayApprovalRecord = NonNullable<SageOsOverlayStatusState["approvals"]>[number];
 type OverlayCodingReportRecord = NonNullable<SageOsOverlayStatusState["codingReports"]>[number];
 type OverlayWorkflowRecord = NonNullable<SageOsOverlayStatusState["workflows"]>[number];
 type OverlaySkillRecord = NonNullable<SageOsOverlayStatusState["skills"]>[number];
