@@ -167,6 +167,17 @@ Root-gate fix slice verified after the blockers above:
   - `pnpm check` passed with `pnpm tsgo`, oxlint 0 warnings and 0 errors, and repo-wide `oxfmt --check`.
   - `git diff --check -- src/sageos/system-observer.ts src/sageos/system-observer.test.ts apps/windows-overlay/src/renderer/overlay-app.ts apps/windows-overlay/tests/overlay-renderer.test.ts` passed.
   - `pnpm --dir apps/windows-overlay smoke:electron` passed post-commit with `buildSha: 98d2cd4c1933`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, and `rendererErrors: 0`.
+- Coding, Workflow, and Skills workspace closeout on 2026-06-04:
+  - `pnpm --dir apps/windows-overlay exec vitest run tests/overlay-renderer.test.ts --reporter verbose` first failed on missing Coding/Night Shift branch-workspace and schedule rows, then on missing Workflows and Skills must-show rows, then passed with 1 file and 28 tests.
+  - The Coding workspace now surfaces branch/workspace state and Night Shift schedule state in addition to allowed repos, running workers, diffs, tests, blockers, and reports.
+  - The Workflows workspace now surfaces repeated patterns, workflow candidates, draft workflows, dry-run results, enabled workflow count, and recent workflow-run availability.
+  - The Skills workspace now surfaces skill candidates and skill changes/provenance in addition to workflow links, triggers, tests, allowed scopes, and rollback refs.
+  - `pnpm --dir apps/windows-overlay test` passed with 13 files and 87 tests.
+  - `pnpm --dir apps/windows-overlay typecheck` passed.
+  - `pnpm --dir apps/windows-overlay build` passed.
+  - `pnpm check` passed with `pnpm tsgo`, oxlint 0 warnings and 0 errors, and repo-wide `oxfmt --check`.
+  - `git diff --check -- apps/windows-overlay/src/renderer/overlay-app.ts apps/windows-overlay/tests/overlay-renderer.test.ts` passed.
+  - `pnpm --dir apps/windows-overlay smoke:electron` passed post-commit with `buildSha: fa2e44460f7f`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, and `rendererErrors: 0`.
 
 ## Current Green Areas
 
@@ -176,6 +187,7 @@ Root-gate fix slice verified after the blockers above:
 - The Overview now explicitly shows autonomy intervention controls, including pause/stop and the path to narrow autonomy through Policy, so the default overlay answers how to interrupt autonomous work without first drilling into another workspace.
 - The Security workspace now maps read-only system checks into operator-facing posture rows for Defender, startup/tasks, firewall/listeners, downloads, Security Sentinel activity, and pending remediation approvals.
 - The PC Management workspace now maps read-only system checks into operator-facing rows for disk, CPU/RAM, power, updates, services, startup apps, scheduled tasks, cleanup opportunities, broken services, and safe repair actions.
+- The Coding, Workflows, and Skills workspaces now expose the explicit MVP rows for branch/workspace state, Night Shift schedule, repeated patterns, workflow candidates, dry-runs, enabled workflows, skill candidates, and skill provenance.
 - The Memory workspace now exposes the full MVP Memory/SecondBrain surface: health, capture queue, Telegram ingestion, wiki export proof, recent captures, review cards, duplicate/stale candidates, graph health, and doctor status.
 - Liquid Linear command glass is tokenized and test-covered in the overlay visual contract, including HUD, Edge Rail, ambient pinned widgets, foreground stacking above specular material layers, and practical AA normal-text contrast over representative Windows app backdrops.
 - Incidents now cover source failure, queue backlog, policy block, memory doctor failure, notification failure, worker failure, budget exhaustion, and security findings.
