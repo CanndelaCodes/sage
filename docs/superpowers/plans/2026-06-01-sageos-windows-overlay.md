@@ -1615,6 +1615,8 @@ Update `apps/windows-overlay/package.json` scripts:
 - [x] **Step 3: Add manual smoke checklist**
 
 Create `docs/superpowers/artifacts/sageos-windows-overlay-smoke.md`.
+The unchecked boxes in the template below are historical scaffolding; current completed
+verification lives in `docs/superpowers/artifacts/sageos-windows-overlay-smoke.md`.
 
 ```markdown
 # SageOS Windows Overlay Smoke Checklist
