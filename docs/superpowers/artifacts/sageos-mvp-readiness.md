@@ -187,6 +187,16 @@ Root-gate fix slice verified after the blockers above:
   - `pnpm check` passed with `pnpm tsgo`, oxlint 0 warnings and 0 errors, and repo-wide `oxfmt --check`.
   - `git diff --check -- apps/windows-overlay/src/renderer/overlay-app.ts apps/windows-overlay/tests/overlay-renderer.test.ts` passed.
   - `pnpm --dir apps/windows-overlay smoke:electron` passed post-commit with `buildSha: 5e085254f756`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, and `rendererErrors: 0`.
+- Night Shift schedule closeout on 2026-06-04:
+  - `pnpm exec vitest run --config vitest.config.ts src/sageos/status.test.ts -t "Night Shift schedule" --reporter verbose` first failed because supervisor status did not expose the configured Night Shift schedule, then passed after the shared status contract surfaced `nightShiftEnabled` and `nightShiftWindow`.
+  - `pnpm --dir apps/windows-overlay exec vitest run tests/overlay-renderer.test.ts --reporter verbose` first failed because the Coding workspace still showed `Manual / no schedule reported`, then passed with 1 file and 29 tests after the overlay rendered the configured schedule and kept employee-schedule/manual fallbacks.
+  - `pnpm exec vitest run --config vitest.config.ts src/sageos/status.test.ts src/sageos/types.test.ts src/sageos/status-renderer.test.ts --reporter verbose` passed with 3 files and 17 tests.
+  - `pnpm --dir apps/windows-overlay test` passed with 13 files and 88 tests.
+  - `pnpm --dir apps/windows-overlay typecheck` passed.
+  - `pnpm --dir apps/windows-overlay build` passed.
+  - `pnpm check` passed with `pnpm tsgo`, oxlint 0 warnings and 0 errors, and repo-wide `oxfmt --check`.
+  - `git diff --check -- src/sageos/types.ts src/sageos/status.ts src/sageos/status.test.ts apps/windows-overlay/src/renderer/overlay-app.ts apps/windows-overlay/tests/overlay-renderer.test.ts` passed.
+  - `pnpm --dir apps/windows-overlay smoke:electron` passed post-commit with `buildSha: fe3797b09444`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, and `rendererErrors: 0`.
 
 ## Current Green Areas
 
@@ -197,7 +207,7 @@ Root-gate fix slice verified after the blockers above:
 - The Security workspace now maps read-only system checks into operator-facing posture rows for Defender, startup/tasks, firewall/listeners, downloads, Security Sentinel activity, and pending remediation approvals.
 - The PC Management workspace now maps read-only system checks into operator-facing rows for disk, CPU/RAM, power, updates, services, startup apps, scheduled tasks, cleanup opportunities, broken services, and safe repair actions.
 - The Files workspace now maps existing file-scoped tasks, coding diffs, deletion approvals, and system disk checks into file organization suggestions, duplicate candidates, storage pressure, staging moves, cleanup plans, and approval-required deletes.
-- The Coding, Workflows, and Skills workspaces now expose the explicit MVP rows for branch/workspace state, Night Shift schedule, repeated patterns, workflow candidates, dry-runs, enabled workflows, skill candidates, and skill provenance.
+- The Coding, Workflows, and Skills workspaces now expose the explicit MVP rows for branch/workspace state, configured Night Shift schedule, repeated patterns, workflow candidates, dry-runs, enabled workflows, skill candidates, and skill provenance.
 - The Memory workspace now exposes the full MVP Memory/SecondBrain surface: health, capture queue, Telegram ingestion, wiki export proof, recent captures, review cards, duplicate/stale candidates, graph health, and doctor status.
 - Liquid Linear command glass is tokenized and test-covered in the overlay visual contract, including HUD, Edge Rail, ambient pinned widgets, foreground stacking above specular material layers, and practical AA normal-text contrast over representative Windows app backdrops.
 - Incidents now cover source failure, queue backlog, policy block, memory doctor failure, notification failure, worker failure, budget exhaustion, and security findings.
