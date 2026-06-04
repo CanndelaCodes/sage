@@ -2354,8 +2354,8 @@ function fileWorkspaceSummary(state: SageOsOverlayStatusState): FilesWorkspaceSu
   );
   return {
     recentSuggestions: formatList(fileScopedTasks.map((task) => `${task.title} (${task.state})`)),
-    duplicateCandidates: "Not reported",
-    storagePressure: "Not reported",
+    duplicateCandidates: formatFileDuplicateCandidates(cleanupTasks),
+    storagePressure: formatFileStoragePressure(state, cleanupTasks),
     changedFiles: formatList(changedFiles),
     stagingMoves: changedFiles.length > 0 ? `${changedFiles.length} changed file(s)` : "None",
     cleanupPlans: formatList(cleanupTasks.map((task) => `${task.title} (${task.state})`)),
@@ -2366,6 +2366,33 @@ function fileWorkspaceSummary(state: SageOsOverlayStatusState): FilesWorkspaceSu
     cleanupPlanCount: cleanupTasks.length,
     deleteApprovalCount: deleteApprovals.length,
   };
+}
+
+function formatFileDuplicateCandidates(tasks: OverlayTaskRecord[]): string {
+  const duplicateTasks = tasks.filter((task) => textMatchesAny(`${task.title} ${task.objective}`, ["duplicate"]));
+  if (duplicateTasks.length === 0) {
+    return "None";
+  }
+  return `${countLabel(duplicateTasks.length, "candidate")} / ${formatList(
+    duplicateTasks.map((task) => task.title),
+  )}`;
+}
+
+function formatFileStoragePressure(state: SageOsOverlayStatusState, cleanupTasks: OverlayTaskRecord[]): string {
+  const checks = systemChecksFromObservation(latestSystemObservationRecord(state));
+  const disk = findSystemCheck(checks, /disk|storage/);
+  if (disk) {
+    return formatSystemCheckStatus(disk);
+  }
+  const storageTasks = cleanupTasks.filter((task) =>
+    textMatchesAny(`${task.title} ${task.objective}`, ["large file", "storage", "downloads"]),
+  );
+  if (storageTasks.length === 0) {
+    return "Not reported";
+  }
+  return `${countLabel(storageTasks.length, "cleanup plan")} / ${formatList(
+    storageTasks.map((task) => task.title),
+  )}`;
 }
 
 function buildRepoResourceRows(state: SageOsOverlayStatusState): OverlayResourceRow[] {

@@ -997,7 +997,7 @@ describe("overlay renderer model", () => {
         },
         { label: "Startup apps", value: "ok / 3 startup item(s) visible." },
         { label: "Scheduled tasks", value: "ok / 12 scheduled task(s) visible." },
-        { label: "Cleanup opportunities", value: "0 cleanup / storage not reported" },
+        { label: "Cleanup opportunities", value: "0 cleanup / warning / Low disk space on C: 5% free." },
         { label: "Broken services", value: "1 reported" },
         { label: "Safe repair actions", value: "1 safe / Replay memory queue" },
       ]),
@@ -1027,9 +1027,10 @@ describe("overlay renderer model", () => {
     expect(filesModel.workspace.facts).toEqual(
       expect.arrayContaining([
         { label: "Recent suggestions", value: "None" },
-        { label: "Duplicate candidates", value: "Not reported" },
-        { label: "Large files and storage pressure", value: "Not reported" },
+        { label: "Duplicate candidates", value: "None" },
+        { label: "Large files and storage pressure", value: "warning / Low disk space on C: 5% free." },
         { label: "Changed files", value: "README.md" },
+        { label: "Staging moves", value: "1 changed file(s)" },
         { label: "Cleanup plans", value: "None" },
         { label: "Approval-required deletes", value: "None" },
       ]),
@@ -1228,6 +1229,56 @@ describe("overlay renderer model", () => {
         { label: "Sources", value: "apps, clipboard enabled / audio disabled / screen failing" },
         { label: "Notifications", value: "Telegram enabled / target Jason" },
         { label: "Overlay config", value: "Launch environment and URL parameters" },
+      ]),
+    );
+  });
+
+  it("surfaces Files workspace storage pressure, duplicate candidates, staging, and delete approvals", () => {
+    const fileState = {
+      ...state,
+      tasks: [
+        ...state.tasks,
+        {
+          id: "task_files_1",
+          title: "Organize duplicate Downloads",
+          objective: "Find duplicate installers, large files, and stage a cleanup plan for Downloads.",
+          state: "proposed",
+          policyScopes: [{ kind: "file", allow: ["C:/Users/jason/Downloads"], risk: "medium" }],
+        },
+      ],
+      approvals: [
+        ...state.approvals,
+        {
+          id: "approval_delete_1",
+          title: "Approve duplicate delete",
+          proposedAction: "Delete duplicate installer from Downloads",
+          state: "pending",
+          riskClass: "destructive",
+          evidence: ["task_files_1"],
+          preview: "Delete C:/Users/jason/Downloads/setup-copy.exe",
+          rollbackPlan: "Restore the installer from Recycle Bin if needed.",
+          scope: "one-time",
+          domain: "files",
+          requestedBy: "PC Steward",
+          requestedAt: "2026-06-01T12:59:00.000Z",
+          expiresAt: "2026-06-01T13:59:00.000Z",
+        },
+      ],
+    };
+
+    const model = renderOverlayModel(fileState as never, {
+      workspaceTarget: { kind: "system", id: "files" },
+    });
+
+    expect(model.workspace.facts).toEqual(
+      expect.arrayContaining([
+        { label: "Recent suggestions", value: "Organize duplicate Downloads (proposed)" },
+        { label: "Duplicate candidates", value: "1 candidate / Organize duplicate Downloads" },
+        { label: "Large files and storage pressure", value: "warning / Low disk space on C: 5% free." },
+        { label: "Changed files", value: "README.md" },
+        { label: "Staging moves", value: "1 changed file(s)" },
+        { label: "Cleanup plans", value: "Organize duplicate Downloads (proposed)" },
+        { label: "Approval-required deletes", value: "Approve duplicate delete (pending)" },
       ]),
     );
   });
