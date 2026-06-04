@@ -7,6 +7,7 @@
     "build": "tsdown --config tsdown.config.ts && node scripts/copy-renderer-assets.mjs",
     "dev": "pnpm build && electron .",
     "review:visual": "node scripts/build-visual-review.mjs",
+    "review:visual:verify": "node scripts/verify-visual-review.mjs",
     "smoke": "powershell -ExecutionPolicy Bypass -File ../../scripts/sageos-windows-overlay.ps1",
     "smoke:electron": "node scripts/smoke-electron.mjs",
     "startup:install": "powershell -ExecutionPolicy Bypass -File ../../scripts/sageos-windows-overlay-startup.ps1 -Action install",
@@ -20,6 +21,7 @@
   },
   "devDependencies": {
     "electron": "^38.0.0",
+    "playwright-core": "1.58.1",
     "tsdown": "^0.20.1",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"

@@ -254,6 +254,9 @@ importers:
       electron:
         specifier: ^38.0.0
         version: 38.8.6
+      playwright-core:
+        specifier: 1.58.1
+        version: 1.58.1
       tsdown:
         specifier: ^0.20.1
         version: 0.20.1(@typescript/native-preview@7.0.0-dev.20260202.1)(typescript@5.9.3)

@@ -186,6 +186,7 @@ pnpm --dir apps/windows-overlay typecheck
 pnpm --dir apps/windows-overlay build
 pnpm --dir apps/windows-overlay smoke:electron
 pnpm --dir apps/windows-overlay review:visual
+pnpm --dir apps/windows-overlay review:visual:verify
 ```
 
 Install, inspect, or remove the current-user startup shortcut:
