@@ -57,6 +57,29 @@ describe("overlay visual contract", () => {
     }
   });
 
+  it("keeps the live overlay transparent instead of covering the desktop with texture", () => {
+    expect(styles).not.toContain("--sageos-bg-depth-dot");
+    expect(styles).not.toContain("radial-gradient(circle,");
+    expect(styles).not.toContain("16px 16px");
+
+    const appBlock = readCssBlock("sageos-overlay-app");
+    expect(appBlock).toContain("background: var(--sageos-bg-overlay);");
+    expect(appBlock).not.toContain("radial-gradient");
+  });
+
+  it("uses liquid glass material tokens instead of Vitreous texture as the visual depth source", () => {
+    for (const expected of [
+      "--sageos-glass-clear",
+      "--sageos-glass-edge-light",
+      "--sageos-glass-inner-sheen",
+      "--sageos-liquid-panel",
+      "--sageos-liquid-control",
+      "backdrop-filter: blur(var(--sageos-glass-blur-md)) saturate(var(--sageos-glass-saturation))",
+    ]) {
+      expect(styles).toContain(expected);
+    }
+  });
+
   it("applies Liquid Linear material tokens to HUD, rail, and pinned ambient glass", () => {
     const materialContracts = [
       [".compact-hud", ["var(--sageos-liquid-hud)", "var(--sageos-shadow-hud)", "var(--sageos-radius-shell)"]],
@@ -65,10 +88,7 @@ describe("overlay visual contract", () => {
     ] as const;
 
     for (const [selector, expectedSnippets] of materialContracts) {
-      const selectorStart = styles.indexOf(selector);
-      expect(selectorStart).toBeGreaterThanOrEqual(0);
-      const blockEnd = styles.indexOf("}", selectorStart);
-      const block = styles.slice(selectorStart, blockEnd);
+      const block = readCssBlock(selector);
 
       for (const snippet of expectedSnippets) {
         expect(block).toContain(snippet);
@@ -78,10 +98,7 @@ describe("overlay visual contract", () => {
 
   it("keeps HUD and rail content above specular material layers", () => {
     for (const selector of [".compact-hud__main", ".compact-hud__badges", ".edge-rail button"]) {
-      const selectorStart = styles.indexOf(selector);
-      expect(selectorStart).toBeGreaterThanOrEqual(0);
-      const blockEnd = styles.indexOf("}", selectorStart);
-      const block = styles.slice(selectorStart, blockEnd);
+      const block = readCssBlock(selector);
       expect(block).toContain("position: relative");
       expect(block).toContain("z-index: 1");
     }
@@ -190,15 +207,19 @@ describe("overlay visual contract", () => {
       ".pinned-widget__detail",
       ".hud-badge",
     ]) {
-      const selectorStart = styles.indexOf(selector);
-      expect(selectorStart).toBeGreaterThanOrEqual(0);
-      const blockEnd = styles.indexOf("}", selectorStart);
-      const block = styles.slice(selectorStart, blockEnd);
+      const block = readCssBlock(selector);
       expect(block).toContain("overflow:");
       expect(block).toContain("text-overflow:");
     }
   });
 });
+
+function readCssBlock(selector: string): string {
+  const selectorStart = styles.indexOf(selector);
+  expect(selectorStart).toBeGreaterThanOrEqual(0);
+  const blockEnd = styles.indexOf("}", selectorStart);
+  return styles.slice(selectorStart, blockEnd);
+}
 
 function readCssToken(token: string): string {
   const match = styles.match(new RegExp(`${token}:\\s*([^;]+);`));

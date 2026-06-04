@@ -20,7 +20,8 @@ Primary UI:
 - Full overlay is the default daily control tower.
 - HUD-first mode can be configured and expanded into the full overlay.
 - Edge Rail and pinned widgets support collapsed and pass-through operation.
-- Liquid Linear command glass is the accepted visual direction.
+- Liquid Linear command glass is the accepted visual direction: Apple+Linear, not a direct Vitreous Liquor copy.
+- The live overlay must preserve desktop context and must not use dot-matrix, topographic, or other full-screen texture as visual depth.
 
 Supplemental surfaces:
 
@@ -76,7 +77,7 @@ Core model:
 | MVP decision log reconciled with implementation                                                                                                      | Green  | May 18 spec `MVP decisions` section now resolves the previous open decisions against current config, state store, event log, policy, notification, observer, app candidate, and overlay defaults                                                            | Re-read before final release            |
 | Visual review companion for Jason acceptance                                                                                                         | Green  | `pnpm --dir apps/windows-overlay review:visual:all` runs Electron smoke capture, regenerates the local acceptance packet, and verifies 10 loaded screenshots, 8 criteria, 8 rubric rows, 24 decision controls, no broken images, and no horizontal overflow | Jason visual acceptance                 |
 | Public Windows docs reflect overlay MVP status                                                                                                       | Green  | README and platform docs now describe the SageOS Windows overlay MVP separately from the still-planned general Windows node companion                                                                                                                       | Re-read before release                  |
-| Enterprise-grade Liquid Linear overlay visual gate                                                                                                   | Yellow | Visual contract tests, practical AA text contrast guard, runtime reduced-motion smoke, refreshed smoke screenshots, Liquid Linear spec, smoke artifact, and `review:visual:all` pass                                                                        | Jason visual acceptance                 |
+| Enterprise-grade Liquid Linear overlay visual gate                                                                                                   | Yellow | Visual contract tests, no-live-texture guard, practical AA text contrast guard, runtime reduced-motion smoke, refreshed smoke screenshots, Liquid Linear spec, smoke artifact, and `review:visual:all` pass                                                 | Jason visual acceptance                 |
 
 ## Verification Results
 
@@ -237,7 +238,13 @@ Root-gate fix slice verified after the blockers above:
   - `apps/windows-overlay/dist/overlay-visual-review-render.png` was visually inspected and showed a readable contact sheet with acceptance criteria plus dark, bright, reduced-motion, Edge Rail, browser, IDE, and HUD smoke screenshots.
 - Full visual review gate closeout on 2026-06-04:
   - `pnpm --dir apps/windows-overlay exec vitest run tests/visual-review-script.test.ts --reporter verbose` first failed because `review:visual:all` and `scripts/run-visual-review.mjs` were missing, then passed with 1 file and 4 tests after the gate runner was added.
-  - `pnpm --dir apps/windows-overlay review:visual:all` ran `smoke:electron`, `review:visual`, and `review:visual:verify` in order, launched `C:\Program Files\Google\Chrome\Application\chrome.exe`, loaded the generated review sheet, verified 10 loaded screenshots, 8 acceptance criteria, 8 reviewer rubric rows, 24 acceptance decision controls, 3 release decision cards, 0 broken images, 0 horizontal overflow, and saved `apps/windows-overlay/dist/overlay-visual-review-render.png`.
+  - `pnpm --dir apps/windows-overlay review:visual:all` ran `smoke:electron`, `review:visual`, and `review:visual:verify` in order, launched `C:\Program Files\Google\Chrome\Application\chrome.exe`, loaded the generated review sheet, verified 10 loaded screenshots, 8 acceptance criteria, 8 reviewer rubric rows, 24 acceptance decision controls, 3 release decision cards, 0 broken images, 0 horizontal overflow, saved `apps/windows-overlay/dist/overlay-visual-review-render.png`, and wrote `apps/windows-overlay/dist/overlay-visual-review-report.json` with `humanAcceptance: "required"`.
+- Apple+Linear glass correction on 2026-06-04:
+  - The overlay visual contract now rejects the previous live dot-matrix/full-screen texture treatment and requires clear glass, edge-light, inner-sheen, panel, and control material tokens.
+  - `apps/windows-overlay/dist/overlay-smoke-styled.png`, `overlay-smoke-full-bright.png`, `overlay-smoke-edge-browser.png`, `overlay-smoke-hud-ide.png`, and `overlay-visual-review-render.png` were visually inspected after the correction and showed a quieter, more glass-like overlay that preserves the desktop context underneath.
+- Hermes/OpenClaw benchmark pass on 2026-06-04:
+  - The main MVP spec now records source-backed lessons from Hermes desktop and OpenClaw: same-agent invariance across surfaces, chat plus operations, live tool/artifact preview, cross-surface continuity, skills/memory separation, gateway security approvals, and keeping web supplemental to the overlay.
+  - The benchmark pass adds post-MVP candidates for richer session search/resume, an overlay preview rail, isolated profiles/modes, device pairing/token management, and scoped media preview authorization without expanding the current MVP acceptance gate.
 - Public Windows docs closeout on 2026-06-04:
   - The Windows platform docs and README no longer say there is no Windows desktop app. They now document the SageOS Windows overlay MVP shell, its PowerShell launch path, startup shortcut helper, smoke/review commands, and the distinction from the still-planned general Windows node companion.
   - `pnpm exec oxfmt --check README.md docs/platforms/windows.md docs/platforms/index.md docs/superpowers/artifacts/sageos-mvp-readiness.md` passed.
@@ -259,9 +266,9 @@ Root-gate fix slice verified after the blockers above:
 - Electron smoke now fails on clipped or overlapping critical toolbar, launcher, HUD, and Edge Rail controls, adding runtime proof behind the visual text-fit requirement.
 - Overlay visual smoke now explicitly covers dark, bright, text-heavy, browser-like, and IDE-like representative backdrops.
 - Electron smoke now emulates `prefers-reduced-motion: reduce`, fails if visible critical controls keep transition or animation durations above 1ms, and captures a reduced-motion full-overlay screenshot.
-- A local visual review companion now turns the smoke screenshot set into one Jason acceptance packet with release decision cards, a reviewer rubric, and a one-command gate that runs smoke capture, acceptance-packet generation, and browser verification.
+- A local visual review companion now turns the smoke screenshot set into one Jason acceptance packet with release decision cards, a reviewer rubric, a durable verification report, and a one-command gate that runs smoke capture, acceptance-packet generation, and browser verification.
 - Public Windows docs now match the overlay-first MVP status instead of describing Windows desktop support as absent.
-- Liquid Linear command glass is tokenized and test-covered in the overlay visual contract, including HUD, Edge Rail, ambient pinned widgets, foreground stacking above specular material layers, and practical AA normal-text contrast over representative Windows app backdrops.
+- Liquid Linear command glass is tokenized and test-covered in the overlay visual contract, including no live full-screen texture, HUD, Edge Rail, ambient pinned widgets, foreground stacking above specular material layers, and practical AA normal-text contrast over representative Windows app backdrops.
 - Incidents now cover source failure, queue backlog, policy block, memory doctor failure, notification failure, worker failure, budget exhaustion, and security findings.
 - Web supplemental incident repair now uses the same safe repair method allowlist as the overlay for the generated safe incident classes.
 

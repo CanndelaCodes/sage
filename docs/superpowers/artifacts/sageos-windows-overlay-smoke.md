@@ -71,6 +71,7 @@ Verification build SHA: `26a023428698`
 - [x] Audit workspace exposes timeline, evidence, verification, rollback, filter dimensions, and incident bundle pointers from the shared SageOS status contract.
 - [x] Liquid Linear material tokens cover ambient, command, focus, and summit glass elevations.
 - [x] Liquid Linear command glass tokens cover refraction, specular highlights, platinum tint, command/focus/control shadows, runway highlights, and spring motion.
+- [x] Live overlay no longer uses dot-matrix or full-screen texture; Vitreous Liquor remains inspiration while depth comes from clear glass material, rim light, blur, specular highlights, and shadow.
 - [x] Command Deck opens on active run telemetry when a live run exists, including worker session, current tool, budget used, verification, timeline, logs, and artifacts.
 - [x] Command Deck exposes first-class Security and PC Management system resources with Agent Workspace drill-downs.
 - [x] Private and secret observation bodies are redacted in Command Deck resource rows and Agent Workspace detail.
@@ -100,6 +101,7 @@ Verification build SHA: `26a023428698`
 - IDE-like backdrop HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud-ide.png`
 - Visual review contact sheet path: `apps/windows-overlay/dist/overlay-visual-review.html`
 - Visual review render screenshot path: `apps/windows-overlay/dist/overlay-visual-review-render.png`
+- Visual review machine report path: `apps/windows-overlay/dist/overlay-visual-review-report.json`
 - Current verification update: `pnpm --dir apps/windows-overlay smoke:electron` passed on
   2026-06-04 after the reduced-motion runtime pass. The packaged overlay reported
   `buildSha: 26a023428698`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`,
@@ -118,10 +120,16 @@ Verification build SHA: `26a023428698`
   `apps/windows-overlay/dist/overlay-visual-review.html`, launched
   `C:\Program Files\Google\Chrome\Application\chrome.exe`, loaded all 10 smoke screenshots,
   found 8 acceptance criteria, 8 reviewer rubric rows, 24 acceptance decision controls,
-  3 release decision cards, found 0 broken images, found 0 horizontal overflow, and saved
-  `apps/windows-overlay/dist/overlay-visual-review-render.png` for review.
+  3 release decision cards, found 0 broken images, found 0 horizontal overflow, saved
+  `apps/windows-overlay/dist/overlay-visual-review-render.png` for review, and wrote
+  `apps/windows-overlay/dist/overlay-visual-review-report.json` with `humanAcceptance: "required"`.
+- Apple+Linear glass correction: the current visual contract forbids the live overlay dot-matrix
+  texture and requires clear glass, edge-light, inner-sheen, panel, and control material tokens.
+  Codex visually inspected the refreshed full, bright, Edge Rail browser, HUD over IDE, and
+  visual-review contact-sheet screenshots and confirmed the overlay now preserves desktop context
+  while reading as a sleeker glass control surface.
 - Current package gates after the latest verification sweep: `pnpm --dir apps/windows-overlay test`
-  passed with 14 files and 93 tests, `pnpm --dir apps/windows-overlay typecheck` passed, and
+  passed with 14 files and 95 tests, `pnpm --dir apps/windows-overlay typecheck` passed, and
   `pnpm --dir apps/windows-overlay build` passed.
 - Visual spot check after the latest smoke run: Codex inspected
   `apps/windows-overlay/dist/overlay-smoke-styled.png`,
@@ -187,7 +195,7 @@ src/telegram/bot.test.ts` passed with 28 files
   capture while Edge Rail is active,
   creates a native Electron underlay probe and sends a Windows user32 mouse click through the
   pass-through Edge Rail surface; `smoke:electron` reports `passThroughProbeClicks` after the
-  underlay receives the click,
+  underlay receives the click and emits probe geometry diagnostics if that native click does not arrive,
   verifies the tray menu exposes mouse-first open, HUD, collapse, hide, and quit controls wired to
   the overlay controller,
   renders without pinned-widget overlap in the full Command Deck, exposes the preload IPC bridge

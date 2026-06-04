@@ -68,7 +68,8 @@ Surface treatment:
 - Cards remain at 8px default radius unless the surface is an overlay shell, HUD, Edge Rail, or high-risk modal.
 - Rows are compact, bordered, and scanner-friendly.
 - Avoid decorative orbs, bokeh blobs, or one-note purple/blue gradients.
-- Use subtle topographic or dot texture only when it improves depth without competing with data.
+- Do not use dot-matrix, topographic, or other full-screen texture in the live overlay; preserve the user's desktop context underneath.
+- Use glass material, translucency, blur, rim light, specular highlights, and shadow as the depth system instead of patterned decoration.
 
 ## Interaction And Motion
 

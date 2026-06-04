@@ -65,6 +65,7 @@ describe("overlay visual review generator", () => {
     for (const expected of [
       "overlay-visual-review.html",
       "overlay-visual-review-render.png",
+      "overlay-visual-review-report.json",
       "playwright-core",
       "findBrowserExecutable",
       "SageOS Overlay MVP Visual Review",
@@ -73,6 +74,10 @@ describe("overlay visual review generator", () => {
       "rubricRowCount !== 8",
       "decisionControlCount !== 24",
       "decisionSummaryCount !== 3",
+      "humanAcceptance",
+      "required",
+      "reportFile",
+      "fs.writeFile",
       "brokenImages",
       "overflowX",
       "bodyTextLength",

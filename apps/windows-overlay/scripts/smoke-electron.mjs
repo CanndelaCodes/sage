@@ -140,7 +140,7 @@ async function smokeFullOverlay(gatewayUrl, rendererErrors) {
     await assertCriticalTextFit(page);
     const passThroughProbe = await createPassThroughProbe(app);
     await sendNativeMouseClick(passThroughProbe.clickPoint);
-    const passThroughProbeClicks = await waitForPassThroughProbeClick(passThroughProbe);
+    const passThroughProbeClicks = await waitForPassThroughProbeClick(app, passThroughProbe);
     await page.evaluate(() => window.sageOsOverlay?.setInteractivePointer(true));
     await page.evaluate(() => window.sageOsOverlay?.setInteractivePointer(false));
     await page.screenshot({
@@ -437,13 +437,57 @@ function virtualKeyCode(key) {
   return keyCode;
 }
 
-async function waitForPassThroughProbeClick(probe, timeoutMs = 5_000) {
-  await probe.page.waitForFunction(
-    () => Number(document.body.dataset.clicks || "0") > 0,
-    undefined,
-    { timeout: timeoutMs },
-  );
+async function waitForPassThroughProbeClick(app, probe, timeoutMs = 5_000) {
+  try {
+    await probe.page.waitForFunction(
+      () => Number(document.body.dataset.clicks || "0") > 0,
+      undefined,
+      { timeout: timeoutMs },
+    );
+  } catch (error) {
+    const diagnostics = await readPassThroughProbeDiagnostics(app, probe);
+    throw new Error(
+      [
+        `Timed out waiting for pass-through probe click after ${timeoutMs}ms.`,
+        JSON.stringify(diagnostics, null, 2),
+      ].join("\n"),
+      { cause: error },
+    );
+  }
   return probe.page.evaluate(() => Number(document.body.dataset.clicks || "0"));
+}
+
+async function readPassThroughProbeDiagnostics(app, probe) {
+  const probePage = await probe.page
+    .evaluate(() => ({
+      clicks: Number(document.body.dataset.clicks || "0"),
+      title: document.title,
+      targetText: document.getElementById("target")?.textContent?.trim() ?? null,
+    }))
+    .catch((error) => ({ error: String(error) }));
+  const targetBox = await probe.page.locator("#target").boundingBox().catch((error) => ({
+    error: String(error),
+  }));
+  const electron = await app.evaluate(({ BrowserWindow, screen }, probeId) => {
+    const probeWindow = BrowserWindow.fromId(probeId);
+    return {
+      cursor: screen.getCursorScreenPoint(),
+      displays: screen.getAllDisplays().map((display) => ({
+        id: display.id,
+        scaleFactor: display.scaleFactor,
+        bounds: display.bounds,
+        workArea: display.workArea,
+      })),
+      probeBounds: probeWindow?.getBounds() ?? null,
+      probeVisible: probeWindow?.isVisible() ?? null,
+    };
+  }, probe.id);
+  return {
+    clickPoint: probe.clickPoint,
+    probePage,
+    targetBox,
+    electron,
+  };
 }
 
 async function waitForGlobalShortcut(app, accelerator, timeoutMs = 5_000) {

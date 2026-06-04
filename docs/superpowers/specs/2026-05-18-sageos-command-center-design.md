@@ -683,7 +683,8 @@ The overlay should feel like a precise liquid glass command surface over Windows
 - Layered Liquid Linear glass elevation: ambient, command, focus, and summit.
 - Backdrop blur only where it improves separation; opacity floors must preserve text contrast over bright and dark desktop content.
 - Thin rim highlights, crisp borders, soft internal shadows, and subtle glows for state.
-- Static dot-matrix or topographic texture as background depth only when it does not compete with operational data.
+- No dot-matrix, topographic, or other full-screen texture in the live overlay; desktop context remains visible underneath.
+- Glass material, translucency, blur, rim light, specular highlights, and shadow provide depth instead of patterned decoration.
 - 8px default card radius unless a specific surface needs a tighter system control or a larger modal container.
 - Apple-like liquid glass effects must never undermine Linear-like scan density, command hierarchy, or legibility.
 
@@ -718,6 +719,32 @@ The MVP cannot close with "functionally present but visually rough" overlay UI. 
 - Check accessibility basics: contrast, visible focus, semantic labels, keyboard order, and reduced motion.
 - Check frontend maintainability: shared tokens, reusable classes/components, no one-off visual constants scattered through the renderer, and no dead decorative UI.
 - Record evidence in the Windows overlay smoke artifact before final MVP handoff.
+
+## External Agent Benchmarks
+
+Research pass on 2026-06-04 covered Hermes Agent desktop and OpenClaw docs as current reference products for agentic desktop/gateway UX:
+
+- Hermes desktop source: `https://hermes-agent.nousresearch.com/docs/user-guide/desktop`.
+- Hermes platform sources: `https://hermes-agent.nousresearch.com/docs/`, `https://hermes-agent.nousresearch.com/docs/user-guide/sessions`, `https://hermes-agent.nousresearch.com/docs/user-guide/features/memory/`, and `https://hermes-agent.nousresearch.com/docs/guides/work-with-skills/`.
+- OpenClaw sources: `https://docs.openclaw.ai/`, `https://docs.openclaw.ai/web/control-ui`, `https://docs.openclaw.ai/tools`, and `https://docs.openclaw.ai/cli/approvals`.
+
+Adopt for SageOS MVP:
+
+1. Same-agent invariance across surfaces. Hermes' strongest product pattern is that desktop, CLI, TUI, and gateway all use the same config, keys, sessions, skills, memory, and core agent. SageOS must keep the Windows overlay as another first-class renderer of the shared SageOS contract, not a separate overlay-only product.
+2. Chat plus operations, not chat alone. Hermes desktop pairs chat with left navigation, simultaneous conversations, files, artifacts, previews, provider settings, skills, cron, profiles, messaging, agents, and command center. SageOS should keep the Command Deck and Agent Workspace as the primary operator shape, with chat/launcher as the entry point rather than the whole UI.
+3. Live tool activity and artifact preview. Hermes' live tool summaries, drag/drop files, file browser, and right preview rail are high-value patterns for SageOS active runs. The overlay should keep surfacing current tool, file/artifact refs, logs, screenshots, and previewable outputs in the Agent Workspace without forcing a browser handoff.
+4. Cross-surface continuity. Hermes' session resume, handoff, reset policy, and searchable session store reinforce that SageOS runs, tasks, and conversations must stay resumable across overlay, web, TUI, CLI, and Telegram. MVP status already exposes active runs; the next acceptance pass should keep checking that session titles, summaries, artifacts, and handoff points are visible.
+5. Skills and memory separation. Hermes treats skills as procedural memory and compact memory as factual context. SageOS should preserve Sage Memory as canonical memory/SecondBrain and keep workflow/skill candidates as procedural assets with provenance, review, and stale-skill maintenance.
+6. Gateway security and approvals as UI surfaces. OpenClaw's Control UI and approvals docs reinforce that pairing, device identity, token handling, host/node exec approvals, allowlists, config writes, and logs need first-class operator visibility. SageOS already surfaces policy, audit, security, and repair approvals; the overlay should continue prioritizing these over decorative dashboard content.
+7. Supplemental web remains useful. OpenClaw's web Control UI is broad because it is the gateway operations console. SageOS should keep the web Command Center as a supplemental admin/debug/config surface while preserving the Windows overlay as the daily control tower.
+
+Post-MVP candidates from the benchmark pass:
+
+- Richer cross-surface session search and resume UI, including searchable historical tool calls and file/artifact refs.
+- A dedicated overlay preview rail for generated artifacts, edited files, screenshots, browser previews, and command output.
+- More explicit Profiles or Modes UI for isolated configs, skills, sessions, and tool policies.
+- A device/session pairing and token-management view if SageOS grows beyond Jason's local machine or tailnet.
+- A stricter media preview security model with short-lived tickets or equivalent scoped local preview authorization.
 
 ## Windows Overlay UX
 

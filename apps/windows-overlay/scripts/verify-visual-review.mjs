@@ -10,6 +10,7 @@ const overlayDir = path.resolve(import.meta.dirname, "..");
 const distDir = path.join(overlayDir, "dist");
 const reviewFile = path.join(distDir, "overlay-visual-review.html");
 const renderFile = path.join(distDir, "overlay-visual-review-render.png");
+const reportFile = path.join(distDir, "overlay-visual-review-report.json");
 
 const browserExecutable = await findBrowserExecutable();
 await fs.access(reviewFile);
@@ -73,15 +74,22 @@ try {
   }
 
   await page.screenshot({ path: renderFile, fullPage: true, animations: "disabled" });
+  const report = {
+    ok: true,
+    verifiedAt: new Date().toISOString(),
+    browserExecutable,
+    reviewFile,
+    renderFile,
+    reportFile,
+    humanAcceptance: "required",
+    ...result,
+  };
+  await fs.writeFile(`${reportFile}.tmp`, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+  await fs.rename(`${reportFile}.tmp`, reportFile);
+
   console.log(
     JSON.stringify(
-      {
-        ok: true,
-        browserExecutable,
-        reviewFile,
-        renderFile,
-        ...result,
-      },
+      report,
       null,
       2,
     ),
