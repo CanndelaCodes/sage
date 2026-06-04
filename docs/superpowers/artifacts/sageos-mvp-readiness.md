@@ -197,6 +197,11 @@ Root-gate fix slice verified after the blockers above:
   - `pnpm check` passed with `pnpm tsgo`, oxlint 0 warnings and 0 errors, and repo-wide `oxfmt --check`.
   - `git diff --check -- src/sageos/types.ts src/sageos/status.ts src/sageos/status.test.ts apps/windows-overlay/src/renderer/overlay-app.ts apps/windows-overlay/tests/overlay-renderer.test.ts` passed.
   - `pnpm --dir apps/windows-overlay smoke:electron` passed post-commit with `buildSha: fe3797b09444`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, and `rendererErrors: 0`.
+- Current pause gate on 2026-06-04:
+  - `pnpm build` passed after the latest overlay evidence commits.
+  - `pnpm --dir ui test` passed with 20 files and 162 tests.
+  - `pnpm test` exited 0. The main root shard reported 873 passed files, 1 skipped file, 5527 passed tests, and 3 skipped tests; Vitest still emitted one Windows worker-fork unhandled error after assertions completed. The gateway shard then reported 41 files and 303 tests passed.
+  - No new implementation gap was opened by this pause gate. The remaining MVP release gate is Jason's visual/product acceptance of the Windows overlay.
 
 ## Current Green Areas
 
