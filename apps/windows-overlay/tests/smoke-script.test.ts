@@ -46,6 +46,7 @@ describe("Electron overlay smoke script", () => {
       "assertKeyboardFocusOrder(page)",
       "assertQuickActionArrowNavigation(page)",
       "readFocusedControlName",
+      'page.keyboard.press("ArrowDown")',
       'page.keyboard.press("ArrowRight")',
       'page.keyboard.press("End")',
       "overlay-smoke-full-bright.png",

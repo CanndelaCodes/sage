@@ -528,7 +528,13 @@ async function assertKeyboardFocusOrder(page) {
 }
 
 async function assertQuickActionArrowNavigation(page) {
-  await page.getByRole("button", { name: "New employee", exact: true }).focus();
+  await page.getByLabel("SageOS command").focus();
+  await page.keyboard.press("ArrowDown");
+  assertEqual(
+    await readFocusedControlName(page),
+    "New employee",
+    "ArrowDown should move focus from launcher input to the first quick action",
+  );
   await page.keyboard.press("ArrowRight");
   assertEqual(
     await readFocusedControlName(page),

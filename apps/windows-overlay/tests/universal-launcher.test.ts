@@ -83,6 +83,8 @@ describe("Universal Launcher keyboard navigation", () => {
     expect(getUniversalLauncherQuickActionFocusIndex(0, enabledActions, "ArrowLeft")).toBe(3);
     expect(getUniversalLauncherQuickActionFocusIndex(3, enabledActions, "Home")).toBe(0);
     expect(getUniversalLauncherQuickActionFocusIndex(0, enabledActions, "End")).toBe(3);
+    expect(getUniversalLauncherQuickActionFocusIndex(-1, enabledActions, "ArrowDown")).toBe(0);
+    expect(getUniversalLauncherQuickActionFocusIndex(-1, enabledActions, "ArrowUp")).toBe(3);
     expect(getUniversalLauncherQuickActionFocusIndex(0, [false, false], "ArrowRight")).toBeNull();
     expect(getUniversalLauncherQuickActionFocusIndex(0, enabledActions, "Tab")).toBeNull();
   });

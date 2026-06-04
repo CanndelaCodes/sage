@@ -56,6 +56,11 @@ export function getUniversalLauncherQuickActionFocusIndex(
   if (!direction) {
     return null;
   }
+  if (currentIndex < 0) {
+    return direction > 0
+      ? (enabledIndexes[0] ?? null)
+      : (enabledIndexes[enabledIndexes.length - 1] ?? null);
+  }
 
   const currentEnabledIndex = enabledIndexes.indexOf(currentIndex);
   const baseIndex = currentEnabledIndex >= 0 ? currentEnabledIndex : 0;
@@ -164,6 +169,10 @@ export function renderUniversalLauncher(props: UniversalLauncherProps) {
         ?disabled=${props.disabled}
         @input=${(event: InputEvent) => props.onInput((event.target as HTMLInputElement).value)}
         @keydown=${(event: KeyboardEvent) => {
+          if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+            focusUniversalLauncherQuickAction(event, -1, props.quickActions ?? []);
+            return;
+          }
           if (event.key !== "Enter") {
             return;
           }

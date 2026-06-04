@@ -3,7 +3,7 @@
 Date: 2026-06-04
 Operator: Codex
 Build: Windows overlay MVP shell verification after Night Shift schedule pass
-Verification build SHA: `7f911b38d733`
+Verification build SHA: `4ec60b04cd21`
 
 ## Preconditions
 
@@ -33,7 +33,7 @@ Verification build SHA: `7f911b38d733`
 - [x] HUD expands to full overlay.
 - [x] Tray menu exposes Open SageOS, Show HUD, Collapse to Edge Rail, Hide Overlay, and Quit SageOS Overlay mouse-first controls.
 - [x] `Ctrl+K` focuses the Universal Launcher when the full overlay is active.
-- [x] Universal Launcher quick actions support ArrowLeft, ArrowRight, Home, and End focus navigation.
+- [x] Universal Launcher quick actions support ArrowDown from command input plus ArrowLeft, ArrowRight, Home, and End focus navigation.
 - [x] `Escape` dismisses the overlay through the preload IPC close bridge.
 - [x] `SAGEOS_OVERLAY_VOICE_ENABLED=1` plus `SAGEOS_OVERLAY_VOICE_MODE=pushToTalk` exposes the Voice entry point.
 - [x] Voice entry is enabled only when browser speech recognition exists; otherwise it is disabled with an unavailable-runtime reason.
@@ -92,12 +92,12 @@ Verification build SHA: `7f911b38d733`
 - IDE-like backdrop HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud-ide.png`
 - Current verification update: `pnpm --dir apps/windows-overlay smoke:electron` passed on
   2026-06-04 after the Universal Launcher keyboard pass. The packaged overlay reported
-  `buildSha: 7f911b38d733`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`,
+  `buildSha: 4ec60b04cd21`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`,
   `rendererErrors: 0`,
   four `sageos.control` calls for pause, resume, stop, and emergency stop, verified the
   availability-aware Voice entry state, verified first-pass keyboard Tab order through Pause,
   Resume, Stop, Emergency stop, Full, Rail, Close, and the SageOS command input, verified
-  quick-action ArrowRight, End, ArrowLeft, and Home navigation, and refreshed
+  quick-action ArrowDown, ArrowRight, End, ArrowLeft, and Home navigation, and refreshed
   the full, bright, edge-left, text-heavy edge, browser edge, IDE edge, HUD, and IDE HUD
   screenshots above.
 - Current package gates after the latest verification sweep: `pnpm --dir apps/windows-overlay test`
@@ -173,8 +173,8 @@ src/telegram/bot.test.ts` passed with 28 files
   facts, first-class Files, Coding, repo, Observations, Workflows, Skills, Apps & Widgets, Collaboration, and Settings system resources, Audit timeline/evidence/verification/rollback summaries,
   and Universal Launcher disabled reasons plus quick-action arrow navigation for gateway,
   empty-command, and command-preset states. The smoke
-  now presses `Ctrl+K`, verifies launcher focus, exercises ArrowRight, End, ArrowLeft, and Home
-  across Universal Launcher quick actions, presses
+  now presses `Ctrl+K`, verifies launcher focus, exercises ArrowDown from the command input,
+  then ArrowRight, End, ArrowLeft, and Home across Universal Launcher quick actions, presses
   `Escape`, and waits for the Electron BrowserWindow to hide through the close bridge. The smoke
   emitted Electron's development CSP warning only; renderer page and console errors are now guarded
   by smoke output `rendererErrors: 0`.
