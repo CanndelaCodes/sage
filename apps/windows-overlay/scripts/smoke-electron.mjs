@@ -17,13 +17,14 @@ const now = "2026-06-01T19:30:00.000Z";
 await fs.mkdir(screenshotDir, { recursive: true });
 
 const recordedMethods = [];
+const rendererErrors = [];
 const gateway = await startMockGateway(recordedMethods);
 
 try {
   const buildSha = await readBuildSha();
-  const hotkeySmoke = await smokeDefaultHotkeyToggle(gateway.url);
-  const fullSmoke = await smokeFullOverlay(gateway.url);
-  await smokeHudOverlay(gateway.url);
+  const hotkeySmoke = await smokeDefaultHotkeyToggle(gateway.url, rendererErrors);
+  const fullSmoke = await smokeFullOverlay(gateway.url, rendererErrors);
+  await smokeHudOverlay(gateway.url, rendererErrors);
   assertRecordedMethods(recordedMethods, [
     "connect",
     "sageos.status",
@@ -36,6 +37,7 @@ try {
     "sageos.memory.replay",
     "chat.send",
   ]);
+  assertNoRendererErrors(rendererErrors);
 
   console.log(
     JSON.stringify(
@@ -44,6 +46,7 @@ try {
         buildSha,
         defaultHotkeyToggles: hotkeySmoke.defaultHotkeyToggles,
         passThroughProbeClicks: fullSmoke.passThroughProbeClicks,
+        rendererErrors: rendererErrors.length,
         methods: recordedMethods.map((entry) => entry.method),
         screenshots: {
           full: path.join(screenshotDir, "overlay-smoke-styled.png"),
@@ -64,7 +67,7 @@ try {
   await gateway.close();
 }
 
-async function smokeFullOverlay(gatewayUrl) {
+async function smokeFullOverlay(gatewayUrl, rendererErrors) {
   const app = await launchOverlay({
     SAGEOS_OVERLAY_GATEWAY_URL: gatewayUrl,
     SAGEOS_OVERLAY_HOTKEY: "Ctrl+Alt+Shift+F12",
@@ -79,6 +82,7 @@ async function smokeFullOverlay(gatewayUrl) {
 
   try {
     const page = await app.firstWindow({ timeout: 15_000 });
+    attachRendererErrorGuards(page, rendererErrors);
     await page.waitForSelector(".overlay-shell--commandDeck .pinned-widgets", {
       timeout: 15_000,
     });
@@ -162,7 +166,7 @@ async function smokeFullOverlay(gatewayUrl) {
   }
 }
 
-async function smokeHudOverlay(gatewayUrl) {
+async function smokeHudOverlay(gatewayUrl, rendererErrors) {
   const app = await launchOverlay({
     SAGEOS_OVERLAY_GATEWAY_URL: gatewayUrl,
     SAGEOS_OVERLAY_HOTKEY: "Ctrl+Alt+Shift+F11",
@@ -175,6 +179,7 @@ async function smokeHudOverlay(gatewayUrl) {
 
   try {
     const page = await app.firstWindow({ timeout: 15_000 });
+    attachRendererErrorGuards(page, rendererErrors);
     await page.waitForSelector(".overlay-shell--hud .compact-hud", { timeout: 15_000 });
     await assertPreloadBridge(page);
     await page.screenshot({
@@ -194,7 +199,7 @@ async function smokeHudOverlay(gatewayUrl) {
   }
 }
 
-async function smokeDefaultHotkeyToggle(gatewayUrl) {
+async function smokeDefaultHotkeyToggle(gatewayUrl, rendererErrors) {
   const hotkey = "Ctrl+Alt+Space";
   const app = await launchOverlay({
     SAGEOS_OVERLAY_GATEWAY_URL: gatewayUrl,
@@ -210,6 +215,7 @@ async function smokeDefaultHotkeyToggle(gatewayUrl) {
     await waitForGlobalShortcut(app, hotkey);
     await sendNativeHotkey(hotkey);
     const page = await app.firstWindow({ timeout: 15_000 });
+    attachRendererErrorGuards(page, rendererErrors);
     await page.waitForSelector(".overlay-shell--commandDeck", { timeout: 15_000 });
     await waitForOverlayWindowVisible(app, page);
 
@@ -466,6 +472,23 @@ async function assertPreloadBridge(page) {
     "function",
     "sageos-overlay:interactive-pointer bridge is exposed",
   );
+}
+
+function attachRendererErrorGuards(page, rendererErrors) {
+  page.on("pageerror", (error) => {
+    rendererErrors.push(`pageerror: ${error.stack || error.message}`);
+  });
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      rendererErrors.push(`console error: ${message.text()}`);
+    }
+  });
+}
+
+function assertNoRendererErrors(rendererErrors) {
+  if (rendererErrors.length > 0) {
+    throw new Error(`Renderer errors during overlay smoke:\n${rendererErrors.join("\n")}`);
+  }
 }
 
 async function assertVoiceEntry(page) {
