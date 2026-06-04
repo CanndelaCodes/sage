@@ -147,6 +147,15 @@ Root-gate fix slice verified after the blockers above:
   - `git diff --check -- apps/windows-overlay/src/renderer/overlay-app.ts apps/windows-overlay/tests/overlay-renderer.test.ts` passed.
   - `pnpm --dir apps/windows-overlay smoke:electron` passed post-commit with `buildSha: 56a61b710959`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, and `rendererErrors: 0`.
   - `apps/windows-overlay/dist/overlay-smoke-styled.png` was visually inspected after the shorter copy change and showed the `Autonomy`, `Pause/Stop`, and `Narrow via Policy` row fitting without text overlap.
+- Security workspace closeout on 2026-06-04:
+  - `pnpm --dir apps/windows-overlay exec vitest run tests/overlay-renderer.test.ts --reporter verbose` first failed on the missing Security workspace must-show rows, then passed with 1 file and 28 tests after the renderer started deriving Security facts from the latest `system` observation checks.
+  - The Security workspace now surfaces Defender/Security status, suspicious process incident count, startup and scheduled task visibility, firewall and listener visibility, downloaded executable visibility, Security Sentinel activity, and pending remediation approvals.
+  - `pnpm --dir apps/windows-overlay test` passed with 13 files and 87 tests.
+  - `pnpm --dir apps/windows-overlay typecheck` passed.
+  - `pnpm --dir apps/windows-overlay build` passed.
+  - `pnpm check` passed with `pnpm tsgo`, oxlint 0 warnings and 0 errors, and repo-wide `oxfmt --check`.
+  - `git diff --check -- apps/windows-overlay/src/renderer/overlay-app.ts apps/windows-overlay/tests/overlay-renderer.test.ts` passed.
+  - `pnpm --dir apps/windows-overlay smoke:electron` passed post-commit with `buildSha: 2eb7543b5227`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, and `rendererErrors: 0`.
 
 ## Current Green Areas
 
@@ -154,6 +163,7 @@ Root-gate fix slice verified after the blockers above:
 - The Windows overlay has a real Electron shell, global hotkey, tray controls, startup shortcut management, HUD-first configuration, Edge Rail, pinned widgets, pass-through behavior, gateway client, and renderer model.
 - The overlay no longer exposes only a narrow dashboard; it covers operations, employees, tasks, approvals, security, PC management, files, memory, observations, workflows, skills, apps/widgets, coding, repositories, policy, audit, incidents, collaboration, settings, and active runs.
 - The Overview now explicitly shows autonomy intervention controls, including pause/stop and the path to narrow autonomy through Policy, so the default overlay answers how to interrupt autonomous work without first drilling into another workspace.
+- The Security workspace now maps read-only system checks into operator-facing posture rows for Defender, startup/tasks, firewall/listeners, downloads, Security Sentinel activity, and pending remediation approvals.
 - The Memory workspace now exposes the full MVP Memory/SecondBrain surface: health, capture queue, Telegram ingestion, wiki export proof, recent captures, review cards, duplicate/stale candidates, graph health, and doctor status.
 - Liquid Linear command glass is tokenized and test-covered in the overlay visual contract, including HUD, Edge Rail, ambient pinned widgets, foreground stacking above specular material layers, and practical AA normal-text contrast over representative Windows app backdrops.
 - Incidents now cover source failure, queue backlog, policy block, memory doctor failure, notification failure, worker failure, budget exhaustion, and security findings.
