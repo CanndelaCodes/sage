@@ -190,9 +190,9 @@ export async function startGatewayServer(
           .join("\n")}`,
       );
     }
+    configSnapshot = await readConfigFileSnapshot();
   }
 
-  configSnapshot = await readConfigFileSnapshot();
   if (configSnapshot.exists && !configSnapshot.valid) {
     const issues =
       configSnapshot.issues.length > 0

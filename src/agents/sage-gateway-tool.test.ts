@@ -56,7 +56,11 @@ describe("gateway tool", () => {
 
       expect(kill).not.toHaveBeenCalled();
       await vi.runAllTimersAsync();
-      expect(kill).toHaveBeenCalledWith(process.pid, "SIGUSR1");
+      if (process.platform === "win32") {
+        expect(kill).not.toHaveBeenCalled();
+      } else {
+        expect(kill).toHaveBeenCalledWith(process.pid, "SIGUSR1");
+      }
     } finally {
       kill.mockRestore();
       vi.useRealTimers();

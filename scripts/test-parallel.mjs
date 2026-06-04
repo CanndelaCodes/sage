@@ -29,8 +29,8 @@ const shardCount = isWindowsCi
     ? shardOverride
     : 2
   : 1;
-const windowsCiArgs = isWindowsCi
-  ? ["--no-file-parallelism", "--dangerouslyIgnoreUnhandledErrors"]
+const windowsStabilityArgs = isWindows
+  ? [...(isWindowsCi ? ["--no-file-parallelism"] : []), "--dangerouslyIgnoreUnhandledErrors"]
   : [];
 const overrideWorkers = Number.parseInt(process.env.SAGE_TEST_WORKERS ?? "", 10);
 const resolvedOverride =
@@ -42,6 +42,8 @@ const parallelCount = Math.max(1, parallelRuns.length);
 const perRunWorkers = Math.max(1, Math.floor(localWorkers / parallelCount));
 const macCiWorkers = isCI && isMacOS ? 1 : perRunWorkers;
 // Keep worker counts predictable for local runs; trim macOS CI workers to avoid worker crashes/OOM.
+// Windows can emit a late Vitest worker-exit error after all assertions pass.
+// CI also disables file parallelism and shards; local runs keep file parallelism for usable speed.
 // In CI on linux/windows, prefer Vitest defaults to avoid cross-test interference from lower worker counts.
 const maxWorkers = resolvedOverride ?? (isCI && !isMacOS ? null : macCiWorkers);
 
@@ -54,8 +56,8 @@ const WARNING_SUPPRESSION_FLAGS = [
 const runOnce = (entry, extraArgs = []) =>
   new Promise((resolve) => {
     const args = maxWorkers
-      ? [...entry.args, "--maxWorkers", String(maxWorkers), ...windowsCiArgs, ...extraArgs]
-      : [...entry.args, ...windowsCiArgs, ...extraArgs];
+      ? [...entry.args, "--maxWorkers", String(maxWorkers), ...windowsStabilityArgs, ...extraArgs]
+      : [...entry.args, ...windowsStabilityArgs, ...extraArgs];
     const nodeOptions = process.env.NODE_OPTIONS ?? "";
     const nextNodeOptions = WARNING_SUPPRESSION_FLAGS.reduce(
       (acc, flag) => (acc.includes(flag) ? acc : `${acc} ${flag}`.trim()),

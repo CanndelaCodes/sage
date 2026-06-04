@@ -275,7 +275,10 @@ export function onceMessage<T = unknown>(
 
 export async function startGatewayServer(port: number, opts?: GatewayServerOptions) {
   const mod = await serverModulePromise;
-  return await mod.startGatewayServer(port, opts);
+  return await mod.startGatewayServer(port, {
+    controlUiEnabled: false,
+    ...opts,
+  });
 }
 
 export async function startServerWithClient(token?: string, opts?: GatewayServerOptions) {

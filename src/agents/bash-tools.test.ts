@@ -190,7 +190,7 @@ describe("exec tool backgrounding", () => {
   it("does not default to elevated when not allowed", async () => {
     const customBash = createExecTool({
       elevated: { enabled: true, allowed: false, defaultLevel: "on" },
-      backgroundMs: 1000,
+      allowBackground: false,
       timeoutSec: 5,
     });
 

@@ -188,6 +188,15 @@ export const resetTestPluginRegistry = () => {
   setActivePluginRegistry(pluginRegistryState.registry);
 };
 
+vi.mock("../plugins/loader.js", async () => {
+  const actual =
+    await vi.importActual<typeof import("../plugins/loader.js")>("../plugins/loader.js");
+  return {
+    ...actual,
+    loadSagePlugins: () => pluginRegistryState.registry,
+  };
+});
+
 const testConfigRoot = {
   value: path.join(os.tmpdir(), `sage-gateway-test-${process.pid}-${crypto.randomUUID()}`),
 };
@@ -293,11 +302,13 @@ vi.mock("../config/config.js", async () => {
       .createHash("sha256")
       .update(raw ?? "")
       .digest("hex");
+  const configSnapshotRecord = <T extends Record<string, unknown>>(snapshot: T): T =>
+    Object.assign(Object.create(null), snapshot);
 
-  const readConfigFileSnapshot = async () => {
+  const readConfigFileSnapshot = () => {
     if (testState.legacyIssues.length > 0) {
       const raw = JSON.stringify(testState.legacyParsed ?? {});
-      return {
+      return configSnapshotRecord({
         path: resolveConfigPath(),
         exists: true,
         raw,
@@ -310,13 +321,11 @@ vi.mock("../config/config.js", async () => {
           message: issue.message,
         })),
         legacyIssues: testState.legacyIssues,
-      };
+      });
     }
     const configPath = resolveConfigPath();
-    try {
-      await fs.access(configPath);
-    } catch {
-      return {
+    if (!fsSync.existsSync(configPath)) {
+      const snapshot = configSnapshotRecord({
         path: configPath,
         exists: false,
         raw: null,
@@ -326,12 +335,13 @@ vi.mock("../config/config.js", async () => {
         hash: hashConfigRaw(null),
         issues: [],
         legacyIssues: [],
-      };
+      });
+      return snapshot;
     }
     try {
-      const raw = await fs.readFile(configPath, "utf-8");
+      const raw = fsSync.readFileSync(configPath, "utf-8");
       const parsed = JSON.parse(raw) as Record<string, unknown>;
-      return {
+      return configSnapshotRecord({
         path: configPath,
         exists: true,
         raw,
@@ -341,9 +351,9 @@ vi.mock("../config/config.js", async () => {
         hash: hashConfigRaw(raw),
         issues: [],
         legacyIssues: [],
-      };
+      });
     } catch (err) {
-      return {
+      return configSnapshotRecord({
         path: configPath,
         exists: true,
         raw: null,
@@ -353,7 +363,7 @@ vi.mock("../config/config.js", async () => {
         hash: hashConfigRaw(null),
         issues: [{ path: "", message: `read failed: ${String(err)}` }],
         legacyIssues: [],
-      };
+      });
     }
   };
 

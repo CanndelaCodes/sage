@@ -10,6 +10,7 @@ const callGateway = vi.fn();
 const runChannelLogin = vi.fn();
 const runChannelLogout = vi.fn();
 const runTui = vi.fn();
+const ensurePluginRegistryLoaded = vi.fn();
 
 const runtime = {
   log: vi.fn(),
@@ -39,6 +40,7 @@ vi.mock("../commands/setup.js", () => ({ setupCommand }));
 vi.mock("../commands/onboard.js", () => ({ onboardCommand }));
 vi.mock("../runtime.js", () => ({ defaultRuntime: runtime }));
 vi.mock("./channel-auth.js", () => ({ runChannelLogin, runChannelLogout }));
+vi.mock("./plugin-registry.js", () => ({ ensurePluginRegistryLoaded }));
 vi.mock("../tui/tui.js", () => ({ runTui }));
 vi.mock("../gateway/call.js", () => ({
   callGateway,
