@@ -29,6 +29,7 @@ Verification build SHA: `26a023428698`
 - [x] `pnpm --dir apps/windows-overlay smoke:electron` verifies the packaged Electron overlay against a mock gateway.
 - [x] `pnpm --dir apps/windows-overlay review:visual` generates a local Jason acceptance companion contact sheet from the smoke screenshots.
 - [x] `pnpm --dir apps/windows-overlay review:visual:verify` loads the generated contact sheet in Chrome or Edge and fails on broken images, missing criteria, blank output, or horizontal overflow.
+- [x] `pnpm --dir apps/windows-overlay review:visual:all` runs smoke capture, contact-sheet generation, and browser verification as one release gate.
 - [x] `SAGEOS_OVERLAY_ACTIVE_MONITOR=auto|primary|<display id>` routes the overlay to the active, primary, or configured monitor.
 - [x] `powershell -ExecutionPolicy Bypass -File scripts/sageos-windows-overlay.ps1 -OpenMode hud` starts HUD-first mode.
 - [x] Compact HUD renders as a Liquid Linear command island with current operation title, progress detail, status, target kind, and live badges.
@@ -112,14 +113,14 @@ Verification build SHA: `26a023428698`
   durations above 1ms, and refreshed
   the full, reduced-motion full, bright, edge-left, dark edge, text-heavy edge, browser edge, IDE edge, HUD, and IDE HUD
   screenshots above.
-- Visual review companion update: `pnpm --dir apps/windows-overlay review:visual` generated
-  `apps/windows-overlay/dist/overlay-visual-review.html` on 2026-06-04 with `buildSha: 92282200a1c8`.
-  `pnpm --dir apps/windows-overlay review:visual:verify` then launched
+- Visual review companion update: `pnpm --dir apps/windows-overlay review:visual:all` passed
+  on 2026-06-04. It ran the packaged Electron smoke, regenerated
+  `apps/windows-overlay/dist/overlay-visual-review.html`, launched
   `C:\Program Files\Google\Chrome\Application\chrome.exe`, loaded all 10 smoke screenshots,
   found 8 acceptance criteria, found 0 broken images, found 0 horizontal overflow, and saved
   `apps/windows-overlay/dist/overlay-visual-review-render.png` for review.
 - Current package gates after the latest verification sweep: `pnpm --dir apps/windows-overlay test`
-  passed with 13 files and 89 tests, `pnpm --dir apps/windows-overlay typecheck` passed, and
+  passed with 14 files and 93 tests, `pnpm --dir apps/windows-overlay typecheck` passed, and
   `pnpm --dir apps/windows-overlay build` passed.
 - Visual spot check after the latest smoke run: Codex inspected
   `apps/windows-overlay/dist/overlay-smoke-styled.png`,

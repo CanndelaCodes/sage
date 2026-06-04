@@ -184,10 +184,11 @@ Useful overlay checks:
 pnpm --dir apps/windows-overlay test
 pnpm --dir apps/windows-overlay typecheck
 pnpm --dir apps/windows-overlay build
-pnpm --dir apps/windows-overlay smoke:electron
-pnpm --dir apps/windows-overlay review:visual
-pnpm --dir apps/windows-overlay review:visual:verify
+pnpm --dir apps/windows-overlay review:visual:all
 ```
+
+`review:visual:all` runs the packaged Electron smoke flow, builds the local
+visual review contact sheet, and verifies that sheet in Chrome or Edge.
 
 Install, inspect, or remove the current-user startup shortcut:
 

@@ -8,6 +8,9 @@ describe("overlay visual review generator", () => {
     expect(packageJson.scripts["review:visual:verify"]).toBe(
       "node scripts/verify-visual-review.mjs",
     );
+    expect(packageJson.scripts["review:visual:all"]).toBe(
+      "node scripts/run-visual-review.mjs",
+    );
   });
 
   it("builds a local review page for every smoke screenshot and MVP visual criterion", () => {
@@ -67,5 +70,31 @@ describe("overlay visual review generator", () => {
     ]) {
       expect(script).toContain(expected);
     }
+  });
+
+  it("runs the complete visual review gate in dependency order", () => {
+    const script = readFileSync(
+      new URL("../scripts/run-visual-review.mjs", import.meta.url),
+      "utf8",
+    );
+
+    for (const expected of [
+      "SageOS overlay visual review gate",
+      "smoke:electron",
+      "review:visual",
+      "review:visual:verify",
+      "spawn",
+      "stdio: \"inherit\"",
+      "process.exitCode",
+    ]) {
+      expect(script).toContain(expected);
+    }
+
+    expect(script.indexOf("smoke:electron")).toBeLessThan(
+      script.indexOf("review:visual"),
+    );
+    expect(script.indexOf("review:visual")).toBeLessThan(
+      script.indexOf("review:visual:verify"),
+    );
   });
 });
