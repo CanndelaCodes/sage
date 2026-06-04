@@ -5,8 +5,8 @@
   background: transparent;
   color: #f8fafc;
 
-  --sageos-bg-overlay: rgba(3, 6, 12, 0.04);
-  --sageos-bg-overlay-strong: rgba(3, 6, 12, 0.1);
+  --sageos-bg-overlay: transparent;
+  --sageos-bg-overlay-strong: rgba(3, 6, 12, 0.035);
   --sageos-surface-ambient: rgba(24, 28, 36, 0.26);
   --sageos-surface-default: rgba(23, 27, 35, 0.3);
   --sageos-surface-featured: rgba(28, 32, 41, 0.34);
@@ -25,9 +25,15 @@
     inset 0 -1px 0 rgba(255, 255, 255, 0.07);
   --sageos-glass-specular: linear-gradient(
     145deg,
-    rgba(255, 255, 255, 0.3) 0%,
-    rgba(255, 255, 255, 0.105) 22%,
+    rgba(255, 255, 255, 0.32) 0%,
+    rgba(255, 255, 255, 0.11) 22%,
     transparent 52%
+  );
+  --sageos-liquid-ripple: radial-gradient(
+    closest-side at center,
+    rgba(125, 211, 252, 0.26),
+    rgba(248, 250, 252, 0.14) 38%,
+    transparent 72%
   );
   --sageos-glass-platinum: rgba(247, 249, 252, 0.28);
   --sageos-liquid-ambient: rgba(22, 26, 34, 0.28);
@@ -96,8 +102,8 @@ sageos-overlay-app {
   isolation: isolate;
   width: 100vw;
   height: 100vh;
-  background: var(--sageos-bg-overlay);
-  backdrop-filter: blur(var(--sageos-glass-blur-lg)) saturate(var(--sageos-glass-saturation));
+  background: transparent;
+  backdrop-filter: none;
   color: var(--sageos-text-primary);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.48);
 }
@@ -106,9 +112,11 @@ sageos-overlay-app::before {
   position: fixed;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 18%);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 22%),
+    linear-gradient(90deg, rgba(125, 211, 252, 0.018), transparent 38%, rgba(148, 163, 184, 0.012));
   content: "";
-  opacity: 0.34;
+  opacity: 0.16;
   pointer-events: none;
 }
 
@@ -196,6 +204,13 @@ button:not(:disabled):active,
   transform: scale(0.985);
 }
 
+button:not(:disabled):active::after,
+.overlay-button:not(:disabled):active::after {
+  background: var(--sageos-liquid-ripple);
+  opacity: 1;
+  animation: sageos-liquid-ripple 520ms var(--sageos-motion-spring-smooth);
+}
+
 button:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
@@ -278,11 +293,11 @@ textarea::placeholder {
   position: absolute;
   inset: -1px;
   z-index: -1;
-  border: 1px solid rgba(248, 250, 252, 0.06);
+  border: 1px solid rgba(248, 250, 252, 0.035);
   border-radius: 12px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 20%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.014), transparent 20%);
   content: "";
-  opacity: 0.4;
+  opacity: 0.18;
   pointer-events: none;
 }
 
@@ -476,6 +491,29 @@ textarea::placeholder {
   pointer-events: none;
 }
 
+.overlay-card:active::after,
+.overlay-panel:active::after,
+.agent-workspace:active::after,
+.pinned-widget:active::after,
+.overlay-row:active::after,
+.sage-ai-chat__session:active::after {
+  background:
+    var(--sageos-liquid-ripple),
+    var(--sageos-glass-specular);
+  opacity: 0.88;
+  animation: sageos-liquid-ripple 620ms var(--sageos-motion-spring-smooth);
+}
+
+.overlay-row::after,
+.sage-ai-chat__session::after {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+}
+
 .overlay-card:hover,
 .overlay-panel:focus-within,
 .agent-workspace:focus-within,
@@ -613,8 +651,8 @@ textarea::placeholder {
 .sage-ai-chat {
   align-content: stretch;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto auto minmax(86px, auto) auto;
-  min-height: 336px;
+  grid-template-rows: auto auto auto minmax(86px, auto) auto;
+  min-height: 392px;
 }
 
 .sage-ai-chat__subtitle {
@@ -678,6 +716,75 @@ textarea::placeholder {
   font-size: 13px;
 }
 
+.sage-ai-chat__sessions {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sage-ai-chat__sessions-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--sageos-text-muted);
+  font-size: 12px;
+}
+
+.sage-ai-chat__session-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sage-ai-chat__session {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px 8px;
+  min-height: 58px;
+  justify-items: start;
+  background: rgba(255, 255, 255, 0.04);
+  text-align: left;
+  white-space: normal;
+}
+
+.sage-ai-chat__session--active {
+  border-color: color-mix(in srgb, var(--sageos-accent-primary) 58%, transparent);
+  box-shadow: var(--sageos-shadow-control);
+}
+
+.sage-ai-chat__session span,
+.sage-ai-chat__session small,
+.sage-ai-chat__session time {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sage-ai-chat__session span {
+  color: var(--sageos-text-primary);
+  font-size: 13px;
+  font-weight: 680;
+}
+
+.sage-ai-chat__session small {
+  grid-column: 1 / -1;
+  color: var(--sageos-text-secondary);
+  font-size: 12px;
+}
+
+.sage-ai-chat__session time {
+  color: var(--sageos-text-muted);
+  font-size: 12px;
+}
+
+.sage-ai-chat__sessions-empty {
+  margin: 0;
+  color: var(--sageos-text-muted);
+  font-size: 12px;
+}
+
 .sage-ai-chat__transcript {
   display: grid;
   gap: 8px;
@@ -727,6 +834,7 @@ textarea::placeholder {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   align-items: end;
+  min-height: 48px;
 }
 
 .sage-ai-chat__controls {
@@ -734,10 +842,11 @@ textarea::placeholder {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
-  max-width: 260px;
+  max-width: 360px;
 }
 
 .overlay-row {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
@@ -745,6 +854,22 @@ textarea::placeholder {
   min-height: 70px;
   border-top: 1px solid var(--sageos-border-subtle);
   padding-top: 10px;
+}
+
+@keyframes sageos-liquid-ripple {
+  0% {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+
+  38% {
+    opacity: 0.9;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.55);
+  }
 }
 
 .overlay-row--success {

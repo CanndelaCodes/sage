@@ -19,6 +19,7 @@ describe("overlay visual contract", () => {
       "--sageos-glass-refraction",
       "--sageos-glass-specular",
       "--sageos-glass-platinum",
+      "--sageos-liquid-ripple",
       "--sageos-liquid-ambient",
       "--sageos-liquid-command",
       "--sageos-liquid-focus",
@@ -63,10 +64,8 @@ describe("overlay visual contract", () => {
     expect(styles).not.toContain("16px 16px");
 
     const appBlock = readCssBlock("sageos-overlay-app");
-    expect(appBlock).toContain("background: var(--sageos-bg-overlay);");
-    expect(appBlock).toContain(
-      "backdrop-filter: blur(var(--sageos-glass-blur-lg)) saturate(var(--sageos-glass-saturation));",
-    );
+    expect(appBlock).toContain("background: transparent;");
+    expect(appBlock).toContain("backdrop-filter: none;");
     expect(appBlock).not.toContain("radial-gradient");
   });
 
@@ -186,6 +185,9 @@ describe("overlay visual contract", () => {
       ".overlay-panel::after",
       ".sage-ai-chat",
       ".sage-ai-chat__facts",
+      ".sage-ai-chat__sessions",
+      ".sage-ai-chat__session",
+      ".sage-ai-chat__session--active",
       ".sage-ai-chat__transcript",
       ".sage-ai-chat__composer",
       ".universal-launcher",
@@ -226,6 +228,9 @@ describe("overlay visual contract", () => {
       ".overlay-button--success",
       ".overlay-button--error",
       ".overlay-button::after",
+      "button:not(:disabled):active::after",
+      ".overlay-row:active::after",
+      "@keyframes sageos-liquid-ripple",
     ];
 
     for (const selector of requiredSelectors) {
@@ -234,9 +239,13 @@ describe("overlay visual contract", () => {
   });
 
   it("keeps the Sage AI chat panel sized to its body content", () => {
-    const chatBlock = readCssBlock(".sage-ai-chat");
+    const chatBlock = readCssBlock(".sage-ai-chat {");
     expect(chatBlock).toContain("grid-template-rows:");
-    expect(chatBlock).toContain("min-height: 336px;");
+    expect(chatBlock).toContain("min-height: 392px;");
+
+    const sessionsBlock = readCssBlock(".sage-ai-chat__session {");
+    expect(sessionsBlock).toContain("text-align: left;");
+    expect(sessionsBlock).toContain("white-space: normal;");
 
     const transcriptBlock = readCssBlock(".sage-ai-chat__transcript");
     expect(transcriptBlock).toContain("min-height: 86px;");
@@ -244,6 +253,7 @@ describe("overlay visual contract", () => {
 
     const composerBlock = readCssBlock(".sage-ai-chat__composer");
     expect(composerBlock).toContain("grid-template-columns: minmax(0, 1fr) auto;");
+    expect(composerBlock).toContain("min-height: 48px;");
   });
 
   it("guards keyboard focus, reduced motion, and text overflow", () => {

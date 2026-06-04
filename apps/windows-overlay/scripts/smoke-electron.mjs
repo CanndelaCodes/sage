@@ -36,6 +36,7 @@ try {
     "sageos.tasks.runNext",
     "sageos.memory.replay",
     "chat.history",
+    "sessions.list",
     "chat.send",
   ]);
   assertNoRendererErrors(rendererErrors);
@@ -90,6 +91,7 @@ async function smokeFullOverlay(gatewayUrl, rendererErrors) {
     await page.waitForSelector(".overlay-shell--commandDeck .pinned-widgets", {
       timeout: 15_000,
     });
+    await assertShellOverlayWindow(app);
     await page.waitForFunction(() => document.body.innerText.includes("Memory Queue"));
     await waitForGatewayActionsReady(page);
     await assertPreloadBridge(page);
@@ -98,6 +100,7 @@ async function smokeFullOverlay(gatewayUrl, rendererErrors) {
     await assertQuickActionArrowNavigation(page);
     await assertCriticalTextFit(page);
     await assertSageAiChatPanelLayout(page);
+    await assertSageAiChatSessionResume(page);
 
     await setVisualBackdrop(page, "desktop");
     await page.screenshot({
@@ -127,7 +130,7 @@ async function smokeFullOverlay(gatewayUrl, rendererErrors) {
 
     await page.getByRole("button", { name: "Pause" }).click();
     await waitForRecordedMethod("sageos.control");
-    await page.getByRole("button", { name: "Resume" }).click();
+    await page.getByRole("button", { name: "Resume", exact: true }).click();
     await waitForRecordedMethod("sageos.control", 2);
     await page.getByRole("button", { name: "Stop", exact: true }).click();
     await waitForRecordedMethod("sageos.control", 3);
@@ -352,7 +355,7 @@ async function createPassThroughProbe(app) {
         frame: false,
         show: false,
         skipTaskbar: true,
-        alwaysOnTop: false,
+        alwaysOnTop: true,
         resizable: false,
         backgroundColor: "#f8fafc",
         webPreferences: {
@@ -361,7 +364,9 @@ async function createPassThroughProbe(app) {
         },
       });
       await window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(probeHtml)}`);
-      window.showInactive();
+      window.setAlwaysOnTop(true, "floating");
+      window.show();
+      window.focus();
       const clickPoint = {
         x: x + Math.floor(width / 2),
         y: y + Math.floor(height / 2),
@@ -409,8 +414,50 @@ async function forceOverlayPassThrough(app) {
     if (!overlayWindow) {
       throw new Error("SageOS overlay BrowserWindow was not available for pass-through smoke");
     }
+    overlayWindow.setFocusable(false);
+    overlayWindow.blur();
     overlayWindow.setIgnoreMouseEvents(true, { forward: true });
   });
+}
+
+async function assertShellOverlayWindow(app) {
+  let shell = null;
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < 5_000) {
+    shell = await app.evaluate(({ BrowserWindow, screen }) => {
+      const window = BrowserWindow.getAllWindows().find(
+        (candidate) => candidate.getTitle() === "SageOS Overlay",
+      );
+      if (!window) {
+        throw new Error("SageOS overlay BrowserWindow was not available for shell-level smoke");
+      }
+      const bounds = window.getBounds();
+      const display = screen.getDisplayMatching(bounds);
+      return {
+        alwaysOnTop: window.isAlwaysOnTop(),
+        bounds,
+        displayBounds: display.bounds,
+        workArea: display.workArea,
+      };
+    });
+    if (shell.alwaysOnTop && sameRect(shell.bounds, shell.displayBounds)) {
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  if (!shell) {
+    throw new Error("SageOS overlay shell-level smoke did not capture window diagnostics");
+  }
+  assertEqual(shell.alwaysOnTop, true, "SageOS overlay BrowserWindow stays above normal app windows");
+  if (!sameRect(shell.bounds, shell.displayBounds)) {
+    throw new Error(
+      `SageOS overlay does not cover the active display bounds: ${JSON.stringify(shell)}`,
+    );
+  }
+}
+
+function sameRect(a, b) {
+  return a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
 }
 
 async function sendNativeMouseClick(point) {
@@ -902,6 +949,8 @@ async function assertCriticalTextFit(page) {
       ".compact-hud button",
       ".hud-badge",
       ".edge-rail button",
+      ".sage-ai-chat__session",
+      ".sage-ai-chat__controls button",
     ];
     const groupSelectors = [
       ".overlay-toolbar",
@@ -909,6 +958,8 @@ async function assertCriticalTextFit(page) {
       ".universal-launcher__quick-actions",
       ".compact-hud__badges",
       ".edge-rail",
+      ".sage-ai-chat__session-list",
+      ".sage-ai-chat__controls",
     ];
 
     const issues = [];
@@ -989,6 +1040,10 @@ async function assertSageAiChatPanelLayout(page) {
     state: "visible",
     timeout: 5_000,
   });
+  await page.getByRole("button", { name: "Refresh Sage AI sessions" }).waitFor({
+    state: "visible",
+    timeout: 5_000,
+  });
   await page.getByRole("button", { name: "New session" }).waitFor({
     state: "visible",
     timeout: 5_000,
@@ -1020,6 +1075,8 @@ async function assertSageAiChatPanelLayout(page) {
     return {
       panel: readRect(".sage-ai-chat"),
       facts: readRect(".sage-ai-chat__facts"),
+      sessions: readRect(".sage-ai-chat__sessions"),
+      sessionButton: readRect(".sage-ai-chat__session"),
       transcript: readRect(".sage-ai-chat__transcript"),
       composer: readRect(".sage-ai-chat__composer"),
       commandDeck: readRect(".command-deck"),
@@ -1063,6 +1120,20 @@ async function assertSageAiChatPanelLayout(page) {
     );
   }
 
+  for (const [name, rect] of Object.entries({
+    facts: layout.facts,
+    sessions: layout.sessions,
+    transcript: layout.transcript,
+    composer: layout.composer,
+  })) {
+    if (rect.left < layout.panel.left - 1 || rect.right > layout.panel.right + 1) {
+      throw new Error(`Sage AI Chat ${name} bleeds outside panel horizontally\n${JSON.stringify(layout, null, 2)}`);
+    }
+    if (rect.top < layout.panel.top - 1 || rect.bottom > layout.panel.bottom + 1) {
+      throw new Error(`Sage AI Chat ${name} bleeds outside panel vertically\n${JSON.stringify(layout, null, 2)}`);
+    }
+  }
+
   const overlapX =
     Math.min(layout.panel.right, layout.commandDeck.right) - Math.max(layout.panel.left, layout.commandDeck.left);
   const overlapY =
@@ -1070,6 +1141,24 @@ async function assertSageAiChatPanelLayout(page) {
   if (overlapX > 1 && overlapY > 1) {
     throw new Error(`Sage AI chat panel overlaps the Command Deck\n${JSON.stringify(layout, null, 2)}`);
   }
+}
+
+async function assertSageAiChatSessionResume(page) {
+  await waitForRecordedMethod("sessions.list");
+  await page.getByLabel("Recent Sage AI sessions").waitFor({ state: "visible", timeout: 5_000 });
+  await page.getByText("Recent sessions").waitFor({ state: "visible", timeout: 5_000 });
+  await page.getByText("SageOS MVP planning").waitFor({ state: "visible", timeout: 5_000 });
+  await page.getByText("Night Shift report is ready.").waitFor({ state: "visible", timeout: 5_000 });
+
+  await page.getByRole("button", { name: "Resume Sage AI session telegram" }).click();
+  await waitForRecordedMethod("chat.history", 2);
+  await page.getByText("agent:main:telegram:Jason", { exact: true }).waitFor({
+    state: "visible",
+    timeout: 5_000,
+  });
+  await page
+    .getByText("Gateway history loaded for resumed Hermes parity smoke.")
+    .waitFor({ state: "visible", timeout: 5_000 });
 }
 
 async function assertReducedMotion(page) {
@@ -1615,13 +1704,16 @@ async function startMockGateway(recorded) {
                   "sageos.tasks.runNext",
                   "sageos.memory.replay",
                   "chat.history",
+                  "sessions.list",
                   "chat.send",
                 ],
                 events: ["sageos"],
               },
             }
           : frame.method === "chat.history"
-            ? createSmokeChatHistory()
+            ? createSmokeChatHistory(frame.params)
+            : frame.method === "sessions.list"
+              ? createSmokeChatSessions()
             : createSmokeState();
       ws.send(JSON.stringify({ type: "res", id: frame.id, ok: true, payload }));
     });
@@ -1825,9 +1917,35 @@ function createSmokeState() {
   };
 }
 
-function createSmokeChatHistory() {
+function createSmokeChatHistory(params = {}) {
+  const sessionKey = typeof params.sessionKey === "string" ? params.sessionKey : "main";
+  if (sessionKey === "agent:main:telegram:Jason") {
+    return {
+      sessionKey,
+      messages: [
+        {
+          id: "telegram_history_user_1",
+          role: "user",
+          content: "Open my latest Night Shift report.",
+        },
+        {
+          id: "telegram_history_assistant_1",
+          role: "assistant",
+          content: "Night Shift report is ready.",
+        },
+        {
+          id: "telegram_history_tool_1",
+          role: "toolResult",
+          text: "Gateway history loaded for resumed Hermes parity smoke.",
+        },
+      ],
+      thinkingLevel: "low",
+      verboseLevel: "medium",
+    };
+  }
+
   return {
-    sessionKey: "main",
+    sessionKey,
     messages: [
       {
         id: "history_user_1",
@@ -1852,6 +1970,33 @@ function createSmokeChatHistory() {
     ],
     thinkingLevel: "low",
     verboseLevel: "medium",
+  };
+}
+
+function createSmokeChatSessions() {
+  return {
+    ts: Date.parse(now),
+    path: "sessions.json",
+    count: 2,
+    defaults: { modelProvider: "openai", model: "gpt-5", contextTokens: 128000 },
+    sessions: [
+      {
+        key: "main",
+        kind: "direct",
+        displayName: "Main Sage session",
+        derivedTitle: "SageOS MVP planning",
+        lastMessagePreview: "Keep overlay as the primary SageOS UI.",
+        updatedAt: Date.parse(now),
+      },
+      {
+        key: "agent:main:telegram:Jason",
+        kind: "direct",
+        label: "telegram",
+        subject: "Jason",
+        lastMessagePreview: "Night Shift report is ready.",
+        updatedAt: Date.parse("2026-06-01T18:45:00.000Z"),
+      },
+    ],
   };
 }
 

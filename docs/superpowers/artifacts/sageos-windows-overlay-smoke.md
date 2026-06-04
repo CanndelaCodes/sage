@@ -26,6 +26,9 @@ Verification build SHA: `741b70695473`
 - [x] Full-mode launch script defaults to `-Build auto`, builds only when required assets are missing, supports `-Build always`, and fails fast with `-Build never` when built assets are unavailable.
 - [x] Current-user startup shortcut preserves the selected production build mode through `-Build auto|always|never`.
 - [x] `-OpenOnLaunch` opens the full-screen translucent overlay without requiring a synthetic hotkey.
+- [x] The native overlay shell is display-bounds-sized, not work-area-sized, so it can appear above the Windows taskbar.
+- [x] The overlay requests no ordinary taskbar button through `skipTaskbar` and reasserts the setting when shown.
+- [x] The overlay reasserts `screen-saver` always-on-top level for full overlay, HUD, and Edge Rail surfaces.
 - [x] The window controller fails startup explicitly if Electron cannot register the configured hotkey.
 - [x] `Ctrl+Alt+Space` opens the full-screen translucent overlay.
 - [x] `Ctrl+Alt+Space` closes the overlay.
@@ -49,8 +52,9 @@ Verification build SHA: `741b70695473`
 - [x] Universal Launcher exposes quick actions for employees, tasks, workflows, memory replay, Night Shift coding, app/widget drafting, and safe incident repair.
 - [x] Universal Launcher disabled input, run, and voice states expose operator-facing reasons.
 - [x] Sage AI Chat appears as an overlay-native full-mode panel, not as a replacement web Command Center.
-- [x] Sage AI Chat exposes session, transport, delivery, and Gateway session-state facts plus visible transcript, composer, Send, Stop, and New session controls.
-- [x] Sage AI Chat actions use the existing Gateway chat protocol: `chat.history`, `chat.send`, and `chat.abort`, with overlay sends using `deliver: false`.
+- [x] Sage AI Chat exposes session, transport, delivery, and Gateway session-state facts plus visible transcript, recent sessions, composer, Send, Stop, Sessions, and New session controls.
+- [x] Sage AI Chat actions use the existing Gateway chat protocol: `chat.history`, `sessions.list`, `chat.send`, and `chat.abort`, with overlay sends using `deliver: false`.
+- [x] Sage AI Chat lists recent Gateway sessions and resumes a selected session inside the overlay by reloading `chat.history` for that session key.
 - [x] Sage AI Chat tracks incoming Gateway `chat` events for streaming, final, aborted, and error states.
 - [x] Sage AI Chat visual contract and packaged Electron smoke prevent the panel body from collapsing underneath or overlapping the Command Deck.
 - [x] Gateway disconnected, reconnecting, loading, refreshing, and error states render explicit overlay callouts and toolbar labels.
@@ -82,6 +86,8 @@ Verification build SHA: `741b70695473`
 - [x] Liquid Linear material tokens cover ambient, command, focus, and summit glass elevations.
 - [x] Liquid Linear command glass tokens cover refraction, specular highlights, platinum tint, command/focus/control shadows, runway highlights, and spring motion.
 - [x] Live overlay no longer uses dot-matrix or full-screen texture; Vitreous Liquor remains inspiration while depth comes from clear glass material, rim light, blur, specular highlights, and shadow.
+- [x] Live overlay root is transparent and does not draw a full-screen solid or blurred page sheet over the Windows desktop.
+- [x] Buttons, command rows, cards, panels, Agent Workspace, pinned widgets, and chat session controls provide subtle Liquid Linear ripple feedback on pointer press.
 - [x] Command Deck opens on active run telemetry when a live run exists, including worker session, current tool, budget used, verification, timeline, logs, and artifacts.
 - [x] Agent Workspace resolves active-run artifact refs into operator-readable previews for known coding reports, app candidates, workflows, skills, collaborations, and approvals.
 - [x] Command Deck exposes first-class Security and PC Management system resources with Agent Workspace drill-downs.
@@ -187,10 +193,24 @@ review:visual:all` passed with 11 screenshots and 0 pixel-content failures.
   while reading as a sleeker glass control surface. Smoke fixtures now use app-like desktop,
   sheet, terminal, browser, and IDE underlays rather than decorative grids or repeated-line textures.
 - Current package gates after the latest verification sweep: `pnpm --dir apps/windows-overlay test`
-  passed with 14 files and 103 tests, `pnpm --dir apps/windows-overlay typecheck` passed,
+  passed with 14 files and 106 tests, `pnpm --dir apps/windows-overlay typecheck` passed,
   `pnpm --dir apps/windows-overlay build` passed, `pnpm --dir apps/windows-overlay smoke:electron`
   passed with `rendererErrors: 0`, and `pnpm --dir apps/windows-overlay review:visual:all`
   passed with 11 screenshots and 0 pixel-content failures.
+- Transparent root and liquid ripple update: the renderer root now uses `background: transparent`
+  and `backdrop-filter: none`, while individual glass surfaces carry legibility through alpha,
+  rim light, shadow, and native acrylic only where appropriate. The visual contract requires
+  `--sageos-liquid-ripple`, pressed ripple selectors for buttons, rows, cards, panels, widgets,
+  workspaces, and chat sessions, plus `@keyframes sageos-liquid-ripple`. The packaged smoke and
+  visual review screenshots continue to show the app-like underlays behind the overlay panels, and
+  the native pass-through probe still reports `passThroughProbeClicks: 1`.
+- Game Bar-style shell overlay update: the native BrowserWindow is now frameless, transparent,
+  taskbar-skipping, menu-hidden, full-display-bounds-sized, and reasserted at the `screen-saver`
+  always-on-top level whenever the full overlay, HUD, or Edge Rail is shown. The packaged Electron
+  smoke now fails if the overlay is not topmost or if its bounds do not exactly match
+  `screen.getDisplayMatching(window.getBounds()).bounds`. The smoke underlay probe now stays above
+  ordinary app windows while remaining below the overlay, which keeps the native pass-through click
+  check stable on multi-monitor Windows.
 - See-through glass correction: `pnpm --dir apps/windows-overlay exec vitest run
 tests/overlay-visual-contract.test.ts tests/electron-adapter.test.ts --reporter verbose` first
   exposed the need to replace opaque bright-backdrop contrast assumptions with an explicit
@@ -210,6 +230,14 @@ apps/windows-overlay review:visual:all` passed on 2026-06-04 with `passThroughPr
   Hermes Agent and Hermes Desktop as Jason's primary AI agent. The readiness map tracks this as a
   Yellow MVP benchmark pending Jason's daily Hermes parity audit, rather than a green implementation
   claim.
+- Sage AI Chat session continuity update: focused TDD first failed because the overlay had no
+  `sessions.list` helper, no recent-session model, no Sessions control, and no mouse-first resume
+  path. The overlay now loads recent Gateway sessions, renders them in the Sage AI Chat panel,
+  preserves the list across new overlay sessions, and resumes a selected session by calling
+  `chat.history` with that session key. The packaged Electron smoke now advertises `sessions.list`,
+  returns a recent-session fixture, clicks `Resume Sage AI session telegram`, asserts the selected
+  session key and resumed transcript render, and includes the session strip/buttons in runtime fit
+  and layout checks.
 - Production launch hardening update: `pnpm --dir apps/windows-overlay exec vitest run
 tests/smoke-script.test.ts --reporter verbose` first failed because the overlay package lacked a
   built-app `start` script and the Windows launch/startup scripts did not expose build-mode control,

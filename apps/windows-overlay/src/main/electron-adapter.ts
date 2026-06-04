@@ -49,6 +49,7 @@ export function createElectronOverlayAdapter(params: {
       backgroundMaterial: "none",
       alwaysOnTop: true,
       skipTaskbar: true,
+      autoHideMenuBar: true,
       hasShadow: false,
       resizable: false,
       show: false,
@@ -69,6 +70,14 @@ export function createElectronOverlayAdapter(params: {
     window?.setBackgroundMaterial(material);
   };
 
+  const applyShellOverlayWindowLevel = (overlay: BrowserWindow) => {
+    const display = selectOverlayDisplay(params.activeMonitor);
+    overlay.setBounds(display.bounds);
+    overlay.setSkipTaskbar(true);
+    overlay.setFullScreenable(true);
+    overlay.setAlwaysOnTop(true, "screen-saver");
+  };
+
   const ensureTray = () => {
     if (tray) {
       return tray;
@@ -87,8 +96,10 @@ export function createElectronOverlayAdapter(params: {
     showFullOverlay() {
       currentSurface = "commandDeck";
       const overlay = ensureWindow();
-      overlay.setFullScreenable(false);
+      applyShellOverlayWindowLevel(overlay);
+      overlay.setFocusable(true);
       overlay.show();
+      overlay.setAlwaysOnTop(true, "screen-saver");
       overlay.focus();
       overlay.webContents.send("sageos-overlay:surface", "commandDeck");
       applyWindowMaterial();
@@ -96,14 +107,22 @@ export function createElectronOverlayAdapter(params: {
     showHud() {
       currentSurface = "hud";
       const overlay = ensureWindow();
+      applyShellOverlayWindowLevel(overlay);
+      overlay.setFocusable(false);
+      overlay.blur();
       overlay.showInactive();
+      overlay.setAlwaysOnTop(true, "screen-saver");
       overlay.webContents.send("sageos-overlay:surface", "hud");
       applyWindowMaterial();
     },
     showEdgeRail() {
       currentSurface = "edgeRail";
       const overlay = ensureWindow();
+      applyShellOverlayWindowLevel(overlay);
+      overlay.setFocusable(false);
+      overlay.blur();
       overlay.showInactive();
+      overlay.setAlwaysOnTop(true, "screen-saver");
       overlay.webContents.send("sageos-overlay:surface", "edgeRail");
       applyWindowMaterial();
     },
@@ -112,6 +131,12 @@ export function createElectronOverlayAdapter(params: {
     },
     setPassThrough(enabled) {
       passThroughEnabled = enabled;
+      if (enabled) {
+        window?.setFocusable(false);
+        window?.blur();
+      } else {
+        window?.setFocusable(true);
+      }
       window?.setIgnoreMouseEvents(enabled, { forward: true });
       applyWindowMaterial();
     },

@@ -684,7 +684,9 @@ The overlay should feel like a precise liquid glass command surface over Windows
 - Backdrop blur only where it improves separation; opacity floors must preserve text contrast over bright and dark desktop content.
 - Thin rim highlights, crisp borders, soft internal shadows, and subtle glows for state.
 - No dot-matrix, topographic, or other full-screen texture in the live overlay; desktop context remains visible underneath.
+- No renderer-level full-screen sheet may hide the desktop. The overlay root stays transparent, while individual command surfaces provide the glass, blur, rim light, and shadow needed for legibility.
 - Glass material, translucency, blur, rim light, specular highlights, and shadow provide depth instead of patterned decoration.
+- Cards, menus, modals, rows, and widgets should feel like floating surfaces in clear liquid space, with subtle ripple feedback on pointer press.
 - 8px default card radius unless a specific surface needs a tighter system control or a larger modal container.
 - Apple-like liquid glass effects must never undermine Linear-like scan density, command hierarchy, or legibility.
 
@@ -705,6 +707,7 @@ The overlay must be mouse-first, keyboard-complete, and voice-ready:
 - All MVP actions have visible controls with hover, focus, pressed, disabled, loading, success, and error states.
 - Keyboard paths cover the global hotkey, launcher focus, tab order, escape-to-dismiss, command execution, approvals, pause/resume, and close/collapse/expand.
 - Motion uses transform and opacity, respects reduced-motion, and limits active animation channels so the overlay feels alive without getting noisy.
+- Pointer press feedback should use subtle Liquid Linear ripples on buttons, rows, cards, menus, sessions, and widgets without turning into decorative background animation.
 - Magnetic, spotlight, or crystallization effects may be used on high-value controls, but only if they preserve precision and pass screenshot/manual review.
 
 ### Release Gate
@@ -727,6 +730,7 @@ Research pass on 2026-06-04 covered Hermes Agent desktop and OpenClaw as current
 - Hermes desktop source: `https://hermes-agent.nousresearch.com/docs/user-guide/desktop`.
 - Hermes platform sources: `https://github.com/NousResearch/hermes-agent`, `https://hermes-agent.nousresearch.com/docs/user-guide/sessions`, `https://hermes-agent.nousresearch.com/docs/user-guide/profiles`, `https://hermes-agent.nousresearch.com/docs/user-guide/checkpoints-and-rollback`, and `https://hermes-agent.nousresearch.com/docs/user-guide/features/overview`.
 - Hermes release/source status observed on 2026-06-04: GitHub listed `Hermes Agent v0.15.2 (2026.5.29.2)` as latest, and the desktop docs describe the native app as the same agent core, config, API keys, sessions, skills, memory, and gateway rather than a separate product.
+- Hermes Desktop source audit artifact: `docs/superpowers/artifacts/sageos-hermes-desktop-parity-audit.md`. The audited source commit `d1367355d514b5ce3af6056ca660ab28e9d632e4` shows an Electron desktop shell with same-agent runtime bootstrap, chat, session continuity, command palette, file/preview surfaces, voice, provider/model/tool/MCP settings, subagent/activity views, and scoped approval-bypass UX.
 - OpenClaw sources: `https://openclaw.ai/` and `https://arxiv.org/abs/2604.04759`.
 
 ### Hermes Replacement Requirement
@@ -739,7 +743,8 @@ For MVP acceptance, "capable of replacing Hermes" means:
 - Overlay, web Command Center, TUI, CLI, and Telegram operate the same SageOS/Gateway state so a session or task can move between surfaces without losing context.
 - Sage AI Chat supports history, safe sends, aborts, current run awareness, and enough planning/summarization/debugging usefulness that Jason does not need Hermes Desktop open for ordinary agent work.
 - Agent Workspace exposes live tool activity, current files/artifacts, logs/evidence, previews where available, approvals, incidents, and verification state without forcing a terminal-only workflow.
-- Sage Memory, workflow/skill candidates, scheduled work, profiles or mode-equivalent policy, messaging, and audit/rollback evidence are visible and controllable enough from SageOS surfaces for daily operation.
+- Sage Memory, workflow/skill candidates, scheduled work, profiles or mode-equivalent policy, messaging, provider/model/tool/MCP controls, and audit/rollback evidence are visible and controllable enough from SageOS surfaces for daily operation.
+- Hermes-like side-by-side previews, file/artifact navigation, advanced session search/archive, voice, and setup surfaces are MVP blockers only where Jason still needs Hermes Desktop for his main daily loop; otherwise they remain tracked post-MVP candidates.
 - Any material Hermes parity gap must be tracked as a release blocker, a scoped MVP exception approved by Jason, or a post-MVP item that does not leave Hermes required for the main daily loop.
 
 Adopt for SageOS MVP:
@@ -772,6 +777,7 @@ The overlay shell must support:
 
 - Programmable global Windows hotkey to open, close, and toggle SageOS.
 - Full-screen translucent overlay as the default open state.
+- Game Bar-style shell behavior: SageOS must not appear as a normal taskbar app while the overlay is visible, and the overlay window must cover the full display bounds above the Windows taskbar rather than only the desktop work area.
 - Configurable compact HUD-first mode that expands into the full overlay.
 - Always-on-top window behavior while the overlay is open.
 - Tray status affordance for health and settings.

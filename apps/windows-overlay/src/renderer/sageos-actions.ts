@@ -35,6 +35,24 @@ export type SageAiChatHistory = {
   thinkingLevel?: string;
   verboseLevel?: string;
 };
+export type SageAiChatSessionRow = {
+  key: string;
+  kind?: string;
+  label?: string;
+  displayName?: string;
+  derivedTitle?: string;
+  lastMessagePreview?: string;
+  channel?: string;
+  subject?: string;
+  updatedAt?: number | null;
+};
+export type SageAiChatSessions = {
+  ts?: number;
+  path?: string;
+  count?: number;
+  defaults?: Record<string, unknown>;
+  sessions?: SageAiChatSessionRow[];
+} & Record<string, unknown>;
 
 const safeIncidentRepairMethods = new Set([
   "sageos.memory.replay",
@@ -56,6 +74,14 @@ export function loadSageAiChatHistory(
   limit = 50,
 ) {
   return client.request<SageAiChatHistory>("chat.history", { sessionKey, limit });
+}
+
+export function loadSageAiChatSessions(client: OverlayGatewayClient, limit = 8) {
+  return client.request<SageAiChatSessions>("sessions.list", {
+    limit,
+    includeGlobal: false,
+    includeUnknown: false,
+  });
 }
 
 export function sendSageAiChatMessage(

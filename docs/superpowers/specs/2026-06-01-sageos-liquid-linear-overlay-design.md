@@ -28,6 +28,8 @@ Use Liquid Linear command glass as the production target:
 - Liquid material: translucent glass, backdrop blur, saturation, rim highlights, soft internal light, and material depth that responds to elevation.
 - Linear precision: crisp information hierarchy, small controls, compact rows, command-first layout, clear state colors, and low-noise motion.
 - Windows overlay fit: genuinely see-through surfaces, readable over bright and dark apps through blur/saturation/rim/shadow treatment, no dependence on full-page browser backgrounds, no marketing-style hero composition.
+- Native overlay fit: the renderer root must stay transparent and must not apply a full-screen solid fill or full-screen blur sheet that hides the desktop or open apps underneath.
+- Windows shell fit: the native window should behave like a system overlay layer, with no ordinary taskbar button and full-display coverage above the Windows taskbar.
 
 Do not copy Apple, Linear, or PeakHQ branding. Borrow material logic, motion discipline, hierarchy, and polish standards.
 
@@ -70,6 +72,7 @@ Surface treatment:
 - Avoid decorative orbs, bokeh blobs, or one-note purple/blue gradients.
 - Do not use dot-matrix, topographic, or other full-screen texture in the live overlay; preserve the user's desktop context underneath.
 - Use glass material, translucency, blur, rim light, specular highlights, and shadow as the depth system instead of patterned decoration.
+- Panels, menus, cards, rows, widgets, and modal surfaces should read as floating in clear liquid space, not attached to a page background.
 
 ## Interaction And Motion
 
@@ -83,6 +86,7 @@ Motion rules:
 - Respect reduced motion.
 - No slow decorative shimmer in default mode.
 - Premium effects such as magnetic pull, spotlight, material glint, or glass refraction may be used only on high-value controls after screenshot review.
+- Pointer interactions should produce subtle liquid ripple feedback on clickable controls and rows, with reduced-motion support and no slow decorative shimmer.
 
 Keyboard rules:
 
@@ -117,6 +121,9 @@ Liquid Linear command glass is an MVP release gate. The MVP is not visually acce
 - Screenshots prove full overlay, HUD, Edge Rail, and pinned widgets remain legible while the active desktop context is still visible underneath.
 - Pinned widgets remain readable over representative dark, light, text-heavy, browser, and IDE backgrounds.
 - Full-screen dot/textures and solid page fills are absent from the live overlay; depth comes from translucent glass, native acrylic, backdrop blur, saturation, rim light, specular highlights, and shadow.
+- Screenshots and live smoke must prove the renderer root does not mask the Windows desktop with an opaque or semi-opaque page sheet.
+- Native smoke must prove the overlay window is display-bounds-sized, topmost, and taskbar-skipping, not a normal app window constrained to the work area.
+- Clickable controls and scanner rows provide subtle pressed/ripple feedback that feels material and operational rather than ornamental.
 - Text does not clip or overlap in cards, rows, badges, buttons, widgets, or command input.
 - Contrast meets practical WCAG 2.2 AA expectations for normal text and controls.
 - Reduced motion is honored.

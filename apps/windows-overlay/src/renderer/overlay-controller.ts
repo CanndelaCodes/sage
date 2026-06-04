@@ -8,6 +8,7 @@ import {
   denySageOsApproval,
   emergencyStopSageOs,
   loadSageAiChatHistory,
+  loadSageAiChatSessions,
   loadSageOsOverlayStatus,
   pauseSageOsEmployee,
   pauseSageOs,
@@ -21,6 +22,8 @@ import {
   sendSageAiChatMessage,
   stopSageOs,
   type SageAiChatHistory,
+  type SageAiChatSessions,
+  type SageAiChatSessionRow,
   type SageOsOverlayStatusState,
 } from "./sageos-actions.js";
 
@@ -33,6 +36,8 @@ export type SageOsOverlayChatState = {
   error: string | null;
   history: SageOsOverlayChatMessage[];
   historyLoading: boolean;
+  sessions: SageOsOverlayChatSession[];
+  sessionsLoading: boolean;
 };
 
 export type SageOsOverlayChatMessage = {
@@ -40,6 +45,12 @@ export type SageOsOverlayChatMessage = {
   role: "user" | "assistant" | "system" | "tool" | "unknown";
   label: string;
   text: string;
+};
+export type SageOsOverlayChatSession = {
+  key: string;
+  title: string;
+  detail: string;
+  updatedAt: string;
 };
 
 export type SageOsOverlayControllerState = {
@@ -212,6 +223,42 @@ export class SageOsOverlayController {
     }
   }
 
+  async loadChatSessions(limit = 8): Promise<SageAiChatSessions | null> {
+    this.state = {
+      ...this.state,
+      chat: { ...this.state.chat, sessionsLoading: true, error: null },
+    };
+    this.onChange();
+    try {
+      const result = await loadSageAiChatSessions(this.client, limit);
+      this.state = {
+        ...this.state,
+        chat: {
+          ...this.state.chat,
+          sessions: normalizeChatSessions(result.sessions),
+          sessionsLoading: false,
+        },
+      };
+      return result;
+    } catch (err) {
+      this.state = {
+        ...this.state,
+        chat: { ...this.state.chat, sessionsLoading: false, error: String(err) },
+      };
+      return null;
+    } finally {
+      this.onChange();
+    }
+  }
+
+  async resumeChatSession(sessionKey: string) {
+    const trimmed = sessionKey.trim();
+    if (!trimmed) {
+      return null;
+    }
+    return this.loadChatHistory(trimmed);
+  }
+
   async sendChatMessage(
     message: string,
     idempotencyKey?: string,
@@ -298,7 +345,10 @@ export class SageOsOverlayController {
   startNewChatSession(sessionKey = `overlay-${Date.now().toString(36)}`) {
     this.state = {
       ...this.state,
-      chat: createInitialChatState(sessionKey),
+      chat: {
+        ...createInitialChatState(sessionKey),
+        sessions: this.state.chat.sessions,
+      },
     };
     this.onChange();
     return sessionKey;
@@ -409,6 +459,8 @@ function createInitialChatState(sessionKey = "main"): SageOsOverlayChatState {
     error: null,
     history: [],
     historyLoading: false,
+    sessions: [],
+    sessionsLoading: false,
   };
 }
 
@@ -432,6 +484,39 @@ function normalizeChatHistoryMessages(messages: unknown): SageOsOverlayChatMessa
       },
     ];
   });
+}
+
+function normalizeChatSessions(sessions: SageAiChatSessionRow[] | undefined): SageOsOverlayChatSession[] {
+  return (sessions ?? []).map((session) => {
+    const title =
+      firstNonEmptyString(session.derivedTitle, session.displayName, session.label, session.subject) ??
+      session.key;
+    const detail =
+      firstNonEmptyString(session.lastMessagePreview, session.subject, session.channel, session.kind) ??
+      "No recent message preview";
+    return {
+      key: session.key,
+      title,
+      detail,
+      updatedAt: formatSessionUpdatedAt(session.updatedAt),
+    };
+  });
+}
+
+function firstNonEmptyString(...values: Array<string | undefined | null>): string | undefined {
+  return values.find((value): value is string => typeof value === "string" && value.trim().length > 0)?.trim();
+}
+
+function formatSessionUpdatedAt(value: number | null | undefined): string {
+  if (!value) {
+    return "No recent activity";
+  }
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
 }
 
 function normalizeChatHistoryRole(role: string | null): SageOsOverlayChatMessage["role"] {

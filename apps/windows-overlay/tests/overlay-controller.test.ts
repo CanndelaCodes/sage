@@ -308,6 +308,74 @@ describe("SageOsOverlayController", () => {
     ]);
   });
 
+  it("loads Gateway sessions and resumes a selected Sage AI chat session", async () => {
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce({
+        sessions: [
+          {
+            key: "agent:main:main",
+            displayName: "Main Sage session",
+            derivedTitle: "SageOS MVP planning",
+            lastMessagePreview: "Keep overlay as the primary UI.",
+            updatedAt: Date.parse("2026-06-04T15:30:00.000Z"),
+            kind: "direct",
+          },
+          {
+            key: "agent:main:telegram:Jason",
+            label: "telegram",
+            subject: "Jason",
+            lastMessagePreview: "Night Shift report is ready.",
+            updatedAt: Date.parse("2026-06-04T13:00:00.000Z"),
+            kind: "direct",
+          },
+        ],
+        count: 2,
+      })
+      .mockResolvedValueOnce({
+        sessionKey: "agent:main:telegram:Jason",
+        messages: [{ id: "telegram_msg", role: "assistant", content: "Night Shift report is ready." }],
+      });
+    const controller = new SageOsOverlayController({ request });
+
+    await controller.loadChatSessions();
+    await controller.resumeChatSession("agent:main:telegram:Jason");
+
+    expect(request).toHaveBeenNthCalledWith(1, "sessions.list", {
+      limit: 8,
+      includeGlobal: false,
+      includeUnknown: false,
+    });
+    expect(request).toHaveBeenNthCalledWith(2, "chat.history", {
+      sessionKey: "agent:main:telegram:Jason",
+      limit: 50,
+    });
+    expect(controller.state.chat.sessionsLoading).toBe(false);
+    expect(controller.state.chat.sessions).toEqual([
+      {
+        key: "agent:main:main",
+        title: "SageOS MVP planning",
+        detail: "Keep overlay as the primary UI.",
+        updatedAt: "Jun 4, 11:30 AM",
+      },
+      {
+        key: "agent:main:telegram:Jason",
+        title: "telegram",
+        detail: "Night Shift report is ready.",
+        updatedAt: "Jun 4, 9:00 AM",
+      },
+    ]);
+    expect(controller.state.chat.sessionKey).toBe("agent:main:telegram:Jason");
+    expect(controller.state.chat.history).toEqual([
+      {
+        key: "telegram_msg",
+        role: "assistant",
+        label: "Sage",
+        text: "Night Shift report is ready.",
+      },
+    ]);
+  });
+
   it("tracks Gateway chat events for the overlay chat surface", () => {
     const request = vi.fn();
     const controller = new SageOsOverlayController({ request });

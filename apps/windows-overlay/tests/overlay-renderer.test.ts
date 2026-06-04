@@ -610,11 +610,11 @@ describe("overlay renderer model", () => {
       delivery: "Overlay only",
       composerPlaceholder: "Ask Sage to explain, plan, summarize, or operate SageOS...",
     });
-    expect(model.chat.controls).toEqual(["Send", "Stop", "New session"]);
+    expect(model.chat.controls).toEqual(["Send", "Stop", "Sessions", "New session"]);
     expect(model.chat.facts).toEqual(
       expect.arrayContaining([
         { label: "Session", value: "main" },
-        { label: "Transport", value: "chat.send / chat.history / chat.abort" },
+        { label: "Transport", value: "chat.send / chat.history / chat.abort / sessions.list" },
         { label: "Delivery", value: "deliver: false" },
       ]),
     );
@@ -630,7 +630,7 @@ describe("overlay renderer model", () => {
     expect(workspaceModel.workspace.facts).toEqual(
       expect.arrayContaining([
         { label: "Session", value: "main" },
-        { label: "Transport", value: "chat.send / chat.history / chat.abort" },
+        { label: "Transport", value: "chat.send / chat.history / chat.abort / sessions.list" },
         { label: "Delivery", value: "deliver: false" },
         { label: "Backbone", value: "Sage Gateway session state" },
       ]),

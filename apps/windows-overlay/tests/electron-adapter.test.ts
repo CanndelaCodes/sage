@@ -5,10 +5,15 @@ const electronMocks = vi.hoisted(() => {
     options: Record<string, unknown>;
     loadFile: ReturnType<typeof vi.fn>;
     setFullScreenable: ReturnType<typeof vi.fn>;
+    setAlwaysOnTop: ReturnType<typeof vi.fn>;
+    setSkipTaskbar: ReturnType<typeof vi.fn>;
+    setBounds: ReturnType<typeof vi.fn>;
     show: ReturnType<typeof vi.fn>;
     showInactive: ReturnType<typeof vi.fn>;
     hide: ReturnType<typeof vi.fn>;
     focus: ReturnType<typeof vi.fn>;
+    blur: ReturnType<typeof vi.fn>;
+    setFocusable: ReturnType<typeof vi.fn>;
     setIgnoreMouseEvents: ReturnType<typeof vi.fn>;
     setBackgroundMaterial: ReturnType<typeof vi.fn>;
     webContents: { send: ReturnType<typeof vi.fn> };
@@ -34,10 +39,15 @@ const electronMocks = vi.hoisted(() => {
         options,
         loadFile: vi.fn(),
         setFullScreenable: vi.fn(),
+        setAlwaysOnTop: vi.fn(),
+        setSkipTaskbar: vi.fn(),
+        setBounds: vi.fn(),
         show: vi.fn(),
         focus: vi.fn(),
+        blur: vi.fn(),
         showInactive: vi.fn(),
         hide: vi.fn(),
+        setFocusable: vi.fn(),
         setIgnoreMouseEvents: vi.fn(),
         setBackgroundMaterial: vi.fn(),
         webContents: { send: vi.fn() },
@@ -99,7 +109,21 @@ describe("Electron overlay adapter", () => {
       transparent: true,
       backgroundColor: "#00000000",
       backgroundMaterial: "none",
+      skipTaskbar: true,
+      autoHideMenuBar: true,
     });
+    expect(electronMocks.windows[0]?.setBounds).toHaveBeenLastCalledWith({
+      x: 0,
+      y: 0,
+      width: 1280,
+      height: 720,
+    });
+    expect(electronMocks.windows[0]?.setSkipTaskbar).toHaveBeenLastCalledWith(true);
+    expect(electronMocks.windows[0]?.setFullScreenable).toHaveBeenLastCalledWith(true);
+    expect(electronMocks.windows[0]?.setAlwaysOnTop).toHaveBeenLastCalledWith(
+      true,
+      "screen-saver",
+    );
     expect(electronMocks.windows[0]?.setBackgroundMaterial).toHaveBeenLastCalledWith("acrylic");
   });
 
@@ -130,18 +154,24 @@ describe("Electron overlay adapter", () => {
 
     adapter.showFullOverlay();
     adapter.setPassThrough(false);
+    expect(electronMocks.windows[0]?.setFocusable).toHaveBeenLastCalledWith(true);
     expect(electronMocks.windows[0]?.setBackgroundMaterial).toHaveBeenLastCalledWith("acrylic");
 
     adapter.showEdgeRail();
+    expect(electronMocks.windows[0]?.setFocusable).toHaveBeenLastCalledWith(false);
     adapter.setPassThrough(true);
+    expect(electronMocks.windows[0]?.setFocusable).toHaveBeenLastCalledWith(false);
+    expect(electronMocks.windows[0]?.blur).toHaveBeenCalledTimes(2);
     expect(electronMocks.windows[0]?.setIgnoreMouseEvents).toHaveBeenLastCalledWith(true, { forward: true });
     expect(electronMocks.windows[0]?.setBackgroundMaterial).toHaveBeenLastCalledWith("none");
 
     adapter.setPassThrough(false);
+    expect(electronMocks.windows[0]?.setFocusable).toHaveBeenLastCalledWith(true);
     expect(electronMocks.windows[0]?.setBackgroundMaterial).toHaveBeenLastCalledWith("none");
 
     adapter.showFullOverlay();
     adapter.setPassThrough(false);
+    expect(electronMocks.windows[0]?.setFocusable).toHaveBeenLastCalledWith(true);
     expect(electronMocks.windows[0]?.setBackgroundMaterial).toHaveBeenLastCalledWith("acrylic");
   });
 

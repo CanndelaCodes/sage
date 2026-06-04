@@ -404,11 +404,11 @@ function buildSageAiChatView(sessionKey: string): OverlayChatView {
     composerPlaceholder: "Ask Sage to explain, plan, summarize, or operate SageOS...",
     facts: [
       { label: "Session", value: sessionKey },
-      { label: "Transport", value: "chat.send / chat.history / chat.abort" },
+      { label: "Transport", value: "chat.send / chat.history / chat.abort / sessions.list" },
       { label: "Delivery", value: "deliver: false" },
       { label: "Backbone", value: "Sage Gateway session state" },
     ],
-    controls: ["Send", "Stop", "New session"],
+    controls: ["Send", "Stop", "Sessions", "New session"],
   };
 }
 
@@ -588,6 +588,8 @@ function fallbackChatState(sessionKey: string): SageOsOverlayChatState {
     error: null,
     history: [],
     historyLoading: false,
+    sessions: [],
+    sessionsLoading: false,
   };
 }
 
@@ -836,6 +838,7 @@ export class SageOsOverlayApp extends LitElement {
       onHello: () => {
         void controller.loadStatus();
         void controller.loadChatHistory();
+        void controller.loadChatSessions();
       },
       onEvent: (event) => controller.handleGatewayEvent(event),
       onClose: () => controller.setConnected(false),
@@ -1051,6 +1054,31 @@ export class SageOsOverlayApp extends LitElement {
             `,
           )}
         </dl>
+        <div class="sage-ai-chat__sessions" aria-label="Recent Sage AI sessions">
+          <div class="sage-ai-chat__sessions-header">
+            <span>Recent sessions</span>
+            <span>${chat.sessionsLoading ? "Refreshing..." : `${chat.sessions.length} shown`}</span>
+          </div>
+          <div class="sage-ai-chat__session-list">
+            ${chat.sessions.map(
+              (session) => html`
+                <button
+                  class=${`sage-ai-chat__session ${session.key === chat.sessionKey ? "sage-ai-chat__session--active" : ""}`}
+                  type="button"
+                  aria-label=${`Resume Sage AI session ${session.title}`}
+                  @click=${() => void this.resumeChatSession(session.key)}
+                >
+                  <span>${session.title}</span>
+                  <small>${session.detail}</small>
+                  <time>${session.updatedAt}</time>
+                </button>
+              `,
+            )}
+            ${chat.sessions.length === 0 && !chat.sessionsLoading
+              ? html`<p class="sage-ai-chat__sessions-empty">No recent Gateway sessions reported.</p>`
+              : nothing}
+          </div>
+        </div>
         <div class="sage-ai-chat__transcript" aria-label="Sage AI Chat stream">
           ${chat.history.map(
             (message) => html`
@@ -1136,6 +1164,14 @@ export class SageOsOverlayApp extends LitElement {
             >
               Stop
             </button>
+            <button
+              class="overlay-button"
+              aria-label="Refresh Sage AI sessions"
+              type="button"
+              @click=${() => void this.controller?.loadChatSessions()}
+            >
+              Sessions
+            </button>
             <button class="overlay-button" type="button" @click=${() => this.startNewChatSession()}>
               New session
             </button>
@@ -1169,6 +1205,12 @@ export class SageOsOverlayApp extends LitElement {
   private startNewChatSession() {
     this.chatDraft = "";
     this.controller?.startNewChatSession();
+    this.requestUpdate();
+  }
+
+  private async resumeChatSession(sessionKey: string) {
+    this.chatDraft = "";
+    await this.controller?.resumeChatSession(sessionKey);
     this.requestUpdate();
   }
 
