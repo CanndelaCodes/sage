@@ -15,7 +15,11 @@ const reportFile = path.join(distDir, "overlay-visual-review-report.json");
 const browserExecutable = await findBrowserExecutable();
 await fs.access(reviewFile);
 
-const browser = await chromium.launch({ executablePath: browserExecutable, headless: true });
+const browser = await chromium.launch({
+  executablePath: browserExecutable,
+  headless: true,
+  args: ["--allow-file-access-from-files"],
+});
 try {
   const page = await browser.newPage({
     viewport: { width: 1600, height: 1200 },
@@ -26,20 +30,88 @@ try {
     Array.from(document.images).every((img) => img.complete && img.naturalWidth > 0),
   );
 
-  const result = await page.evaluate(() => ({
-    title: document.title,
-    bodyTextLength: document.body.innerText.length,
-    imageCount: document.images.length,
-    brokenImages: Array.from(document.images).filter(
-      (img) => img.naturalWidth === 0 || img.naturalHeight === 0,
-    ).length,
-    overflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-    criteriaCount: document.querySelectorAll(".criteria li").length,
-    figureCount: document.querySelectorAll("figure").length,
-    rubricRowCount: document.querySelectorAll(".rubric-row").length,
-    decisionControlCount: document.querySelectorAll(".decision-control").length,
-    decisionSummaryCount: document.querySelectorAll(".decision-summary .decision-card").length,
-  }));
+  const result = await page.evaluate(() => {
+    const imageMetrics = Array.from(document.images).map(sampleImageContent);
+    return {
+      title: document.title,
+      bodyTextLength: document.body.innerText.length,
+      imageCount: document.images.length,
+      brokenImages: Array.from(document.images).filter(
+        (img) => img.naturalWidth === 0 || img.naturalHeight === 0,
+      ).length,
+      imageMetrics,
+      imageContentFailures: imageMetrics
+        .map((metric) => ({ ...metric, failureReason: imageContentFailureReason(metric) }))
+        .filter((metric) => metric.failureReason),
+      overflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      criteriaCount: document.querySelectorAll(".criteria li").length,
+      figureCount: document.querySelectorAll("figure").length,
+      rubricRowCount: document.querySelectorAll(".rubric-row").length,
+      decisionControlCount: document.querySelectorAll(".decision-control").length,
+      decisionSummaryCount: document.querySelectorAll(".decision-summary .decision-card").length,
+    };
+
+    function sampleImageContent(img) {
+      const width = Math.max(1, Math.min(64, img.naturalWidth));
+      const height = Math.max(1, Math.min(64, img.naturalHeight));
+      const src = img.getAttribute("src") ?? "";
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        if (!context) {
+          return { src, width, height, error: "canvas context unavailable" };
+        }
+        context.drawImage(img, 0, 0, width, height);
+        const data = context.getImageData(0, 0, width, height).data;
+        const colors = new Set();
+        let opaquePixels = 0;
+        let minLuminance = 255;
+        let maxLuminance = 0;
+        for (let index = 0; index < data.length; index += 4) {
+          const red = data[index] ?? 0;
+          const green = data[index + 1] ?? 0;
+          const blue = data[index + 2] ?? 0;
+          const alpha = data[index + 3] ?? 0;
+          if (alpha > 10) {
+            opaquePixels += 1;
+          }
+          colors.add(`${red >> 4},${green >> 4},${blue >> 4},${alpha >> 4}`);
+          const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+          minLuminance = Math.min(minLuminance, luminance);
+          maxLuminance = Math.max(maxLuminance, luminance);
+        }
+        const pixelCount = width * height;
+        return {
+          src,
+          width,
+          height,
+          uniqueColorCount: colors.size,
+          luminanceRange: Math.round((maxLuminance - minLuminance) * 100) / 100,
+          opaquePixelRatio: Math.round((opaquePixels / pixelCount) * 1000) / 1000,
+        };
+      } catch (error) {
+        return { src, width, height, error: String(error) };
+      }
+    }
+
+    function imageContentFailureReason(metric) {
+      if (metric.error) {
+        return metric.error;
+      }
+      if (metric.opaquePixelRatio < 0.01) {
+        return `too transparent: ${metric.opaquePixelRatio}`;
+      }
+      if (metric.uniqueColorCount < 8) {
+        return `too few sampled colors: ${metric.uniqueColorCount}`;
+      }
+      if (metric.luminanceRange < 18) {
+        return `too little luminance range: ${metric.luminanceRange}`;
+      }
+      return "";
+    }
+  });
 
   if (result.title !== "SageOS Overlay MVP Visual Review") {
     throw new Error(`Unexpected visual review title: ${result.title}`);
@@ -65,6 +137,14 @@ try {
   }
   if (result.brokenImages > 0) {
     throw new Error(`Visual review has ${result.brokenImages} broken image(s).`);
+  }
+  if (result.imageContentFailures.length > 0) {
+    throw new Error(
+      [
+        "Visual review has blank or flat smoke screenshot(s).",
+        JSON.stringify(result.imageContentFailures, null, 2),
+      ].join("\n"),
+    );
   }
   if (result.overflowX > 1) {
     throw new Error(`Visual review has horizontal overflow: ${result.overflowX}px.`);

@@ -722,11 +722,12 @@ The MVP cannot close with "functionally present but visually rough" overlay UI. 
 
 ## External Agent Benchmarks
 
-Research pass on 2026-06-04 covered Hermes Agent desktop and OpenClaw docs as current reference products for agentic desktop/gateway UX:
+Research pass on 2026-06-04 covered Hermes Agent desktop and OpenClaw as current reference products for agentic desktop/gateway UX:
 
 - Hermes desktop source: `https://hermes-agent.nousresearch.com/docs/user-guide/desktop`.
-- Hermes platform sources: `https://hermes-agent.nousresearch.com/docs/`, `https://hermes-agent.nousresearch.com/docs/user-guide/sessions`, `https://hermes-agent.nousresearch.com/docs/user-guide/features/memory/`, and `https://hermes-agent.nousresearch.com/docs/guides/work-with-skills/`.
-- OpenClaw sources: `https://docs.openclaw.ai/`, `https://docs.openclaw.ai/web/control-ui`, `https://docs.openclaw.ai/tools`, and `https://docs.openclaw.ai/cli/approvals`.
+- Hermes platform sources: `https://github.com/NousResearch/hermes-agent`, `https://hermes-agent.nousresearch.com/docs/user-guide/sessions`, `https://hermes-agent.nousresearch.com/docs/user-guide/profiles`, `https://hermes-agent.nousresearch.com/docs/user-guide/checkpoints-and-rollback`, and `https://hermes-agent.nousresearch.com/docs/user-guide/features/overview`.
+- Hermes release/source status observed on 2026-06-04: GitHub listed `Hermes Agent v0.15.2 (2026.5.29.2)` as latest, and the desktop docs describe the native app as the same agent core, config, API keys, sessions, skills, memory, and gateway rather than a separate product.
+- OpenClaw sources: `https://openclaw.ai/` and `https://arxiv.org/abs/2604.04759`.
 
 Adopt for SageOS MVP:
 
@@ -735,14 +736,16 @@ Adopt for SageOS MVP:
 3. Live tool activity and artifact preview. Hermes' live tool summaries, drag/drop files, file browser, and right preview rail are high-value patterns for SageOS active runs. The overlay should keep surfacing current tool, file/artifact refs, logs, screenshots, and previewable outputs in the Agent Workspace without forcing a browser handoff.
 4. Cross-surface continuity. Hermes' session resume, handoff, reset policy, and searchable session store reinforce that SageOS runs, tasks, and conversations must stay resumable across overlay, web, TUI, CLI, and Telegram. MVP status already exposes active runs; the next acceptance pass should keep checking that session titles, summaries, artifacts, and handoff points are visible.
 5. Skills and memory separation. Hermes treats skills as procedural memory and compact memory as factual context. SageOS should preserve Sage Memory as canonical memory/SecondBrain and keep workflow/skill candidates as procedural assets with provenance, review, and stale-skill maintenance.
-6. Gateway security and approvals as UI surfaces. OpenClaw's Control UI and approvals docs reinforce that pairing, device identity, token handling, host/node exec approvals, allowlists, config writes, and logs need first-class operator visibility. SageOS already surfaces policy, audit, security, and repair approvals; the overlay should continue prioritizing these over decorative dashboard content.
-7. Supplemental web remains useful. OpenClaw's web Control UI is broad because it is the gateway operations console. SageOS should keep the web Command Center as a supplemental admin/debug/config surface while preserving the Windows overlay as the daily control tower.
+6. Gateway security and approvals as UI surfaces. OpenClaw's agent model reinforces that pairing, device identity, token handling, host/node exec approvals, allowlists, config writes, and logs need first-class operator visibility. SageOS already surfaces policy, audit, security, and repair approvals; the overlay should continue prioritizing these over decorative dashboard content.
+7. Safety boundaries need product treatment. The OpenClaw safety analysis frames personal agents as risky because broad local capability, persistent identity, and accumulated knowledge can be poisoned or misused. SageOS should keep capability, identity, knowledge, approvals, checkpoints, rollback refs, and audit trails visible in the overlay instead of hiding them in config files or logs.
+8. Supplemental web remains useful. OpenClaw's gateway/control-plane pattern is broad because it is the operations console. SageOS should keep the web Command Center as a supplemental admin/debug/config surface while preserving the Windows overlay as the daily control tower.
 
 Post-MVP candidates from the benchmark pass:
 
 - Richer cross-surface session search and resume UI, including searchable historical tool calls and file/artifact refs.
 - A dedicated overlay preview rail for generated artifacts, edited files, screenshots, browser previews, and command output.
 - More explicit Profiles or Modes UI for isolated configs, skills, sessions, and tool policies.
+- Opt-in checkpoint and rollback browsing from the overlay for file/code changes, with per-task diffs and one-file restore affordances.
 - A device/session pairing and token-management view if SageOS grows beyond Jason's local machine or tailnet.
 - A stricter media preview security model with short-lived tickets or equivalent scoped local preview authorization.
 

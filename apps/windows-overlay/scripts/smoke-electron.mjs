@@ -97,6 +97,7 @@ async function smokeFullOverlay(gatewayUrl, rendererErrors) {
     await assertQuickActionArrowNavigation(page);
     await assertCriticalTextFit(page);
 
+    await setVisualBackdrop(page, "desktop");
     await page.screenshot({
       path: path.join(screenshotDir, "overlay-smoke-styled.png"),
       animations: "disabled",
@@ -215,6 +216,7 @@ async function smokeHudOverlay(gatewayUrl, rendererErrors) {
     await page.waitForSelector(".overlay-shell--hud .compact-hud", { timeout: 15_000 });
     await assertPreloadBridge(page);
     await assertCriticalTextFit(page);
+    await setVisualBackdrop(page, "desktop");
     await page.screenshot({
       path: path.join(screenshotDir, "overlay-smoke-hud.png"),
       animations: "disabled",
@@ -1013,6 +1015,57 @@ async function setVisualBackdrop(page, kind) {
       document.body.prepend(backdrop);
     }
     backdrop.className = `overlay-smoke-visual-backdrop overlay-smoke-visual-backdrop--${backdropKind}`;
+    backdrop.innerHTML = "";
+    backdrop.textContent = "";
+    if (backdropKind === "desktop") {
+      backdrop.innerHTML = `
+        <div class="overlay-smoke-desktop">
+          <aside>
+            <strong>Inbox</strong>
+            <span>Build approvals</span>
+            <span>Memory queue</span>
+            <span>Night shift</span>
+          </aside>
+          <main>
+            <header>
+              <b>Sage Ops</b>
+              <span>Dashboard content visible through overlay glass</span>
+            </header>
+            <section>
+              ${Array.from(
+                { length: 9 },
+                (_, index) =>
+                  `<article><b>Workstream ${index + 1}</b><span>Agent status, verification, and release notes</span></article>`,
+              ).join("")}
+            </section>
+          </main>
+        </div>`;
+      return;
+    }
+    if (backdropKind === "bright") {
+      backdrop.innerHTML = `
+        <div class="overlay-smoke-sheet">
+          <header><b>Weekly Operating Plan</b><span>Light enterprise workspace under the full overlay.</span></header>
+          ${Array.from(
+            { length: 14 },
+            (_, index) =>
+              `<p><b>${String(index + 1).padStart(2, "0")}</b><span>Approval queue, memory health, source sync, and deployment readiness.</span></p>`,
+          ).join("")}
+        </div>`;
+      return;
+    }
+    if (backdropKind === "dark") {
+      backdrop.innerHTML = `
+        <div class="overlay-smoke-terminal">
+          <header><b>Production Console</b><span>tail -f sageos-gateway.log</span></header>
+          ${Array.from(
+            { length: 18 },
+            (_, index) =>
+              `<p><b>${new Date(Date.UTC(2026, 5, 1, 19, index, 0)).toISOString()}</b><span>gateway event accepted / task run heartbeat / policy gate stable</span></p>`,
+          ).join("")}
+        </div>`;
+      return;
+    }
     if (backdropKind === "text-heavy") {
       backdrop.textContent = Array.from(
         { length: 80 },
@@ -1037,10 +1090,42 @@ async function setVisualBackdrop(page, kind) {
               (_, index) => `<section><b>Metric ${index + 1}</b><span>Queue / approvals / source health</span></section>`,
             ).join("")}
           </div>
-        </div>`;
+      </div>`;
       return;
     }
-    backdrop.textContent = "";
+    if (backdropKind === "ide") {
+      const lines = [
+        "const surface = renderOverlayModel(state, { workspaceTarget });",
+        "await controller.runNextTask();",
+        "return artifactRefs.map((ref) => formatArtifactPreview(state, ref));",
+        "expect(report.imageContentFailures).toHaveLength(0);",
+        "window.sageOsOverlay?.setInteractivePointer(active);",
+        "const action = getOverlayGatewayActionState(params);",
+      ];
+      backdrop.innerHTML = `
+        <div class="overlay-smoke-ide">
+          <aside>
+            <b>sage</b>
+            <span>apps/windows-overlay</span>
+            <span>src/renderer</span>
+            <span>tests</span>
+            <span>docs/superpowers</span>
+          </aside>
+          <main>
+            <header>
+              <b>overlay-app.ts</b>
+              <span>verified workspace run artifact previews</span>
+            </header>
+            <section>
+              ${Array.from(
+                { length: 22 },
+                (_, index) =>
+                  `<p><b>${String(index + 42).padStart(3, "0")}</b><span>${lines[index % lines.length]}</span></p>`,
+              ).join("")}
+            </section>
+          </main>
+        </div>`;
+    }
   }, kind);
 }
 
@@ -1070,16 +1155,16 @@ async function ensureVisualBackdropStyle(page) {
         font: 13px/1.45 Consolas, "Cascadia Mono", monospace;
       }
 
+      .overlay-smoke-visual-backdrop--desktop {
+        background: linear-gradient(135deg, #edf2f7 0%, #d9e3ee 52%, #cbd6e3 100%);
+      }
+
       .overlay-smoke-visual-backdrop--bright {
-        background:
-          linear-gradient(90deg, rgba(15, 23, 42, 0.08) 1px, transparent 1px) 0 0 / 32px 32px,
-          linear-gradient(180deg, #f8fafc 0%, #dbeafe 100%);
+        background: linear-gradient(180deg, #f8fafc 0%, #e8eef6 100%);
       }
 
       .overlay-smoke-visual-backdrop--dark {
-        background:
-          radial-gradient(circle at 18% 12%, rgba(56, 189, 248, 0.16), transparent 28%),
-          linear-gradient(135deg, #020617 0%, #111827 46%, #030712 100%);
+        background: linear-gradient(135deg, #05070c 0%, #111827 52%, #05070c 100%);
       }
 
       .overlay-smoke-visual-backdrop--text-heavy {
@@ -1089,24 +1174,7 @@ async function ensureVisualBackdropStyle(page) {
       }
 
       .overlay-smoke-visual-backdrop--ide {
-        background:
-          linear-gradient(90deg, #111827 0 68px, #0f172a 68px 100%),
-          linear-gradient(180deg, #111827 0%, #020617 100%);
-      }
-
-      .overlay-smoke-visual-backdrop--ide::before {
-        position: absolute;
-        inset: 22px 22px 22px 92px;
-        border: 1px solid rgba(148, 163, 184, 0.24);
-        background:
-          repeating-linear-gradient(
-            180deg,
-            rgba(56, 189, 248, 0.14) 0 1px,
-            transparent 1px 24px
-          ),
-          linear-gradient(90deg, rgba(34, 197, 94, 0.12), transparent 42%),
-          #020617;
-        content: "";
+        background: linear-gradient(180deg, #111827 0%, #020617 100%);
       }
 
       .overlay-smoke-visual-backdrop--browser {
@@ -1191,6 +1259,155 @@ async function ensureVisualBackdropStyle(page) {
 
       .overlay-smoke-browser__grid span {
         color: rgba(15, 23, 42, 0.58);
+      }
+
+      .overlay-smoke-desktop,
+      .overlay-smoke-ide {
+        display: grid;
+        grid-template-columns: 260px minmax(0, 1fr);
+        gap: 18px;
+        width: min(1260px, calc(100vw - 80px));
+        min-height: calc(100vh - 86px);
+        margin: 42px auto;
+      }
+
+      .overlay-smoke-desktop aside,
+      .overlay-smoke-desktop header,
+      .overlay-smoke-desktop article,
+      .overlay-smoke-sheet,
+      .overlay-smoke-terminal,
+      .overlay-smoke-ide aside,
+      .overlay-smoke-ide header,
+      .overlay-smoke-ide section {
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.62);
+        box-shadow: 0 16px 42px rgba(15, 23, 42, 0.1);
+      }
+
+      .overlay-smoke-desktop aside,
+      .overlay-smoke-ide aside {
+        display: grid;
+        align-content: start;
+        gap: 10px;
+        padding: 18px;
+      }
+
+      .overlay-smoke-desktop aside span,
+      .overlay-smoke-ide aside span {
+        overflow: hidden;
+        color: rgba(15, 23, 42, 0.64);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .overlay-smoke-desktop main,
+      .overlay-smoke-ide main {
+        display: grid;
+        align-content: start;
+        gap: 18px;
+      }
+
+      .overlay-smoke-desktop header,
+      .overlay-smoke-sheet header,
+      .overlay-smoke-terminal header,
+      .overlay-smoke-ide header {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 18px 20px;
+      }
+
+      .overlay-smoke-desktop header span,
+      .overlay-smoke-sheet header span,
+      .overlay-smoke-terminal header span,
+      .overlay-smoke-ide header span {
+        overflow: hidden;
+        color: rgba(15, 23, 42, 0.62);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .overlay-smoke-desktop section {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .overlay-smoke-desktop article {
+        display: grid;
+        gap: 8px;
+        min-height: 112px;
+        padding: 16px;
+      }
+
+      .overlay-smoke-desktop article span {
+        color: rgba(15, 23, 42, 0.58);
+      }
+
+      .overlay-smoke-sheet {
+        display: grid;
+        gap: 0;
+        width: min(1120px, calc(100vw - 90px));
+        margin: 44px auto;
+        padding: 0;
+      }
+
+      .overlay-smoke-sheet p,
+      .overlay-smoke-terminal p,
+      .overlay-smoke-ide p {
+        display: grid;
+        grid-template-columns: 72px minmax(0, 1fr);
+        gap: 16px;
+        margin: 0;
+        border-top: 1px solid rgba(15, 23, 42, 0.08);
+        padding: 11px 18px;
+      }
+
+      .overlay-smoke-sheet p span,
+      .overlay-smoke-terminal p span,
+      .overlay-smoke-ide p span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .overlay-smoke-terminal {
+        width: min(1180px, calc(100vw - 92px));
+        margin: 42px auto;
+        border-color: rgba(148, 163, 184, 0.2);
+        background: rgba(3, 7, 18, 0.78);
+        box-shadow: 0 18px 52px rgba(0, 0, 0, 0.24);
+      }
+
+      .overlay-smoke-terminal header,
+      .overlay-smoke-terminal p {
+        border-color: rgba(148, 163, 184, 0.16);
+        color: rgba(226, 232, 240, 0.82);
+      }
+
+      .overlay-smoke-terminal header span,
+      .overlay-smoke-terminal p span {
+        color: rgba(203, 213, 225, 0.72);
+      }
+
+      .overlay-smoke-ide aside,
+      .overlay-smoke-ide header,
+      .overlay-smoke-ide section {
+        border-color: rgba(148, 163, 184, 0.2);
+        background: rgba(15, 23, 42, 0.82);
+        color: rgba(248, 250, 252, 0.88);
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.24);
+      }
+
+      .overlay-smoke-ide aside span,
+      .overlay-smoke-ide header span,
+      .overlay-smoke-ide p span {
+        color: rgba(203, 213, 225, 0.7);
+      }
+
+      .overlay-smoke-ide p {
+        border-color: rgba(148, 163, 184, 0.12);
       }
     `,
   });

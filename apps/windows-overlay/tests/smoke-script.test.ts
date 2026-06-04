@@ -43,11 +43,14 @@ describe("Electron overlay smoke script", () => {
       "SAGEOS_OVERLAY_PINNED_WIDGETS",
       "SAGEOS_OVERLAY_VOICE_ENABLED",
       "SAGEOS_OVERLAY_VOICE_MODE",
+      "setVisualBackdrop(page, \"desktop\")",
       "setVisualBackdrop(page, \"bright\")",
       "setVisualBackdrop(page, \"dark\")",
       "setVisualBackdrop(page, \"text-heavy\")",
       "setVisualBackdrop(page, \"browser\")",
       "setVisualBackdrop(page, \"ide\")",
+      "overlay-smoke-visual-backdrop--desktop",
+      "overlay-smoke-ide",
       "assertKeyboardFocusOrder(page)",
       "waitForGatewayActionsReady(page)",
       "assertQuickActionArrowNavigation(page)",
@@ -107,6 +110,9 @@ describe("Electron overlay smoke script", () => {
     ]) {
       expect(script).toContain(expected);
     }
+
+    expect(script).not.toContain("repeating-linear-gradient");
+    expect(script).not.toContain("32px 32px");
   });
 
   it("launch script exposes badge visibility environment controls", () => {

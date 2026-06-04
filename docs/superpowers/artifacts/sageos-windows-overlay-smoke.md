@@ -2,8 +2,8 @@
 
 Date: 2026-06-04
 Operator: Codex
-Build: Windows overlay MVP shell verification after reduced-motion runtime pass
-Verification build SHA: `26a023428698`
+Build: Windows overlay MVP shell verification after Liquid Linear transparency pass
+Verification build SHA: `01aecb784212`
 
 ## Preconditions
 
@@ -28,7 +28,7 @@ Verification build SHA: `26a023428698`
 - [x] `Ctrl+Alt+Space` closes the overlay.
 - [x] `pnpm --dir apps/windows-overlay smoke:electron` verifies the packaged Electron overlay against a mock gateway.
 - [x] `pnpm --dir apps/windows-overlay review:visual` generates a local Jason acceptance companion contact sheet from the smoke screenshots.
-- [x] `pnpm --dir apps/windows-overlay review:visual:verify` loads the generated contact sheet in Chrome or Edge and fails on broken images, missing criteria, blank output, or horizontal overflow.
+- [x] `pnpm --dir apps/windows-overlay review:visual:verify` loads the generated contact sheet in Chrome or Edge and fails on broken images, missing criteria, blank output, blank/flat screenshot pixel content, or horizontal overflow.
 - [x] `pnpm --dir apps/windows-overlay review:visual:all` runs smoke capture, contact-sheet generation, and browser verification as one release gate.
 - [x] `SAGEOS_OVERLAY_ACTIVE_MONITOR=auto|primary|<display id>` routes the overlay to the active, primary, or configured monitor.
 - [x] `powershell -ExecutionPolicy Bypass -File scripts/sageos-windows-overlay.ps1 -OpenMode hud` starts HUD-first mode.
@@ -77,10 +77,10 @@ Verification build SHA: `26a023428698`
 - [x] Command Deck exposes first-class Security and PC Management system resources with Agent Workspace drill-downs.
 - [x] Private and secret observation bodies are redacted in Command Deck resource rows and Agent Workspace detail.
 - [x] Approval workspace detail exposes scope, preview, rollback, evidence, linked resources, expiration, and approve/deny actions.
-- [x] Automated smoke captures the overlay over dark, bright, text-heavy, browser-like, and IDE-like visual backdrops.
+- [x] Automated smoke captures the overlay over desktop-like, dark, bright, text-heavy, browser-like, and IDE-like visual backdrops.
 - [x] Automated smoke fails if critical toolbar, launcher, HUD, or Edge Rail controls clip text, have sub-20px hit targets, or overlap.
 - [x] Automated smoke emulates `prefers-reduced-motion: reduce` in Electron and fails if visible critical controls keep transition or animation durations above 1ms.
-- [x] Visual review verifier loads all smoke screenshots, lists the MVP visual acceptance criteria, renders the release decision cards and reviewer rubric controls, and renders without horizontal overflow.
+- [x] Visual review verifier loads all smoke screenshots, samples screenshot pixel content for nonblank/non-flat output, lists the MVP visual acceptance criteria, renders the release decision cards and reviewer rubric controls, and renders without horizontal overflow.
 - [x] Edge Rail collapse keeps health, active-operation, approval, and incident indicators visible.
 - [x] Edge Rail health, active-operation, approval, and incident badges carry drill-down targets and expand to the relevant workspace.
 - [x] Pass-through surfaces can temporarily restore overlay pointer capture over active controls.
@@ -104,8 +104,8 @@ Verification build SHA: `26a023428698`
 - Visual review render screenshot path: `apps/windows-overlay/dist/overlay-visual-review-render.png`
 - Visual review machine report path: `apps/windows-overlay/dist/overlay-visual-review-report.json`
 - Current verification update: `pnpm --dir apps/windows-overlay smoke:electron` passed on
-  2026-06-04 after the reduced-motion runtime pass. The packaged overlay reported
-  `buildSha: 26a023428698`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`,
+  2026-06-04 after the Liquid Linear transparency pass. The packaged overlay reported
+  `buildSha: 01aecb784212`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`,
   `rendererErrors: 0`,
   four `sageos.control` calls for pause, resume, stop, and emergency stop, verified the
   availability-aware Voice entry state, verified first-pass keyboard Tab order through Pause,
@@ -114,25 +114,28 @@ Verification build SHA: `26a023428698`
   toolbar, launcher, HUD, and Edge Rail text/control fit with no clipping or overlap failures,
   verified `prefers-reduced-motion: reduce` in Electron with no visible critical-control motion
   durations above 1ms, and refreshed
-  the full, reduced-motion full, bright, edge-left, dark edge, text-heavy edge, browser edge, IDE edge, HUD, and IDE HUD
+  the full desktop-underlay, reduced-motion full, bright, edge-left, dark edge, text-heavy edge, browser edge, IDE edge, desktop-underlay HUD, and IDE HUD
   screenshots above.
 - Visual review companion update: `pnpm --dir apps/windows-overlay review:visual:all` passed
   on 2026-06-04. It ran the packaged Electron smoke, regenerated
   `apps/windows-overlay/dist/overlay-visual-review.html`, launched
   `C:\Program Files\Google\Chrome\Application\chrome.exe`, loaded all 11 smoke screenshots,
   found 8 acceptance criteria, 8 reviewer rubric rows, 24 acceptance decision controls,
-  3 release decision cards, found 0 broken images, found 0 horizontal overflow, saved
+  3 release decision cards, found 0 broken images, sampled every smoke screenshot through
+  browser canvas with `imageContentFailures: []`, found 0 horizontal overflow, saved
   `apps/windows-overlay/dist/overlay-visual-review-render.png` for review, and wrote
   `apps/windows-overlay/dist/overlay-visual-review-report.json` with `humanAcceptance: "required"`.
 - Apple+Linear glass correction: the current visual contract forbids the live overlay dot-matrix
-  texture and requires clear glass, edge-light, inner-sheen, panel, and control material tokens.
+  texture, requires the live overlay root to avoid full-screen blur, and requires clear glass,
+  edge-light, inner-sheen, panel, and control material tokens.
   Codex visually inspected the refreshed full, bright, Edge Rail browser, HUD over IDE, and
   visual-review contact-sheet screenshots and confirmed the overlay now preserves desktop context
-  while reading as a sleeker glass control surface.
+  while reading as a sleeker glass control surface. Smoke fixtures now use app-like desktop,
+  sheet, terminal, browser, and IDE underlays rather than decorative grids or repeated-line textures.
 - Current package gates after the latest verification sweep: `pnpm --dir apps/windows-overlay test`
   passed with 14 files and 95 tests, `pnpm --dir apps/windows-overlay typecheck` passed,
   `pnpm --dir apps/windows-overlay build` passed, `pnpm --dir apps/windows-overlay review:visual:all`
-  passed with 11 screenshots, and root `pnpm check` passed.
+  passed with 11 screenshots and 0 pixel-content failures.
 - Active-run artifact preview update: `pnpm --dir apps/windows-overlay exec vitest run
 tests/overlay-renderer.test.ts -t "workspace details" --reporter verbose` first failed because the
   run workspace only exposed raw artifact IDs, then passed after the Agent Workspace started resolving
@@ -195,8 +198,8 @@ src/telegram/bot.test.ts` passed with 28 files
   generates and verifies a local visual review acceptance packet with all smoke screenshots,
   MVP acceptance criteria, release decision cards, and reviewer rubric controls,
   fails on renderer `pageerror` or console error events,
-  captures full Command Deck under reduced motion and over a bright synthetic desktop, captures Edge Rail and pinned widgets
-  over dark, text-heavy, browser-like, and IDE-like synthetic apps, captures the richer Compact HUD command island over an IDE-like dark surface,
+  captures full Command Deck under reduced motion and over representative desktop/sheet underlays, captures Edge Rail and pinned widgets
+  over dark terminal, text-heavy, browser-like, and IDE-like app underlays, captures the richer Compact HUD command island over desktop and IDE-like surfaces,
   seeds the mock gateway with an active run that includes `workerSessionId`, `currentToolCall`,
   `budgetUsed`, `timeline`, logs, artifacts, and verification metadata,
   waits for launcher submissions to enable before clicking and for the launcher field to clear

@@ -64,6 +64,7 @@ describe("overlay visual contract", () => {
 
     const appBlock = readCssBlock("sageos-overlay-app");
     expect(appBlock).toContain("background: var(--sageos-bg-overlay);");
+    expect(appBlock).toContain("backdrop-filter: none;");
     expect(appBlock).not.toContain("radial-gradient");
   });
 
