@@ -91,6 +91,7 @@ async function smokeFullOverlay(gatewayUrl, rendererErrors) {
     await assertVoiceEntry(page);
     await assertKeyboardFocusOrder(page);
     await assertQuickActionArrowNavigation(page);
+    await assertCriticalTextFit(page);
 
     await page.screenshot({
       path: path.join(screenshotDir, "overlay-smoke-styled.png"),
@@ -128,6 +129,7 @@ async function smokeFullOverlay(gatewayUrl, rendererErrors) {
 
     await page.evaluate(() => window.sageOsOverlay?.collapse());
     await page.waitForSelector(".edge-rail--left", { timeout: 5_000 });
+    await assertCriticalTextFit(page);
     const passThroughProbe = await createPassThroughProbe(app);
     await sendNativeMouseClick(passThroughProbe.clickPoint);
     const passThroughProbeClicks = await waitForPassThroughProbeClick(passThroughProbe);
@@ -183,6 +185,7 @@ async function smokeHudOverlay(gatewayUrl, rendererErrors) {
     attachRendererErrorGuards(page, rendererErrors);
     await page.waitForSelector(".overlay-shell--hud .compact-hud", { timeout: 15_000 });
     await assertPreloadBridge(page);
+    await assertCriticalTextFit(page);
     await page.screenshot({
       path: path.join(screenshotDir, "overlay-smoke-hud.png"),
       animations: "disabled",
@@ -559,6 +562,85 @@ async function assertQuickActionArrowNavigation(page) {
     "New employee",
     "Home should move launcher quick-action focus to the first action",
   );
+}
+
+async function assertCriticalTextFit(page) {
+  const failures = await page.evaluate(() => {
+    const controlSelectors = [
+      ".overlay-toolbar button",
+      ".universal-launcher input",
+      ".universal-launcher > button",
+      ".universal-launcher__quick-actions button",
+      ".compact-hud button",
+      ".hud-badge",
+      ".edge-rail button",
+    ];
+    const groupSelectors = [
+      ".overlay-toolbar",
+      ".universal-launcher",
+      ".universal-launcher__quick-actions",
+      ".compact-hud__badges",
+      ".edge-rail",
+    ];
+
+    const issues = [];
+    const isVisible = (element) => {
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+    };
+    const labelFor = (element) =>
+      element.getAttribute("aria-label") ||
+      element.getAttribute("placeholder") ||
+      element.textContent?.replace(/\s+/g, " ").trim() ||
+      element.tagName.toLowerCase();
+
+    for (const element of document.querySelectorAll(controlSelectors.join(","))) {
+      if (!(element instanceof HTMLElement) || !isVisible(element)) {
+        continue;
+      }
+      const label = labelFor(element);
+      const rect = element.getBoundingClientRect();
+      if (rect.width < 20 || rect.height < 20) {
+        issues.push(`${label} has a sub-20px hit target (${Math.round(rect.width)}x${Math.round(rect.height)})`);
+      }
+      if (element.scrollWidth - element.clientWidth > 2) {
+        issues.push(`${label} clips horizontally (${element.scrollWidth} > ${element.clientWidth})`);
+      }
+      if (element.scrollHeight - element.clientHeight > 2) {
+        issues.push(`${label} clips vertically (${element.scrollHeight} > ${element.clientHeight})`);
+      }
+    }
+
+    for (const groupSelector of groupSelectors) {
+      const group = document.querySelector(groupSelector);
+      if (!(group instanceof HTMLElement) || !isVisible(group)) {
+        continue;
+      }
+      const controls = Array.from(group.querySelectorAll("button, input, .hud-badge")).filter(
+        (element) => element instanceof HTMLElement && isVisible(element),
+      );
+      for (let leftIndex = 0; leftIndex < controls.length; leftIndex += 1) {
+        const left = controls[leftIndex];
+        const leftRect = left.getBoundingClientRect();
+        for (let rightIndex = leftIndex + 1; rightIndex < controls.length; rightIndex += 1) {
+          const right = controls[rightIndex];
+          const rightRect = right.getBoundingClientRect();
+          const overlapX = Math.max(0, Math.min(leftRect.right, rightRect.right) - Math.max(leftRect.left, rightRect.left));
+          const overlapY = Math.max(0, Math.min(leftRect.bottom, rightRect.bottom) - Math.max(leftRect.top, rightRect.top));
+          if (overlapX > 1 && overlapY > 1) {
+            issues.push(`${labelFor(left)} overlaps ${labelFor(right)} in ${groupSelector}`);
+          }
+        }
+      }
+    }
+
+    return issues;
+  });
+
+  if (failures.length > 0) {
+    throw new Error(`Critical overlay text/control fit failed:\n${failures.join("\n")}`);
+  }
 }
 
 async function readFocusedControlName(page) {

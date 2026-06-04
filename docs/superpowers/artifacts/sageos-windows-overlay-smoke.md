@@ -3,7 +3,7 @@
 Date: 2026-06-04
 Operator: Codex
 Build: Windows overlay MVP shell verification after Night Shift schedule pass
-Verification build SHA: `4ec60b04cd21`
+Verification build SHA: `23dbe0068226`
 
 ## Preconditions
 
@@ -73,6 +73,7 @@ Verification build SHA: `4ec60b04cd21`
 - [x] Private and secret observation bodies are redacted in Command Deck resource rows and Agent Workspace detail.
 - [x] Approval workspace detail exposes scope, preview, rollback, evidence, linked resources, expiration, and approve/deny actions.
 - [x] Automated smoke captures the overlay over bright, text-heavy, browser-like, and IDE-like visual backdrops.
+- [x] Automated smoke fails if critical toolbar, launcher, HUD, or Edge Rail controls clip text, have sub-20px hit targets, or overlap.
 - [x] Edge Rail collapse keeps health, active-operation, approval, and incident indicators visible.
 - [x] Edge Rail health, active-operation, approval, and incident badges carry drill-down targets and expand to the relevant workspace.
 - [x] Pass-through surfaces can temporarily restore overlay pointer capture over active controls.
@@ -92,12 +93,13 @@ Verification build SHA: `4ec60b04cd21`
 - IDE-like backdrop HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud-ide.png`
 - Current verification update: `pnpm --dir apps/windows-overlay smoke:electron` passed on
   2026-06-04 after the Universal Launcher keyboard pass. The packaged overlay reported
-  `buildSha: 4ec60b04cd21`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`,
+  `buildSha: 23dbe0068226`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`,
   `rendererErrors: 0`,
   four `sageos.control` calls for pause, resume, stop, and emergency stop, verified the
   availability-aware Voice entry state, verified first-pass keyboard Tab order through Pause,
   Resume, Stop, Emergency stop, Full, Rail, Close, and the SageOS command input, verified
-  quick-action ArrowDown, ArrowRight, End, ArrowLeft, and Home navigation, and refreshed
+  quick-action ArrowDown, ArrowRight, End, ArrowLeft, and Home navigation, verified critical
+  toolbar, launcher, HUD, and Edge Rail text/control fit with no clipping or overlap failures, and refreshed
   the full, bright, edge-left, text-heavy edge, browser edge, IDE edge, HUD, and IDE HUD
   screenshots above.
 - Current package gates after the latest verification sweep: `pnpm --dir apps/windows-overlay test`
@@ -146,6 +148,8 @@ src/telegram/bot.test.ts` passed with 28 files
   disabled with an unavailable-runtime reason,
   verifies first-pass keyboard Tab order across the primary toolbar and launcher controls,
   verifies Universal Launcher quick-action arrow navigation,
+  verifies critical toolbar, launcher, HUD, and Edge Rail controls for text clipping, minimum hit-target size,
+  and overlap in the live Electron layout,
   fails on renderer `pageerror` or console error events,
   captures full Command Deck over a bright synthetic desktop, captures Edge Rail and pinned widgets
   over text-heavy, browser-like, and IDE-like synthetic apps, captures the richer Compact HUD command island over an IDE-like dark surface,

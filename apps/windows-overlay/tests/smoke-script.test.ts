@@ -85,6 +85,8 @@ describe("Electron overlay smoke script", () => {
       'page.keyboard.press("Control+K")',
       "assertVoiceEntry(page)",
       "isVoiceInputAvailable(page)",
+      "assertCriticalTextFit(page)",
+      "scrollWidth",
       'page.keyboard.press("Escape")',
       'waitForOverlayWindowHidden(app)',
     ]) {
