@@ -43,9 +43,13 @@ if ($VoiceEnabled) {
 $env:SAGEOS_OVERLAY_GATEWAY_URL = $GatewayUrl
 if ($Token) {
   $env:SAGEOS_OVERLAY_TOKEN = $Token
+} else {
+  Remove-Item Env:SAGEOS_OVERLAY_TOKEN -ErrorAction SilentlyContinue
 }
 if ($Password) {
   $env:SAGEOS_OVERLAY_PASSWORD = $Password
+} else {
+  Remove-Item Env:SAGEOS_OVERLAY_PASSWORD -ErrorAction SilentlyContinue
 }
 if ($OpenOnLaunch) {
   $env:SAGEOS_OVERLAY_OPEN_ON_LAUNCH = "1"

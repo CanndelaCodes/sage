@@ -99,6 +99,8 @@ describe("Electron overlay smoke script", () => {
       "[bool]$ShowIncidentBadge = $true",
       "$env:SAGEOS_OVERLAY_SHOW_APPROVAL_BADGE",
       "$env:SAGEOS_OVERLAY_SHOW_INCIDENT_BADGE",
+      "Remove-Item Env:SAGEOS_OVERLAY_TOKEN",
+      "Remove-Item Env:SAGEOS_OVERLAY_PASSWORD",
     ]) {
       expect(script).toContain(expected);
     }
