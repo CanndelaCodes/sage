@@ -257,9 +257,15 @@ const state = {
       outcome: "succeeded",
       tests: [{ command: "node test.js", exitCode: 0 }],
       blockers: [],
+      preState: { branch: "main", dirty: false, changedFiles: [] },
+      postState: { branch: "codex/activity-events-ingest", dirty: true, changedFiles: ["README.md"] },
       diff: { changedFiles: ["README.md"] },
       verificationRefs: ["test:node test.js"],
       rollback: "Revert README.md changes.",
+      startedAt: "2026-06-01T12:50:00.000Z",
+      finishedAt: "2026-06-01T12:57:00.000Z",
+      createdAt: "2026-06-01T12:57:00.000Z",
+      updatedAt: "2026-06-01T12:57:00.000Z",
     },
   ],
   workflows: [
@@ -272,6 +278,24 @@ const state = {
       inputs: ["window title"],
       outputs: ["workflow candidate"],
       sourceObservationIds: ["obs_1"],
+      evalRefs: ["eval_workflow_1"],
+      implementationRefs: ["workflow-spec-1.md"],
+      createdAt: "2026-06-01T12:30:00.000Z",
+      updatedAt: "2026-06-01T12:59:00.000Z",
+    },
+    {
+      id: "workflow_2",
+      name: "Enabled memory digest",
+      state: "enabled",
+      observedPattern: "memory_queue:daily",
+      trigger: "Daily memory queue review",
+      inputs: ["memory queue"],
+      outputs: ["digest"],
+      sourceObservationIds: ["obs_system_security"],
+      evalRefs: ["eval_workflow_2"],
+      implementationRefs: ["workflow-enabled-2.md"],
+      createdAt: "2026-06-01T11:30:00.000Z",
+      updatedAt: "2026-06-01T12:30:00.000Z",
     },
   ],
   skills: [
@@ -283,6 +307,8 @@ const state = {
       provenance: ["workflow_1", "obs_1"],
       tests: ["obs_1"],
       triggerConditions: ["Repeated Code focus observations"],
+      createdAt: "2026-06-01T12:31:00.000Z",
+      updatedAt: "2026-06-01T12:59:30.000Z",
     },
   ],
   apps: [
@@ -541,6 +567,7 @@ describe("overlay renderer model", () => {
       "run_task_1",
       "Repo: sage",
       "Review repeated Code focus",
+      "Enabled memory digest",
       "Skill: Review repeated Code focus",
       "Code Focus Widget",
       "Code: SageOS",
@@ -849,7 +876,7 @@ describe("overlay renderer model", () => {
     expect(employeeModel.workspace.facts).toEqual(
       expect.arrayContaining([
         { label: "Current task", value: "Night Shift report (running)" },
-        { label: "Last activity", value: "2026-06-01T12:50:00.000Z" },
+        { label: "Last activity", value: "2026-06-01T12:57:00.000Z" },
         { label: "Recent outputs", value: "Summarize coding work (succeeded)" },
         { label: "Incidents", value: "Memory queue backlog (warning)" },
         { label: "Assigned tasks", value: "Night Shift report (running)" },
@@ -1023,6 +1050,11 @@ describe("overlay renderer model", () => {
         { label: "Latest diff", value: "README.md" },
         { label: "Latest tests", value: "node test.js: 0" },
         { label: "Latest blockers", value: "None" },
+        {
+          label: "Branch/workspace",
+          value: "main clean -> codex/activity-events-ingest dirty / README.md",
+        },
+        { label: "Night Shift schedule", value: "Manual / no schedule reported" },
       ]),
     );
     expect(workflowsModel.workspace).toMatchObject({
@@ -1033,8 +1065,13 @@ describe("overlay renderer model", () => {
       expect.arrayContaining([
         { label: "Queue", value: "1 queued / 2 active / 0 blocked" },
         { label: "Latest workflow", value: "Review repeated Code focus (candidate)" },
-        { label: "Observed patterns", value: "app_focus:code" },
-        { label: "Triggers", value: "Repeated Code focus observations" },
+        { label: "Repeated patterns detected", value: "app_focus:code, memory_queue:daily" },
+        { label: "Workflow candidates", value: "1 candidate" },
+        { label: "Draft workflows", value: "0 drafts" },
+        { label: "Dry-run results", value: "eval_workflow_1, eval_workflow_2" },
+        { label: "Enabled workflows/recent runs", value: "1 enabled / no workflow runs" },
+        { label: "Observed patterns", value: "app_focus:code, memory_queue:daily" },
+        { label: "Triggers", value: "Repeated Code focus observations, Daily memory queue review" },
         { label: "Inputs", value: "window title" },
         { label: "Outputs", value: "workflow candidate" },
         { label: "Source observations", value: "obs_1" },
@@ -1048,6 +1085,11 @@ describe("overlay renderer model", () => {
       expect.arrayContaining([
         { label: "Queue", value: "0 queued / 1 active / 0 blocked" },
         { label: "Latest skill", value: "Skill: Review repeated Code focus (draft)" },
+        { label: "Skill candidates", value: "1 draft" },
+        {
+          label: "Skill changes/provenance",
+          value: "updated 2026-06-01T12:59:30.000Z / workflow_1, obs_1",
+        },
         { label: "Workflow links", value: "workflow_1" },
         { label: "Trigger conditions", value: "Repeated Code focus observations" },
         { label: "Provenance", value: "workflow_1, obs_1" },
@@ -1148,7 +1190,7 @@ describe("overlay renderer model", () => {
         {
           label: "Timeline",
           value:
-            "2026-06-01T12:58:00.000Z Approval requested: Approve repair (local_reversible_write), 2026-06-01T12:56:00.000Z Incident warning: Memory queue backlog, 2026-06-01T12:55:00.000Z Run run_task_1: Ran tests (running) -> test:node test.js, 2026-06-01T12:50:00.000Z Run run_task_1: Started run (running) -> run_task_1",
+            "2026-06-01T12:58:00.000Z Approval requested: Approve repair (local_reversible_write), 2026-06-01T12:57:00.000Z Coding report coding_report_task_1: succeeded, 2026-06-01T12:56:00.000Z Incident warning: Memory queue backlog, 2026-06-01T12:55:00.000Z Run run_task_1: Ran tests (running) -> test:node test.js, 2026-06-01T12:50:00.000Z Run run_task_1: Started run (running) -> run_task_1",
         },
         {
           label: "Evidence",

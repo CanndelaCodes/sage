@@ -2495,6 +2495,28 @@ function latestCodingReportSummary(report: OverlayCodingReportRecord | undefined
   return report ? `${report.objective} (${report.outcome})` : "None";
 }
 
+function formatCodingBranchWorkspace(report: OverlayCodingReportRecord | undefined): string {
+  if (!report) {
+    return "Not reported";
+  }
+  const pre = report.preState;
+  const post = report.postState;
+  return `${formatRepoState(pre)} -> ${formatRepoState(post)} / ${formatList(
+    post?.changedFiles ?? [],
+  )}`;
+}
+
+function formatRepoState(state: { branch?: string; dirty?: boolean } | undefined): string {
+  if (!state) {
+    return "unknown";
+  }
+  return `${state.branch ?? "unknown"} ${state.dirty ? "dirty" : "clean"}`;
+}
+
+function formatNightShiftSchedule(): string {
+  return "Manual / no schedule reported";
+}
+
 function latestWorkflowRecord(state: SageOsOverlayStatusState): OverlayWorkflowRecord | undefined {
   return latestByTimestamp(
     state.workflows ?? [],
@@ -2506,12 +2528,49 @@ function latestWorkflowSummary(workflow: OverlayWorkflowRecord | undefined): str
   return workflow ? `${workflow.name} (${workflow.state})` : "None";
 }
 
+function workflowStateCount(
+  state: SageOsOverlayStatusState,
+  states: Array<OverlayWorkflowRecord["state"]>,
+): number {
+  const wanted = new Set(states);
+  return (state.workflows ?? []).filter((workflow) => wanted.has(workflow.state)).length;
+}
+
+function formatWorkflowDryRunResults(state: SageOsOverlayStatusState): string {
+  return formatList(uniqueStrings((state.workflows ?? []).flatMap((workflow) => workflow.evalRefs ?? [])));
+}
+
+function formatEnabledWorkflowsAndRuns(state: SageOsOverlayStatusState): string {
+  const enabled = workflowStateCount(state, ["enabled"]);
+  const workflowRuns = (state.runs ?? []).filter((run) =>
+    (run.artifacts ?? []).some((artifact) => /workflow/i.test(artifact)),
+  );
+  const runSummary =
+    workflowRuns.length > 0 ? countLabel(workflowRuns.length, "recent run") : "no workflow runs";
+  return `${countLabel(enabled, "enabled")} / ${runSummary}`;
+}
+
 function latestSkillRecord(state: SageOsOverlayStatusState): OverlaySkillRecord | undefined {
   return latestByTimestamp(state.skills ?? [], (skill) => skill.updatedAt ?? skill.createdAt);
 }
 
 function latestSkillSummary(skill: OverlaySkillRecord | undefined): string {
   return skill ? `${skill.name} (${skill.state})` : "None";
+}
+
+function skillStateCount(
+  state: SageOsOverlayStatusState,
+  states: Array<OverlaySkillRecord["state"]>,
+): number {
+  const wanted = new Set(states);
+  return (state.skills ?? []).filter((skill) => wanted.has(skill.state)).length;
+}
+
+function formatSkillChangesAndProvenance(skill: OverlaySkillRecord | undefined): string {
+  if (!skill) {
+    return "Not reported";
+  }
+  return `updated ${skill.updatedAt ?? "unknown"} / ${formatList(skill.provenance ?? [])}`;
 }
 
 function latestAppRecord(state: SageOsOverlayStatusState): OverlayAppRecord | undefined {
@@ -3086,6 +3145,8 @@ function systemWorkspaceModel(
         { label: "Latest diff", value: formatList(latestReport?.diff?.changedFiles ?? []) },
         { label: "Latest tests", value: formatCodingReportTests(latestReport?.tests ?? []) || "None" },
         { label: "Latest blockers", value: formatList(latestReport?.blockers ?? []) },
+        { label: "Branch/workspace", value: formatCodingBranchWorkspace(latestReport) },
+        { label: "Night Shift schedule", value: formatNightShiftSchedule() },
       ],
       actions: [],
     };
@@ -3101,6 +3162,17 @@ function systemWorkspaceModel(
         { label: "Queue", value: formatSummaryQueue(status.workflows) },
         { label: "Total", value: String(status.workflows.total) },
         { label: "Latest workflow", value: latestWorkflowSummary(workflow) },
+        {
+          label: "Repeated patterns detected",
+          value: formatList(uniqueStrings((state.workflows ?? []).map((entry) => entry.observedPattern))),
+        },
+        { label: "Workflow candidates", value: countLabel(workflowStateCount(state, ["candidate"]), "candidate") },
+        {
+          label: "Draft workflows",
+          value: countLabel(workflowStateCount(state, ["drafted_spec", "implemented_draft"]), "draft"),
+        },
+        { label: "Dry-run results", value: formatWorkflowDryRunResults(state) },
+        { label: "Enabled workflows/recent runs", value: formatEnabledWorkflowsAndRuns(state) },
         { label: "Observed patterns", value: formatList((state.workflows ?? []).map((entry) => entry.observedPattern)) },
         { label: "Triggers", value: formatList((state.workflows ?? []).map((entry) => entry.trigger)) },
         { label: "Inputs", value: formatList(workflow?.inputs ?? []) },
@@ -3124,6 +3196,8 @@ function systemWorkspaceModel(
         { label: "Queue", value: formatSummaryQueue(status.skills) },
         { label: "Total", value: String(status.skills.total) },
         { label: "Latest skill", value: latestSkillSummary(skill) },
+        { label: "Skill candidates", value: countLabel(skillStateCount(state, ["draft"]), "draft") },
+        { label: "Skill changes/provenance", value: formatSkillChangesAndProvenance(skill) },
         { label: "Workflow links", value: formatList(uniqueStrings((state.skills ?? []).flatMap((entry) => entry.workflowId ? [entry.workflowId] : []))) },
         { label: "Trigger conditions", value: formatList(skill?.triggerConditions ?? []) },
         { label: "Provenance", value: formatList(skill?.provenance ?? []) },
