@@ -368,6 +368,62 @@ function renderReviewPage({ buildSha, generatedAt }) {
         white-space: nowrap;
       }
 
+      .acceptance-recorder {
+        display: grid;
+        gap: 14px;
+        padding: 18px 22px;
+      }
+
+      .acceptance-recorder__status {
+        display: grid;
+        gap: 6px;
+        border: 1px solid rgba(226, 232, 240, 0.14);
+        border-radius: 8px;
+        background: rgba(248, 250, 252, 0.06);
+        padding: 14px;
+      }
+
+      .acceptance-recorder__status strong {
+        color: #f8fafc;
+        font-size: 14px;
+      }
+
+      .acceptance-recorder__status span {
+        color: #cbd5e1;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .acceptance-recorder__actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .acceptance-recorder__actions button {
+        min-height: 36px;
+        border: 1px solid rgba(226, 232, 240, 0.16);
+        border-radius: 999px;
+        background: rgba(248, 250, 252, 0.1);
+        color: #f8fafc;
+        padding: 8px 12px;
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+      }
+
+      .acceptance-recorder textarea {
+        width: 100%;
+        min-height: 220px;
+        border: 1px solid rgba(226, 232, 240, 0.14);
+        border-radius: 8px;
+        background: rgba(2, 6, 23, 0.68);
+        color: #e2e8f0;
+        padding: 12px;
+        font: 12px/1.5 "Cascadia Mono", Consolas, monospace;
+        resize: vertical;
+      }
+
       .grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
@@ -419,6 +475,11 @@ function renderReviewPage({ buildSha, generatedAt }) {
 
         .decision {
           justify-content: flex-start;
+        }
+
+        .acceptance-recorder__actions {
+          align-items: stretch;
+          flex-direction: column;
         }
       }
 
@@ -486,6 +547,22 @@ function renderReviewPage({ buildSha, generatedAt }) {
           )
           .join("\n        ")}
       </section>
+      <section class="acceptance-recorder" aria-label="Acceptance Decision Recorder">
+        <h2>Acceptance Decision Recorder</h2>
+        <div class="acceptance-recorder__status">
+          <strong id="acceptance-state">Human decision incomplete</strong>
+          <span id="acceptance-detail">Choose Accept, Needs polish, or MVP blocker for every criterion.</span>
+        </div>
+        <div class="acceptance-recorder__actions">
+          <button id="copy-acceptance-json" type="button">Copy acceptance JSON</button>
+          <button id="reset-acceptance" type="button">Reset decisions</button>
+        </div>
+        <textarea
+          id="acceptance-json"
+          aria-label="Copyable acceptance JSON"
+          readonly
+        ></textarea>
+      </section>
       <section class="criteria">
         <h2>Smoke Screenshots</h2>
         <div class="grid">
@@ -505,6 +582,122 @@ function renderReviewPage({ buildSha, generatedAt }) {
         </div>
       </section>
     </main>
+    <script>
+      (() => {
+        const storageKey = "sageos.overlay.visualReview";
+        const reviewMeta = {
+          buildSha: ${JSON.stringify(buildSha)},
+          generatedAt: ${JSON.stringify(generatedAt)}
+        };
+        const criteria = ${JSON.stringify(acceptanceCriteria)};
+        const controls = Array.from(document.querySelectorAll(".decision-control"));
+        const stateElement = document.getElementById("acceptance-state");
+        const detailElement = document.getElementById("acceptance-detail");
+        const jsonElement = document.getElementById("acceptance-json");
+        const copyButton = document.getElementById("copy-acceptance-json");
+        const resetButton = document.getElementById("reset-acceptance");
+
+        function selectedDecisions() {
+          return Object.fromEntries(
+            criteria.map((criterion) => {
+              const checked = document.querySelector(
+                'input[name="decision-' + criterion.id + '"]:checked',
+              );
+              return [criterion.id, checked ? checked.value : "pending"];
+            }),
+          );
+        }
+
+        function summarize(decisions) {
+          const values = Object.values(decisions);
+          const accepted = values.filter((value) => value === "accept").length;
+          const needsPolish = values.filter((value) => value === "needs-polish").length;
+          const blockers = values.filter((value) => value === "mvp-blocker").length;
+          const pending = values.filter((value) => value === "pending").length;
+          const releaseState =
+            blockers > 0
+              ? "MVP blocked"
+              : needsPolish > 0
+                ? "Hold for polish"
+                : pending === 0
+                  ? "All criteria accepted"
+                  : "Human decision incomplete";
+          return { accepted, needsPolish, blockers, pending, releaseState };
+        }
+
+        function buildPacket() {
+          const decisions = selectedDecisions();
+          const summary = summarize(decisions);
+          return {
+            type: "sageos.overlay.visualReview.acceptance",
+            buildSha: reviewMeta.buildSha,
+            generatedAt: reviewMeta.generatedAt,
+            recordedAt: new Date().toISOString(),
+            humanAcceptance: summary.releaseState === "All criteria accepted" ? "accepted" : "required",
+            summary,
+            decisions: criteria.map((criterion) => ({
+              id: criterion.id,
+              label: criterion.label,
+              evidence: criterion.evidence,
+              decision: decisions[criterion.id],
+            })),
+          };
+        }
+
+        function renderPacket() {
+          const packet = buildPacket();
+          stateElement.textContent = packet.summary.releaseState;
+          detailElement.textContent = [
+            packet.summary.accepted + " accepted",
+            packet.summary.needsPolish + " needs polish",
+            packet.summary.blockers + " blockers",
+            packet.summary.pending + " pending",
+          ].join(" / ");
+          jsonElement.value = JSON.stringify(packet, null, 2);
+          localStorage.setItem(storageKey, JSON.stringify(selectedDecisions()));
+        }
+
+        function restoreDecisions() {
+          try {
+            const stored = JSON.parse(localStorage.getItem(storageKey) || "{}");
+            for (const [id, decision] of Object.entries(stored)) {
+              const control = document.querySelector(
+                'input[name="decision-' + id + '"][value="' + decision + '"]',
+              );
+              if (control instanceof HTMLInputElement) {
+                control.checked = true;
+              }
+            }
+          } catch {
+            localStorage.removeItem(storageKey);
+          }
+        }
+
+        for (const control of controls) {
+          control.addEventListener("change", renderPacket);
+        }
+
+        copyButton.addEventListener("click", async () => {
+          jsonElement.select();
+          try {
+            await navigator.clipboard.writeText(jsonElement.value);
+          } catch {
+            document.execCommand("copy");
+          }
+        });
+
+        resetButton.addEventListener("click", () => {
+          for (const control of controls) {
+            control.checked = false;
+          }
+          localStorage.removeItem(storageKey);
+          renderPacket();
+        });
+
+        restoreDecisions();
+        renderPacket();
+      })();
+    </script>
   </body>
 </html>
 `;

@@ -29,6 +29,16 @@ try {
   await page.waitForFunction(() =>
     Array.from(document.images).every((img) => img.complete && img.naturalWidth > 0),
   );
+  await page.evaluate(() => localStorage.removeItem("sageos.overlay.visualReview"));
+  await page.reload({ waitUntil: "load" });
+  await page.waitForFunction(() =>
+    Array.from(document.images).every((img) => img.complete && img.naturalWidth > 0),
+  );
+  await page.getByLabel("Acceptance Decision Recorder").waitFor({
+    state: "visible",
+    timeout: 5_000,
+  });
+  const acceptanceProbe = await exerciseAcceptanceRecorder(page);
 
   const result = await page.evaluate(() => {
     const imageMetrics = Array.from(document.images).map(sampleImageContent);
@@ -49,6 +59,7 @@ try {
       rubricRowCount: document.querySelectorAll(".rubric-row").length,
       decisionControlCount: document.querySelectorAll(".decision-control").length,
       decisionSummaryCount: document.querySelectorAll(".decision-summary .decision-card").length,
+      acceptanceRecorderCount: document.querySelectorAll(".acceptance-recorder").length,
     };
 
     function sampleImageContent(img) {
@@ -135,6 +146,23 @@ try {
   if (result.decisionSummaryCount !== 3) {
     throw new Error(`Expected 3 release decision cards, saw ${result.decisionSummaryCount}.`);
   }
+  if (result.acceptanceRecorderCount !== 1) {
+    throw new Error(`Expected 1 acceptance decision recorder, saw ${result.acceptanceRecorderCount}.`);
+  }
+  if (acceptanceProbe.acceptanceStateText !== "All criteria accepted") {
+    throw new Error(
+      `Acceptance recorder did not mark all accepted: ${acceptanceProbe.acceptanceStateText}.`,
+    );
+  }
+  if (!acceptanceProbe.acceptanceJsonText.includes('"humanAcceptance": "accepted"')) {
+    throw new Error("Acceptance recorder JSON did not mark accepted humanAcceptance.");
+  }
+  if (acceptanceProbe.blockerStateText !== "MVP blocked") {
+    throw new Error(`Acceptance recorder did not mark blocker state: ${acceptanceProbe.blockerStateText}.`);
+  }
+  if (!acceptanceProbe.blockerJsonText.includes('"decision": "mvp-blocker"')) {
+    throw new Error("Acceptance recorder JSON did not include the blocker decision.");
+  }
   if (result.brokenImages > 0) {
     throw new Error(`Visual review has ${result.brokenImages} broken image(s).`);
   }
@@ -153,6 +181,11 @@ try {
     throw new Error(`Visual review body appears blank: ${result.bodyTextLength} characters.`);
   }
 
+  const resetProbe = await resetAcceptanceRecorder(page);
+  if (resetProbe.state !== "Human decision incomplete") {
+    throw new Error(`Acceptance recorder did not reset before screenshot: ${resetProbe.state}.`);
+  }
+
   await page.screenshot({ path: renderFile, fullPage: true, animations: "disabled" });
   const report = {
     ok: true,
@@ -163,6 +196,8 @@ try {
     reportFile,
     humanAcceptance: "required",
     ...result,
+    ...acceptanceProbe,
+    resetStateText: resetProbe.state,
   };
   await fs.writeFile(`${reportFile}.tmp`, `${JSON.stringify(report, null, 2)}\n`, "utf8");
   await fs.rename(`${reportFile}.tmp`, reportFile);
@@ -176,6 +211,39 @@ try {
   );
 } finally {
   await browser.close();
+}
+
+async function resetAcceptanceRecorder(page) {
+  await page.getByRole("button", { name: "Reset decisions" }).click();
+  return readAcceptanceRecorder(page);
+}
+
+async function exerciseAcceptanceRecorder(page) {
+  await selectAllAcceptanceCriteria(page, "accept");
+  const accepted = await readAcceptanceRecorder(page);
+  await page.locator('input.decision-control[value="mvp-blocker"]').first().check();
+  const blocked = await readAcceptanceRecorder(page);
+  return {
+    acceptanceStateText: accepted.state,
+    acceptanceJsonText: accepted.json,
+    blockerStateText: blocked.state,
+    blockerJsonText: blocked.json,
+  };
+}
+
+async function selectAllAcceptanceCriteria(page, value) {
+  const controls = page.locator(`input.decision-control[value="${value}"]`);
+  const count = await controls.count();
+  for (let index = 0; index < count; index += 1) {
+    await controls.nth(index).check();
+  }
+}
+
+async function readAcceptanceRecorder(page) {
+  return page.evaluate(() => ({
+    state: document.getElementById("acceptance-state")?.textContent?.trim() ?? "",
+    json: document.getElementById("acceptance-json")?.value ?? "",
+  }));
 }
 
 async function findBrowserExecutable() {

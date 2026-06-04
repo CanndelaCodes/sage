@@ -88,7 +88,7 @@ Verification build SHA: `741b70695473`
 - [x] Automated smoke captures the overlay over desktop-like, dark, bright, text-heavy, browser-like, and IDE-like visual backdrops.
 - [x] Automated smoke fails if critical toolbar, launcher, HUD, or Edge Rail controls clip text, have sub-20px hit targets, or overlap.
 - [x] Automated smoke emulates `prefers-reduced-motion: reduce` in Electron and fails if visible critical controls keep transition or animation durations above 1ms.
-- [x] Visual review verifier loads all smoke screenshots, samples screenshot pixel content for nonblank/non-flat output, lists the MVP visual acceptance criteria, renders the release decision cards and reviewer rubric controls, and renders without horizontal overflow.
+- [x] Visual review verifier loads all smoke screenshots, samples screenshot pixel content for nonblank/non-flat output, lists the MVP visual acceptance criteria, renders the release decision cards and reviewer rubric controls, verifies the acceptance decision recorder, and renders without horizontal overflow.
 - [x] Edge Rail collapse keeps health, active-operation, approval, and incident indicators visible.
 - [x] Edge Rail health, active-operation, approval, and incident badges carry drill-down targets and expand to the relevant workspace.
 - [x] Pass-through surfaces can temporarily restore overlay pointer capture over active controls.
@@ -127,7 +127,7 @@ Verification build SHA: `741b70695473`
   the full desktop-underlay, reduced-motion full, bright, edge-left, dark edge, text-heavy edge, browser edge, IDE edge, desktop-underlay HUD, and IDE HUD
   screenshots above.
 - Visual review companion update: `pnpm --dir apps/windows-overlay review:visual:all` passed
-  on 2026-06-04. It ran the packaged Electron smoke, regenerated
+  on 2026-06-04 after adding the local acceptance recorder. It ran the packaged Electron smoke, regenerated
   `apps/windows-overlay/dist/overlay-visual-review.html`, launched
   `C:\Program Files\Google\Chrome\Application\chrome.exe`, loaded all 11 smoke screenshots,
   found 8 acceptance criteria, 8 reviewer rubric rows, 24 acceptance decision controls,
@@ -135,6 +135,9 @@ Verification build SHA: `741b70695473`
   browser canvas with `imageContentFailures: []`, found 0 horizontal overflow, saved
   `apps/windows-overlay/dist/overlay-visual-review-render.png` for review, and wrote
   `apps/windows-overlay/dist/overlay-visual-review-report.json` with `humanAcceptance: "required"`.
+  The verifier also selects all criteria as accepted and confirms the recorder emits
+  `humanAcceptance: "accepted"` with release state `All criteria accepted`, then flips one
+  criterion to `mvp-blocker` and confirms the recorder emits release state `MVP blocked`.
 - Sage AI Chat overlay update: focused TDD first failed on the missing chat model, missing
   `loadSageAiChatHistory`/`sendSageAiChatMessage`/`abortSageAiChatSession` helpers, missing
   controller chat send/abort methods, and missing Gateway `chat` event tracking. The focused tests
