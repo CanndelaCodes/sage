@@ -18,6 +18,7 @@ describe("Electron overlay smoke script", () => {
       "sageos-overlay:interactive-pointer",
       "createPassThroughProbe",
       "sendNativeMouseClick",
+      "nativeClickPoint",
       "waitForPassThroughProbeClick",
       "readPassThroughProbeDiagnostics",
       "Timed out waiting for pass-through probe click",

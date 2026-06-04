@@ -34,6 +34,7 @@ Verification build SHA: `741b70695473`
 - [x] `pnpm --dir apps/windows-overlay review:visual:verify` loads the generated contact sheet in Chrome or Edge and fails on broken images, missing criteria, blank output, blank/flat screenshot pixel content, or horizontal overflow.
 - [x] `pnpm --dir apps/windows-overlay review:visual:all` runs smoke capture, contact-sheet generation, and browser verification as one release gate.
 - [x] `pnpm --dir apps/windows-overlay review:visual:serve` serves the generated visual review packet on `127.0.0.1` for Codex/in-app browser review.
+- [x] Served visual review packets can save a validated local acceptance artifact through `POST /acceptance` to `apps/windows-overlay/dist/overlay-visual-review-acceptance.json`.
 - [x] `SAGEOS_OVERLAY_ACTIVE_MONITOR=auto|primary|<display id>` routes the overlay to the active, primary, or configured monitor.
 - [x] `powershell -ExecutionPolicy Bypass -File scripts/sageos-windows-overlay.ps1 -OpenMode hud` starts HUD-first mode.
 - [x] Compact HUD renders as a Liquid Linear command island with current operation title, progress detail, status, target kind, and live badges.
@@ -112,6 +113,7 @@ Verification build SHA: `741b70695473`
 - Visual review contact sheet path: `apps/windows-overlay/dist/overlay-visual-review.html`
 - Visual review render screenshot path: `apps/windows-overlay/dist/overlay-visual-review-render.png`
 - Visual review machine report path: `apps/windows-overlay/dist/overlay-visual-review-report.json`
+- Visual review saved acceptance artifact path: `apps/windows-overlay/dist/overlay-visual-review-acceptance.json`
 - Current verification update: `pnpm --dir apps/windows-overlay smoke:electron` passed on
   2026-06-04 after the overlay-native chat layout hardening pass. The packaged overlay reported
   `buildSha: 741b70695473`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`,
@@ -145,6 +147,16 @@ Verification build SHA: `741b70695473`
   `application/json; charset=utf-8`, and path traversal returned `404`. Codex opened the served
   packet in the in-app browser and verified title `SageOS Overlay MVP Visual Review`, 24 decision
   controls, 11 screenshots, and neutral state `Human decision incomplete`.
+- Visual review acceptance save update: the focused visual-review script test first failed because
+  the generated review page had no save control and the localhost server had no `POST /acceptance` route, then
+  passed after the page gained `Save acceptance JSON` and the server gained local-only validation
+  plus atomic writes to `apps/windows-overlay/dist/overlay-visual-review-acceptance.json`.
+  HTTP checks against `http://127.0.0.1:58232/` verified root HTML `200`, invalid acceptance
+  packet `400`, valid packet save `200`, and saved JSON retrieval. A Playwright/Chrome browser
+  check selected all 8 Accept radio controls, clicked `Save acceptance JSON`, observed
+  `Saved overlay-visual-review-acceptance.json`, and read back a saved artifact with
+  `humanAcceptance: "accepted"` and 8 decisions. That browser check proves save mechanics only;
+  Jason's human visual/product acceptance remains the release gate.
 - Sage AI Chat overlay update: focused TDD first failed on the missing chat model, missing
   `loadSageAiChatHistory`/`sendSageAiChatMessage`/`abortSageAiChatSession` helpers, missing
   controller chat send/abort methods, and missing Gateway `chat` event tracking. The focused tests

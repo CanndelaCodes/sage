@@ -153,7 +153,7 @@ async function smokeFullOverlay(gatewayUrl, rendererErrors) {
     await assertCriticalTextFit(page);
     const passThroughProbe = await createPassThroughProbe(app);
     await armOverlayClickProbe(page);
-    const nativeClick = await sendNativeMouseClick(passThroughProbe.clickPoint);
+    const nativeClick = await sendNativeMouseClick(passThroughProbe.nativeClickPoint);
     const passThroughProbeClicks = await waitForPassThroughProbeClick(
       app,
       passThroughProbe,
@@ -353,13 +353,25 @@ async function createPassThroughProbe(app) {
       });
       await window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(probeHtml)}`);
       window.showInactive();
+      const clickPoint = {
+        x: x + Math.floor(width / 2),
+        y: y + Math.floor(height / 2),
+      };
+      const nativeClickPoint = {
+        x: Math.round(
+          display.bounds.x * display.scaleFactor +
+            (clickPoint.x - display.bounds.x) * display.scaleFactor,
+        ),
+        y: Math.round(
+          display.bounds.y * display.scaleFactor +
+            (clickPoint.y - display.bounds.y) * display.scaleFactor,
+        ),
+      };
       return {
         id: window.id,
         nativeHandle: window.getNativeWindowHandle().toString("hex"),
-        clickPoint: {
-          x: x + Math.floor(width / 2),
-          y: y + Math.floor(height / 2),
-        },
+        clickPoint,
+        nativeClickPoint,
       };
     },
     html,
@@ -604,6 +616,7 @@ async function readPassThroughProbeDiagnostics(app, probe, nativeClick) {
     .catch((error) => ({ error: String(error) }));
   return {
     clickPoint: probe.clickPoint,
+    nativeClickPoint: probe.nativeClickPoint ?? probe.clickPoint,
     probeNativeHandle: probe.nativeHandle,
     nativeClick,
     probePage,

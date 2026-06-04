@@ -555,8 +555,10 @@ function renderReviewPage({ buildSha, generatedAt }) {
         </div>
         <div class="acceptance-recorder__actions">
           <button id="copy-acceptance-json" type="button">Copy acceptance JSON</button>
+          <button id="save-acceptance-json" type="button">Save acceptance JSON</button>
           <button id="reset-acceptance" type="button">Reset decisions</button>
         </div>
+        <span id="acceptance-save-status" role="status">No acceptance artifact saved yet.</span>
         <textarea
           id="acceptance-json"
           aria-label="Copyable acceptance JSON"
@@ -595,6 +597,8 @@ function renderReviewPage({ buildSha, generatedAt }) {
         const detailElement = document.getElementById("acceptance-detail");
         const jsonElement = document.getElementById("acceptance-json");
         const copyButton = document.getElementById("copy-acceptance-json");
+        const saveButton = document.getElementById("save-acceptance-json");
+        const saveStatusElement = document.getElementById("acceptance-save-status");
         const resetButton = document.getElementById("reset-acceptance");
 
         function selectedDecisions() {
@@ -683,6 +687,25 @@ function renderReviewPage({ buildSha, generatedAt }) {
             await navigator.clipboard.writeText(jsonElement.value);
           } catch {
             document.execCommand("copy");
+          }
+        });
+
+        saveButton.addEventListener("click", async () => {
+          try {
+            const response = await fetch("/acceptance", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: jsonElement.value,
+            });
+            if (!response.ok) {
+              throw new Error(await response.text());
+            }
+            const saved = await response.json();
+            saveStatusElement.textContent =
+              "Saved " + (saved.file || "overlay-visual-review-acceptance.json");
+          } catch (error) {
+            saveStatusElement.textContent =
+              "Could not save overlay-visual-review-acceptance.json from this page.";
           }
         });
 

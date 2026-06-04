@@ -779,10 +779,23 @@ The overlay should ship these concrete surfaces:
 
 - Command Deck: the default full overlay home with supervisor state, active operations, approvals, urgent incidents, next scheduled work, and pause/stop controls.
 - Universal Launcher: plain-language command input and quick actions for employees, tasks, workflows, memory, coding, apps, policy, and repairs.
+- Sage AI Chat: overlay-native chat workspace backed by the local Sage Gateway chat protocol for questions, planning, summaries, and safe command shaping.
 - Agent Workspace: focused drill-down for one employee, task, run, approval, incident, repo, workflow, skill, or app/widget.
 - Compact HUD: small always-on-top status surface with active task count, pending approvals, urgent incident count, and expand/pause controls.
 - Edge Rail: collapsed persistent strip showing health, approval badge, incident badge, and active-operation indicator.
 - Pinned Widgets: pass-through-capable widgets for active operations, approvals, memory queue, Night Shift report, system health, and app/widget previews.
+
+### Sage AI Chat and SDK boundary
+
+The MVP chat UI is custom and overlay-native. It must stay visually and behaviorally integrated with Command Deck, Agent Workspace, HUD, Edge Rail, approvals, incidents, and pass-through overlay behavior. The chat transport is the local Sage Gateway chat protocol, currently `chat.history`, `chat.send`, and `chat.abort`, with overlay sends using `deliver: false` so the overlay can talk to Sage without pretending to be an external messaging channel.
+
+OpenAI ChatKit and the OpenAI Agents SDK are useful reference points, but they are not the MVP UI substrate:
+
+- ChatKit is a candidate for a supplemental web Command Center experiment, or for post-MVP inspiration around attachments, inline widgets, actions, starter prompts, theming, and richer thread ergonomics.
+- ChatKit should not replace the Windows overlay shell, visual language, pass-through model, local Gateway contract, or SageOS resource/workspace surfaces.
+- The Agents SDK is a candidate backend adapter for OpenAI-native orchestration when Sage needs code-owned tools, handoffs, tracing, guardrails, MCP integrations, or custom state on an OpenAI runtime.
+- The Agents SDK should sit behind Sage's Gateway/session/run contracts if adopted. It should not fork SageOS state, approvals, audit, memory boundaries, or UI semantics.
+- MVP success is measured by a production-usable local overlay chat surface. ChatKit-style widgets and Agents-SDK-backed runs are post-MVP enhancements unless a later spec explicitly promotes them.
 
 ### Pass-through and pinned behavior
 
