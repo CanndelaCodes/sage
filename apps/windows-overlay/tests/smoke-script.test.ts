@@ -37,6 +37,7 @@ describe("Electron overlay smoke script", () => {
       "overlay-smoke-full-bright.png",
       "overlay-smoke-edge-text-heavy.png",
       "overlay-smoke-edge-browser.png",
+      "overlay-smoke-edge-ide.png",
       "overlay-smoke-hud-ide.png",
       "worker_task_1_1",
       "currentToolCall",

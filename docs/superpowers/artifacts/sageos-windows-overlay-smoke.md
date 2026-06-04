@@ -85,6 +85,7 @@ Build: Windows overlay MVP shell verification after Liquid Linear material pass
 - Left edge rail screenshot path: `apps/windows-overlay/dist/overlay-smoke-edge-left.png`
 - Text-heavy backdrop edge rail screenshot path: `apps/windows-overlay/dist/overlay-smoke-edge-text-heavy.png`
 - Browser backdrop edge rail screenshot path: `apps/windows-overlay/dist/overlay-smoke-edge-browser.png`
+- IDE-like backdrop edge rail screenshot path: `apps/windows-overlay/dist/overlay-smoke-edge-ide.png`
 - HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud.png`
 - IDE-like backdrop HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud-ide.png`
 - Current verification update: `pnpm --dir apps/windows-overlay smoke:electron` passed on
@@ -92,7 +93,7 @@ Build: Windows overlay MVP shell verification after Liquid Linear material pass
   `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, no renderer page errors,
   four `sageos.control` calls for pause, resume, stop, and emergency stop, verified the
   availability-aware Voice entry state, and refreshed the full, bright, edge-left, text-heavy edge,
-  browser edge, HUD, and IDE HUD screenshots above.
+  browser edge, IDE edge, HUD, and IDE HUD screenshots above.
 - Current package gates after the latest verification sweep: `pnpm --dir apps/windows-overlay test`
   passed with 13 files and 86 tests, `pnpm --dir apps/windows-overlay typecheck` passed, and
   `pnpm --dir apps/windows-overlay build` passed.
@@ -129,7 +130,7 @@ src/telegram/bot.test.ts` passed with 28 files
   verifies the Voice control is enabled only when browser speech recognition exists and is otherwise
   disabled with an unavailable-runtime reason,
   captures full Command Deck over a bright synthetic desktop, captures Edge Rail and pinned widgets
-  over text-heavy and browser-like synthetic apps, captures the richer Compact HUD command island over an IDE-like dark surface,
+  over text-heavy, browser-like, and IDE-like synthetic apps, captures the richer Compact HUD command island over an IDE-like dark surface,
   seeds the mock gateway with an active run that includes `workerSessionId`, `currentToolCall`,
   `budgetUsed`, `timeline`, logs, artifacts, and verification metadata,
   waits for launcher submissions to enable before clicking and for the launcher field to clear

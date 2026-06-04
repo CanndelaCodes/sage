@@ -49,6 +49,7 @@ try {
           edgeLeft: path.join(screenshotDir, "overlay-smoke-edge-left.png"),
           edgeTextHeavy: path.join(screenshotDir, "overlay-smoke-edge-text-heavy.png"),
           edgeBrowser: path.join(screenshotDir, "overlay-smoke-edge-browser.png"),
+          edgeIde: path.join(screenshotDir, "overlay-smoke-edge-ide.png"),
           hud: path.join(screenshotDir, "overlay-smoke-hud.png"),
           hudIde: path.join(screenshotDir, "overlay-smoke-hud-ide.png"),
         },
@@ -136,6 +137,11 @@ async function smokeFullOverlay(gatewayUrl) {
     await setVisualBackdrop(page, "browser");
     await page.screenshot({
       path: path.join(screenshotDir, "overlay-smoke-edge-browser.png"),
+      animations: "disabled",
+    });
+    await setVisualBackdrop(page, "ide");
+    await page.screenshot({
+      path: path.join(screenshotDir, "overlay-smoke-edge-ide.png"),
       animations: "disabled",
     });
 
