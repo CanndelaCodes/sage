@@ -75,6 +75,7 @@ Core model:
 | Tests, typecheck, lint, and `git diff --check` pass                                                                                                  | Green  | SageOS, overlay, UI, typecheck, lint, build, smoke, and `git diff --check` passed; root `pnpm test` exits 0 after the root-gate and PTY deadline fixes; fresh `pnpm check` passes typecheck, oxlint, and repo-wide formatter checks | Keep gates in final release checklist   |
 | MVP decision log reconciled with implementation                                                                                                      | Green  | May 18 spec `MVP decisions` section now resolves the previous open decisions against current config, state store, event log, policy, notification, observer, app candidate, and overlay defaults                                    | Re-read before final release            |
 | Visual review companion for Jason acceptance                                                                                                         | Green  | `pnpm --dir apps/windows-overlay review:visual` generates a local contact sheet from all smoke screenshots; headless Chrome verifies 10 loaded screenshots, 8 criteria, no broken images, and no horizontal overflow                | Jason visual acceptance                 |
+| Public Windows docs reflect overlay MVP status                                                                                                       | Green  | README and platform docs now describe the SageOS Windows overlay MVP separately from the still-planned general Windows node companion                                                                                               | Re-read before release                  |
 | Enterprise-grade Liquid Linear overlay visual gate                                                                                                   | Yellow | Visual contract tests, practical AA text contrast guard, runtime reduced-motion smoke, refreshed smoke screenshots, Liquid Linear spec, smoke artifact, `smoke:electron` pass                                                       | Jason visual acceptance                 |
 
 ## Verification Results
@@ -234,6 +235,11 @@ Root-gate fix slice verified after the blockers above:
   - `pnpm --dir apps/windows-overlay review:visual` generated `apps/windows-overlay/dist/overlay-visual-review.html` with `buildSha: c90b798e9fd5`.
   - A headless Chrome render loaded the generated file, verified 10 loaded screenshots, 8 acceptance criteria, 0 broken images, 0 horizontal overflow, and saved `apps/windows-overlay/dist/overlay-visual-review-render.png`.
   - `apps/windows-overlay/dist/overlay-visual-review-render.png` was visually inspected and showed a readable contact sheet with acceptance criteria plus dark, bright, reduced-motion, Edge Rail, browser, IDE, and HUD smoke screenshots.
+- Public Windows docs closeout on 2026-06-04:
+  - The Windows platform docs and README no longer say there is no Windows desktop app. They now document the SageOS Windows overlay MVP shell, its PowerShell launch path, startup shortcut helper, smoke/review commands, and the distinction from the still-planned general Windows node companion.
+  - `pnpm exec oxfmt --check README.md docs/platforms/windows.md docs/platforms/index.md docs/superpowers/artifacts/sageos-mvp-readiness.md` passed.
+  - `git diff --check -- README.md docs/platforms/windows.md docs/platforms/index.md docs/superpowers/artifacts/sageos-mvp-readiness.md` passed.
+  - `pnpm exec vitest run --config vitest.config.ts src/docs/slash-commands-doc.test.ts --reporter verbose` passed with 1 file and 1 test.
 
 ## Current Green Areas
 
@@ -251,6 +257,7 @@ Root-gate fix slice verified after the blockers above:
 - Overlay visual smoke now explicitly covers dark, bright, text-heavy, browser-like, and IDE-like representative backdrops.
 - Electron smoke now emulates `prefers-reduced-motion: reduce`, fails if visible critical controls keep transition or animation durations above 1ms, and captures a reduced-motion full-overlay screenshot.
 - A local visual review companion now turns the smoke screenshot set into one Jason acceptance contact sheet and is validated in headless Chrome for loaded images and horizontal overflow.
+- Public Windows docs now match the overlay-first MVP status instead of describing Windows desktop support as absent.
 - Liquid Linear command glass is tokenized and test-covered in the overlay visual contract, including HUD, Edge Rail, ambient pinned widgets, foreground stacking above specular material layers, and practical AA normal-text contrast over representative Windows app backdrops.
 - Incidents now cover source failure, queue backlog, policy block, memory doctor failure, notification failure, worker failure, budget exhaustion, and security findings.
 - Web supplemental incident repair now uses the same safe repair method allowlist as the overlay for the generated safe incident classes.

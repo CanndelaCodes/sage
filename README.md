@@ -288,6 +288,14 @@ If you plan to build/run companion apps, follow the platform runbooks below.
 
 Note: signed builds required for macOS permissions to stick across rebuilds (see `docs/mac/permissions.md`).
 
+### Windows SageOS overlay (optional)
+
+- Local SageOS desktop overlay for the active Windows session.
+- Configurable hotkey, full overlay, HUD-first mode, Edge Rail, and pinned widgets.
+- Connects to a reachable Sage Gateway, usually running through WSL2 on Windows.
+
+Runbook: [Windows](https://docs.sage.ai/platforms/windows).
+
 ### iOS node (optional)
 
 - Pairs as a node via the Bridge.

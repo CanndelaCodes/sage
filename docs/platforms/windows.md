@@ -1,12 +1,12 @@
 ---
-summary: "Windows (WSL2) support + companion app status"
+summary: "Windows WSL2 support plus SageOS overlay status"
 read_when:
   - Installing Sage on Windows
   - Looking for Windows companion app status
-title: "Windows (WSL2)"
+title: "Windows WSL2"
 ---
 
-# Windows (WSL2)
+# Windows WSL2
 
 Sage on Windows is recommended **via WSL2** (Ubuntu recommended). The
 CLI + Gateway run inside Linux, which keeps the runtime consistent and makes
@@ -14,7 +14,10 @@ tooling far more compatible (Node/Bun/pnpm, Linux binaries, skills). Native
 Windows might be trickier. WSL2 gives you the full Linux experience — one command
 to install: `wsl --install`.
 
-Native Windows companion apps are planned.
+The SageOS Windows overlay is available from this repo as an MVP desktop shell
+for the active Windows session. It connects to the Gateway and opens or closes
+with a configurable Windows hotkey. This overlay is separate from the broader
+planned Windows node companion app.
 
 ## Install (WSL2)
 
@@ -153,7 +156,48 @@ sage onboard
 
 Full guide: [Getting Started](/start/getting-started)
 
-## Windows companion app
+## SageOS Windows overlay
 
-We do not have a Windows companion app yet. Contributions are welcome if you want
-contributions to make it happen.
+The SageOS overlay is the Windows desktop surface for SageOS MVP work. Use it
+when you want a local overlay that can sit above the active desktop, start in
+full or HUD mode, collapse to an Edge Rail, and keep pinned widgets visible.
+
+From the repo root in PowerShell:
+
+```powershell
+pnpm install
+pnpm --dir apps/windows-overlay build
+powershell -ExecutionPolicy Bypass -File scripts/sageos-windows-overlay.ps1 `
+  -GatewayUrl "ws://127.0.0.1:18789" `
+  -Hotkey "Ctrl+Alt+Space" `
+  -OpenMode full `
+  -OpenOnLaunch
+```
+
+Use a Gateway URL that the Windows session can reach. The default
+`ws://127.0.0.1:18789` works when the Gateway is reachable from Windows on
+localhost.
+
+Useful overlay checks:
+
+```powershell
+pnpm --dir apps/windows-overlay test
+pnpm --dir apps/windows-overlay typecheck
+pnpm --dir apps/windows-overlay build
+pnpm --dir apps/windows-overlay smoke:electron
+pnpm --dir apps/windows-overlay review:visual
+```
+
+Install, inspect, or remove the current-user startup shortcut:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/sageos-windows-overlay-startup.ps1 -Action install
+powershell -ExecutionPolicy Bypass -File scripts/sageos-windows-overlay-startup.ps1 -Action status
+powershell -ExecutionPolicy Bypass -File scripts/sageos-windows-overlay-startup.ps1 -Action uninstall
+```
+
+## Windows node companion
+
+A general native Windows node companion app is still planned. For now, run the
+Gateway in WSL2 and use the SageOS Windows overlay when you need the local
+desktop overlay experience.
