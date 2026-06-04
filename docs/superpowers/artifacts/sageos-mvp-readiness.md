@@ -186,7 +186,7 @@ Root-gate fix slice verified after the blockers above:
   - `pnpm --dir apps/windows-overlay build` passed.
   - `pnpm check` passed with `pnpm tsgo`, oxlint 0 warnings and 0 errors, and repo-wide `oxfmt --check`.
   - `git diff --check -- apps/windows-overlay/src/renderer/overlay-app.ts apps/windows-overlay/tests/overlay-renderer.test.ts` passed.
-  - `pnpm --dir apps/windows-overlay smoke:electron` passed with `buildSha: 00ea343149e5`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, and `rendererErrors: 0`.
+  - `pnpm --dir apps/windows-overlay smoke:electron` passed post-commit with `buildSha: 5e085254f756`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, and `rendererErrors: 0`.
 
 ## Current Green Areas
 
