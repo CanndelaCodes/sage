@@ -39,6 +39,7 @@ Core model:
 - High-level MVP spec: `docs/superpowers/specs/2026-05-18-sageos-command-center-design.md`.
 - Overlay visual direction: `docs/superpowers/specs/2026-06-01-sageos-liquid-linear-overlay-design.md`.
 - Overlay implementation plan and acceptance mapping: `docs/superpowers/plans/2026-06-01-sageos-windows-overlay.md`.
+- MVP decision log: the May 18 spec now records implementation-backed MVP decisions for autonomy defaults, canonical spec ownership, event/state storage, Telegram privacy, retention, Night Shift workspace policy, Windows collectors, optional capture sources, app/widget candidates, self-improvement promotion, and pinned widget defaults.
 - Overlay smoke and visual evidence: `docs/superpowers/artifacts/sageos-windows-overlay-smoke.md`.
 - Shared SageOS status and kernel modules: `src/sageos/`.
 - Gateway SageOS contract: `src/gateway/server-methods/sageos.ts`.
@@ -72,6 +73,7 @@ Core model:
 | Memory-down/source failure/queue backlog/worker failure/policy block/notification failure/security finding incidents                                 | Green  | generated incidents in `src/sageos/status.ts`; web and overlay repair allowlists                                                                                                                                                    | Re-run incident tests                   |
 | Telegram redacted urgent alerts, digests, approvals, task completion reports                                                                         | Green  | notification module, supervisor digest checks, gateway notification methods, Telegram control tests                                                                                                                                 | Re-run Telegram/notification tests      |
 | Tests, typecheck, lint, and `git diff --check` pass                                                                                                  | Green  | SageOS, overlay, UI, typecheck, lint, build, smoke, and `git diff --check` passed; root `pnpm test` exits 0 after the root-gate and PTY deadline fixes; fresh `pnpm check` passes typecheck, oxlint, and repo-wide formatter checks | Keep gates in final release checklist   |
+| MVP decision log reconciled with implementation                                                                                                      | Green  | May 18 spec `MVP decisions` section now resolves the previous open decisions against current config, state store, event log, policy, notification, observer, app candidate, and overlay defaults                                    | Re-read before final release            |
 | Enterprise-grade Liquid Linear overlay visual gate                                                                                                   | Yellow | Visual contract tests, practical AA text contrast guard, refreshed smoke screenshots, Liquid Linear spec, smoke artifact, `smoke:electron` pass                                                                                     | Jason visual acceptance                 |
 
 ## Verification Results

@@ -1355,20 +1355,30 @@ The revised SageOS design is implemented when:
 - Telegram can send redacted urgent alerts, digests, approval prompts, and task completion reports.
 - Tests, typecheck, lint, and `git diff --check` pass for implementation slices.
 
-## Open decisions
+## MVP decisions
 
-- Exact initial default autonomy tier for Jason's private environment.
-- Whether the canonical file should remain this spec or replace the 2026-05-17 MVP spec after implementation begins.
-- Event log storage backend: JSONL, SQLite, existing state DB, or a dedicated local store.
-- Whether AgentSpec should be stored in config, state dir, Sage Memory, or a hybrid.
-- How much Telegram is allowed to receive private summaries.
-- Retention policy for raw observations, derived observations, traces, and screenshots if enabled.
-- Whether Night Shift uses existing repo branches, temp clones, or explicitly approved worktrees.
-- Which full-PC read-only collectors should be first on Windows.
-- Whether screen, OCR, audio, clipboard, and accessibility belong in MVP or post-MVP.
-- Where generated apps/widgets should live.
-- Which self-improvement actions can be auto-promoted without Jason review.
-- Final visual density and default pinned widget order for the overlay.
+The initial MVP decision log is settled by the implementation slices through 2026-06-04:
+
+- Default autonomy tier: Jason's private MVP default is `execute_scoped`, exposed through `sageos.mode` and `sageos.policy.defaultTier`. Higher-risk scopes still require approval for destructive actions, external writes, production effects, credentials, policy changes, private data export, Windows settings, releases, and irreversible actions.
+- Canonical spec set: this file is the canonical high-level SageOS Command Center and OS contract. `2026-05-17-sageos-mvp-design.md` remains the predecessor/reference design. `2026-06-01-sageos-windows-overlay.md`, `2026-06-01-sageos-liquid-linear-overlay-design.md`, and the readiness artifacts are the overlay-first MVP acceptance companions.
+- Event log backend: the MVP uses local JSONL in the SageOS state directory through `src/sageos/event-log.ts` (`events.jsonl`). SQLite or another indexed local store can be introduced later behind a migration path.
+- AgentSpec storage: operational AgentSpec records are durable local state in the SageOS state directory through `src/sageos/state-store.ts` (`agents.json`). Config holds defaults, templates, source policy, and overlay preferences. Sage Memory remains the durable memory/handoff substrate, not the primary operational AgentSpec store.
+- Telegram privacy: Telegram receives redacted urgent alerts, digests, approval prompts, and task completion reports by default. Private summaries require explicit opt-in with `sageos.privacy.telegramPrivateContent: true`.
+- Retention: raw screen/audio capture is disabled by default, and raw screenshots/audio are not stored unless explicitly enabled. Derived observations support `sageos.privacy.observationRetentionDays`; audit/event/state retention remains local and operator-controlled for MVP.
+- Night Shift workspace model: Night Shift uses existing approved repos/branches and task sessions by default. Temporary clones or worktrees require explicit operator approval and must preserve unrelated WIP.
+- First Windows read-only collectors: the MVP starts with app focus, Defender, startup items, scheduled tasks, disk, power, updates, services, processes, ports/listeners, runtime CPU/memory, and Sage/SageOS health where available.
+- Screen, OCR, audio, clipboard, and accessibility: these are explicit source-level opt-ins, not default MVP sources. They belong in MVP only as disabled configuration surfaces and policy contracts.
+- Generated apps/widgets: MVP generated app/widget ideas are `SageOsAppCandidate` records in local state (`apps.json`) with preview commands, artifact refs, policy scopes, and rollback refs. Shipping/install locations for production widgets remain post-MVP.
+- Self-improvement promotion: MVP self-improvement can draft workflows, skills, app candidates, dry-runs, and review requests. Auto-promotion of policy, release, dependency, credential, production, or user-facing behavior changes is out of scope without Jason review.
+- Overlay visual density and default pinned widgets: the accepted MVP direction is dense Liquid Linear command glass. The renderer default pinned widgets are `activeOperations`, `approvals`, and `incidents`; memory queue, Night Shift, system health, and app preview are configurable pinned widgets and workspace/HUD surfaces.
+
+## Post-MVP decisions
+
+- Whether to migrate event/state storage from JSON and JSONL to SQLite or another indexed local store.
+- Whether to promote generated widgets into `extensions/`, `apps/`, a separate local workspace, or a signed overlay widget package format.
+- Whether any self-improvement class can be auto-promoted after enough evidence, policy, rollback, and review automation exists.
+- Whether screen/OCR/audio/clipboard/accessibility should become more prominent after Jason accepts the privacy model and Windows UX.
+- Whether the default pinned widget order should change after Jason's product acceptance pass on real Windows backgrounds.
 
 ## Recommended first implementation brick
 
