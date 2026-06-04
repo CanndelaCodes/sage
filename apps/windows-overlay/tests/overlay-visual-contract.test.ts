@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 const styles = readFileSync(new URL("../src/renderer/styles.css", import.meta.url), "utf8");
 
 describe("overlay visual contract", () => {
-  it("defines a SageOS Vitreous Liquor material token layer", () => {
+  it("defines a SageOS Liquid Linear material token layer", () => {
     const requiredTokens = [
       "--sageos-bg-overlay",
       "--sageos-bg-overlay-strong",
@@ -22,6 +22,8 @@ describe("overlay visual contract", () => {
       "--sageos-liquid-ambient",
       "--sageos-liquid-command",
       "--sageos-liquid-focus",
+      "--sageos-liquid-hud",
+      "--sageos-liquid-rail",
       "--sageos-liquid-summit",
       "--sageos-border-subtle",
       "--sageos-border-strong",
@@ -30,6 +32,8 @@ describe("overlay visual contract", () => {
       "--sageos-shadow-command",
       "--sageos-shadow-focus",
       "--sageos-shadow-control",
+      "--sageos-shadow-hud",
+      "--sageos-shadow-rail",
       "--sageos-shadow-elevated",
       "--sageos-shadow-summit",
       "--sageos-highlight-runway",
@@ -45,10 +49,41 @@ describe("overlay visual contract", () => {
       "--sageos-motion-spring-snappy",
       "--sageos-motion-spring-responsive",
       "--sageos-motion-spring-smooth",
+      "--sageos-radius-shell",
     ];
 
     for (const token of requiredTokens) {
       expect(styles).toContain(token);
+    }
+  });
+
+  it("applies Liquid Linear material tokens to HUD, rail, and pinned ambient glass", () => {
+    const materialContracts = [
+      [".compact-hud", ["var(--sageos-liquid-hud)", "var(--sageos-shadow-hud)", "var(--sageos-radius-shell)"]],
+      [".edge-rail", ["var(--sageos-liquid-rail)", "var(--sageos-shadow-rail)"]],
+      [".pinned-widget--ambient", ["var(--sageos-liquid-ambient)", "var(--sageos-shadow-ambient)"]],
+    ] as const;
+
+    for (const [selector, expectedSnippets] of materialContracts) {
+      const selectorStart = styles.indexOf(selector);
+      expect(selectorStart).toBeGreaterThanOrEqual(0);
+      const blockEnd = styles.indexOf("}", selectorStart);
+      const block = styles.slice(selectorStart, blockEnd);
+
+      for (const snippet of expectedSnippets) {
+        expect(block).toContain(snippet);
+      }
+    }
+  });
+
+  it("keeps HUD and rail content above specular material layers", () => {
+    for (const selector of [".compact-hud__main", ".compact-hud__badges", ".edge-rail button"]) {
+      const selectorStart = styles.indexOf(selector);
+      expect(selectorStart).toBeGreaterThanOrEqual(0);
+      const blockEnd = styles.indexOf("}", selectorStart);
+      const block = styles.slice(selectorStart, blockEnd);
+      expect(block).toContain("position: relative");
+      expect(block).toContain("z-index: 1");
     }
   });
 

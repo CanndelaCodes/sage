@@ -31,6 +31,10 @@
   --sageos-liquid-ambient: rgba(14, 14, 16, 0.72);
   --sageos-liquid-command: rgba(9, 9, 11, 0.86);
   --sageos-liquid-focus: rgba(22, 22, 26, 0.9);
+  --sageos-liquid-hud: linear-gradient(135deg, rgba(255, 255, 255, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(15, 17, 22, 0.92), rgba(7, 8, 11, 0.86));
+  --sageos-liquid-rail: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04)),
+    rgba(13, 14, 17, 0.82);
   --sageos-liquid-summit: rgba(38, 38, 44, 0.96);
   --sageos-border-subtle: rgba(226, 232, 240, 0.12);
   --sageos-border-default: rgba(226, 232, 240, 0.18);
@@ -41,6 +45,10 @@
   --sageos-shadow-focus: 0 0 0 1px rgba(226, 232, 240, 0.12), 0 20px 58px rgba(0, 0, 0, 0.42),
     0 0 32px rgba(56, 189, 248, 0.08), var(--sageos-glass-refraction);
   --sageos-shadow-control: 0 6px 18px rgba(0, 0, 0, 0.22), var(--sageos-glass-refraction);
+  --sageos-shadow-hud: 0 0 0 1px rgba(248, 250, 252, 0.09), 0 22px 58px rgba(0, 0, 0, 0.46),
+    0 0 42px rgba(56, 189, 248, 0.1), var(--sageos-glass-refraction);
+  --sageos-shadow-rail: 0 0 0 1px rgba(248, 250, 252, 0.08), 0 18px 44px rgba(0, 0, 0, 0.4),
+    0 0 30px rgba(96, 165, 250, 0.08), var(--sageos-glass-refraction);
   --sageos-shadow-elevated: 0 18px 52px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.12);
   --sageos-shadow-summit: 0 24px 72px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.16);
   --sageos-highlight-runway: linear-gradient(90deg, transparent, rgba(248, 250, 252, 0.22), transparent);
@@ -63,6 +71,7 @@
   --sageos-radius-control: 6px;
   --sageos-radius-card: 8px;
   --sageos-radius-panel: 8px;
+  --sageos-radius-shell: 10px;
 }
 
 html,
@@ -703,16 +712,38 @@ input::placeholder {
   overflow: hidden;
   border: 1px solid var(--sageos-border-default);
   border-radius: var(--sageos-radius-shell);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent 34%),
-    var(--sageos-liquid-command);
-  box-shadow: var(--sageos-shadow-command);
-  backdrop-filter: blur(var(--sageos-glass-blur-sm)) saturate(1.35);
+  background: var(--sageos-liquid-hud);
+  box-shadow: var(--sageos-shadow-hud);
+  backdrop-filter: blur(var(--sageos-glass-blur-md)) saturate(1.42);
   padding: 10px 12px;
   pointer-events: auto;
 }
 
+.compact-hud::before,
+.compact-hud::after {
+  position: absolute;
+  content: "";
+  pointer-events: none;
+}
+
+.compact-hud::before {
+  inset-inline: 14px;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--sageos-rim-highlight), transparent);
+}
+
+.compact-hud::after {
+  inset: 0;
+  background:
+    var(--sageos-glass-specular),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.08), transparent 42%);
+  opacity: 0.48;
+}
+
 .compact-hud__main {
+  position: relative;
+  z-index: 1;
   min-width: 0;
 }
 
@@ -744,6 +775,8 @@ input::placeholder {
 }
 
 .compact-hud__badges {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -773,10 +806,22 @@ input::placeholder {
   gap: 8px;
   padding: 8px;
   border: 1px solid var(--sageos-border-subtle);
-  background: var(--sageos-liquid-command);
-  box-shadow: var(--sageos-shadow-command);
-  backdrop-filter: blur(var(--sageos-glass-blur-sm));
+  background: var(--sageos-liquid-rail);
+  box-shadow: var(--sageos-shadow-rail);
+  backdrop-filter: blur(var(--sageos-glass-blur-md)) saturate(1.34);
   pointer-events: auto;
+}
+
+.edge-rail::before {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    var(--sageos-glass-specular),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.1), transparent 54%);
+  content: "";
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 .edge-rail--right {
@@ -815,6 +860,8 @@ input::placeholder {
 }
 
 .edge-rail button {
+  position: relative;
+  z-index: 1;
   min-width: 76px;
 }
 
@@ -867,6 +914,8 @@ input::placeholder {
 
 .pinned-widget--ambient {
   background: var(--sageos-liquid-ambient);
+  box-shadow: var(--sageos-shadow-ambient);
+  backdrop-filter: blur(var(--sageos-glass-blur-md)) saturate(1.26);
 }
 
 .pinned-widget__title,

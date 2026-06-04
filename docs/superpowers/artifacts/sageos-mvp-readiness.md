@@ -3,7 +3,7 @@
 Date: 2026-06-02
 Operator: Codex
 Branch: `codex/activity-events-ingest`
-Current evidence commit: `b6e6e30` plus pending formatter/test stabilization slice
+Current evidence commit: `fdea5c6263` plus pending Liquid Linear material slice
 Verification sweep: 2026-06-02 to 2026-06-04
 
 ## Release Position
@@ -72,7 +72,7 @@ Core model:
 | Memory-down/source failure/queue backlog/worker failure/policy block/notification failure/security finding incidents                                 | Green  | generated incidents in `src/sageos/status.ts`; web and overlay repair allowlists                                                                                                                                                    | Re-run incident tests                   |
 | Telegram redacted urgent alerts, digests, approvals, task completion reports                                                                         | Green  | notification module, supervisor digest checks, gateway notification methods, Telegram control tests                                                                                                                                 | Re-run Telegram/notification tests      |
 | Tests, typecheck, lint, and `git diff --check` pass                                                                                                  | Green  | SageOS, overlay, UI, typecheck, lint, build, smoke, and `git diff --check` passed; root `pnpm test` exits 0 after the root-gate and PTY deadline fixes; fresh `pnpm check` passes typecheck, oxlint, and repo-wide formatter checks | Keep gates in final release checklist   |
-| Enterprise-grade Liquid Linear overlay visual gate                                                                                                   | Yellow | Visual contract tests, smoke screenshots, Liquid Linear spec, smoke artifact, `smoke:electron` pass                                                                                                                                 | Jason visual acceptance                 |
+| Enterprise-grade Liquid Linear overlay visual gate                                                                                                   | Yellow | Visual contract tests, refreshed smoke screenshots, Liquid Linear spec, smoke artifact, `smoke:electron` pass                                                                                                                       | Jason visual acceptance                 |
 
 ## Verification Results
 
@@ -122,13 +122,19 @@ Root-gate fix slice verified after the blockers above:
   - `git diff --check` passed.
   - `pnpm exec vitest run --config vitest.config.ts src/agents/bash-tools.process.send-keys.test.ts --reporter verbose --testTimeout 30000` passed after increasing the Windows PTY exit deadline.
   - `pnpm test` exited 0. The main root shard reported 873 passed files, 1 skipped file, 5526 passed tests, and 3 skipped tests; on Windows Vitest also emitted one worker-fork unhandled error after assertions completed, which is tolerated by the test wrapper for local Windows runs. The gateway shard then reported 41 files and 303 tests passed.
+- Liquid Linear material closeout on 2026-06-04:
+  - `pnpm --dir apps/windows-overlay exec vitest run tests/overlay-visual-contract.test.ts --reporter verbose` passed with 1 file and 5 tests, including HUD, Edge Rail, ambient pinned-widget, and foreground-stacking material contracts.
+  - `pnpm --dir apps/windows-overlay test` passed with 13 files and 86 tests.
+  - `pnpm --dir apps/windows-overlay typecheck` passed.
+  - `pnpm --dir apps/windows-overlay build` passed.
+  - `pnpm --dir apps/windows-overlay smoke:electron` passed with `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, and refreshed full, bright, Edge Rail, text-heavy Edge Rail, HUD, and IDE HUD screenshots.
 
 ## Current Green Areas
 
 - Overlay-first product direction is now explicit and repeatedly encoded in spec, plan, smoke evidence, and this readiness map.
 - The Windows overlay has a real Electron shell, global hotkey, tray controls, startup shortcut management, HUD-first configuration, Edge Rail, pinned widgets, pass-through behavior, gateway client, and renderer model.
 - The overlay no longer exposes only a narrow dashboard; it covers operations, employees, tasks, approvals, security, PC management, files, memory, observations, workflows, skills, apps/widgets, coding, repositories, policy, audit, incidents, collaboration, settings, and active runs.
-- Liquid Linear command glass is tokenized and test-covered in the overlay visual contract.
+- Liquid Linear command glass is tokenized and test-covered in the overlay visual contract, including HUD, Edge Rail, ambient pinned widgets, and foreground stacking above specular material layers.
 - Incidents now cover source failure, queue backlog, policy block, memory doctor failure, notification failure, worker failure, budget exhaustion, and security findings.
 - Web supplemental incident repair now uses the same safe repair method allowlist as the overlay for the generated safe incident classes.
 

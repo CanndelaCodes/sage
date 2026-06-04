@@ -1,8 +1,8 @@
 # SageOS Windows Overlay Smoke Checklist
 
-Date: 2026-06-02
+Date: 2026-06-04
 Operator: Codex
-Build: Windows overlay MVP shell verification after Collaboration workspace pass
+Build: Windows overlay MVP shell verification after Liquid Linear material pass
 
 ## Preconditions
 
@@ -87,13 +87,13 @@ Build: Windows overlay MVP shell verification after Collaboration workspace pass
 - HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud.png`
 - IDE-like backdrop HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud-ide.png`
 - Current verification update: `pnpm --dir apps/windows-overlay smoke:electron` passed on
-  2026-06-02 after the Collaboration workspace pass. The packaged overlay reported `ok: true`,
+  2026-06-04 after the Liquid Linear material pass. The packaged overlay reported `ok: true`,
   `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, no renderer page errors,
   four `sageos.control` calls for pause, resume, stop, and emergency stop, verified the
   availability-aware Voice entry state, and refreshed the full, bright, edge-left, text-heavy edge,
   HUD, and IDE HUD screenshots above.
 - Current package gates after the latest verification sweep: `pnpm --dir apps/windows-overlay test`
-  passed with 13 files and 84 tests, `pnpm --dir apps/windows-overlay typecheck` passed, and
+  passed with 13 files and 86 tests, `pnpm --dir apps/windows-overlay typecheck` passed, and
   `pnpm --dir apps/windows-overlay build` passed.
 - Current shared SageOS/control-surface gate after the latest policy hardening sweep:
   `pnpm exec vitest run --config vitest.unit.config.ts src/sageos src/cli/sageos-cli.test.ts
@@ -111,8 +111,9 @@ src/telegram/bot.test.ts` passed with 28 files
   root `pnpm tsgo`, root `pnpm build`, exact `pnpm oxfmt --check` plan targets, and
   `git diff --check` passed on 2026-06-01 during the final overlay MVP verification pass.
   The visual contract
-  now enforces the Liquid Linear command glass token layer, refraction/specular surface overlays,
-  forced-colors fallback, focus states, reduced-motion handling,
+  now enforces the Liquid Linear command glass token layer, HUD and Edge Rail material tokens,
+  ambient pinned widget glass, foreground stacking above specular material layers,
+  refraction/specular surface overlays, forced-colors fallback, focus states, reduced-motion handling,
   edge anchoring classes, state classes, text overflow guards, and full-overlay pinned widget flow.
   The `smoke:electron` package script
   launches the packaged Electron overlay against a mock gateway, verifies that
