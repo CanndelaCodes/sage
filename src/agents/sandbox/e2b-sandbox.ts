@@ -194,10 +194,7 @@ export async function execInE2BSandbox(
 /**
  * Stop and destroy an E2B sandbox.
  */
-export async function destroyE2BSandbox(
-  sandboxId: string,
-  deps?: E2BDeps,
-): Promise<void> {
+export async function destroyE2BSandbox(sandboxId: string, deps?: E2BDeps): Promise<void> {
   log.info("destroying E2B sandbox", { sandboxId });
   await e2bRequest("DELETE", `/sandboxes/${sandboxId}`, undefined, deps);
 }
@@ -205,9 +202,7 @@ export async function destroyE2BSandbox(
 /**
  * List active E2B sandboxes.
  */
-export async function listE2BSandboxes(
-  deps?: E2BDeps,
-): Promise<E2BSandboxInstance[]> {
+export async function listE2BSandboxes(deps?: E2BDeps): Promise<E2BSandboxInstance[]> {
   const result = await e2bRequest<
     Array<{
       sandboxID: string;
@@ -236,12 +231,7 @@ export async function writeFileToE2BSandbox(
   content: string,
   deps?: E2BDeps,
 ): Promise<void> {
-  await e2bRequest(
-    "POST",
-    `/sandboxes/${sandboxId}/filesystem`,
-    { path: filePath, content },
-    deps,
-  );
+  await e2bRequest("POST", `/sandboxes/${sandboxId}/filesystem`, { path: filePath, content }, deps);
 }
 
 /**

@@ -17,8 +17,8 @@ Provider-specific shortcuts: [/channels/troubleshooting](/channels/troubleshooti
 
 Quick triage commands (in order):
 
-| Command                            | What it tells you                                                                                      | When to use it                                    |
-| ---------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------- |
+| Command                        | What it tells you                                                                                      | When to use it                                    |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------- |
 | `sage status`                  | Local summary: OS + update, gateway reachability/mode, service, agents/sessions, provider config state | First check, quick overview                       |
 | `sage status --all`            | Full local diagnosis (read-only, pasteable, safe-ish) incl. log tail                                   | When you need to share a debug report             |
 | `sage status --deep`           | Runs gateway health checks (incl. provider probes; requires reachable gateway)                         | When “configured” doesn’t mean “working”          |
@@ -679,13 +679,13 @@ sage channels login --verbose
 
 ## Log Locations
 
-| Log                               | Location                                                                                                                                                                                                                                                                                                                    |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Gateway file logs (structured)    | `/tmp/sage/sage-YYYY-MM-DD.log` (or `logging.file`)                                                                                                                                                                                                                                                                 |
+| Log                               | Location                                                                                                                                                                                                                                                                                                |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Gateway file logs (structured)    | `/tmp/sage/sage-YYYY-MM-DD.log` (or `logging.file`)                                                                                                                                                                                                                                                     |
 | Gateway service logs (supervisor) | macOS: `$SAGE_STATE_DIR/logs/gateway.log` + `gateway.err.log` (default: `~/.sage/logs/...`; profiles use `~/.sage-<profile>/logs/...`)<br />Linux: `journalctl --user -u sage-gateway[-<profile>].service -n 200 --no-pager`<br />Windows: `schtasks /Query /TN "Sage Gateway (<profile>)" /V /FO LIST` |
-| Session files                     | `$SAGE_STATE_DIR/agents/<agentId>/sessions/`                                                                                                                                                                                                                                                                            |
-| Media cache                       | `$SAGE_STATE_DIR/media/`                                                                                                                                                                                                                                                                                                |
-| Credentials                       | `$SAGE_STATE_DIR/credentials/`                                                                                                                                                                                                                                                                                          |
+| Session files                     | `$SAGE_STATE_DIR/agents/<agentId>/sessions/`                                                                                                                                                                                                                                                            |
+| Media cache                       | `$SAGE_STATE_DIR/media/`                                                                                                                                                                                                                                                                                |
+| Credentials                       | `$SAGE_STATE_DIR/credentials/`                                                                                                                                                                                                                                                                          |
 
 ## Health Check
 

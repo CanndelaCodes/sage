@@ -345,10 +345,7 @@ function resolveDefaultStoreAgentId(cfg: SageConfig): string {
   return normalizeAgentId(resolveDefaultAgentId(cfg));
 }
 
-export function resolveSessionStoreKey(params: {
-  cfg: SageConfig;
-  sessionKey: string;
-}): string {
+export function resolveSessionStoreKey(params: { cfg: SageConfig; sessionKey: string }): string {
   const raw = params.sessionKey.trim();
   if (!raw) {
     return raw;

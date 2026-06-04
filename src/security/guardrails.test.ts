@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { GuardrailConfig, PermissionCheckRequest } from "../config/types.guardrails.js";
 import {
   applyTrustDecay,
   applyTrustFeedback,
@@ -10,18 +11,12 @@ import {
   resetAllTrust,
   resetCategoryTrust,
 } from "./guardrails.js";
-import type {
-  GuardrailConfig,
-  PermissionCheckRequest,
-} from "../config/types.guardrails.js";
 
 // ---------------------------------------------------------------------------
 // Helper factories
 // ---------------------------------------------------------------------------
 
-function makeRequest(
-  overrides: Partial<PermissionCheckRequest> = {},
-): PermissionCheckRequest {
+function makeRequest(overrides: Partial<PermissionCheckRequest> = {}): PermissionCheckRequest {
   return {
     operation: "rm -rf ./dist",
     category: "file_destruction",
@@ -57,11 +52,7 @@ describe("checkPermission", () => {
 
   it("blocks rm -rf / patterns", () => {
     const profile = createTrustProfile();
-    const result = checkPermission(
-      makeRequest({ operation: "rm -rf /usr" }),
-      undefined,
-      profile,
-    );
+    const result = checkPermission(makeRequest({ operation: "rm -rf /usr" }), undefined, profile);
     expect(result.hardBlocked).toBe(true);
     expect(result.allowed).toBe(false);
   });
@@ -192,14 +183,18 @@ describe("applyTrustFeedback", () => {
   it("increases trust on approval + success", () => {
     const profile = createTrustProfile();
     const initial = profile.categoryScores.file_destruction.score;
-    const updated = applyTrustFeedback(profile, {
-      category: "file_destruction",
-      operation: "rm ./temp.txt",
-      approved: true,
-      executionSuccess: true,
-      userModified: false,
-      severity: 2,
-    }, undefined);
+    const updated = applyTrustFeedback(
+      profile,
+      {
+        category: "file_destruction",
+        operation: "rm ./temp.txt",
+        approved: true,
+        executionSuccess: true,
+        userModified: false,
+        severity: 2,
+      },
+      undefined,
+    );
     expect(updated.categoryScores.file_destruction.score).toBeGreaterThan(initial);
     expect(updated.categoryScores.file_destruction.approvalCount).toBe(1);
     expect(updated.categoryScores.file_destruction.successCount).toBe(1);
@@ -208,14 +203,18 @@ describe("applyTrustFeedback", () => {
   it("decreases trust on denial", () => {
     const profile = createTrustProfile();
     const initial = profile.categoryScores.file_destruction.score;
-    const updated = applyTrustFeedback(profile, {
-      category: "file_destruction",
-      operation: "rm -rf ./important",
-      approved: false,
-      executionSuccess: false,
-      userModified: false,
-      severity: 4,
-    }, undefined);
+    const updated = applyTrustFeedback(
+      profile,
+      {
+        category: "file_destruction",
+        operation: "rm -rf ./important",
+        approved: false,
+        executionSuccess: false,
+        userModified: false,
+        severity: 4,
+      },
+      undefined,
+    );
     expect(updated.categoryScores.file_destruction.score).toBeLessThan(initial);
     expect(updated.categoryScores.file_destruction.denialCount).toBe(1);
   });
@@ -223,36 +222,48 @@ describe("applyTrustFeedback", () => {
   it("decreases trust on approved but failed execution", () => {
     const profile = createTrustProfile();
     const initial = profile.categoryScores.system_modification.score;
-    const updated = applyTrustFeedback(profile, {
-      category: "system_modification",
-      operation: "chmod 755 ./script.sh",
-      approved: true,
-      executionSuccess: false,
-      userModified: false,
-      severity: 3,
-    }, undefined);
+    const updated = applyTrustFeedback(
+      profile,
+      {
+        category: "system_modification",
+        operation: "chmod 755 ./script.sh",
+        approved: true,
+        executionSuccess: false,
+        userModified: false,
+        severity: 3,
+      },
+      undefined,
+    );
     expect(updated.categoryScores.system_modification.score).toBeLessThan(initial);
     expect(updated.categoryScores.system_modification.failureCount).toBe(1);
   });
 
   it("reduces trust increase when user modified command", () => {
     const profile = createTrustProfile();
-    const noMod = applyTrustFeedback(profile, {
-      category: "file_destruction",
-      operation: "rm ./temp.txt",
-      approved: true,
-      executionSuccess: true,
-      userModified: false,
-      severity: 2,
-    }, undefined);
-    const withMod = applyTrustFeedback(profile, {
-      category: "file_destruction",
-      operation: "rm ./temp.txt",
-      approved: true,
-      executionSuccess: true,
-      userModified: true,
-      severity: 2,
-    }, undefined);
+    const noMod = applyTrustFeedback(
+      profile,
+      {
+        category: "file_destruction",
+        operation: "rm ./temp.txt",
+        approved: true,
+        executionSuccess: true,
+        userModified: false,
+        severity: 2,
+      },
+      undefined,
+    );
+    const withMod = applyTrustFeedback(
+      profile,
+      {
+        category: "file_destruction",
+        operation: "rm ./temp.txt",
+        approved: true,
+        executionSuccess: true,
+        userModified: true,
+        severity: 2,
+      },
+      undefined,
+    );
     expect(noMod.categoryScores.file_destruction.score).toBeGreaterThan(
       withMod.categoryScores.file_destruction.score,
     );
@@ -261,14 +272,18 @@ describe("applyTrustFeedback", () => {
   it("learns operation patterns", () => {
     let profile = createTrustProfile();
     for (let i = 0; i < 5; i++) {
-      profile = applyTrustFeedback(profile, {
-        category: "file_destruction",
-        operation: "rm -rf ./node_modules",
-        approved: true,
-        executionSuccess: true,
-        userModified: false,
-        severity: 2,
-      }, undefined);
+      profile = applyTrustFeedback(
+        profile,
+        {
+          category: "file_destruction",
+          operation: "rm -rf ./node_modules",
+          approved: true,
+          executionSuccess: true,
+          userModified: false,
+          severity: 2,
+        },
+        undefined,
+      );
     }
     const pattern = profile.operationPatterns.find(
       (p) => p.pattern === normalizeToPattern("rm -rf ./node_modules"),
@@ -280,14 +295,18 @@ describe("applyTrustFeedback", () => {
 
   it("adds audit log entries", () => {
     const profile = createTrustProfile();
-    const updated = applyTrustFeedback(profile, {
-      category: "file_destruction",
-      operation: "rm ./temp.txt",
-      approved: true,
-      executionSuccess: true,
-      userModified: false,
-      severity: 2,
-    }, undefined);
+    const updated = applyTrustFeedback(
+      profile,
+      {
+        category: "file_destruction",
+        operation: "rm ./temp.txt",
+        approved: true,
+        executionSuccess: true,
+        userModified: false,
+        severity: 2,
+      },
+      undefined,
+    );
     expect(updated.auditLog.length).toBe(1);
     expect(updated.auditLog[0].action).toBe("approval");
     expect(updated.auditLog[0].category).toBe("file_destruction");
@@ -417,7 +436,11 @@ describe("resetAllTrust", () => {
 describe("buildConfirmationRequest", () => {
   it("returns null for autonomous behavior", () => {
     const request = makeRequest();
-    const result = checkPermission(request, { trustedPatterns: [normalizeToPattern(request.operation)] }, createTrustProfile());
+    const result = checkPermission(
+      request,
+      { trustedPatterns: [normalizeToPattern(request.operation)] },
+      createTrustProfile(),
+    );
     expect(result.behavior).toBe("autonomous");
     expect(buildConfirmationRequest(request, result)).toBeNull();
   });

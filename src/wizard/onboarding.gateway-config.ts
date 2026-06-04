@@ -147,9 +147,7 @@ export async function configureGatewayForOnboarding(
   let tailscaleResetOnExit = flow === "quickstart" ? quickstartGateway.tailscaleResetOnExit : false;
   if (tailscaleMode !== "off" && flow !== "quickstart") {
     await prompter.note(
-      ["Docs:", "https://docs.sage.ai/gateway/tailscale", "https://docs.sage.ai/web"].join(
-        "\n",
-      ),
+      ["Docs:", "https://docs.sage.ai/gateway/tailscale", "https://docs.sage.ai/web"].join("\n"),
       "Tailscale",
     );
     tailscaleResetOnExit = Boolean(

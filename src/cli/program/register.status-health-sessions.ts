@@ -43,10 +43,7 @@ export function registerStatusHealthSessionsCommands(program: Command) {
           ["sage status --all", "Full diagnosis (read-only)."],
           ["sage status --json", "Machine-readable output."],
           ["sage status --usage", "Show model provider usage/quota snapshots."],
-          [
-            "sage status --deep",
-            "Run channel probes (WA + Telegram + Discord + Slack + Signal).",
-          ],
+          ["sage status --deep", "Run channel probes (WA + Telegram + Discord + Slack + Signal)."],
           ["sage status --deep --timeout 5000", "Tighten probe timeout."],
         ])}`,
     )

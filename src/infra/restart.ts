@@ -139,10 +139,7 @@ export function triggerSageRestart(): RestartAttempt {
       };
     }
     if (process.platform === "linux") {
-      const unit = normalizeSystemdUnit(
-        process.env.SAGE_SYSTEMD_UNIT,
-        process.env.SAGE_PROFILE,
-      );
+      const unit = normalizeSystemdUnit(process.env.SAGE_SYSTEMD_UNIT, process.env.SAGE_PROFILE);
       const userArgs = ["--user", "restart", unit];
       tried.push(`systemctl ${userArgs.join(" ")}`);
       const userRestart = spawnSync("systemctl", userArgs, {
@@ -175,8 +172,7 @@ export function triggerSageRestart(): RestartAttempt {
   }
 
   const label =
-    process.env.SAGE_LAUNCHD_LABEL ||
-    resolveGatewayLaunchAgentLabel(process.env.SAGE_PROFILE);
+    process.env.SAGE_LAUNCHD_LABEL || resolveGatewayLaunchAgentLabel(process.env.SAGE_PROFILE);
   const uid = typeof process.getuid === "function" ? process.getuid() : undefined;
   const target = uid !== undefined ? `gui/${uid}/${label}` : label;
   const args = ["kickstart", "-k", target];

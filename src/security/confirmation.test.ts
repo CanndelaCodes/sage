@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import type { RememberedChoice } from "../config/types.confirmation.js";
-import { createTrustProfile } from "./guardrails.js";
 import {
   checkBrowserConfirmation,
   checkFileDeleteConfirmation,
@@ -14,6 +13,7 @@ import {
   removeRememberedChoice,
   resolveExpired,
 } from "./confirmation.js";
+import { createTrustProfile } from "./guardrails.js";
 
 // ---------------------------------------------------------------------------
 // checkShellCommandConfirmation
@@ -22,12 +22,7 @@ import {
 describe("checkShellCommandConfirmation", () => {
   it("returns needsConfirmation for rm under balanced preset", () => {
     const profile = createTrustProfile();
-    const result = checkShellCommandConfirmation(
-      "rm ./temp.txt",
-      undefined,
-      profile,
-      [],
-    );
+    const result = checkShellCommandConfirmation("rm ./temp.txt", undefined, profile, []);
     expect(result.needsConfirmation).toBe(true);
     expect(result.blocked).toBe(false);
     expect(result.request).toBeDefined();
@@ -36,24 +31,14 @@ describe("checkShellCommandConfirmation", () => {
 
   it("blocks hard-blocked commands", () => {
     const profile = createTrustProfile();
-    const result = checkShellCommandConfirmation(
-      "sudo rm -rf /etc",
-      undefined,
-      profile,
-      [],
-    );
+    const result = checkShellCommandConfirmation("sudo rm -rf /etc", undefined, profile, []);
     expect(result.blocked).toBe(true);
     expect(result.needsConfirmation).toBe(false);
   });
 
   it("detects pipes in shell commands", () => {
     const profile = createTrustProfile();
-    const result = checkShellCommandConfirmation(
-      "ls | grep foo",
-      undefined,
-      profile,
-      [],
-    );
+    const result = checkShellCommandConfirmation("ls | grep foo", undefined, profile, []);
     expect(result.request?.context.kind).toBe("shell_command");
     if (result.request?.context.kind === "shell_command") {
       expect(result.request.context.hasPipes).toBe(true);
@@ -63,12 +48,7 @@ describe("checkShellCommandConfirmation", () => {
 
   it("detects chain operators in shell commands", () => {
     const profile = createTrustProfile();
-    const result = checkShellCommandConfirmation(
-      "mkdir foo && cd foo",
-      undefined,
-      profile,
-      [],
-    );
+    const result = checkShellCommandConfirmation("mkdir foo && cd foo", undefined, profile, []);
     if (result.request?.context.kind === "shell_command") {
       expect(result.request.context.hasChains).toBe(true);
     }
@@ -82,13 +62,7 @@ describe("checkShellCommandConfirmation", () => {
 describe("checkFileDeleteConfirmation", () => {
   it("creates file_destruction confirmation for file deletion", () => {
     const profile = createTrustProfile();
-    const result = checkFileDeleteConfirmation(
-      ["./temp.txt"],
-      false,
-      undefined,
-      profile,
-      [],
-    );
+    const result = checkFileDeleteConfirmation(["./temp.txt"], false, undefined, profile, []);
     expect(result.needsConfirmation).toBe(true);
     expect(result.request?.context.kind).toBe("file_destruction");
     if (result.request?.context.kind === "file_destruction") {
@@ -255,12 +229,7 @@ describe("remembered choices", () => {
         appliedCount: 0,
       },
     ];
-    const result = checkShellCommandConfirmation(
-      "rm ./temp.txt",
-      undefined,
-      profile,
-      remembered,
-    );
+    const result = checkShellCommandConfirmation("rm ./temp.txt", undefined, profile, remembered);
     expect(result.autoAllowed).toBe(true);
     expect(result.needsConfirmation).toBe(false);
     expect(result.rememberedChoice).toBeDefined();
@@ -277,12 +246,7 @@ describe("remembered choices", () => {
         appliedCount: 0,
       },
     ];
-    const result = checkShellCommandConfirmation(
-      "rm ./temp.txt",
-      undefined,
-      profile,
-      remembered,
-    );
+    const result = checkShellCommandConfirmation("rm ./temp.txt", undefined, profile, remembered);
     expect(result.blocked).toBe(true);
     expect(result.needsConfirmation).toBe(false);
     expect(result.rememberedChoice).toBeDefined();
@@ -293,7 +257,12 @@ describe("remembered choices", () => {
       id: "test-id",
       operation: "rm ./temp.txt",
       behavior: "confirm_brief" as const,
-      context: { kind: "shell_command" as const, command: "rm ./temp.txt", hasPipes: false, hasChains: false },
+      context: {
+        kind: "shell_command" as const,
+        command: "rm ./temp.txt",
+        hasPipes: false,
+        hasChains: false,
+      },
       category: "file_destruction" as const,
       severity: 2,
       trustScore: 0.5,
@@ -318,7 +287,12 @@ describe("remembered choices", () => {
       id: "test-id",
       operation: "rm ./temp.txt",
       behavior: "confirm_brief" as const,
-      context: { kind: "shell_command" as const, command: "rm ./temp.txt", hasPipes: false, hasChains: false },
+      context: {
+        kind: "shell_command" as const,
+        command: "rm ./temp.txt",
+        hasPipes: false,
+        hasChains: false,
+      },
       category: "file_destruction" as const,
       severity: 2,
       trustScore: 0.5,
@@ -387,7 +361,11 @@ describe("timeout handling", () => {
       id: "test",
       operation: "test",
       behavior: "warn" as const,
-      context: { kind: "generic" as const, category: "system_modification" as const, description: "test" },
+      context: {
+        kind: "generic" as const,
+        category: "system_modification" as const,
+        description: "test",
+      },
       category: "system_modification" as const,
       severity: 2,
       trustScore: 0.5,
@@ -403,7 +381,11 @@ describe("timeout handling", () => {
       id: "test",
       operation: "test",
       behavior: "warn" as const,
-      context: { kind: "generic" as const, category: "system_modification" as const, description: "test" },
+      context: {
+        kind: "generic" as const,
+        category: "system_modification" as const,
+        description: "test",
+      },
       category: "system_modification" as const,
       severity: 2,
       trustScore: 0.5,
@@ -419,7 +401,11 @@ describe("timeout handling", () => {
       id: "test",
       operation: "test",
       behavior: "warn" as const,
-      context: { kind: "generic" as const, category: "system_modification" as const, description: "test" },
+      context: {
+        kind: "generic" as const,
+        category: "system_modification" as const,
+        description: "test",
+      },
       category: "system_modification" as const,
       severity: 2,
       trustScore: 0.5,
@@ -435,7 +421,11 @@ describe("timeout handling", () => {
       id: "test",
       operation: "test",
       behavior: "confirm_brief" as const,
-      context: { kind: "generic" as const, category: "system_modification" as const, description: "test" },
+      context: {
+        kind: "generic" as const,
+        category: "system_modification" as const,
+        description: "test",
+      },
       category: "system_modification" as const,
       severity: 2,
       trustScore: 0.5,

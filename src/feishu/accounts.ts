@@ -24,10 +24,7 @@ function readFileIfExists(filePath?: string): string | undefined {
   }
 }
 
-function resolveAccountConfig(
-  cfg: SageConfig,
-  accountId: string,
-): FeishuAccountConfig | undefined {
+function resolveAccountConfig(cfg: SageConfig, accountId: string): FeishuAccountConfig | undefined {
   const accounts = cfg.channels?.feishu?.accounts;
   if (!accounts || typeof accounts !== "object") {
     return undefined;

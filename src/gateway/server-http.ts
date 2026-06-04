@@ -7,14 +7,13 @@ import {
   type ServerResponse,
 } from "node:http";
 import { createServer as createHttpsServer } from "node:https";
-import type { RateLimiter } from "./rate-limit.js";
 import type { CanvasHostHandler } from "../canvas-host/server.js";
 import type { createSubsystemLogger } from "../logging/subsystem.js";
+import type { RateLimiter } from "./rate-limit.js";
 import { resolveAgentAvatar } from "../agents/identity-avatar.js";
 import { handleA2uiHttpRequest } from "../canvas-host/a2ui.js";
 import { loadConfig } from "../config/config.js";
 import { handleSlackHttpRequest } from "../slack/http/index.js";
-import { buildCorsHeaders, checkWsUpgradeSecurity } from "./ws-security.js";
 import {
   handleControlUiAvatarRequest,
   handleControlUiHttpRequest,
@@ -36,6 +35,7 @@ import {
 import { handleOpenAiHttpRequest } from "./openai-http.js";
 import { handleOpenResponsesHttpRequest } from "./openresponses-http.js";
 import { handleToolsInvokeHttpRequest } from "./tools-invoke-http.js";
+import { buildCorsHeaders, checkWsUpgradeSecurity } from "./ws-security.js";
 
 type SubsystemLogger = ReturnType<typeof createSubsystemLogger>;
 
@@ -395,8 +395,7 @@ export function attachGatewayUpgradeHandler(opts: {
         `ws upgrade rejected: ${securityCheck.reason} remote=${req.socket.remoteAddress ?? "?"}`,
       );
       socket.write(
-        `HTTP/1.1 ${securityCheck.code} ${securityCheck.reason}\r\n` +
-          "Connection: close\r\n\r\n",
+        `HTTP/1.1 ${securityCheck.code} ${securityCheck.reason}\r\nConnection: close\r\n\r\n`,
       );
       socket.destroy();
       return;

@@ -31,11 +31,7 @@ function setIMessageDmPolicy(cfg: SageConfig, dmPolicy: DmPolicy) {
   };
 }
 
-function setIMessageAllowFrom(
-  cfg: SageConfig,
-  accountId: string,
-  allowFrom: string[],
-): SageConfig {
+function setIMessageAllowFrom(cfg: SageConfig, accountId: string, allowFrom: string[]): SageConfig {
   if (accountId === DEFAULT_ACCOUNT_ID) {
     return {
       ...cfg,

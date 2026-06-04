@@ -19,10 +19,7 @@ const channel = "twitch" as const;
 /**
  * Set Twitch account configuration
  */
-function setTwitchAccount(
-  cfg: SageConfig,
-  account: Partial<TwitchAccountConfig>,
-): SageConfig {
+function setTwitchAccount(cfg: SageConfig, account: Partial<TwitchAccountConfig>): SageConfig {
   const existing = getAccountConfig(cfg, DEFAULT_ACCOUNT_ID);
   const merged: TwitchAccountConfig = {
     username: account.username ?? existing?.username ?? "",

@@ -13,6 +13,7 @@
 ### Task 1: Status Model And Rendering
 
 **Files:**
+
 - Modify: `src/sageos/types.ts`
 - Modify: `src/sageos/status.ts`
 - Modify: `src/sageos/status.test.ts`
@@ -46,6 +47,7 @@ Run the same Vitest command. Expected: PASS.
 ### Task 2: SageOS Memory Doctor Runner
 
 **Files:**
+
 - Modify: `src/sageos/memory-steward.ts`
 - Modify: `src/sageos/memory-steward.test.ts`
 
@@ -88,6 +90,7 @@ Run the same Vitest command. Expected: PASS.
 ### Task 3: CLI And Gateway Controls
 
 **Files:**
+
 - Modify: `src/cli/sageos-cli.ts`
 - Modify: `src/cli/sageos-cli.test.ts`
 - Modify: `src/gateway/server-methods/sageos.ts`
@@ -122,6 +125,7 @@ Run the same Vitest command. Expected: PASS.
 ### Task 4: Final Verification And Commit
 
 **Files:**
+
 - All files above
 
 - [ ] **Step 1: Run focused tests**

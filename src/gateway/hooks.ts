@@ -58,9 +58,7 @@ export function extractHookToken(req: IncomingMessage, url: URL): HookTokenResul
     }
   }
   const headerToken =
-    typeof req.headers["x-sage-token"] === "string"
-      ? req.headers["x-sage-token"].trim()
-      : "";
+    typeof req.headers["x-sage-token"] === "string" ? req.headers["x-sage-token"].trim() : "";
   if (headerToken) {
     return { token: headerToken, fromQuery: false };
   }

@@ -202,11 +202,7 @@ describe("writeCredentialToVault", () => {
     );
     expect(ok).toBe(true);
 
-    const read = readCredentialFromVault(
-      "test-profile",
-      { version: 1, profiles: {} },
-      deps,
-    );
+    const read = readCredentialFromVault("test-profile", { version: 1, profiles: {} }, deps);
     expect(read).not.toBeNull();
     expect(read!.type).toBe("token");
     if (read!.type === "token") {
@@ -229,11 +225,7 @@ describe("writeCredentialToVault", () => {
     );
     expect(ok).toBe(true);
 
-    const read = readCredentialFromVault(
-      "oauth-profile",
-      { version: 1, profiles: {} },
-      deps,
-    );
+    const read = readCredentialFromVault("oauth-profile", { version: 1, profiles: {} }, deps);
     expect(read!.type).toBe("oauth");
     if (read!.type === "oauth") {
       expect(read!.access).toBe("access-token");

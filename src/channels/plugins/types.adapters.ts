@@ -21,11 +21,7 @@ import type {
 
 export type ChannelSetupAdapter = {
   resolveAccountId?: (params: { cfg: SageConfig; accountId?: string }) => string;
-  applyAccountName?: (params: {
-    cfg: SageConfig;
-    accountId: string;
-    name?: string;
-  }) => SageConfig;
+  applyAccountName?: (params: { cfg: SageConfig; accountId: string; name?: string }) => SageConfig;
   applyAccountConfig: (params: {
     cfg: SageConfig;
     accountId: string;
@@ -184,11 +180,7 @@ export type ChannelLogoutContext<ResolvedAccount = unknown> = {
 export type ChannelPairingAdapter = {
   idLabel: string;
   normalizeAllowEntry?: (entry: string) => string;
-  notifyApproval?: (params: {
-    cfg: SageConfig;
-    id: string;
-    runtime?: RuntimeEnv;
-  }) => Promise<void>;
+  notifyApproval?: (params: { cfg: SageConfig; id: string; runtime?: RuntimeEnv }) => Promise<void>;
 };
 
 export type ChannelGatewayAdapter<ResolvedAccount = unknown> = {

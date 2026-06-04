@@ -152,8 +152,7 @@ export function collectSecretsInConfigFindings(cfg: SageConfig): SecurityAuditFi
       title: "Gateway password is stored in config",
       detail:
         "gateway.auth.password is set in the config file; prefer environment variables for secrets when possible.",
-      remediation:
-        "Prefer SAGE_GATEWAY_PASSWORD (env) and remove gateway.auth.password from disk.",
+      remediation: "Prefer SAGE_GATEWAY_PASSWORD (env) and remove gateway.auth.password from disk.",
     });
   }
 

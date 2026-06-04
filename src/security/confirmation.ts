@@ -396,9 +396,7 @@ export function checkFileDeleteConfirmation(
   rememberedChoices: RememberedChoice[],
   agentId?: string,
 ): ConfirmationCheckResult {
-  const operation = recursive
-    ? `rm -rf ${paths.join(" ")}`
-    : `rm ${paths.join(" ")}`;
+  const operation = recursive ? `rm -rf ${paths.join(" ")}` : `rm ${paths.join(" ")}`;
   const context: ConfirmationContext = {
     kind: "file_destruction",
     paths,

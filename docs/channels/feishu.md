@@ -372,8 +372,8 @@ sage pairing list feishu
 
 ## Gateway management commands
 
-| Command                    | Description                   |
-| -------------------------- | ----------------------------- |
+| Command                | Description                   |
+| ---------------------- | ----------------------------- |
 | `sage gateway status`  | Show gateway status           |
 | `sage gateway install` | Install/start gateway service |
 | `sage gateway stop`    | Stop gateway service          |

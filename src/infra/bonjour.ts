@@ -95,9 +95,7 @@ export async function startGatewayBonjourAdvertiser(
   // `Mac.localdomain`) can confuse some resolvers/browsers and break discovery.
   // Keep only the first label and normalize away a trailing `.local`.
   const hostnameRaw =
-    process.env.SAGE_MDNS_HOSTNAME?.trim() ||
-    process.env.SAGEBOT_MDNS_HOSTNAME?.trim() ||
-    "sage";
+    process.env.SAGE_MDNS_HOSTNAME?.trim() || process.env.SAGEBOT_MDNS_HOSTNAME?.trim() || "sage";
   const hostname =
     hostnameRaw
       .replace(/\.local$/i, "")

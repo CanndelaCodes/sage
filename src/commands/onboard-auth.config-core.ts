@@ -242,10 +242,7 @@ export function applyMoonshotProviderConfigCn(cfg: SageConfig): SageConfig {
   return applyMoonshotProviderConfigWithBaseUrl(cfg, MOONSHOT_CN_BASE_URL);
 }
 
-function applyMoonshotProviderConfigWithBaseUrl(
-  cfg: SageConfig,
-  baseUrl: string,
-): SageConfig {
+function applyMoonshotProviderConfigWithBaseUrl(cfg: SageConfig, baseUrl: string): SageConfig {
   const models = { ...cfg.agents?.defaults?.models };
   models[MOONSHOT_DEFAULT_MODEL_REF] = {
     ...models[MOONSHOT_DEFAULT_MODEL_REF],

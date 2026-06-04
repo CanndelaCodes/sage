@@ -5,13 +5,7 @@ import { applyCliProfileEnv, parseCliProfileArgs } from "./profile.js";
 
 describe("parseCliProfileArgs", () => {
   it("leaves gateway --dev for subcommands", () => {
-    const res = parseCliProfileArgs([
-      "node",
-      "sage",
-      "gateway",
-      "--dev",
-      "--allow-unconfigured",
-    ]);
+    const res = parseCliProfileArgs(["node", "sage", "gateway", "--dev", "--allow-unconfigured"]);
     if (!res.ok) {
       throw new Error(res.error);
     }
@@ -108,9 +102,9 @@ describe("formatCliCommand", () => {
   });
 
   it("returns command unchanged when --profile is already present", () => {
-    expect(
-      formatCliCommand("sage --profile work doctor --fix", { SAGE_PROFILE: "work" }),
-    ).toBe("sage --profile work doctor --fix");
+    expect(formatCliCommand("sage --profile work doctor --fix", { SAGE_PROFILE: "work" })).toBe(
+      "sage --profile work doctor --fix",
+    );
   });
 
   it("returns command unchanged when --dev is already present", () => {
@@ -132,9 +126,7 @@ describe("formatCliCommand", () => {
   });
 
   it("handles command with no args after sage", () => {
-    expect(formatCliCommand("sage", { SAGE_PROFILE: "test" })).toBe(
-      "sage --profile test",
-    );
+    expect(formatCliCommand("sage", { SAGE_PROFILE: "test" })).toBe("sage --profile test");
   });
 
   it("handles pnpm wrapper", () => {

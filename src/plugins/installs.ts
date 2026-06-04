@@ -3,10 +3,7 @@ import type { PluginInstallRecord } from "../config/types.plugins.js";
 
 export type PluginInstallUpdate = PluginInstallRecord & { pluginId: string };
 
-export function recordPluginInstall(
-  cfg: SageConfig,
-  update: PluginInstallUpdate,
-): SageConfig {
+export function recordPluginInstall(cfg: SageConfig, update: PluginInstallUpdate): SageConfig {
   const { pluginId, ...record } = update;
   const installs = {
     ...cfg.plugins?.installs,

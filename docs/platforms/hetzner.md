@@ -316,15 +316,15 @@ Paste your gateway token.
 Sage runs in Docker, but Docker is not the source of truth.
 All long-lived state must survive restarts, rebuilds, and reboots.
 
-| Component           | Location                          | Persistence mechanism  | Notes                            |
-| ------------------- | --------------------------------- | ---------------------- | -------------------------------- |
-| Gateway config      | `/home/node/.sage/`           | Host volume mount      | Includes `sage.json`, tokens |
-| Model auth profiles | `/home/node/.sage/`           | Host volume mount      | OAuth tokens, API keys           |
-| Skill configs       | `/home/node/.sage/skills/`    | Host volume mount      | Skill-level state                |
-| Agent workspace     | `/home/node/.sage/workspace/` | Host volume mount      | Code and agent artifacts         |
-| WhatsApp session    | `/home/node/.sage/`           | Host volume mount      | Preserves QR login               |
-| Gmail keyring       | `/home/node/.sage/`           | Host volume + password | Requires `GOG_KEYRING_PASSWORD`  |
-| External binaries   | `/usr/local/bin/`                 | Docker image           | Must be baked at build time      |
-| Node runtime        | Container filesystem              | Docker image           | Rebuilt every image build        |
-| OS packages         | Container filesystem              | Docker image           | Do not install at runtime        |
-| Docker container    | Ephemeral                         | Restartable            | Safe to destroy                  |
+| Component           | Location                      | Persistence mechanism  | Notes                           |
+| ------------------- | ----------------------------- | ---------------------- | ------------------------------- |
+| Gateway config      | `/home/node/.sage/`           | Host volume mount      | Includes `sage.json`, tokens    |
+| Model auth profiles | `/home/node/.sage/`           | Host volume mount      | OAuth tokens, API keys          |
+| Skill configs       | `/home/node/.sage/skills/`    | Host volume mount      | Skill-level state               |
+| Agent workspace     | `/home/node/.sage/workspace/` | Host volume mount      | Code and agent artifacts        |
+| WhatsApp session    | `/home/node/.sage/`           | Host volume mount      | Preserves QR login              |
+| Gmail keyring       | `/home/node/.sage/`           | Host volume + password | Requires `GOG_KEYRING_PASSWORD` |
+| External binaries   | `/usr/local/bin/`             | Docker image           | Must be baked at build time     |
+| Node runtime        | Container filesystem          | Docker image           | Rebuilt every image build       |
+| OS packages         | Container filesystem          | Docker image           | Do not install at runtime       |
+| Docker container    | Ephemeral                     | Restartable            | Safe to destroy                 |

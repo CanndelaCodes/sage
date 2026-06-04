@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { execSync } from "node:child_process";
 /**
  * Cross-platform A2UI bundler.
  * Replaces bundle-a2ui.sh for native Windows support.
@@ -10,7 +11,6 @@
  * 5. Stores the new hash for incremental builds.
  */
 import { createHash } from "node:crypto";
-import { execSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

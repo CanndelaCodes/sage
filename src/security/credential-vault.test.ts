@@ -375,8 +375,14 @@ describe("credential-vault key derivation", () => {
 
   it("derives different keys for different salts", () => {
     const deps: VaultDeps = { machineId: () => "same-machine" };
-    const salt1 = Buffer.from("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "hex");
-    const salt2 = Buffer.from("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "hex");
+    const salt1 = Buffer.from(
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "hex",
+    );
+    const salt2 = Buffer.from(
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "hex",
+    );
 
     const key1 = _testing.deriveKey(salt1, deps);
     const key2 = _testing.deriveKey(salt2, deps);

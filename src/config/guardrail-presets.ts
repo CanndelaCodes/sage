@@ -68,10 +68,7 @@ const MAX_AUTONOMY: PresetCategoryConfig = {
 // Preset registry
 // ---------------------------------------------------------------------------
 
-export const GUARDRAIL_PRESETS: Record<
-  Exclude<GuardrailPreset, "custom">,
-  PresetCategoryConfig
-> = {
+export const GUARDRAIL_PRESETS: Record<Exclude<GuardrailPreset, "custom">, PresetCategoryConfig> = {
   conservative: CONSERVATIVE,
   balanced: BALANCED,
   max_autonomy: MAX_AUTONOMY,
@@ -102,17 +99,23 @@ export function mostRestrictiveBehavior(
 
 /** Convert a numeric trust score (0-1) into a behavior. */
 export function scoreToActionBehavior(score: number): GuardrailActionBehavior {
-  if (score < 0.2) { return "block"; }
-  if (score < 0.4) { return "confirm_detailed"; }
-  if (score < 0.6) { return "confirm_brief"; }
-  if (score < 0.8) { return "warn"; }
+  if (score < 0.2) {
+    return "block";
+  }
+  if (score < 0.4) {
+    return "confirm_detailed";
+  }
+  if (score < 0.6) {
+    return "confirm_brief";
+  }
+  if (score < 0.8) {
+    return "warn";
+  }
   return "autonomous";
 }
 
 /** Get the preset category config. For "custom", returns balanced as base. */
-export function resolvePresetConfig(
-  preset: GuardrailPreset,
-): PresetCategoryConfig {
+export function resolvePresetConfig(preset: GuardrailPreset): PresetCategoryConfig {
   if (preset === "custom") {
     // Custom uses balanced as the base, overrides applied separately
     return { ...BALANCED };

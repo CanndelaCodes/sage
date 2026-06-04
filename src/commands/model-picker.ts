@@ -511,10 +511,7 @@ export function applyModelAllowlist(cfg: SageConfig, models: string[]): SageConf
   };
 }
 
-export function applyModelFallbacksFromSelection(
-  cfg: SageConfig,
-  selection: string[],
-): SageConfig {
+export function applyModelFallbacksFromSelection(cfg: SageConfig, selection: string[]): SageConfig {
   const normalized = normalizeModelKeys(selection);
   if (normalized.length <= 1) {
     return cfg;

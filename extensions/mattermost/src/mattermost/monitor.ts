@@ -1,9 +1,4 @@
-import type {
-  ChannelAccountSnapshot,
-  SageConfig,
-  ReplyPayload,
-  RuntimeEnv,
-} from "sage/plugin-sdk";
+import type { ChannelAccountSnapshot, SageConfig, ReplyPayload, RuntimeEnv } from "sage/plugin-sdk";
 import {
   createReplyPrefixOptions,
   createTypingCallbacks,

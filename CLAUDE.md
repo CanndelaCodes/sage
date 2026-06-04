@@ -9,14 +9,14 @@
 
 **Sage** is a fully rebranded fork of [OpenClaw](https://github.com/openclaw/openclaw) that advances its capabilities with a **vibecoder-first approach** -- making AI-powered automation accessible to non-technical users.
 
-| Attribute | Value |
-|-----------|-------|
-| **Name** | Sage |
-| **Tagline** | "Build with words, not code." |
-| **Fork Base** | OpenClaw v2026.2.1 |
-| **Branch** | `sage/main` |
-| **License** | MIT |
-| **Mascot** | S.A.G.E. (Sentient Adaptive Guidance Entity) |
+| Attribute     | Value                                        |
+| ------------- | -------------------------------------------- |
+| **Name**      | Sage                                         |
+| **Tagline**   | "Build with words, not code."                |
+| **Fork Base** | OpenClaw v2026.2.1                           |
+| **Branch**    | `sage/main`                                  |
+| **License**   | MIT                                          |
+| **Mascot**    | S.A.G.E. (Sentient Adaptive Guidance Entity) |
 
 **Core Paradigm**: User as CEO, Sage as autonomous employee. Sage executes completely -- the user describes what they want, Sage delivers the result.
 
@@ -44,38 +44,38 @@ git log --oneline -10             # Recent context
 git status                        # Current state
 ```
 
-| Task | Command |
-|------|---------|
-| Install deps | `pnpm install` |
-| Build | `pnpm build` |
-| Type-check + lint + format | `pnpm check` |
-| Run tests | `pnpm test` |
-| Test coverage | `pnpm test:coverage` |
-| Dev mode | `pnpm dev` |
-| Lint only | `pnpm lint` (oxlint) |
-| Format only | `pnpm format` (oxfmt) |
-| Format fix | `pnpm format:fix` |
-| Lint fix | `pnpm lint:fix` |
-| UI build | `pnpm ui:build` |
-| UI dev | `pnpm ui:dev` |
+| Task                       | Command               |
+| -------------------------- | --------------------- |
+| Install deps               | `pnpm install`        |
+| Build                      | `pnpm build`          |
+| Type-check + lint + format | `pnpm check`          |
+| Run tests                  | `pnpm test`           |
+| Test coverage              | `pnpm test:coverage`  |
+| Dev mode                   | `pnpm dev`            |
+| Lint only                  | `pnpm lint` (oxlint)  |
+| Format only                | `pnpm format` (oxfmt) |
+| Format fix                 | `pnpm format:fix`     |
+| Lint fix                   | `pnpm lint:fix`       |
+| UI build                   | `pnpm ui:build`       |
+| UI dev                     | `pnpm ui:dev`         |
 
 ---
 
 ## Technology Stack
 
-| Layer | Technology | Notes |
-|-------|------------|-------|
-| Runtime | Node.js 22+ | Currently v24.6.0 |
-| Package Manager | pnpm 10+ | Currently 10.23.0 |
-| Language | TypeScript (ESM) | Strict mode |
-| Build | tsdown + Turbo | Monorepo workspace |
-| Lint | oxlint | Type-aware |
-| Format | oxfmt | |
-| Test | Vitest | V8 coverage, 70% thresholds |
-| UI | Lit (Web Components) | In `ui/` directory |
-| Gateway | Node.js WebSocket | Express + Hono + ws |
-| Agent Runtime | Pi (mariozechner) | Multi-LLM |
-| Platforms | Windows (native), macOS, Linux | No WSL2 required |
+| Layer           | Technology                     | Notes                       |
+| --------------- | ------------------------------ | --------------------------- |
+| Runtime         | Node.js 22+                    | Currently v24.6.0           |
+| Package Manager | pnpm 10+                       | Currently 10.23.0           |
+| Language        | TypeScript (ESM)               | Strict mode                 |
+| Build           | tsdown + Turbo                 | Monorepo workspace          |
+| Lint            | oxlint                         | Type-aware                  |
+| Format          | oxfmt                          |                             |
+| Test            | Vitest                         | V8 coverage, 70% thresholds |
+| UI              | Lit (Web Components)           | In `ui/` directory          |
+| Gateway         | Node.js WebSocket              | Express + Hono + ws         |
+| Agent Runtime   | Pi (mariozechner)              | Multi-LLM                   |
+| Platforms       | Windows (native), macOS, Linux | No WSL2 required            |
 
 ---
 
@@ -140,6 +140,7 @@ sage/                          # Root (monorepo)
 ## Workspace Layout
 
 Defined in `pnpm-workspace.yaml`:
+
 - `.` (root package)
 - `ui/` (web UI)
 - `packages/*` (shared packages)
@@ -151,41 +152,41 @@ Defined in `pnpm-workspace.yaml`:
 
 Key environment variables (renaming from `OPENCLAW_*` to `SAGE_*` in progress):
 
-| Variable | Purpose |
-|----------|---------|
-| `SAGE_STATE_DIR` | State directory for sessions, logs, caches (default: `~/.sage`) |
-| `SAGE_CONFIG_PATH` | Config file path (default: `$STATE_DIR/sage.json`) |
-| `SAGE_GATEWAY_PORT` | Gateway port (default: 18789) |
-| `SAGE_GATEWAY_TOKEN` | Gateway auth token |
-| `SAGE_GATEWAY_PASSWORD` | Gateway auth password |
-| `SAGE_AGENT_DIR` | Agent working directory |
-| `SAGE_OAUTH_DIR` | OAuth credentials directory |
-| `SAGE_SKIP_CANVAS_HOST` | Skip canvas host startup |
-| `SAGE_NO_RESPAWN` | Disable process respawn |
-| `SAGE_PROFILE` | Config profile name |
-| `SAGE_GIT_DIR` | Git directory override for updates |
-| `SAGE_DOCKER_APT_PACKAGES` | Extra apt packages for Docker sandbox |
-| `SAGE_EXTRA_MOUNTS` | Extra Docker mounts |
-| `SAGE_HOME_VOLUME` | Docker home volume |
-| `SAGE_SESSION_CACHE_TTL_MS` | Session cache TTL in milliseconds |
-| `SAGE_ANTHROPIC_PAYLOAD_LOG` | Enable Anthropic payload logging |
+| Variable                     | Purpose                                                         |
+| ---------------------------- | --------------------------------------------------------------- |
+| `SAGE_STATE_DIR`             | State directory for sessions, logs, caches (default: `~/.sage`) |
+| `SAGE_CONFIG_PATH`           | Config file path (default: `$STATE_DIR/sage.json`)              |
+| `SAGE_GATEWAY_PORT`          | Gateway port (default: 18789)                                   |
+| `SAGE_GATEWAY_TOKEN`         | Gateway auth token                                              |
+| `SAGE_GATEWAY_PASSWORD`      | Gateway auth password                                           |
+| `SAGE_AGENT_DIR`             | Agent working directory                                         |
+| `SAGE_OAUTH_DIR`             | OAuth credentials directory                                     |
+| `SAGE_SKIP_CANVAS_HOST`      | Skip canvas host startup                                        |
+| `SAGE_NO_RESPAWN`            | Disable process respawn                                         |
+| `SAGE_PROFILE`               | Config profile name                                             |
+| `SAGE_GIT_DIR`               | Git directory override for updates                              |
+| `SAGE_DOCKER_APT_PACKAGES`   | Extra apt packages for Docker sandbox                           |
+| `SAGE_EXTRA_MOUNTS`          | Extra Docker mounts                                             |
+| `SAGE_HOME_VOLUME`           | Docker home volume                                              |
+| `SAGE_SESSION_CACHE_TTL_MS`  | Session cache TTL in milliseconds                               |
+| `SAGE_ANTHROPIC_PAYLOAD_LOG` | Enable Anthropic payload logging                                |
 
 **Note**: Legacy `OPENCLAW_*` prefixes may still work during the transition period.
 
 LLM Provider Keys:
 
-| Variable | Purpose |
-|----------|---------|
+| Variable            | Purpose        |
+| ------------------- | -------------- |
 | `ANTHROPIC_API_KEY` | Claude API key |
-| `OPENAI_API_KEY` | OpenAI API key |
+| `OPENAI_API_KEY`    | OpenAI API key |
 
 Messaging Platform Credentials:
 
-| Variable | Purpose |
-|----------|---------|
-| `TWILIO_ACCOUNT_SID` | Twilio account SID (WhatsApp) |
-| `TWILIO_AUTH_TOKEN` | Twilio auth token |
-| `TWILIO_WHATSAPP_FROM` | Twilio WhatsApp number |
+| Variable               | Purpose                       |
+| ---------------------- | ----------------------------- |
+| `TWILIO_ACCOUNT_SID`   | Twilio account SID (WhatsApp) |
+| `TWILIO_AUTH_TOKEN`    | Twilio auth token             |
+| `TWILIO_WHATSAPP_FROM` | Twilio WhatsApp number        |
 
 See `.env.example` for the full list with descriptions.
 
@@ -194,6 +195,7 @@ See `.env.example` for the full list with descriptions.
 ## Coding Conventions
 
 ### TypeScript
+
 - ESM modules (`.ts` with `import`/`export`)
 - Strict typing, avoid `any`
 - Formatting via oxfmt, linting via oxlint
@@ -203,11 +205,13 @@ See `.env.example` for the full list with descriptions.
 - Named exports preferred
 
 ### Commits
+
 - Concise, action-oriented messages (e.g., `CLI: add verbose flag to send`)
 - Group related changes; avoid bundling unrelated refactors
 - Follow Conventional Commits style
 
 ### Extensions/Plugins
+
 - Live under `extensions/*` (workspace packages)
 - Plugin-only deps in the extension `package.json`, not root
 - Avoid `workspace:*` in `dependencies` (breaks npm install)
@@ -231,14 +235,14 @@ pnpm test                       # Unit tests
 
 ## Testing
 
-| Command | Purpose |
-|---------|---------|
-| `pnpm test` | Unit tests (vitest, parallel) |
-| `pnpm test:coverage` | With coverage report |
-| `pnpm test:e2e` | End-to-end tests |
-| `pnpm test:live` | Live tests (requires real API keys) |
-| `pnpm test:watch` | Watch mode |
-| `pnpm test:ui` | UI component tests |
+| Command              | Purpose                             |
+| -------------------- | ----------------------------------- |
+| `pnpm test`          | Unit tests (vitest, parallel)       |
+| `pnpm test:coverage` | With coverage report                |
+| `pnpm test:e2e`      | End-to-end tests                    |
+| `pnpm test:live`     | Live tests (requires real API keys) |
+| `pnpm test:watch`    | Watch mode                          |
+| `pnpm test:ui`       | UI component tests                  |
 
 - Tests are colocated `*.test.ts` files
 - E2E tests use `*.e2e.test.ts`
@@ -250,14 +254,14 @@ pnpm test                       # Unit tests
 
 We are currently in **Phase 0: Foundation**.
 
-| Phase | Goal | Status |
-|-------|------|--------|
-| **Phase 0** | Clean fork with working build on Windows | IN PROGRESS |
-| Phase 1 | Security hardening | Pending |
-| Phase 2 | Core Sage features (RLM, ASL, Principles) | Pending |
-| Phase 3 | UI transformation (Vibecoder Dashboard) | Pending |
-| Phase 4 | VDE and advanced features | Pending |
-| Phase 5 | Polish and launch | Pending |
+| Phase       | Goal                                      | Status      |
+| ----------- | ----------------------------------------- | ----------- |
+| **Phase 0** | Clean fork with working build on Windows  | IN PROGRESS |
+| Phase 1     | Security hardening                        | Pending     |
+| Phase 2     | Core Sage features (RLM, ASL, Principles) | Pending     |
+| Phase 3     | UI transformation (Vibecoder Dashboard)   | Pending     |
+| Phase 4     | VDE and advanced features                 | Pending     |
+| Phase 5     | Polish and launch                         | Pending     |
 
 **Phase 0 Exit Criteria**: `pnpm install && pnpm build` succeeds, app launches on Windows.
 
@@ -266,6 +270,7 @@ We are currently in **Phase 0: Foundation**.
 ## Renaming Progress
 
 The codebase is being renamed from OpenClaw to Sage. Key renames:
+
 - `openclaw` -> `sage` (CLI, package name, binary)
 - `OPENCLAW_*` -> `SAGE_*` (environment variables)
 - `OpenClaw` -> `Sage` (UI, docs, branding)
@@ -279,6 +284,7 @@ The codebase is being renamed from OpenClaw to Sage. Key renames:
 ## Multi-Agent Safety
 
 This repo uses multi-agent development. Follow these rules:
+
 - Do NOT create/apply/drop `git stash` entries unless explicitly requested
 - Do NOT switch branches unless explicitly requested
 - Do NOT create/remove/modify `git worktree` unless explicitly requested
@@ -290,16 +296,16 @@ This repo uses multi-agent development. Follow these rules:
 
 ## Key Architectural Decisions
 
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| Fork base | OpenClaw v2026.2.1 | Latest with security patches |
-| Windows support | Native (no WSL2) | One-click install for vibecoders |
-| Sandbox | Podman primary, Docker fallback, E2B optional | Podman is OSS (Apache 2.0) |
-| Internal IPC | gRPC (agent-desktop) | Type-safe, streaming |
-| External IPC | WebSocket (messaging/API) | OpenClaw compatibility |
-| ClawHub | Removed entirely | Fresh Sage Skills marketplace |
-| Local LLM | Ollama (auto-detect) | Analyze hardware, recommend model |
-| Data storage | File-based default, PostgreSQL optional | Simple start, scalable |
+| Decision        | Choice                                        | Rationale                         |
+| --------------- | --------------------------------------------- | --------------------------------- |
+| Fork base       | OpenClaw v2026.2.1                            | Latest with security patches      |
+| Windows support | Native (no WSL2)                              | One-click install for vibecoders  |
+| Sandbox         | Podman primary, Docker fallback, E2B optional | Podman is OSS (Apache 2.0)        |
+| Internal IPC    | gRPC (agent-desktop)                          | Type-safe, streaming              |
+| External IPC    | WebSocket (messaging/API)                     | OpenClaw compatibility            |
+| ClawHub         | Removed entirely                              | Fresh Sage Skills marketplace     |
+| Local LLM       | Ollama (auto-detect)                          | Analyze hardware, recommend model |
+| Data storage    | File-based default, PostgreSQL optional       | Simple start, scalable            |
 
 ---
 
@@ -308,6 +314,7 @@ This repo uses multi-agent development. Follow these rules:
 Claude operates under these principles when working in this repository. Full details in `../sage vde/Docs/plans/2026-01-19-sage-cognitive-architecture.md`.
 
 **Key Categories**:
+
 - **Perception** (1-4): Evidence-grounded, calibrated confidence, reality-first, holistic awareness
 - **Reasoning** (5-11): Assumption consciousness, premise questioning, pre-mortem, invariant awareness, semantic understanding, devil's advocate, divergent exploration
 - **Memory** (12-15): Session continuity, mistake memory, decision history, pattern recognition
@@ -335,11 +342,13 @@ Claude operates under these principles when working in this repository. Full det
 ## Security Considerations
 
 Sage addresses known OpenClaw vulnerabilities:
+
 - **CVE-2026-25253**: WebSocket hijacking -- origin validation required
 - **Credential exposure**: OS keychain integration, encrypted vault
 - **Malicious skills**: Fresh marketplace with tiered verification (no ClawHub)
 
 **Rules**:
+
 - Never commit secrets, API keys, or real credentials
 - Use `.env` for local secrets (never checked in)
 - Validate all external input at boundaries
@@ -350,17 +359,20 @@ Sage addresses known OpenClaw vulnerabilities:
 ## Session Protocol
 
 **Start**:
+
 1. Read this file
 2. `git log --oneline -10` for recent context
 3. `git status` to understand working state
 4. Identify current phase and priority tasks
 
 **During Work**:
+
 - Run quality gates after changes
 - Document significant decisions
 - Keep commits scoped and atomic
 
 **End**:
+
 1. Run quality gates (`pnpm check && pnpm build && pnpm test`)
 2. Summarize what was accomplished
 3. Include "Next Steps" section
@@ -377,13 +389,13 @@ Sage addresses known OpenClaw vulnerabilities:
 
 ## Resources
 
-| Resource | Location |
-|----------|----------|
-| Fork Specification | `../sage vde/Docs/plans/2026-02-02-sage-openclaw-fork-spec.md` |
+| Resource               | Location                                                           |
+| ---------------------- | ------------------------------------------------------------------ |
+| Fork Specification     | `../sage vde/Docs/plans/2026-02-02-sage-openclaw-fork-spec.md`     |
 | Cognitive Architecture | `../sage vde/Docs/plans/2026-01-19-sage-cognitive-architecture.md` |
-| Original AGENTS.md | `AGENTS.md` (OpenClaw conventions, still partially applicable) |
-| Sage Docs | `docs/` directory |
-| Implementation TODOs | `../sage vde/Docs/plans/2026-02-04-sage-implementation-todos.md` |
+| Original AGENTS.md     | `AGENTS.md` (OpenClaw conventions, still partially applicable)     |
+| Sage Docs              | `docs/` directory                                                  |
+| Implementation TODOs   | `../sage vde/Docs/plans/2026-02-04-sage-implementation-todos.md`   |
 
 ---
 

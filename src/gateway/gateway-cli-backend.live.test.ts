@@ -243,15 +243,11 @@ describeLive("gateway live (cli backend)", () => {
 
     const cliCommand = process.env.SAGE_LIVE_CLI_BACKEND_COMMAND ?? providerDefaults?.command;
     if (!cliCommand) {
-      throw new Error(
-        `SAGE_LIVE_CLI_BACKEND_COMMAND is required for provider "${providerId}".`,
-      );
+      throw new Error(`SAGE_LIVE_CLI_BACKEND_COMMAND is required for provider "${providerId}".`);
     }
     const baseCliArgs =
-      parseJsonStringArray(
-        "SAGE_LIVE_CLI_BACKEND_ARGS",
-        process.env.SAGE_LIVE_CLI_BACKEND_ARGS,
-      ) ?? providerDefaults?.args;
+      parseJsonStringArray("SAGE_LIVE_CLI_BACKEND_ARGS", process.env.SAGE_LIVE_CLI_BACKEND_ARGS) ??
+      providerDefaults?.args;
     if (!baseCliArgs || baseCliArgs.length === 0) {
       throw new Error(`SAGE_LIVE_CLI_BACKEND_ARGS is required for provider "${providerId}".`);
     }
@@ -264,9 +260,7 @@ describeLive("gateway live (cli backend)", () => {
     const cliImageMode = parseImageMode(process.env.SAGE_LIVE_CLI_BACKEND_IMAGE_MODE);
 
     if (cliImageMode && !cliImageArg) {
-      throw new Error(
-        "SAGE_LIVE_CLI_BACKEND_IMAGE_MODE requires SAGE_LIVE_CLI_BACKEND_IMAGE_ARG.",
-      );
+      throw new Error("SAGE_LIVE_CLI_BACKEND_IMAGE_MODE requires SAGE_LIVE_CLI_BACKEND_IMAGE_ARG.");
     }
 
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "sage-live-cli-"));

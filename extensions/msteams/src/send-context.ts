@@ -1,8 +1,4 @@
-import {
-  resolveChannelMediaMaxBytes,
-  type SageConfig,
-  type PluginRuntime,
-} from "sage/plugin-sdk";
+import { resolveChannelMediaMaxBytes, type SageConfig, type PluginRuntime } from "sage/plugin-sdk";
 import type { MSTeamsAccessTokenProvider } from "./attachments/types.js";
 import type {
   MSTeamsConversationStore,

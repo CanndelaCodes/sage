@@ -82,16 +82,13 @@ export async function noteMacLaunchctlGatewayEnvOverrides(
     const lines = [
       "- Deprecated launchctl environment variables detected (ignored).",
       ...deprecatedLaunchctlEntries.map(
-        ([key]) =>
-          `- \`${key}\` is set; use \`SAGE_${key.slice(key.indexOf("_") + 1)}\` instead.`,
+        ([key]) => `- \`${key}\` is set; use \`SAGE_${key.slice(key.indexOf("_") + 1)}\` instead.`,
       ),
     ];
     (deps?.noteFn ?? note)(lines.join("\n"), "Gateway (macOS)");
   }
 
-  const tokenEntries = [
-    ["SAGE_GATEWAY_TOKEN", await getenv("SAGE_GATEWAY_TOKEN")],
-  ] as const;
+  const tokenEntries = [["SAGE_GATEWAY_TOKEN", await getenv("SAGE_GATEWAY_TOKEN")]] as const;
   const passwordEntries = [
     ["SAGE_GATEWAY_PASSWORD", await getenv("SAGE_GATEWAY_PASSWORD")],
   ] as const;
@@ -127,8 +124,7 @@ export function noteDeprecatedLegacyEnvVars(
 ) {
   const entries = Object.entries(env)
     .filter(
-      ([key, value]) =>
-        (key.startsWith("SAGE_") || key.startsWith("SAGEBOT_")) && value?.trim(),
+      ([key, value]) => (key.startsWith("SAGE_") || key.startsWith("SAGEBOT_")) && value?.trim(),
     )
     .map(([key]) => key);
   if (entries.length === 0) {

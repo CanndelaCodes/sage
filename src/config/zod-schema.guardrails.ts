@@ -50,9 +50,7 @@ const RateLimitsSchema = z
 export const GuardrailsSchema = z
   .object({
     preset: z.enum(["conservative", "balanced", "max_autonomy", "custom"]).optional(),
-    categories: z
-      .record(DangerCategorySchema, GuardrailCategoryOverrideSchema)
-      .optional(),
+    categories: z.record(DangerCategorySchema, GuardrailCategoryOverrideSchema).optional(),
     warnAutoApproveSeconds: z.number().min(0).max(30).optional(),
     adaptiveTrust: z.boolean().optional(),
     decay: DecayConfigSchema,

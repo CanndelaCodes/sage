@@ -33,11 +33,7 @@ function setSignalDmPolicy(cfg: SageConfig, dmPolicy: DmPolicy) {
   };
 }
 
-function setSignalAllowFrom(
-  cfg: SageConfig,
-  accountId: string,
-  allowFrom: string[],
-): SageConfig {
+function setSignalAllowFrom(cfg: SageConfig, accountId: string, allowFrom: string[]): SageConfig {
   if (accountId === DEFAULT_ACCOUNT_ID) {
     return {
       ...cfg,

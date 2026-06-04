@@ -99,11 +99,26 @@ function ensureGcloudOnPath(): boolean {
   }
   const candidates: string[] = [];
   if (process.platform === "win32") {
-    const localAppData = process.env.LOCALAPPDATA ?? path.join(process.env.USERPROFILE ?? "", "AppData", "Local");
+    const localAppData =
+      process.env.LOCALAPPDATA ?? path.join(process.env.USERPROFILE ?? "", "AppData", "Local");
     candidates.push(
       path.join(localAppData, "Google", "Cloud SDK", "google-cloud-sdk", "bin", "gcloud.cmd"),
-      path.join(process.env.ProgramFiles ?? "C:\\Program Files", "Google", "Cloud SDK", "google-cloud-sdk", "bin", "gcloud.cmd"),
-      path.join(process.env["ProgramFiles(x86)"] ?? "C:\\Program Files (x86)", "Google", "Cloud SDK", "google-cloud-sdk", "bin", "gcloud.cmd"),
+      path.join(
+        process.env.ProgramFiles ?? "C:\\Program Files",
+        "Google",
+        "Cloud SDK",
+        "google-cloud-sdk",
+        "bin",
+        "gcloud.cmd",
+      ),
+      path.join(
+        process.env["ProgramFiles(x86)"] ?? "C:\\Program Files (x86)",
+        "Google",
+        "Cloud SDK",
+        "google-cloud-sdk",
+        "bin",
+        "gcloud.cmd",
+      ),
     );
   } else {
     candidates.push(

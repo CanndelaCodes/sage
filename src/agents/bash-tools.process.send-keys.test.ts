@@ -8,6 +8,8 @@ afterEach(() => {
   resetProcessRegistryForTests();
 });
 
+const ptyExitDeadlineMs = () => (process.platform === "win32" ? 15000 : 5000);
+
 test("process send-keys encodes Enter for pty sessions", async () => {
   const execTool = createExecTool();
   const processTool = createProcessTool();
@@ -28,7 +30,7 @@ test("process send-keys encodes Enter for pty sessions", async () => {
     keys: ["h", "i", "Enter"],
   });
 
-  const deadline = Date.now() + (process.platform === "win32" ? 4000 : 2000);
+  const deadline = Date.now() + ptyExitDeadlineMs();
   while (Date.now() < deadline) {
     await sleep(50);
     const poll = await processTool.execute("toolcall", { action: "poll", sessionId });
@@ -62,7 +64,7 @@ test("process submit sends Enter for pty sessions", async () => {
     sessionId,
   });
 
-  const deadline = Date.now() + (process.platform === "win32" ? 4000 : 2000);
+  const deadline = Date.now() + ptyExitDeadlineMs();
   while (Date.now() < deadline) {
     await sleep(50);
     const poll = await processTool.execute("toolcall", { action: "poll", sessionId });

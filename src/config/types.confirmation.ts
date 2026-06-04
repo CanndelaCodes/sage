@@ -127,11 +127,7 @@ export type ConfirmationRequest = {
 // Confirmation response (from the UI)
 // ---------------------------------------------------------------------------
 
-export type ConfirmationDecision =
-  | "allow-once"
-  | "allow-always"
-  | "deny"
-  | "deny-always";
+export type ConfirmationDecision = "allow-once" | "allow-always" | "deny" | "deny-always";
 
 export type ConfirmationResponse = {
   /** Request ID being responded to. */

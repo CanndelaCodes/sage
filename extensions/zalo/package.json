@@ -4,8 +4,8 @@
   "description": "Sage Zalo channel plugin",
   "type": "module",
   "dependencies": {
-    "undici": "7.20.0",
-    "sage": "workspace:*"
+    "sage": "workspace:*",
+    "undici": "7.20.0"
   },
   "devDependencies": {
     "sage": "workspace:*"

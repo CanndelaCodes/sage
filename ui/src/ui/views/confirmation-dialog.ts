@@ -67,17 +67,31 @@ function formatRemaining(ms: number): string {
 // ---------------------------------------------------------------------------
 
 function severityLabel(severity: number): string {
-  if (severity <= 1) { return "Low"; }
-  if (severity <= 2) { return "Medium"; }
-  if (severity <= 3) { return "High"; }
-  if (severity <= 4) { return "Very High"; }
+  if (severity <= 1) {
+    return "Low";
+  }
+  if (severity <= 2) {
+    return "Medium";
+  }
+  if (severity <= 3) {
+    return "High";
+  }
+  if (severity <= 4) {
+    return "Very High";
+  }
   return "Critical";
 }
 
 function severityClass(severity: number): string {
-  if (severity <= 2) { return "severity-low"; }
-  if (severity <= 3) { return "severity-medium"; }
-  if (severity <= 4) { return "severity-high"; }
+  if (severity <= 2) {
+    return "severity-low";
+  }
+  if (severity <= 3) {
+    return "severity-medium";
+  }
+  if (severity <= 4) {
+    return "severity-high";
+  }
   return "severity-critical";
 }
 
@@ -96,8 +110,20 @@ function renderContextDetails(context: ConfirmationContext) {
         <div class="confirm-detail-section">
           <div class="confirm-command mono">${context.command}</div>
           ${context.cwd ? html`<div class="confirm-meta-row"><span>Working directory</span><span class="mono">${context.cwd}</span></div>` : nothing}
-          ${context.hasPipes ? html`<div class="confirm-flag warn">Contains pipe operators</div>` : nothing}
-          ${context.hasChains ? html`<div class="confirm-flag warn">Contains chained commands</div>` : nothing}
+          ${
+            context.hasPipes
+              ? html`
+                  <div class="confirm-flag warn">Contains pipe operators</div>
+                `
+              : nothing
+          }
+          ${
+            context.hasChains
+              ? html`
+                  <div class="confirm-flag warn">Contains chained commands</div>
+                `
+              : nothing
+          }
         </div>
       `;
 
@@ -107,8 +133,20 @@ function renderContextDetails(context: ConfirmationContext) {
           <div class="confirm-file-list">
             ${context.paths.map((p) => html`<div class="confirm-file-path mono">${p}</div>`)}
           </div>
-          ${context.recursive ? html`<div class="confirm-flag danger">Recursive deletion</div>` : nothing}
-          ${context.outsideProject ? html`<div class="confirm-flag danger">Files outside project directory</div>` : nothing}
+          ${
+            context.recursive
+              ? html`
+                  <div class="confirm-flag danger">Recursive deletion</div>
+                `
+              : nothing
+          }
+          ${
+            context.outsideProject
+              ? html`
+                  <div class="confirm-flag danger">Files outside project directory</div>
+                `
+              : nothing
+          }
           ${context.totalBytes != null ? html`<div class="confirm-meta-row"><span>Estimated size</span><span>${formatBytes(context.totalBytes)}</span></div>` : nothing}
         </div>
       `;
@@ -118,8 +156,20 @@ function renderContextDetails(context: ConfirmationContext) {
         <div class="confirm-detail-section">
           <div class="confirm-meta-row"><span>URL</span><span class="mono">${context.url}</span></div>
           <div class="confirm-meta-row"><span>Method</span><span class="mono">${context.method}</span></div>
-          ${context.external ? html`<div class="confirm-flag warn">External request</div>` : nothing}
-          ${context.sendsData ? html`<div class="confirm-flag warn">Sends data</div>` : nothing}
+          ${
+            context.external
+              ? html`
+                  <div class="confirm-flag warn">External request</div>
+                `
+              : nothing
+          }
+          ${
+            context.sendsData
+              ? html`
+                  <div class="confirm-flag warn">Sends data</div>
+                `
+              : nothing
+          }
           ${context.dataSummary ? html`<div class="confirm-data-preview"><span>Data preview</span><pre class="mono">${context.dataSummary}</pre></div>` : nothing}
         </div>
       `;
@@ -129,8 +179,20 @@ function renderContextDetails(context: ConfirmationContext) {
         <div class="confirm-detail-section">
           <div class="confirm-meta-row"><span>URL</span><span class="mono">${context.url}</span></div>
           <div class="confirm-meta-row"><span>Action</span><span>${context.action}</span></div>
-          ${context.interactsWithForms ? html`<div class="confirm-flag warn">Interacts with forms</div>` : nothing}
-          ${context.triggersNavigation ? html`<div class="confirm-flag warn">Triggers navigation</div>` : nothing}
+          ${
+            context.interactsWithForms
+              ? html`
+                  <div class="confirm-flag warn">Interacts with forms</div>
+                `
+              : nothing
+          }
+          ${
+            context.triggersNavigation
+              ? html`
+                  <div class="confirm-flag warn">Triggers navigation</div>
+                `
+              : nothing
+          }
         </div>
       `;
 
@@ -155,9 +217,15 @@ function renderContextDetails(context: ConfirmationContext) {
 }
 
 function formatBytes(bytes: number): string {
-  if (bytes < 1024) { return `${bytes} B`; }
-  if (bytes < 1024 * 1024) { return `${(bytes / 1024).toFixed(1)} KB`; }
-  if (bytes < 1024 * 1024 * 1024) { return `${(bytes / (1024 * 1024)).toFixed(1)} MB`; }
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+  if (bytes < 1024 * 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 

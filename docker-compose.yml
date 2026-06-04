@@ -17,15 +17,7 @@ services:
     init: true
     restart: unless-stopped
     command:
-      [
-        "node",
-        "dist/index.js",
-        "gateway",
-        "--bind",
-        "${SAGE_GATEWAY_BIND:-lan}",
-        "--port",
-        "18789",
-      ]
+      ["node", "dist/index.js", "gateway", "--bind", "${SAGE_GATEWAY_BIND:-lan}", "--port", "18789"]
 
   sage-cli:
     image: ${SAGE_IMAGE:-sage:local}

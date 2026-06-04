@@ -52,11 +52,7 @@ async function readSessionEntry(storePath: string, key: string) {
   return store[key];
 }
 
-function makeCfg(
-  home: string,
-  storePath: string,
-  overrides: Partial<SageConfig> = {},
-): SageConfig {
+function makeCfg(home: string, storePath: string, overrides: Partial<SageConfig> = {}): SageConfig {
   const base: SageConfig = {
     agents: {
       defaults: {

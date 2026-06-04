@@ -69,8 +69,7 @@ const _makeOpenAiConfig = (modelIds: string[]) =>
     },
   }) satisfies SageConfig;
 
-const _ensureModels = (cfg: SageConfig, agentDir: string) =>
-  ensureSageModelsJson(cfg, agentDir);
+const _ensureModels = (cfg: SageConfig, agentDir: string) => ensureSageModelsJson(cfg, agentDir);
 
 const _textFromContent = (content: unknown) => {
   if (typeof content === "string") {

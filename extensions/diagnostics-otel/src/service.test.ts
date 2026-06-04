@@ -192,19 +192,13 @@ describe("diagnostics-otel service", () => {
     });
 
     expect(telemetryState.counters.get("sage.webhook.received")?.add).toHaveBeenCalled();
-    expect(
-      telemetryState.histograms.get("sage.webhook.duration_ms")?.record,
-    ).toHaveBeenCalled();
+    expect(telemetryState.histograms.get("sage.webhook.duration_ms")?.record).toHaveBeenCalled();
     expect(telemetryState.counters.get("sage.message.queued")?.add).toHaveBeenCalled();
     expect(telemetryState.counters.get("sage.message.processed")?.add).toHaveBeenCalled();
-    expect(
-      telemetryState.histograms.get("sage.message.duration_ms")?.record,
-    ).toHaveBeenCalled();
+    expect(telemetryState.histograms.get("sage.message.duration_ms")?.record).toHaveBeenCalled();
     expect(telemetryState.histograms.get("sage.queue.wait_ms")?.record).toHaveBeenCalled();
     expect(telemetryState.counters.get("sage.session.stuck")?.add).toHaveBeenCalled();
-    expect(
-      telemetryState.histograms.get("sage.session.stuck_age_ms")?.record,
-    ).toHaveBeenCalled();
+    expect(telemetryState.histograms.get("sage.session.stuck_age_ms")?.record).toHaveBeenCalled();
     expect(telemetryState.counters.get("sage.run.attempt")?.add).toHaveBeenCalled();
 
     const spanNames = telemetryState.tracer.startSpan.mock.calls.map((call) => call[0]);

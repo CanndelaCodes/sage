@@ -83,8 +83,7 @@ session-memory/
 name: my-hook
 description: "Short description"
 homepage: https://docs.sage.ai/hooks#my-hook
-metadata:
-  { "sage": { "emoji": "🔗", "events": ["command:new"], "requires": { "bins": ["node"] } } }
+metadata: { "sage": { "emoji": "🔗", "events": ["command:new"], "requires": { "bins": ["node"] } } }
 ---
 # Hook Title
 

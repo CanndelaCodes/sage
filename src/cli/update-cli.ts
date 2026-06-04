@@ -14,9 +14,9 @@ import {
   resolveUpdateAvailability,
 } from "../commands/status.update.js";
 import { readConfigFileSnapshot, writeConfigFile } from "../config/config.js";
-import { resolveSagePackageRoot } from "../infra/sage-root.js";
 import { trimLogTail } from "../infra/restart-sentinel.js";
 import { parseSemver } from "../infra/runtime-guard.js";
+import { resolveSagePackageRoot } from "../infra/sage-root.js";
 import {
   channelToNpmTag,
   DEFAULT_GIT_CHANNEL,

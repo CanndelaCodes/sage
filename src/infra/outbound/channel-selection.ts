@@ -49,9 +49,7 @@ async function isPluginConfigured(plugin: ChannelPlugin, cfg: SageConfig): Promi
   return false;
 }
 
-export async function listConfiguredMessageChannels(
-  cfg: SageConfig,
-): Promise<MessageChannelId[]> {
+export async function listConfiguredMessageChannels(cfg: SageConfig): Promise<MessageChannelId[]> {
   const channels: MessageChannelId[] = [];
   for (const plugin of listChannelPlugins()) {
     if (!isKnownChannel(plugin.id)) {

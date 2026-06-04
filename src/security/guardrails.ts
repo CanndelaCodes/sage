@@ -6,12 +6,6 @@
  * and learned operation patterns.
  */
 
-import {
-  allDangerCategories,
-  mostRestrictiveBehavior,
-  resolvePresetConfig,
-  scoreToActionBehavior,
-} from "../config/guardrail-presets.js";
 import type {
   DangerCategory,
   GuardrailActionBehavior,
@@ -23,23 +17,29 @@ import type {
   TrustProfile,
   TrustScore,
 } from "../config/types.guardrails.js";
+import {
+  allDangerCategories,
+  mostRestrictiveBehavior,
+  resolvePresetConfig,
+  scoreToActionBehavior,
+} from "../config/guardrail-presets.js";
 
 // ---------------------------------------------------------------------------
 // Hard-blocked patterns (never autonomous regardless of trust)
 // ---------------------------------------------------------------------------
 
 const BUILTIN_HARD_BLOCKS: RegExp[] = [
-  /rm\s+-rf\s+\/[^.]/,         // rm -rf on root paths
-  /sudo\s+rm/,                  // sudo rm anything
-  /chmod\s+777/,                // world-writable permissions
-  /curl.*\|\s*bash/,            // pipe to bash
-  /wget.*\|\s*sh/,              // pipe to sh
-  /eval\(/,                     // eval in code
-  /DROP\s+DATABASE/i,           // database drops
-  /DELETE\s+FROM.*WHERE\s*1/i,  // delete all rows
-  /:()\{.*\|.*&\}.*;:/,         // fork bomb
+  /rm\s+-rf\s+\/[^.]/, // rm -rf on root paths
+  /sudo\s+rm/, // sudo rm anything
+  /chmod\s+777/, // world-writable permissions
+  /curl.*\|\s*bash/, // pipe to bash
+  /wget.*\|\s*sh/, // pipe to sh
+  /eval\(/, // eval in code
+  /DROP\s+DATABASE/i, // database drops
+  /DELETE\s+FROM.*WHERE\s*1/i, // delete all rows
+  /:()\{.*\|.*&\}.*;:/, // fork bomb
   /dd\s+if=\/dev\/(zero|random)/, // disk wipe
-  /mkfs/,                       // format filesystem
+  /mkfs/, // format filesystem
 ];
 
 // ---------------------------------------------------------------------------
@@ -106,18 +106,22 @@ export function createTrustProfile(): TrustProfile {
 
 /** Normalize a command into a matchable pattern. */
 export function normalizeToPattern(command: string): string {
-  return command
-    .trim()
-    .replace(/\s+/g, " ")
-    // Replace absolute paths with wildcards
-    .replace(/\/[\w./-]+/g, (m) => {
-      const parts = m.split("/").filter(Boolean);
-      if (parts.length <= 1) { return m; }
-      return "/" + parts.slice(0, -1).join("/") + "/*";
-    })
-    // Replace quoted strings with *
-    .replace(/"[^"]*"/g, '"*"')
-    .replace(/'[^']*'/g, "'*'");
+  return (
+    command
+      .trim()
+      .replace(/\s+/g, " ")
+      // Replace absolute paths with wildcards
+      .replace(/\/[\w./-]+/g, (m) => {
+        const parts = m.split("/").filter(Boolean);
+        if (parts.length <= 1) {
+          return m;
+        }
+        return "/" + parts.slice(0, -1).join("/") + "/*";
+      })
+      // Replace quoted strings with *
+      .replace(/"[^"]*"/g, '"*"')
+      .replace(/'[^']*'/g, "'*'")
+  );
 }
 
 function findMatchingPattern(
@@ -348,10 +352,14 @@ export function applyTrustDecay(
   for (const cat of allDangerCategories()) {
     const current = { ...(scores[cat] ?? defaultTrustScore()) };
     const lastUsed = current.lastApproval ? new Date(current.lastApproval).getTime() : 0;
-    if (lastUsed === 0) { continue; }
+    if (lastUsed === 0) {
+      continue;
+    }
 
     const daysSinceUse = (now - lastUsed) / (1000 * 60 * 60 * 24);
-    if (daysSinceUse <= decay.gracePeriodDays) { continue; }
+    if (daysSinceUse <= decay.gracePeriodDays) {
+      continue;
+    }
 
     const decayDays = daysSinceUse - decay.gracePeriodDays;
     const decayAmount = decayDays * decay.dailyDecayRate;
@@ -395,9 +403,11 @@ export function classifyCommand(command: string): {
   }
 
   // System modification
-  if (/\bchmod\b|\bchown\b|\bchgrp\b/.test(cmd) ||
-      /\bsystemctl\b|\bservice\b/.test(cmd) ||
-      /\breg\s+(add|delete)\b/.test(cmd)) {
+  if (
+    /\bchmod\b|\bchown\b|\bchgrp\b/.test(cmd) ||
+    /\bsystemctl\b|\bservice\b/.test(cmd) ||
+    /\breg\s+(add|delete)\b/.test(cmd)
+  ) {
     return { category: "system_modification", severity: 3 };
   }
 
@@ -410,8 +420,10 @@ export function classifyCommand(command: string): {
   }
 
   // Credential access
-  if (/\benv\b.*\b(key|token|secret|password)\b/i.test(cmd) ||
-      /\b(keychain|credential|vault)\b/i.test(cmd)) {
+  if (
+    /\benv\b.*\b(key|token|secret|password)\b/i.test(cmd) ||
+    /\b(keychain|credential|vault)\b/i.test(cmd)
+  ) {
     return { category: "credential_access", severity: 4 };
   }
 
@@ -421,15 +433,16 @@ export function classifyCommand(command: string): {
   }
 
   // Data exfiltration
-  if (/\bcurl\b.*\b-d\b|\bcurl\b.*\b--data\b/.test(cmd) ||
-      /\bscp\b|\brsync\b.*\b:\b/.test(cmd)) {
+  if (/\bcurl\b.*\b-d\b|\bcurl\b.*\b--data\b/.test(cmd) || /\bscp\b|\brsync\b.*\b:\b/.test(cmd)) {
     return { category: "data_exfiltration", severity: 3 };
   }
 
   // Irreversible changes
-  if (/\bgit\s+push\b.*\s--force\b/.test(cmd) ||
-      /\bgit\s+reset\s+--hard\b/.test(cmd) ||
-      /\bdrop\s+(table|database)\b/i.test(cmd)) {
+  if (
+    /\bgit\s+push\b.*\s--force\b/.test(cmd) ||
+    /\bgit\s+reset\s+--hard\b/.test(cmd) ||
+    /\bdrop\s+(table|database)\b/i.test(cmd)
+  ) {
     return { category: "irreversible_change", severity: 4 };
   }
 
@@ -442,10 +455,7 @@ export function classifyCommand(command: string): {
 // ---------------------------------------------------------------------------
 
 /** Reset trust for a specific category. */
-export function resetCategoryTrust(
-  profile: TrustProfile,
-  category: DangerCategory,
-): TrustProfile {
+export function resetCategoryTrust(profile: TrustProfile, category: DangerCategory): TrustProfile {
   const updated = { ...profile, updatedAt: new Date().toISOString() };
   const scores = { ...updated.categoryScores };
   const old = scores[category];

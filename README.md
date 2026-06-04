@@ -15,6 +15,7 @@
 Sage answers you on the channels you already use (WhatsApp, Telegram, Slack, Discord, Google Chat, Signal, iMessage, Microsoft Teams, WebChat), plus extension channels like BlueBubbles, Matrix, Zalo, and more. It can speak, listen, and render a live Canvas you control.
 
 **Key differentiators from OpenClaw:**
+
 - ASL (Abstracted Syntax Layer) -- every action explained in plain English
 - 35 Cognitive Principles for structured reasoning
 - Security hardening (CVE-2026-25253 fixes, encrypted vault, no legacy marketplace)

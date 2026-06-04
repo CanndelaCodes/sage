@@ -233,10 +233,7 @@ export function resolveOAuthPath(
   return path.join(resolveOAuthDir(env, stateDir), OAUTH_FILENAME);
 }
 
-export function resolveGatewayPort(
-  cfg?: SageConfig,
-  env: NodeJS.ProcessEnv = process.env,
-): number {
+export function resolveGatewayPort(cfg?: SageConfig, env: NodeJS.ProcessEnv = process.env): number {
   const envRaw = env.SAGE_GATEWAY_PORT?.trim() || env.SAGEBOT_GATEWAY_PORT?.trim();
   if (envRaw) {
     const parsed = Number.parseInt(envRaw, 10);
