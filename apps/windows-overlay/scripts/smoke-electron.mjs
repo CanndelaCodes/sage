@@ -96,6 +96,7 @@ async function smokeFullOverlay(gatewayUrl, rendererErrors) {
     await assertKeyboardFocusOrder(page);
     await assertQuickActionArrowNavigation(page);
     await assertCriticalTextFit(page);
+    await assertSageAiChatPanelLayout(page);
 
     await setVisualBackdrop(page, "desktop");
     await page.screenshot({
@@ -921,6 +922,103 @@ async function assertCriticalTextFit(page) {
 
   if (failures.length > 0) {
     throw new Error(`Critical overlay text/control fit failed:\n${failures.join("\n")}`);
+  }
+}
+
+async function assertSageAiChatPanelLayout(page) {
+  const panel = page.getByRole("region", { name: "Sage AI Chat" });
+  await panel.waitFor({ state: "visible", timeout: 5_000 });
+  await page.locator(".sage-ai-chat__facts").waitFor({ state: "visible", timeout: 5_000 });
+  await page.getByLabel("Sage AI Chat stream").waitFor({ state: "visible", timeout: 5_000 });
+  await page.locator(".sage-ai-chat__composer").waitFor({ state: "visible", timeout: 5_000 });
+  await page.getByRole("button", { name: "Send Sage AI chat message" }).waitFor({
+    state: "visible",
+    timeout: 5_000,
+  });
+  await page.getByRole("button", { name: "Stop Sage AI chat" }).waitFor({
+    state: "visible",
+    timeout: 5_000,
+  });
+  await page.getByRole("button", { name: "New session" }).waitFor({
+    state: "visible",
+    timeout: 5_000,
+  });
+
+  const layout = await page.evaluate(() => {
+    const readRect = (selector) => {
+      const element = document.querySelector(selector);
+      if (!(element instanceof HTMLElement)) {
+        return null;
+      }
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return {
+        selector,
+        display: style.display,
+        visibility: style.visibility,
+        gridTemplateRows: style.gridTemplateRows,
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        left: rect.left,
+      };
+    };
+    return {
+      panel: readRect(".sage-ai-chat"),
+      facts: readRect(".sage-ai-chat__facts"),
+      transcript: readRect(".sage-ai-chat__transcript"),
+      composer: readRect(".sage-ai-chat__composer"),
+      commandDeck: readRect(".command-deck"),
+    };
+  });
+
+  const missing = Object.entries(layout)
+    .filter(([, rect]) => !rect || rect.visibility === "hidden" || rect.width <= 0 || rect.height <= 0)
+    .map(([name]) => name);
+  if (missing.length > 0) {
+    throw new Error(
+      `Sage AI Chat panel layout is missing visible regions: ${missing.join(", ")}\n${JSON.stringify(
+        layout,
+        null,
+        2,
+      )}`,
+    );
+  }
+
+  if (layout.panel.height < 320) {
+    throw new Error(
+      `Sage AI Chat panel collapsed below MVP height: ${Math.round(layout.panel.height)}px\n${JSON.stringify(
+        layout,
+        null,
+        2,
+      )}`,
+    );
+  }
+  if (layout.transcript.height < 80) {
+    throw new Error(
+      `Sage AI Chat stream collapsed below usable transcript height: ${Math.round(
+        layout.transcript.height,
+      )}px\n${JSON.stringify(layout, null, 2)}`,
+    );
+  }
+  if (layout.composer.height < 44) {
+    throw new Error(
+      `Sage AI Chat composer collapsed below usable control height: ${Math.round(
+        layout.composer.height,
+      )}px\n${JSON.stringify(layout, null, 2)}`,
+    );
+  }
+
+  const overlapX =
+    Math.min(layout.panel.right, layout.commandDeck.right) - Math.max(layout.panel.left, layout.commandDeck.left);
+  const overlapY =
+    Math.min(layout.panel.bottom, layout.commandDeck.bottom) - Math.max(layout.panel.top, layout.commandDeck.top);
+  if (overlapX > 1 && overlapY > 1) {
+    throw new Error(`Sage AI chat panel overlaps the Command Deck\n${JSON.stringify(layout, null, 2)}`);
   }
 }
 

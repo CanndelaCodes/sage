@@ -3,7 +3,7 @@
 Date: 2026-06-04
 Operator: Codex
 Build: Windows overlay MVP shell verification after Liquid Linear transparency pass
-Verification build SHA: `01aecb784212`
+Verification build SHA: `741b70695473`
 
 ## Preconditions
 
@@ -50,7 +50,7 @@ Verification build SHA: `01aecb784212`
 - [x] Sage AI Chat exposes session, transport, delivery, and Gateway session-state facts plus visible transcript, composer, Send, Stop, and New session controls.
 - [x] Sage AI Chat actions use the existing Gateway chat protocol: `chat.history`, `chat.send`, and `chat.abort`, with overlay sends using `deliver: false`.
 - [x] Sage AI Chat tracks incoming Gateway `chat` events for streaming, final, aborted, and error states.
-- [x] Sage AI Chat visual contract prevents the panel body from collapsing underneath the Command Deck.
+- [x] Sage AI Chat visual contract and packaged Electron smoke prevent the panel body from collapsing underneath or overlapping the Command Deck.
 - [x] Gateway disconnected, reconnecting, loading, refreshing, and error states render explicit overlay callouts and toolbar labels.
 - [x] Gateway-backed toolbar, row, and Agent Workspace actions disable with reasons when the gateway is unavailable or busy.
 - [x] Agent Workspace active-operation controls expose cancel, pause, ask for update, increase budget, reassign, and request review actions.
@@ -112,8 +112,8 @@ Verification build SHA: `01aecb784212`
 - Visual review render screenshot path: `apps/windows-overlay/dist/overlay-visual-review-render.png`
 - Visual review machine report path: `apps/windows-overlay/dist/overlay-visual-review-report.json`
 - Current verification update: `pnpm --dir apps/windows-overlay smoke:electron` passed on
-  2026-06-04 after the Liquid Linear transparency pass. The packaged overlay reported
-  `buildSha: 01aecb784212`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`,
+  2026-06-04 after the overlay-native chat layout hardening pass. The packaged overlay reported
+  `buildSha: 741b70695473`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`,
   `rendererErrors: 0`,
   four `sageos.control` calls for pause, resume, stop, and emergency stop, verified the
   availability-aware Voice entry state, verified first-pass keyboard Tab order through Pause,
@@ -121,7 +121,9 @@ Verification build SHA: `01aecb784212`
   quick-action ArrowDown, ArrowRight, End, ArrowLeft, and Home navigation, verified critical
   toolbar, launcher, HUD, and Edge Rail text/control fit with no clipping or overlap failures,
   verified `prefers-reduced-motion: reduce` in Electron with no visible critical-control motion
-  durations above 1ms, and refreshed
+  durations above 1ms, verified the overlay-native Sage AI Chat facts, transcript, composer,
+  Send, Stop, and New session controls, failed on collapsed chat panel/transcript/composer
+  heights, failed on Sage AI Chat panel overlap with the Command Deck, and refreshed
   the full desktop-underlay, reduced-motion full, bright, edge-left, dark edge, text-heavy edge, browser edge, IDE edge, desktop-underlay HUD, and IDE HUD
   screenshots above.
 - Visual review companion update: `pnpm --dir apps/windows-overlay review:visual:all` passed
@@ -141,7 +143,10 @@ Verification build SHA: `01aecb784212`
   ARIA labels for chat controls. A packaged Electron smoke initially caught a `Stop` button
   accessibility-name collision, then passed after chat controls received disambiguating ARIA labels.
   Visual inspection then caught the chat panel body collapsing underneath the Command Deck; the
-  visual contract now enforces explicit chat panel rows and `min-height: 336px`.
+  visual contract now enforces explicit chat panel rows and `min-height: 336px`. A follow-up
+  smoke-script TDD check first failed because the packaged Electron smoke had no runtime
+  `assertSageAiChatPanelLayout(page)` guard, then passed after the smoke added visible-region,
+  minimum-height, accessible-control, and no-Command-Deck-overlap assertions.
 - Apple+Linear glass correction: the current visual contract forbids the live overlay dot-matrix
   texture, requires the live overlay root to avoid full-screen blur, and requires clear glass,
   edge-light, inner-sheen, panel, and control material tokens.
