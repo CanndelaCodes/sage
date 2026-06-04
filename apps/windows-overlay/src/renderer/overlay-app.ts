@@ -2914,6 +2914,68 @@ function readRecordNumber(
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
+function pcManagementWorkspaceFacts(state: SageOsOverlayStatusState): AgentWorkspaceView["facts"] {
+  const status = state.status;
+  const checks = systemChecksFromObservation(latestSystemObservationRecord(state));
+  const runtime = findSystemCheck(checks, /runtime/);
+  const processes = findSystemCheck(checks, /process/);
+  const disk = findSystemCheck(checks, /disk|storage/);
+  const power = findSystemCheck(checks, /power|battery/);
+  const updates = findSystemCheck(checks, /update|hotfix/);
+  const services = findSystemCheck(checks, /services?/);
+  const startup = findSystemCheck(checks, /startup/);
+  const scheduledTasks = findSystemCheck(checks, /scheduled.*task|task scheduler/);
+  const files = fileWorkspaceSummary(state);
+
+  return [
+    { label: "Enabled sources", value: status.sources.enabled.join(", ") || "None" },
+    { label: "Disabled sources", value: status.sources.disabled.join(", ") || "None" },
+    { label: "Failing sources", value: status.sources.failing.join(", ") || "None" },
+    { label: "Recent observations", value: String(status.observations.recent) },
+    { label: "Redacted observations", value: String(status.observations.redacted) },
+    { label: "Observation total", value: String(status.observations.total) },
+    { label: "Disk", value: formatSystemCheckStatus(disk) },
+    {
+      label: "CPU/RAM",
+      value: formatSystemCheckPair("Runtime", runtime, "Processes", processes),
+    },
+    { label: "Power", value: formatSystemCheckStatus(power) },
+    { label: "Updates", value: formatSystemCheckStatus(updates) },
+    { label: "Services", value: formatSystemCheckStatus(services) },
+    { label: "Startup apps", value: formatSystemCheckStatus(startup) },
+    { label: "Scheduled tasks", value: formatSystemCheckStatus(scheduledTasks) },
+    { label: "Cleanup opportunities", value: formatCleanupOpportunities(files) },
+    { label: "Broken services", value: formatBrokenServices(services) },
+    { label: "Safe repair actions", value: formatSafeRepairActions(status) },
+  ];
+}
+
+function formatCleanupOpportunities(files: FilesWorkspaceSummary): string {
+  const storage =
+    files.storagePressure === "Not reported" ? "storage not reported" : files.storagePressure;
+  return `${files.cleanupPlanCount} cleanup / ${storage}`;
+}
+
+function formatBrokenServices(check: OverlaySystemCheck | undefined): string {
+  const count =
+    readRecordNumber(check?.details, "stoppedAutoCount") ??
+    readRecordNumber(check?.details, "brokenCount");
+  if (typeof count === "number") {
+    return `${count} reported`;
+  }
+  if (check?.status === "warning" || check?.status === "failed") {
+    return check.summary || check.status;
+  }
+  return check ? "0 reported" : "Not reported";
+}
+
+function formatSafeRepairActions(status: SageOsOverlayStatusState["status"]): string {
+  const repairs = status.incidents.filter(
+    (incident) => incident.autoRepairSafe && Boolean(incident.repairAction),
+  );
+  return `${repairs.length} safe / ${repairs[0]?.repairAction?.label ?? "None"}`;
+}
+
 function systemWorkspaceModel(
   state: SageOsOverlayStatusState,
   id: string,
@@ -2959,14 +3021,7 @@ function systemWorkspaceModel(
       title: "PC Management",
       eyebrow: "System / observing",
       detail: "Read-only full-PC observation coverage for apps, sources, and local system state.",
-      facts: [
-        { label: "Enabled sources", value: status.sources.enabled.join(", ") || "None" },
-        { label: "Disabled sources", value: status.sources.disabled.join(", ") || "None" },
-        { label: "Failing sources", value: status.sources.failing.join(", ") || "None" },
-        { label: "Recent observations", value: String(status.observations.recent) },
-        { label: "Redacted observations", value: String(status.observations.redacted) },
-        { label: "Observation total", value: String(status.observations.total) },
-      ],
+      facts: pcManagementWorkspaceFacts(state),
       actions: [],
     };
   }

@@ -95,7 +95,10 @@ export async function readSystemStatusSnapshot(
   const execJson = params.execPowerShellJson ?? runPowerShellJson;
   checks.push(await defenderCheck(execJson));
   checks.push(await startupCheck(execJson));
+  checks.push(await scheduledTasksCheck(execJson));
   checks.push(await diskCheck(execJson));
+  checks.push(await powerCheck(execJson));
+  checks.push(await updatesCheck(execJson));
   checks.push(await servicesCheck(execJson));
   checks.push(await processesCheck(execJson));
   checks.push(await portsCheck(execJson));
@@ -296,6 +299,34 @@ async function startupCheck(
   }
 }
 
+async function scheduledTasksCheck(
+  execJson: (command: string) => Promise<unknown>,
+): Promise<SageOsSystemCheck> {
+  try {
+    const rows = asArray(
+      await execJson(
+        "@(Get-ScheduledTask | Select-Object -First 50 TaskName,TaskPath,State) | ConvertTo-Json -Compress",
+      ),
+    ).map(asRecord);
+    return {
+      id: "scheduled_tasks",
+      label: "Scheduled Tasks",
+      status: rows.length > 40 ? "warning" : "ok",
+      summary: `${rows.length} scheduled task(s) visible.`,
+      details: {
+        count: rows.length,
+        entries: rows.slice(0, 10).map((row) => ({
+          name: readString(row.TaskName),
+          path: readString(row.TaskPath),
+          state: readString(row.State),
+        })),
+      },
+    };
+  } catch (err) {
+    return unavailableCheck("scheduled_tasks", "Scheduled Tasks", err);
+  }
+}
+
 async function diskCheck(
   execJson: (command: string) => Promise<unknown>,
 ): Promise<SageOsSystemCheck> {
@@ -317,7 +348,7 @@ async function diskCheck(
       label: "Disk",
       status: low ? "warning" : "ok",
       summary: low
-        ? `Low disk space on ${low.deviceId || "a local disk"}: ${low.freePercent}% free.`
+        ? `Low disk space on ${formatDiskDeviceLabel(low.deviceId)} ${low.freePercent}% free.`
         : `${disks.length} local disk(s) checked.`,
       details: { disks },
     };
@@ -326,21 +357,86 @@ async function diskCheck(
   }
 }
 
+function formatDiskDeviceLabel(deviceId: string | undefined): string {
+  return deviceId ? (deviceId.endsWith(":") ? deviceId : `${deviceId}:`) : "a local disk:";
+}
+
+async function powerCheck(
+  execJson: (command: string) => Promise<unknown>,
+): Promise<SageOsSystemCheck> {
+  try {
+    const rows = asArray(
+      await execJson(
+        "@(Get-CimInstance Win32_Battery | Select-Object BatteryStatus,EstimatedChargeRemaining) | ConvertTo-Json -Compress",
+      ),
+    ).map(asRecord);
+    const batteries = rows.map((row) => ({
+      status: readNumber(row.BatteryStatus),
+      chargePercent: readNumber(row.EstimatedChargeRemaining),
+    }));
+    const low = batteries.find(
+      (battery) => typeof battery.chargePercent === "number" && battery.chargePercent < 15,
+    );
+    return {
+      id: "power",
+      label: "Power",
+      status: low ? "warning" : "ok",
+      summary:
+        batteries.length > 0
+          ? `${batteries.length} battery/power record(s) visible.`
+          : "No battery/power records visible.",
+      details: { batteries },
+    };
+  } catch (err) {
+    return unavailableCheck("power", "Power", err);
+  }
+}
+
+async function updatesCheck(
+  execJson: (command: string) => Promise<unknown>,
+): Promise<SageOsSystemCheck> {
+  try {
+    const rows = asArray(
+      await execJson(
+        "@(Get-HotFix | Sort-Object InstalledOn -Descending | Select-Object -First 20 HotFixID,InstalledOn,Description) | ConvertTo-Json -Compress",
+      ),
+    ).map(asRecord);
+    return {
+      id: "updates",
+      label: "Updates",
+      status: "ok",
+      summary: `${rows.length} installed update(s) visible.`,
+      details: {
+        count: rows.length,
+        latest: rows.slice(0, 5).map((row) => ({
+          hotfixId: readString(row.HotFixID),
+          installedOn: readString(row.InstalledOn),
+          description: readString(row.Description),
+        })),
+      },
+    };
+  } catch (err) {
+    return unavailableCheck("updates", "Updates", err);
+  }
+}
+
 async function servicesCheck(
   execJson: (command: string) => Promise<unknown>,
 ): Promise<SageOsSystemCheck> {
   try {
-    const count = readNumber(
+    const data = asRecord(
       await execJson(
-        "(Get-Service | Where-Object {$_.Status -eq 'Running'} | Measure-Object).Count | ConvertTo-Json -Compress",
+        "$running = (Get-Service | Where-Object {$_.Status -eq 'Running'} | Measure-Object).Count; $stoppedAuto = (Get-CimInstance Win32_Service | Where-Object {$_.StartMode -eq 'Auto' -and $_.State -ne 'Running'} | Measure-Object).Count; [pscustomobject]@{RunningCount=$running;StoppedAutoCount=$stoppedAuto} | ConvertTo-Json -Compress",
       ),
     );
+    const runningCount = readNumber(data.RunningCount) ?? 0;
+    const stoppedAutoCount = readNumber(data.StoppedAutoCount) ?? 0;
     return {
       id: "services",
       label: "Services",
-      status: "ok",
-      summary: `${count ?? 0} running service(s) visible.`,
-      details: { runningCount: count ?? 0 },
+      status: stoppedAutoCount > 0 ? "warning" : "ok",
+      summary: `${runningCount} running service(s), ${stoppedAutoCount} automatic stopped service(s) visible.`,
+      details: { runningCount, stoppedAutoCount },
     };
   } catch (err) {
     return unavailableCheck("services", "Services", err);

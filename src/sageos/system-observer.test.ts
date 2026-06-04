@@ -242,11 +242,20 @@ describe("SageOS system observer", () => {
         if (command.includes("Win32_StartupCommand")) {
           return [{ Name: "OneDrive", Location: "HKCU", User: "jason", Command: "not selected" }];
         }
+        if (command.includes("Get-ScheduledTask")) {
+          return [{ TaskName: "SageOS", TaskPath: "\\", State: "Ready" }];
+        }
         if (command.includes("Win32_LogicalDisk")) {
           return [{ DeviceID: "C:", FreeSpace: 5, Size: 100 }];
         }
+        if (command.includes("Win32_Battery")) {
+          return [{ BatteryStatus: 2, EstimatedChargeRemaining: 87 }];
+        }
+        if (command.includes("Get-HotFix")) {
+          return [{ HotFixID: "KB5030000", InstalledOn: "2026-05-20" }];
+        }
         if (command.includes("Get-Service")) {
-          return 42;
+          return { RunningCount: 42, StoppedAutoCount: 1 };
         }
         if (command.includes("Get-Process")) {
           return [
@@ -270,16 +279,34 @@ describe("SageOS system observer", () => {
       checks: expect.arrayContaining([
         expect.objectContaining({ id: "defender", status: "ok" }),
         expect.objectContaining({ id: "startup", status: "ok" }),
+        expect.objectContaining({ id: "scheduled_tasks", status: "ok" }),
         expect.objectContaining({ id: "disk", status: "warning" }),
-        expect.objectContaining({ id: "services", status: "ok" }),
+        expect.objectContaining({ id: "power", status: "ok" }),
+        expect.objectContaining({ id: "updates", status: "ok" }),
+        expect.objectContaining({ id: "services", status: "warning" }),
         expect.objectContaining({ id: "processes", status: "ok" }),
         expect.objectContaining({ id: "ports", status: "ok" }),
       ]),
     });
     const startup = snapshot.checks.find((check) => check.id === "startup");
+    const scheduledTasks = snapshot.checks.find((check) => check.id === "scheduled_tasks");
+    const disk = snapshot.checks.find((check) => check.id === "disk");
+    const power = snapshot.checks.find((check) => check.id === "power");
+    const updates = snapshot.checks.find((check) => check.id === "updates");
+    const services = snapshot.checks.find((check) => check.id === "services");
     const processes = snapshot.checks.find((check) => check.id === "processes");
     const ports = snapshot.checks.find((check) => check.id === "ports");
     expect(JSON.stringify(startup)).not.toContain("not selected");
+    expect(scheduledTasks?.summary).toBe("1 scheduled task(s) visible.");
+    expect(disk?.summary).toBe("Low disk space on C: 5% free.");
+    expect(power?.summary).toBe("1 battery/power record(s) visible.");
+    expect(updates?.summary).toBe("1 installed update(s) visible.");
+    expect(services?.summary).toBe(
+      "42 running service(s), 1 automatic stopped service(s) visible.",
+    );
+    expect((services?.details as { stoppedAutoCount?: number } | undefined)?.stoppedAutoCount).toBe(
+      1,
+    );
     expect(processes?.summary).toBe("2 top process(es) sampled.");
     expect((processes?.details as { samples?: unknown[] } | undefined)?.samples).toEqual(
       expect.arrayContaining([expect.objectContaining({ name: "Code", pid: 101 })]),

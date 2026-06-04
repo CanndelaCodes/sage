@@ -316,6 +316,16 @@ const state = {
         checkedAt: "2026-06-01T12:54:00.000Z",
         checks: [
           {
+            id: "runtime",
+            label: "Runtime",
+            status: "ok",
+            summary: "Host uptime 120s, memory used 52%.",
+            details: {
+              cpuCount: 16,
+              memoryUsedPercent: 52,
+            },
+          },
+          {
             id: "defender",
             label: "Defender",
             status: "warning",
@@ -332,6 +342,39 @@ const state = {
             label: "Scheduled Tasks",
             status: "ok",
             summary: "12 scheduled task(s) visible.",
+          },
+          {
+            id: "disk",
+            label: "Disk",
+            status: "warning",
+            summary: "Low disk space on C: 5% free.",
+          },
+          {
+            id: "power",
+            label: "Power",
+            status: "ok",
+            summary: "1 battery/power record(s) visible.",
+          },
+          {
+            id: "updates",
+            label: "Updates",
+            status: "ok",
+            summary: "1 installed update(s) visible.",
+          },
+          {
+            id: "services",
+            label: "Services",
+            status: "warning",
+            summary: "41 running service(s), 1 automatic stopped service(s) visible.",
+            details: {
+              stoppedAutoCount: 1,
+            },
+          },
+          {
+            id: "processes",
+            label: "Processes",
+            status: "ok",
+            summary: "2 top process(es) sampled.",
           },
           {
             id: "firewall",
@@ -914,6 +957,22 @@ describe("overlay renderer model", () => {
         { label: "Enabled sources", value: "apps, clipboard" },
         { label: "Recent observations", value: "4" },
         { label: "Redacted observations", value: "2" },
+        { label: "Disk", value: "warning / Low disk space on C: 5% free." },
+        {
+          label: "CPU/RAM",
+          value: "Runtime: Host uptime 120s, memory used 52%. / Processes: 2 top process(es) sampled.",
+        },
+        { label: "Power", value: "ok / 1 battery/power record(s) visible." },
+        { label: "Updates", value: "ok / 1 installed update(s) visible." },
+        {
+          label: "Services",
+          value: "warning / 41 running service(s), 1 automatic stopped service(s) visible.",
+        },
+        { label: "Startup apps", value: "ok / 3 startup item(s) visible." },
+        { label: "Scheduled tasks", value: "ok / 12 scheduled task(s) visible." },
+        { label: "Cleanup opportunities", value: "0 cleanup / storage not reported" },
+        { label: "Broken services", value: "1 reported" },
+        { label: "Safe repair actions", value: "1 safe / Replay memory queue" },
       ]),
     );
     expect(observationsModel.workspace).toMatchObject({
