@@ -1463,6 +1463,7 @@ function buildOverviewGroups(state: SageOsOverlayStatusState): OverlayOverviewGr
             "warning",
           )}`,
         },
+        autonomyControlRow(status),
         nextScheduledWorkRow(status),
         recentChangeRow(state),
       ],
@@ -1565,6 +1566,14 @@ function nextScheduledWorkRow(status: SageOsOverlayStatusState["status"]): Overl
     label: "Scheduled Work",
     value: next?.label ?? "None",
     detail: next?.at ?? "No scheduled work reported",
+  };
+}
+
+function autonomyControlRow(status: SageOsOverlayStatusState["status"]): OverlayOverviewRow {
+  return {
+    label: "Autonomy",
+    value: status.supervisor.paused ? "Resume/Stop" : "Pause/Stop",
+    detail: "Narrow via Policy",
   };
 }
 

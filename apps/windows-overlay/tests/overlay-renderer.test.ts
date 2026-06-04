@@ -515,6 +515,11 @@ describe("overlay renderer model", () => {
       value: "Approval",
       detail: "Approve repair / local_reversible_write",
     });
+    expect(model.overview[1].rows).toContainEqual({
+      label: "Autonomy",
+      value: "Pause/Stop",
+      detail: "Narrow via Policy",
+    });
     expect(model.overview[2].rows).toContainEqual({
       label: "Observations",
       value: "4 recent",
