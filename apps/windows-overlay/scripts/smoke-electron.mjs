@@ -90,6 +90,7 @@ async function smokeFullOverlay(gatewayUrl, rendererErrors) {
     await assertPreloadBridge(page);
     await assertVoiceEntry(page);
     await assertKeyboardFocusOrder(page);
+    await assertQuickActionArrowNavigation(page);
 
     await page.screenshot({
       path: path.join(screenshotDir, "overlay-smoke-styled.png"),
@@ -524,6 +525,34 @@ async function assertKeyboardFocusOrder(page) {
     const focusedName = await readFocusedControlName(page);
     assertEqual(focusedName, expectedName, `Keyboard focus order should visit ${expectedName}`);
   }
+}
+
+async function assertQuickActionArrowNavigation(page) {
+  await page.getByRole("button", { name: "New employee", exact: true }).focus();
+  await page.keyboard.press("ArrowRight");
+  assertEqual(
+    await readFocusedControlName(page),
+    "New task",
+    "ArrowRight should move launcher quick-action focus forward",
+  );
+  await page.keyboard.press("End");
+  assertEqual(
+    await readFocusedControlName(page),
+    "Repair",
+    "End should move launcher quick-action focus to the final action",
+  );
+  await page.keyboard.press("ArrowLeft");
+  assertEqual(
+    await readFocusedControlName(page),
+    "App/widget",
+    "ArrowLeft should move launcher quick-action focus backward",
+  );
+  await page.keyboard.press("Home");
+  assertEqual(
+    await readFocusedControlName(page),
+    "New employee",
+    "Home should move launcher quick-action focus to the first action",
+  );
 }
 
 async function readFocusedControlName(page) {

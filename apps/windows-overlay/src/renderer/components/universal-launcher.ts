@@ -32,6 +32,60 @@ export type UniversalLauncherRunState = {
   title?: string;
 };
 
+export function getUniversalLauncherQuickActionFocusIndex(
+  currentIndex: number,
+  enabledActions: boolean[],
+  key: string,
+): number | null {
+  const enabledIndexes = enabledActions
+    .map((enabled, index) => (enabled ? index : -1))
+    .filter((index) => index >= 0);
+  if (!enabledIndexes.length) {
+    return null;
+  }
+
+  if (key === "Home") {
+    return enabledIndexes[0] ?? null;
+  }
+  if (key === "End") {
+    return enabledIndexes[enabledIndexes.length - 1] ?? null;
+  }
+
+  const direction =
+    key === "ArrowRight" || key === "ArrowDown" ? 1 : key === "ArrowLeft" || key === "ArrowUp" ? -1 : 0;
+  if (!direction) {
+    return null;
+  }
+
+  const currentEnabledIndex = enabledIndexes.indexOf(currentIndex);
+  const baseIndex = currentEnabledIndex >= 0 ? currentEnabledIndex : 0;
+  const nextIndex = (baseIndex + direction + enabledIndexes.length) % enabledIndexes.length;
+  return enabledIndexes[nextIndex] ?? null;
+}
+
+function focusUniversalLauncherQuickAction(
+  event: KeyboardEvent,
+  currentIndex: number,
+  actions: UniversalLauncherQuickAction[],
+) {
+  const nextIndex = getUniversalLauncherQuickActionFocusIndex(
+    currentIndex,
+    actions.map((action) => !action.disabled),
+    event.key,
+  );
+  if (nextIndex === null) {
+    return;
+  }
+
+  event.preventDefault();
+  const actionButtons = Array.from(
+    ((event.currentTarget as HTMLElement).parentElement ?? null)?.querySelectorAll<HTMLButtonElement>(
+      "[data-launcher-quick-action]",
+    ) ?? [],
+  );
+  actionButtons[nextIndex]?.focus();
+}
+
 export function getUniversalLauncherVoiceState(params: {
   voiceEnabled?: boolean;
   voiceAvailable?: boolean;
@@ -144,13 +198,16 @@ export function renderUniversalLauncher(props: UniversalLauncherProps) {
         ? html`
             <div class="universal-launcher__quick-actions" aria-label="SageOS quick actions">
               ${props.quickActions.map(
-                (action) => html`
+                (action, index) => html`
                   <button
                     class="overlay-button"
                     type="button"
+                    data-launcher-quick-action=${action.id}
                     title=${action.disabledReason ?? action.command}
                     ?disabled=${action.disabled}
                     @click=${() => props.onQuickAction?.(action)}
+                    @keydown=${(event: KeyboardEvent) =>
+                      focusUniversalLauncherQuickAction(event, index, props.quickActions ?? [])}
                   >
                     ${action.label}
                   </button>

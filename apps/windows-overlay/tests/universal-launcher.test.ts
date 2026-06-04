@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  getUniversalLauncherQuickActionFocusIndex,
   getUniversalLauncherRunState,
   getUniversalLauncherVoiceState,
 } from "../src/renderer/components/universal-launcher.js";
@@ -69,5 +70,20 @@ describe("Universal Launcher voice control", () => {
     expect(
       getUniversalLauncherRunState({ value: "check SageOS health", launcherDisabled: false }),
     ).toEqual({ disabled: false, title: undefined });
+  });
+});
+
+describe("Universal Launcher keyboard navigation", () => {
+  it("moves quick-action focus with arrow, home, and end keys while skipping disabled actions", () => {
+    const enabledActions = [true, false, true, true];
+
+    expect(getUniversalLauncherQuickActionFocusIndex(0, enabledActions, "ArrowRight")).toBe(2);
+    expect(getUniversalLauncherQuickActionFocusIndex(2, enabledActions, "ArrowLeft")).toBe(0);
+    expect(getUniversalLauncherQuickActionFocusIndex(3, enabledActions, "ArrowRight")).toBe(0);
+    expect(getUniversalLauncherQuickActionFocusIndex(0, enabledActions, "ArrowLeft")).toBe(3);
+    expect(getUniversalLauncherQuickActionFocusIndex(3, enabledActions, "Home")).toBe(0);
+    expect(getUniversalLauncherQuickActionFocusIndex(0, enabledActions, "End")).toBe(3);
+    expect(getUniversalLauncherQuickActionFocusIndex(0, [false, false], "ArrowRight")).toBeNull();
+    expect(getUniversalLauncherQuickActionFocusIndex(0, enabledActions, "Tab")).toBeNull();
   });
 });
