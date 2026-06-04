@@ -152,6 +152,50 @@ export type SageOsMemoryDoctorSummary = {
 
 export type SageOsHealthState = "ok" | "degraded" | "disabled" | "unknown";
 
+export type SageOsMemoryTelegramIngestionSummary = {
+  status: SageOsHealthState;
+  recent: number;
+  failed: number;
+  lastIngestedAt?: string;
+  source?: string;
+  path?: string;
+};
+
+export type SageOsMemoryWikiExportSummary = {
+  status: SageOsHealthState;
+  exportedFiles: number;
+  latestPath?: string;
+  checkedAt?: string;
+  proof?: string;
+};
+
+export type SageOsRecentMemorySummary = {
+  total: number;
+  latestAt?: string;
+  refs?: string[];
+};
+
+export type SageOsMemoryReviewCardSummary = {
+  total: number;
+  pending: number;
+  stale?: number;
+  path?: string;
+};
+
+export type SageOsMemoryDuplicateStaleSummary = {
+  duplicates: number;
+  stale: number;
+  latestRef?: string;
+};
+
+export type SageOsMemoryGraphSummary = {
+  status: SageOsHealthState;
+  nodes?: number;
+  edges?: number;
+  orphaned?: number;
+  lastCheckedAt?: string;
+};
+
 export type SageOsIncidentRepairAction = {
   id: string;
   label: string;
@@ -192,6 +236,12 @@ export type SageOsStatusSnapshot = {
     canonical: "sage-memory" | "builtin" | "unknown";
     captureQueue: SageOsQueueSummary;
     doctor?: SageOsMemoryDoctorSummary;
+    telegramIngestion?: SageOsMemoryTelegramIngestionSummary;
+    wikiExport?: SageOsMemoryWikiExportSummary;
+    recentCaptures?: SageOsRecentMemorySummary;
+    reviewCards?: SageOsMemoryReviewCardSummary;
+    duplicateStaleCandidates?: SageOsMemoryDuplicateStaleSummary;
+    graph?: SageOsMemoryGraphSummary;
   };
   learning: {
     status: SageOsHealthState;

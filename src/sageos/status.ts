@@ -189,18 +189,36 @@ export function applySageOsMemoryDoctorSummary(
   snapshot: SageOsStatusSnapshot,
   doctor: SageOsMemoryDoctorSummary,
 ): SageOsStatusSnapshot {
+  const memoryStatus = snapshot.memory.status === "degraded" || !doctor.ok ? "degraded" : "ok";
   return createSageOsStatusSnapshot({
     ...snapshot,
     memory: {
       ...snapshot.memory,
-      status: snapshot.memory.status === "degraded" || !doctor.ok ? "degraded" : "ok",
+      status: memoryStatus,
       doctor,
+      wikiExport: summarizeMemoryWikiExport(doctor, memoryStatus),
     },
     incidents: [
       ...snapshot.incidents.filter((incident) => incident.id !== "incident_memory_doctor_failed"),
       ...memoryDoctorIncidents({ now: snapshot.generatedAt, doctor }),
     ],
   });
+}
+
+function summarizeMemoryWikiExport(
+  doctor: SageOsMemoryDoctorSummary,
+  status: SageOsStatusSnapshot["memory"]["status"],
+): NonNullable<SageOsStatusSnapshot["memory"]["wikiExport"]> {
+  const latestPath = doctor.exportedFiles[doctor.exportedFiles.length - 1];
+  const proof =
+    doctor.diagnosticNamespace ?? doctor.namespace ?? doctor.sessionNodePath ?? doctor.nodeId;
+  return {
+    status,
+    exportedFiles: doctor.exportedFiles.length,
+    checkedAt: doctor.checkedAt,
+    ...(latestPath ? { latestPath } : {}),
+    ...(proof ? { proof } : {}),
+  };
 }
 
 function summarizeObservations(

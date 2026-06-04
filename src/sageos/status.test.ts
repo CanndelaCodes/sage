@@ -865,6 +865,13 @@ describe("SageOS status collector", () => {
       exportedFiles: ["C:/Users/jason/SecondBrain/vault/Sage Memory Doctor.md"],
       diagnosticNamespace: "sage.sessions.diagnostics",
     });
+    expect(snapshot.memory.wikiExport).toMatchObject({
+      status: "degraded",
+      exportedFiles: 1,
+      latestPath: "C:/Users/jason/SecondBrain/vault/Sage Memory Doctor.md",
+      checkedAt: "2026-05-27T17:30:00.000Z",
+      proof: "sage.sessions.diagnostics",
+    });
     expect(snapshot.incidents).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

@@ -45,6 +45,44 @@ const state = {
       backend: "sage-memory",
       canonical: "sage-memory",
       captureQueue: { total: 6, pending: 2, failed: 1, path: "memory.jsonl" },
+      telegramIngestion: {
+        status: "ok",
+        recent: 3,
+        failed: 1,
+        lastIngestedAt: "2026-06-01T12:44:00.000Z",
+        source: "telegram:memory",
+      },
+      recentCaptures: {
+        total: 4,
+        latestAt: "2026-06-01T12:45:00.000Z",
+        refs: ["sage-memory/node_1", "sage-memory/node_2"],
+      },
+      reviewCards: {
+        total: 2,
+        pending: 1,
+        stale: 1,
+        path: "review-cards.json",
+      },
+      duplicateStaleCandidates: {
+        duplicates: 2,
+        stale: 1,
+        latestRef: "memory:duplicate_1",
+      },
+      graph: {
+        status: "ok",
+        nodes: 128,
+        edges: 342,
+        orphaned: 3,
+        lastCheckedAt: "2026-06-01T12:46:00.000Z",
+      },
+      doctor: {
+        ok: false,
+        checkedAt: "2026-06-01T12:47:00.000Z",
+        checks: 8,
+        warnings: 1,
+        failures: 1,
+        exportedFiles: ["C:/Users/jason/SecondBrain/vault/Sage Memory Doctor.md"],
+      },
     },
     learning: {
       status: "ok",
@@ -906,6 +944,30 @@ describe("overlay renderer model", () => {
       label: "Capture queue",
       value: "2 pending / 1 failed",
     });
+    expect(memoryModel.workspace.facts).toEqual(
+      expect.arrayContaining([
+        { label: "Memory health", value: "degraded / sage-memory canonical" },
+        {
+          label: "Telegram ingestion",
+          value: "ok / 3 recent / 1 failed / last 2026-06-01T12:44:00.000Z / telegram:memory",
+        },
+        {
+          label: "Wiki export proof",
+          value:
+            "1 file / latest C:/Users/jason/SecondBrain/vault/Sage Memory Doctor.md / checked 2026-06-01T12:47:00.000Z",
+        },
+        {
+          label: "Recent memories",
+          value: "4 captured / latest 2026-06-01T12:45:00.000Z / sage-memory/node_1, sage-memory/node_2",
+        },
+        { label: "Review cards", value: "1 pending / 2 total / 1 stale / review-cards.json" },
+        { label: "Duplicate/stale candidates", value: "2 duplicate / 1 stale / memory:duplicate_1" },
+        {
+          label: "Graph health",
+          value: "ok / 128 nodes / 342 edges / 3 orphaned / checked 2026-06-01T12:46:00.000Z",
+        },
+      ]),
+    );
     expect(policyModel.workspace).toMatchObject({
       title: "Policy",
       eyebrow: "System / execute_scoped",

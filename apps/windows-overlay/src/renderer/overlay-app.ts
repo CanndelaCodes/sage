@@ -2649,15 +2649,7 @@ function systemWorkspaceModel(
       title: "Memory",
       eyebrow: `System / ${status.memory.status}`,
       detail: `${status.memory.backend} is canonical through ${status.memory.canonical}.`,
-      facts: [
-        {
-          label: "Capture queue",
-          value: `${status.memory.captureQueue.pending} pending / ${status.memory.captureQueue.failed} failed`,
-        },
-        { label: "Queue total", value: String(status.memory.captureQueue.total) },
-        { label: "Queue path", value: status.memory.captureQueue.path ?? "Unknown" },
-        { label: "Doctor", value: status.memory.doctor?.ok === false ? "Needs review" : "OK" },
-      ],
+      facts: memoryWorkspaceFacts(status.memory),
       actions: [],
     };
   }
@@ -3278,6 +3270,7 @@ function formatNotificationPolicy(
 
 type OverlayNotifications = SageOsOverlayStatusState["status"]["notifications"];
 type OverlaySources = SageOsOverlayStatusState["status"]["sources"];
+type OverlayMemoryStatus = SageOsOverlayStatusState["status"]["memory"];
 
 function formatSourceSettings(sources: OverlaySources): string {
   return [
@@ -3292,6 +3285,124 @@ function formatNotificationSettings(notifications: OverlayNotifications): string
     notifications.telegram.enabled ? "Telegram enabled" : "Telegram disabled",
     `target ${notifications.telegram.target ?? "None"}`,
   ].join(" / ");
+}
+
+function memoryWorkspaceFacts(memory: OverlayMemoryStatus): AgentWorkspaceView["facts"] {
+  return [
+    { label: "Memory health", value: `${memory.status} / ${memory.canonical} canonical` },
+    {
+      label: "Capture queue",
+      value: `${memory.captureQueue.pending} pending / ${memory.captureQueue.failed} failed`,
+    },
+    { label: "Queue total", value: String(memory.captureQueue.total) },
+    { label: "Queue path", value: memory.captureQueue.path ?? "Unknown" },
+    { label: "Telegram ingestion", value: formatMemoryTelegramIngestion(memory) },
+    { label: "Wiki export proof", value: formatMemoryWikiExport(memory) },
+    { label: "Recent memories", value: formatRecentMemories(memory) },
+    { label: "Review cards", value: formatMemoryReviewCards(memory) },
+    { label: "Duplicate/stale candidates", value: formatMemoryDuplicateStaleCandidates(memory) },
+    { label: "Graph health", value: formatMemoryGraphHealth(memory) },
+    { label: "Doctor", value: memory.doctor?.ok === false ? "Needs review" : "OK" },
+  ];
+}
+
+function formatMemoryTelegramIngestion(memory: OverlayMemoryStatus): string {
+  const ingestion = memory.telegramIngestion;
+  if (!ingestion) {
+    return "Not reported";
+  }
+  const parts = [
+    ingestion.status,
+    `${ingestion.recent} recent`,
+    `${ingestion.failed} failed`,
+    ingestion.lastIngestedAt ? `last ${ingestion.lastIngestedAt}` : undefined,
+    ingestion.source,
+    ingestion.path,
+  ].filter(Boolean);
+  return parts.join(" / ");
+}
+
+function formatMemoryWikiExport(memory: OverlayMemoryStatus): string {
+  const wikiExport = memory.wikiExport ?? wikiExportFromDoctor(memory);
+  if (!wikiExport) {
+    return "Not reported";
+  }
+  const parts = [
+    countLabel(wikiExport.exportedFiles, "file"),
+    wikiExport.latestPath ? `latest ${wikiExport.latestPath}` : undefined,
+    wikiExport.checkedAt ? `checked ${wikiExport.checkedAt}` : undefined,
+  ].filter(Boolean);
+  return parts.join(" / ");
+}
+
+function wikiExportFromDoctor(
+  memory: OverlayMemoryStatus,
+): NonNullable<OverlayMemoryStatus["wikiExport"]> | undefined {
+  const doctor = memory.doctor;
+  if (!doctor) {
+    return undefined;
+  }
+  return {
+    status: doctor.ok ? "ok" : "degraded",
+    exportedFiles: doctor.exportedFiles.length,
+    latestPath: doctor.exportedFiles[doctor.exportedFiles.length - 1],
+    checkedAt: doctor.checkedAt,
+  };
+}
+
+function formatRecentMemories(memory: OverlayMemoryStatus): string {
+  const captures = memory.recentCaptures;
+  if (!captures) {
+    return "Not reported";
+  }
+  const parts = [
+    `${captures.total} captured`,
+    captures.latestAt ? `latest ${captures.latestAt}` : undefined,
+    formatList(captures.refs ?? []),
+  ].filter((part) => Boolean(part && part !== "None"));
+  return parts.join(" / ");
+}
+
+function formatMemoryReviewCards(memory: OverlayMemoryStatus): string {
+  const reviewCards = memory.reviewCards;
+  if (!reviewCards) {
+    return "Not reported";
+  }
+  const parts = [
+    `${reviewCards.pending} pending`,
+    `${reviewCards.total} total`,
+    reviewCards.stale !== undefined ? `${reviewCards.stale} stale` : undefined,
+    reviewCards.path,
+  ].filter(Boolean);
+  return parts.join(" / ");
+}
+
+function formatMemoryDuplicateStaleCandidates(memory: OverlayMemoryStatus): string {
+  const candidates = memory.duplicateStaleCandidates;
+  if (!candidates) {
+    return "Not reported";
+  }
+  const parts = [
+    `${candidates.duplicates} duplicate`,
+    `${candidates.stale} stale`,
+    candidates.latestRef,
+  ].filter(Boolean);
+  return parts.join(" / ");
+}
+
+function formatMemoryGraphHealth(memory: OverlayMemoryStatus): string {
+  const graph = memory.graph;
+  if (!graph) {
+    return "Not reported";
+  }
+  const parts = [
+    graph.status,
+    graph.nodes !== undefined ? `${graph.nodes} nodes` : undefined,
+    graph.edges !== undefined ? `${graph.edges} edges` : undefined,
+    graph.orphaned !== undefined ? `${graph.orphaned} orphaned` : undefined,
+    graph.lastCheckedAt ? `checked ${graph.lastCheckedAt}` : undefined,
+  ].filter(Boolean);
+  return parts.join(" / ");
 }
 
 function formatNotificationStatusDetail(notifications: OverlayNotifications): string {
