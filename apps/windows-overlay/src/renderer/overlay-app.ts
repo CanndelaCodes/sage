@@ -336,7 +336,7 @@ export function renderOverlayModel(
     launcher: {
       quickActions: buildUniversalLauncherQuickActions(state),
     },
-    overview: buildOverviewGroups(status),
+    overview: buildOverviewGroups(state),
     workspace: buildWorkspaceModel(state, opts.workspaceTarget ?? defaultWorkspaceTarget(state)),
     pinnedWidgets: buildPinnedWidgets(status, opts.pinnedWidgets),
     hud: buildCompactHudView(state, hudBadges),
@@ -1405,9 +1405,8 @@ function safeLocalStorage(): Pick<Storage, "getItem"> | null {
   }
 }
 
-function buildOverviewGroups(
-  status: SageOsOverlayStatusState["status"],
-): OverlayOverviewGroup[] {
+function buildOverviewGroups(state: SageOsOverlayStatusState): OverlayOverviewGroup[] {
+  const status = state.status;
   const urgentIncidents = countUrgentIncidents(status);
   const warningIncidents = status.incidents.filter(
     (incident) => incident.severity === "warning",
@@ -1465,6 +1464,7 @@ function buildOverviewGroups(
           )}`,
         },
         nextScheduledWorkRow(status),
+        recentChangeRow(state),
       ],
     },
     {
@@ -1566,6 +1566,88 @@ function nextScheduledWorkRow(status: SageOsOverlayStatusState["status"]): Overl
     value: next?.label ?? "None",
     detail: next?.at ?? "No scheduled work reported",
   };
+}
+
+type OverviewChangeEntry = {
+  at: string;
+  kind: string;
+  detail: string;
+};
+
+function recentChangeRow(state: SageOsOverlayStatusState): OverlayOverviewRow {
+  const latest = overviewChangeEntries(state).toSorted(
+    (a, b) => timestampSortValue(b.at) - timestampSortValue(a.at),
+  )[0];
+  return {
+    label: "Recent Change",
+    value: latest?.kind ?? "None",
+    detail: latest?.detail ?? "No recent changes reported",
+  };
+}
+
+function overviewChangeEntries(state: SageOsOverlayStatusState): OverviewChangeEntry[] {
+  return [
+    ...(state.approvals ?? []).flatMap((approval) => {
+      const entries: OverviewChangeEntry[] = [];
+      if (approval.requestedAt) {
+        entries.push({
+          at: approval.requestedAt,
+          kind: "Approval",
+          detail: `${approval.title} / ${approval.riskClass}`,
+        });
+      }
+      if (approval.resolvedAt) {
+        entries.push({
+          at: approval.resolvedAt,
+          kind: "Approval",
+          detail: `${approval.title} / ${approval.state}`,
+        });
+      }
+      return entries;
+    }),
+    ...state.status.incidents.flatMap((incident) =>
+      (incident.lastSeenAt ?? incident.firstSeenAt)
+        ? [
+            {
+              at: incident.lastSeenAt ?? incident.firstSeenAt,
+              kind: "Incident",
+              detail: `${incident.title} / ${incident.severity}`,
+            } satisfies OverviewChangeEntry,
+          ]
+        : [],
+    ),
+    ...(state.runs ?? []).flatMap((run) =>
+      (run.timeline ?? []).map((event) => ({
+        at: event.at,
+        kind: "Run",
+        detail: `${run.id}: ${formatAuditRunTimelineEvent(event)}`,
+      })),
+    ),
+    ...(state.codingReports ?? []).flatMap((report) => {
+      const at = report.finishedAt ?? report.startedAt ?? report.updatedAt ?? report.createdAt;
+      return at
+        ? [
+            {
+              at,
+              kind: "Report",
+              detail: `${report.objective} / ${report.outcome}`,
+            } satisfies OverviewChangeEntry,
+          ]
+        : [];
+    }),
+    ...(state.tasks ?? []).flatMap((task) => {
+      const at = task.updatedAt ?? task.createdAt;
+      return at
+        ? [
+            {
+              at,
+              kind: "Task",
+              detail: `${task.title} / ${task.state}`,
+            } satisfies OverviewChangeEntry,
+          ]
+        : [];
+    }),
+  ];
 }
 
 function securitySystemState(status: SageOsOverlayStatusState["status"]): "degraded" | "ok" {

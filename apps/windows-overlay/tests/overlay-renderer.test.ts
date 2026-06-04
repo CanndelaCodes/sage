@@ -510,6 +510,11 @@ describe("overlay renderer model", () => {
       value: "Supervisor tick",
       detail: "2026-06-01T13:05:00.000Z",
     });
+    expect(model.overview[1].rows).toContainEqual({
+      label: "Recent Change",
+      value: "Approval",
+      detail: "Approve repair / local_reversible_write",
+    });
     expect(model.overview[2].rows).toContainEqual({
       label: "Observations",
       value: "4 recent",
