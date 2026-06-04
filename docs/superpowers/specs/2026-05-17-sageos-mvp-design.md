@@ -1619,16 +1619,46 @@ Live proof:
 13. Pause and resume SageOS from the overlay and CLI.
 14. Verify audit trail contains every step.
 
-## Open Decisions
+## Settled MVP Decisions
 
-- Exact default autonomy tier for Jason's private environment.
-- Whether Telegram should receive full private summaries or only redacted summaries.
-- Where to store the event log and how long to retain each data class.
-- Whether Night Shift coding should use branches in the existing repo, separate clones, or an approved worktree policy.
-- Whether generated apps/widgets should live in `extensions/`, `apps/`, `docs/superpowers/artifacts/`, or a separate local workspace.
-- Whether screen/OCR/audio capture should be in MVP or explicitly post-MVP.
-- Which job/work apps get first deterministic workflow builders.
-- Which self-improvement changes can be auto-promoted without review.
+The initial open decisions from this May 17 draft were settled by implementation slices through
+2026-06-04 and are recorded in the superseding May 18 Command Center design. The current MVP
+defaults are:
+
+- Default autonomy tier: Jason's private MVP default is `execute_scoped`, exposed through
+  `sageos.mode` and `sageos.policy.defaultTier`. Destructive, external-write, production,
+  credential, policy, private-export, Windows-setting, release, and irreversible actions still require
+  approval or explicit pre-authorized playbooks.
+- Telegram privacy: Telegram receives redacted urgent alerts, digests, approval prompts, and task
+  completion reports by default. Private summaries require explicit
+  `sageos.privacy.telegramPrivateContent: true` opt-in.
+- Operational state: Agent specs, tasks, runs, approvals, observations, workflows, skills, apps,
+  collaboration, events, and reports are durable local SageOS state. Sage Memory remains canonical
+  durable memory and handoff substrate, not the primary operational state store.
+- Retention and capture: raw screen and audio capture are disabled by default. Raw screenshots/audio
+  are not stored unless explicitly enabled, and derived observations use local retention policy.
+- Night Shift workspace model: Night Shift uses existing approved repos/branches and task sessions
+  by default. Temporary clones or worktrees require explicit operator approval and must preserve
+  unrelated WIP.
+- Generated apps/widgets: MVP app and widget ideas are local `SageOsAppCandidate` records with
+  preview commands, artifact refs, policy scopes, and rollback refs. Shipping/install locations for
+  production widgets remain post-MVP.
+- Screen, OCR, audio, clipboard, and accessibility: these are explicit source-level opt-ins in MVP,
+  not default capture sources.
+- Self-improvement promotion: MVP self-improvement can draft workflows, skills, app candidates,
+  dry-runs, and review requests. Auto-promotion of policy, release, dependency, credential,
+  production, or user-facing behavior changes is out of scope without Jason review.
+
+## Post-MVP Decisions
+
+- Which job/work apps get first deterministic workflow builders beyond the MVP candidates already
+  surfaced in SageOS.
+- Whether any self-improvement class can be auto-promoted after enough evidence, policy, rollback,
+  and review automation exists.
+- Whether screen/OCR/audio/clipboard/accessibility should become more prominent after Jason accepts
+  the privacy model and Windows overlay UX.
+- Whether the default pinned widget order should change after Jason's product acceptance pass on real
+  Windows backgrounds.
 
 ## Recommended First Brick
 
