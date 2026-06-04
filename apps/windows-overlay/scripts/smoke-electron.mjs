@@ -20,6 +20,7 @@ const recordedMethods = [];
 const gateway = await startMockGateway(recordedMethods);
 
 try {
+  const buildSha = await readBuildSha();
   const hotkeySmoke = await smokeDefaultHotkeyToggle(gateway.url);
   const fullSmoke = await smokeFullOverlay(gateway.url);
   await smokeHudOverlay(gateway.url);
@@ -40,6 +41,7 @@ try {
     JSON.stringify(
       {
         ok: true,
+        buildSha,
         defaultHotkeyToggles: hotkeySmoke.defaultHotkeyToggles,
         passThroughProbeClicks: fullSmoke.passThroughProbeClicks,
         methods: recordedMethods.map((entry) => entry.method),
@@ -228,6 +230,18 @@ async function launchOverlay(env) {
       ...env,
     },
   });
+}
+
+async function readBuildSha() {
+  try {
+    const { stdout } = await execFileAsync("git", ["rev-parse", "--short=12", "HEAD"], {
+      cwd: repoRoot,
+      windowsHide: true,
+    });
+    return stdout.trim() || "unknown";
+  } catch {
+    return "unknown";
+  }
 }
 
 async function createPassThroughProbe(app) {
