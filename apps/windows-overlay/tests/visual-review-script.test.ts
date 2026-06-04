@@ -11,6 +11,9 @@ describe("overlay visual review generator", () => {
     expect(packageJson.scripts["review:visual:all"]).toBe(
       "node scripts/run-visual-review.mjs",
     );
+    expect(packageJson.scripts["review:visual:serve"]).toBe(
+      "node scripts/serve-visual-review.mjs",
+    );
   });
 
   it("builds a local review page for every smoke screenshot and MVP visual criterion", () => {
@@ -135,5 +138,29 @@ describe("overlay visual review generator", () => {
     expect(script.indexOf("review:visual")).toBeLessThan(
       script.indexOf("review:visual:verify"),
     );
+  });
+
+  it("serves the generated visual review packet on localhost", () => {
+    const script = readFileSync(
+      new URL("../scripts/serve-visual-review.mjs", import.meta.url),
+      "utf8",
+    );
+
+    for (const expected of [
+      "createServer",
+      "127.0.0.1",
+      "SAGEOS_VISUAL_REVIEW_PORT",
+      "overlay-visual-review.html",
+      "SageOS visual review available at",
+      "text/html; charset=utf-8",
+      "image/png",
+      "application/json; charset=utf-8",
+      "path.relative",
+      "startsWith(\"..\")",
+      "404",
+      "405",
+    ]) {
+      expect(script).toContain(expected);
+    }
   });
 });

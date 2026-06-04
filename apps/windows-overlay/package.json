@@ -9,6 +9,7 @@
     "start": "electron .",
     "review:visual": "node scripts/build-visual-review.mjs",
     "review:visual:all": "node scripts/run-visual-review.mjs",
+    "review:visual:serve": "node scripts/serve-visual-review.mjs",
     "review:visual:verify": "node scripts/verify-visual-review.mjs",
     "smoke": "powershell -ExecutionPolicy Bypass -File ../../scripts/sageos-windows-overlay.ps1",
     "smoke:electron": "node scripts/smoke-electron.mjs",

@@ -33,6 +33,7 @@ Verification build SHA: `741b70695473`
 - [x] `pnpm --dir apps/windows-overlay review:visual` generates a local Jason acceptance companion contact sheet from the smoke screenshots.
 - [x] `pnpm --dir apps/windows-overlay review:visual:verify` loads the generated contact sheet in Chrome or Edge and fails on broken images, missing criteria, blank output, blank/flat screenshot pixel content, or horizontal overflow.
 - [x] `pnpm --dir apps/windows-overlay review:visual:all` runs smoke capture, contact-sheet generation, and browser verification as one release gate.
+- [x] `pnpm --dir apps/windows-overlay review:visual:serve` serves the generated visual review packet on `127.0.0.1` for Codex/in-app browser review.
 - [x] `SAGEOS_OVERLAY_ACTIVE_MONITOR=auto|primary|<display id>` routes the overlay to the active, primary, or configured monitor.
 - [x] `powershell -ExecutionPolicy Bypass -File scripts/sageos-windows-overlay.ps1 -OpenMode hud` starts HUD-first mode.
 - [x] Compact HUD renders as a Liquid Linear command island with current operation title, progress detail, status, target kind, and live badges.
@@ -138,6 +139,12 @@ Verification build SHA: `741b70695473`
   The verifier also selects all criteria as accepted and confirms the recorder emits
   `humanAcceptance: "accepted"` with release state `All criteria accepted`, then flips one
   criterion to `mvp-blocker` and confirms the recorder emits release state `MVP blocked`.
+- Visual review localhost serving update: `pnpm --dir apps/windows-overlay review:visual:serve -- --port=58231`
+  served the generated acceptance packet at `http://127.0.0.1:58231/`. Shell checks verified
+  root HTML returned `200` with `text/html; charset=utf-8`, report JSON returned `200` with
+  `application/json; charset=utf-8`, and path traversal returned `404`. Codex opened the served
+  packet in the in-app browser and verified title `SageOS Overlay MVP Visual Review`, 24 decision
+  controls, 11 screenshots, and neutral state `Human decision incomplete`.
 - Sage AI Chat overlay update: focused TDD first failed on the missing chat model, missing
   `loadSageAiChatHistory`/`sendSageAiChatMessage`/`abortSageAiChatSession` helpers, missing
   controller chat send/abort methods, and missing Gateway `chat` event tracking. The focused tests
