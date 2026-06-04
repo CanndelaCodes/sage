@@ -70,7 +70,7 @@ Build: Windows overlay MVP shell verification after Liquid Linear material pass
 - [x] Command Deck exposes first-class Security and PC Management system resources with Agent Workspace drill-downs.
 - [x] Private and secret observation bodies are redacted in Command Deck resource rows and Agent Workspace detail.
 - [x] Approval workspace detail exposes scope, preview, rollback, evidence, linked resources, expiration, and approve/deny actions.
-- [x] Automated smoke captures the overlay over bright, text-heavy, and IDE-like visual backdrops.
+- [x] Automated smoke captures the overlay over bright, text-heavy, browser-like, and IDE-like visual backdrops.
 - [x] Edge Rail collapse keeps health, active-operation, approval, and incident indicators visible.
 - [x] Edge Rail health, active-operation, approval, and incident badges carry drill-down targets and expand to the relevant workspace.
 - [x] Pass-through surfaces can temporarily restore overlay pointer capture over active controls.
@@ -95,7 +95,7 @@ Build: Windows overlay MVP shell verification after Liquid Linear material pass
   availability-aware Voice entry state, and refreshed the full, bright, edge-left, text-heavy edge,
   browser edge, IDE edge, HUD, and IDE HUD screenshots above.
 - Current package gates after the latest verification sweep: `pnpm --dir apps/windows-overlay test`
-  passed with 13 files and 86 tests, `pnpm --dir apps/windows-overlay typecheck` passed, and
+  passed with 13 files and 87 tests, `pnpm --dir apps/windows-overlay typecheck` passed, and
   `pnpm --dir apps/windows-overlay build` passed.
 - Current shared SageOS/control-surface gate after the latest policy hardening sweep:
   `pnpm exec vitest run --config vitest.unit.config.ts src/sageos src/cli/sageos-cli.test.ts
@@ -116,6 +116,7 @@ src/telegram/bot.test.ts` passed with 28 files
   now enforces the Liquid Linear command glass token layer, browser-background smoke coverage,
   HUD and Edge Rail material tokens,
   ambient pinned widget glass, foreground stacking above specular material layers,
+  practical AA contrast for normal text tokens over ambient, command, focus, and summit glass,
   refraction/specular surface overlays, forced-colors fallback, focus states, reduced-motion handling,
   edge anchoring classes, state classes, text overflow guards, and full-overlay pinned widget flow.
   The `smoke:electron` package script

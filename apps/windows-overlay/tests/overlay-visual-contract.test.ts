@@ -87,6 +87,40 @@ describe("overlay visual contract", () => {
     }
   });
 
+  it("keeps normal text tokens at practical AA contrast over glass opacity floors", () => {
+    const textTokens = ["--sageos-text-primary", "--sageos-text-secondary", "--sageos-text-muted"] as const;
+    const surfaceTokens = [
+      "--sageos-liquid-ambient",
+      "--sageos-liquid-command",
+      "--sageos-liquid-focus",
+      "--sageos-liquid-summit",
+    ] as const;
+    const backdrops = [
+      ["dark", [0, 0, 0]],
+      ["bright", [248, 250, 252]],
+      ["browser", [238, 242, 247]],
+      ["ide", [2, 6, 23]],
+    ] as const;
+
+    for (const textToken of textTokens) {
+      const textColor = parseCssColor(readCssToken(textToken));
+
+      for (const surfaceToken of surfaceTokens) {
+        const surfaceColor = parseCssColor(readCssToken(surfaceToken));
+
+        for (const [backdropName, backdropColor] of backdrops) {
+          const effectiveSurface = blendRgba(surfaceColor, backdropColor);
+          const contrast = contrastRatio(textColor, effectiveSurface);
+
+          expect(
+            contrast,
+            `${textToken} over ${surfaceToken} on ${backdropName} backdrop should keep normal text readable`,
+          ).toBeGreaterThanOrEqual(4.5);
+        }
+      }
+    }
+  });
+
   it("has explicit classes for polished surface and control states", () => {
     const requiredSelectors = [
       ".overlay-shell",
@@ -165,3 +199,61 @@ describe("overlay visual contract", () => {
     }
   });
 });
+
+function readCssToken(token: string): string {
+  const match = styles.match(new RegExp(`${token}:\\s*([^;]+);`));
+  expect(match, `Expected ${token} to be defined`).not.toBeNull();
+  return match![1].trim();
+}
+
+function parseCssColor(value: string): readonly [number, number, number, number] {
+  const hexMatch = value.match(/^#(?<hex>[0-9a-fA-F]{6})$/);
+  if (hexMatch?.groups) {
+    const hex = hexMatch.groups.hex;
+    return [parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16), parseInt(hex.slice(4, 6), 16), 1];
+  }
+
+  const rgbaMatch = value.match(/^rgba\(\s*(?<r>\d+),\s*(?<g>\d+),\s*(?<b>\d+),\s*(?<a>0|1|0?\.\d+)\s*\)$/);
+  if (rgbaMatch?.groups) {
+    return [
+      Number(rgbaMatch.groups.r),
+      Number(rgbaMatch.groups.g),
+      Number(rgbaMatch.groups.b),
+      Number(rgbaMatch.groups.a),
+    ];
+  }
+
+  throw new Error(`Unsupported CSS color value: ${value}`);
+}
+
+function blendRgba(
+  foreground: readonly [number, number, number, number],
+  background: readonly [number, number, number],
+): readonly [number, number, number, number] {
+  const [r, g, b, alpha] = foreground;
+  return [
+    r * alpha + background[0] * (1 - alpha),
+    g * alpha + background[1] * (1 - alpha),
+    b * alpha + background[2] * (1 - alpha),
+    1,
+  ];
+}
+
+function contrastRatio(
+  foreground: readonly [number, number, number, number],
+  background: readonly [number, number, number, number],
+): number {
+  const foregroundLuminance = relativeLuminance(foreground);
+  const backgroundLuminance = relativeLuminance(background);
+  const lighter = Math.max(foregroundLuminance, backgroundLuminance);
+  const darker = Math.min(foregroundLuminance, backgroundLuminance);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function relativeLuminance(color: readonly [number, number, number, number]): number {
+  const [r, g, b] = color.map((channel) => {
+    const normalized = channel / 255;
+    return normalized <= 0.03928 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
