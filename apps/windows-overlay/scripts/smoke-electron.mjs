@@ -52,6 +52,7 @@ try {
           full: path.join(screenshotDir, "overlay-smoke-styled.png"),
           fullBright: path.join(screenshotDir, "overlay-smoke-full-bright.png"),
           edgeLeft: path.join(screenshotDir, "overlay-smoke-edge-left.png"),
+          edgeDark: path.join(screenshotDir, "overlay-smoke-edge-dark.png"),
           edgeTextHeavy: path.join(screenshotDir, "overlay-smoke-edge-text-heavy.png"),
           edgeBrowser: path.join(screenshotDir, "overlay-smoke-edge-browser.png"),
           edgeIde: path.join(screenshotDir, "overlay-smoke-edge-ide.png"),
@@ -137,6 +138,11 @@ async function smokeFullOverlay(gatewayUrl, rendererErrors) {
     await page.evaluate(() => window.sageOsOverlay?.setInteractivePointer(false));
     await page.screenshot({
       path: path.join(screenshotDir, "overlay-smoke-edge-left.png"),
+      animations: "disabled",
+    });
+    await setVisualBackdrop(page, "dark");
+    await page.screenshot({
+      path: path.join(screenshotDir, "overlay-smoke-edge-dark.png"),
       animations: "disabled",
     });
     await setVisualBackdrop(page, "text-heavy");
@@ -737,6 +743,12 @@ async function ensureVisualBackdropStyle(page) {
         background:
           linear-gradient(90deg, rgba(15, 23, 42, 0.08) 1px, transparent 1px) 0 0 / 32px 32px,
           linear-gradient(180deg, #f8fafc 0%, #dbeafe 100%);
+      }
+
+      .overlay-smoke-visual-backdrop--dark {
+        background:
+          radial-gradient(circle at 18% 12%, rgba(56, 189, 248, 0.16), transparent 28%),
+          linear-gradient(135deg, #020617 0%, #111827 46%, #030712 100%);
       }
 
       .overlay-smoke-visual-backdrop--text-heavy {

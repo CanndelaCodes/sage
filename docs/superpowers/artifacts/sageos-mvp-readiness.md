@@ -215,6 +215,13 @@ Root-gate fix slice verified after the blockers above:
   - `pnpm --dir apps/windows-overlay typecheck` passed.
   - `pnpm --dir apps/windows-overlay build` passed.
   - `pnpm --dir apps/windows-overlay smoke:electron` passed with `buildSha: 23dbe0068226`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, and `rendererErrors: 0`.
+- Dark-backdrop visual coverage closeout on 2026-06-04:
+  - `pnpm --dir apps/windows-overlay exec vitest run tests/smoke-script.test.ts --reporter verbose` first failed because the Electron smoke runner did not capture a dark synthetic backdrop, then passed with 1 file and 4 tests after `overlay-smoke-edge-dark.png` was added.
+  - `pnpm --dir apps/windows-overlay test` passed with 13 files and 89 tests.
+  - `pnpm --dir apps/windows-overlay typecheck` passed.
+  - `pnpm --dir apps/windows-overlay build` passed.
+  - `pnpm --dir apps/windows-overlay smoke:electron` passed with `buildSha: 82b329a738d1`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`, and `rendererErrors: 0`.
+  - `apps/windows-overlay/dist/overlay-smoke-edge-dark.png` was visually inspected and showed readable Edge Rail controls and pinned widgets over the dark synthetic backdrop.
 
 ## Current Green Areas
 
@@ -229,6 +236,7 @@ Root-gate fix slice verified after the blockers above:
 - The Memory workspace now exposes the full MVP Memory/SecondBrain surface: health, capture queue, Telegram ingestion, wiki export proof, recent captures, review cards, duplicate/stale candidates, graph health, and doctor status.
 - Universal Launcher quick actions now support keyboard arrow navigation from the command input with disabled-action skipping, and the Electron smoke exercises the quick-action keyboard path in the built overlay.
 - Electron smoke now fails on clipped or overlapping critical toolbar, launcher, HUD, and Edge Rail controls, adding runtime proof behind the visual text-fit requirement.
+- Overlay visual smoke now explicitly covers dark, bright, text-heavy, browser-like, and IDE-like representative backdrops.
 - Liquid Linear command glass is tokenized and test-covered in the overlay visual contract, including HUD, Edge Rail, ambient pinned widgets, foreground stacking above specular material layers, and practical AA normal-text contrast over representative Windows app backdrops.
 - Incidents now cover source failure, queue backlog, policy block, memory doctor failure, notification failure, worker failure, budget exhaustion, and security findings.
 - Web supplemental incident repair now uses the same safe repair method allowlist as the overlay for the generated safe incident classes.

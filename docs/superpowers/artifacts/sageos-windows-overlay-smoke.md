@@ -3,7 +3,7 @@
 Date: 2026-06-04
 Operator: Codex
 Build: Windows overlay MVP shell verification after Night Shift schedule pass
-Verification build SHA: `23dbe0068226`
+Verification build SHA: `82b329a738d1`
 
 ## Preconditions
 
@@ -72,7 +72,7 @@ Verification build SHA: `23dbe0068226`
 - [x] Command Deck exposes first-class Security and PC Management system resources with Agent Workspace drill-downs.
 - [x] Private and secret observation bodies are redacted in Command Deck resource rows and Agent Workspace detail.
 - [x] Approval workspace detail exposes scope, preview, rollback, evidence, linked resources, expiration, and approve/deny actions.
-- [x] Automated smoke captures the overlay over bright, text-heavy, browser-like, and IDE-like visual backdrops.
+- [x] Automated smoke captures the overlay over dark, bright, text-heavy, browser-like, and IDE-like visual backdrops.
 - [x] Automated smoke fails if critical toolbar, launcher, HUD, or Edge Rail controls clip text, have sub-20px hit targets, or overlap.
 - [x] Edge Rail collapse keeps health, active-operation, approval, and incident indicators visible.
 - [x] Edge Rail health, active-operation, approval, and incident badges carry drill-down targets and expand to the relevant workspace.
@@ -86,6 +86,7 @@ Verification build SHA: `23dbe0068226`
 - Full overlay screenshot path: `apps/windows-overlay/dist/overlay-smoke-styled.png`
 - Bright backdrop full overlay screenshot path: `apps/windows-overlay/dist/overlay-smoke-full-bright.png`
 - Left edge rail screenshot path: `apps/windows-overlay/dist/overlay-smoke-edge-left.png`
+- Dark backdrop edge rail screenshot path: `apps/windows-overlay/dist/overlay-smoke-edge-dark.png`
 - Text-heavy backdrop edge rail screenshot path: `apps/windows-overlay/dist/overlay-smoke-edge-text-heavy.png`
 - Browser backdrop edge rail screenshot path: `apps/windows-overlay/dist/overlay-smoke-edge-browser.png`
 - IDE-like backdrop edge rail screenshot path: `apps/windows-overlay/dist/overlay-smoke-edge-ide.png`
@@ -93,26 +94,28 @@ Verification build SHA: `23dbe0068226`
 - IDE-like backdrop HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud-ide.png`
 - Current verification update: `pnpm --dir apps/windows-overlay smoke:electron` passed on
   2026-06-04 after the Universal Launcher keyboard pass. The packaged overlay reported
-  `buildSha: 23dbe0068226`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`,
+  `buildSha: 82b329a738d1`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`,
   `rendererErrors: 0`,
   four `sageos.control` calls for pause, resume, stop, and emergency stop, verified the
   availability-aware Voice entry state, verified first-pass keyboard Tab order through Pause,
   Resume, Stop, Emergency stop, Full, Rail, Close, and the SageOS command input, verified
   quick-action ArrowDown, ArrowRight, End, ArrowLeft, and Home navigation, verified critical
   toolbar, launcher, HUD, and Edge Rail text/control fit with no clipping or overlap failures, and refreshed
-  the full, bright, edge-left, text-heavy edge, browser edge, IDE edge, HUD, and IDE HUD
+  the full, bright, edge-left, dark edge, text-heavy edge, browser edge, IDE edge, HUD, and IDE HUD
   screenshots above.
 - Current package gates after the latest verification sweep: `pnpm --dir apps/windows-overlay test`
   passed with 13 files and 89 tests, `pnpm --dir apps/windows-overlay typecheck` passed, and
   `pnpm --dir apps/windows-overlay build` passed.
 - Visual spot check after the latest smoke run: Codex inspected
   `apps/windows-overlay/dist/overlay-smoke-styled.png`,
+  `apps/windows-overlay/dist/overlay-smoke-edge-dark.png`,
   `apps/windows-overlay/dist/overlay-smoke-hud-ide.png`,
   `apps/windows-overlay/dist/overlay-smoke-edge-text-heavy.png`, and
   `apps/windows-overlay/dist/overlay-smoke-edge-browser.png`. Full overlay rows and controls were
-  legible with expected ellipsis truncation for dense details, HUD over the IDE-like backdrop was
-  compact and readable, and Edge Rail plus pinned widgets remained readable over text-heavy and
-  browser-like backdrops while leaving the rest of the underlying app visible.
+  legible with expected ellipsis truncation for dense details, dark-backdrop Edge Rail and pinned
+  widgets were readable, HUD over the IDE-like backdrop was compact and readable, and Edge Rail plus
+  pinned widgets remained readable over text-heavy and browser-like backdrops while leaving the rest
+  of the underlying app visible.
 - Current shared SageOS/control-surface gate after the latest policy hardening sweep:
   `pnpm exec vitest run --config vitest.unit.config.ts src/sageos src/cli/sageos-cli.test.ts
 src/auto-reply/reply/commands.test.ts src/telegram/bot-native-commands.test.ts
@@ -152,7 +155,7 @@ src/telegram/bot.test.ts` passed with 28 files
   and overlap in the live Electron layout,
   fails on renderer `pageerror` or console error events,
   captures full Command Deck over a bright synthetic desktop, captures Edge Rail and pinned widgets
-  over text-heavy, browser-like, and IDE-like synthetic apps, captures the richer Compact HUD command island over an IDE-like dark surface,
+  over dark, text-heavy, browser-like, and IDE-like synthetic apps, captures the richer Compact HUD command island over an IDE-like dark surface,
   seeds the mock gateway with an active run that includes `workerSessionId`, `currentToolCall`,
   `budgetUsed`, `timeline`, logs, artifacts, and verification metadata,
   waits for launcher submissions to enable before clicking and for the launcher field to clear
