@@ -27,6 +27,7 @@ Verification build SHA: `26a023428698`
 - [x] `Ctrl+Alt+Space` opens the full-screen translucent overlay.
 - [x] `Ctrl+Alt+Space` closes the overlay.
 - [x] `pnpm --dir apps/windows-overlay smoke:electron` verifies the packaged Electron overlay against a mock gateway.
+- [x] `pnpm --dir apps/windows-overlay review:visual` generates a local Jason acceptance companion contact sheet from the smoke screenshots.
 - [x] `SAGEOS_OVERLAY_ACTIVE_MONITOR=auto|primary|<display id>` routes the overlay to the active, primary, or configured monitor.
 - [x] `powershell -ExecutionPolicy Bypass -File scripts/sageos-windows-overlay.ps1 -OpenMode hud` starts HUD-first mode.
 - [x] Compact HUD renders as a Liquid Linear command island with current operation title, progress detail, status, target kind, and live badges.
@@ -75,6 +76,7 @@ Verification build SHA: `26a023428698`
 - [x] Automated smoke captures the overlay over dark, bright, text-heavy, browser-like, and IDE-like visual backdrops.
 - [x] Automated smoke fails if critical toolbar, launcher, HUD, or Edge Rail controls clip text, have sub-20px hit targets, or overlap.
 - [x] Automated smoke emulates `prefers-reduced-motion: reduce` in Electron and fails if visible critical controls keep transition or animation durations above 1ms.
+- [x] Visual review companion loads all smoke screenshots, lists the MVP visual acceptance criteria, and renders without horizontal overflow.
 - [x] Edge Rail collapse keeps health, active-operation, approval, and incident indicators visible.
 - [x] Edge Rail health, active-operation, approval, and incident badges carry drill-down targets and expand to the relevant workspace.
 - [x] Pass-through surfaces can temporarily restore overlay pointer capture over active controls.
@@ -94,6 +96,8 @@ Verification build SHA: `26a023428698`
 - IDE-like backdrop edge rail screenshot path: `apps/windows-overlay/dist/overlay-smoke-edge-ide.png`
 - HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud.png`
 - IDE-like backdrop HUD screenshot path: `apps/windows-overlay/dist/overlay-smoke-hud-ide.png`
+- Visual review contact sheet path: `apps/windows-overlay/dist/overlay-visual-review.html`
+- Visual review render screenshot path: `apps/windows-overlay/dist/overlay-visual-review-render.png`
 - Current verification update: `pnpm --dir apps/windows-overlay smoke:electron` passed on
   2026-06-04 after the reduced-motion runtime pass. The packaged overlay reported
   `buildSha: 26a023428698`, `ok: true`, `defaultHotkeyToggles: 2`, `passThroughProbeClicks: 1`,
@@ -107,6 +111,11 @@ Verification build SHA: `26a023428698`
   durations above 1ms, and refreshed
   the full, reduced-motion full, bright, edge-left, dark edge, text-heavy edge, browser edge, IDE edge, HUD, and IDE HUD
   screenshots above.
+- Visual review companion update: `pnpm --dir apps/windows-overlay review:visual` generated
+  `apps/windows-overlay/dist/overlay-visual-review.html` on 2026-06-04 with `buildSha: c90b798e9fd5`.
+  A headless Chrome render loaded all 10 smoke screenshots, found 8 acceptance criteria, found
+  0 broken images, found 0 horizontal overflow, and saved
+  `apps/windows-overlay/dist/overlay-visual-review-render.png` for review.
 - Current package gates after the latest verification sweep: `pnpm --dir apps/windows-overlay test`
   passed with 13 files and 89 tests, `pnpm --dir apps/windows-overlay typecheck` passed, and
   `pnpm --dir apps/windows-overlay build` passed.
@@ -161,6 +170,7 @@ src/telegram/bot.test.ts` passed with 28 files
   and overlap in the live Electron layout,
   emulates `prefers-reduced-motion: reduce` and fails if visible critical controls keep transition
   or animation durations above 1ms,
+  generates a local visual review contact sheet with all smoke screenshots and MVP acceptance criteria,
   fails on renderer `pageerror` or console error events,
   captures full Command Deck under reduced motion and over a bright synthetic desktop, captures Edge Rail and pinned widgets
   over dark, text-heavy, browser-like, and IDE-like synthetic apps, captures the richer Compact HUD command island over an IDE-like dark surface,

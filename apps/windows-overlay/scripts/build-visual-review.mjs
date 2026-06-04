@@ -1,0 +1,348 @@
+import { execFile } from "node:child_process";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
+const repoRoot = path.resolve(import.meta.dirname, "../../..");
+const overlayDir = path.resolve(import.meta.dirname, "..");
+const distDir = path.join(overlayDir, "dist");
+const outputFile = path.join(distDir, "overlay-visual-review.html");
+
+const screenshots = [
+  {
+    file: "overlay-smoke-styled.png",
+    title: "Full Command Deck",
+    note: "Primary full-screen control tower with pinned widgets and active run context.",
+  },
+  {
+    file: "overlay-smoke-full-bright.png",
+    title: "Bright Desktop",
+    note: "Full overlay over a light app/desktop backdrop.",
+  },
+  {
+    file: "overlay-smoke-full-reduced-motion.png",
+    title: "Reduced Motion",
+    note: "Full overlay with prefers-reduced-motion enabled in Electron.",
+  },
+  {
+    file: "overlay-smoke-edge-left.png",
+    title: "Edge Rail",
+    note: "Collapsed left rail with pass-through pointer behavior.",
+  },
+  {
+    file: "overlay-smoke-edge-dark.png",
+    title: "Dark Desktop",
+    note: "Edge Rail and pinned widgets over a dark app/desktop backdrop.",
+  },
+  {
+    file: "overlay-smoke-edge-text-heavy.png",
+    title: "Text-Heavy App",
+    note: "Edge Rail and pinned widgets over dense document/log content.",
+  },
+  {
+    file: "overlay-smoke-edge-browser.png",
+    title: "Browser App",
+    note: "Edge Rail and pinned widgets over a browser-like operational page.",
+  },
+  {
+    file: "overlay-smoke-edge-ide.png",
+    title: "IDE App",
+    note: "Edge Rail and pinned widgets over an IDE-like workspace.",
+  },
+  {
+    file: "overlay-smoke-hud.png",
+    title: "Compact HUD",
+    note: "HUD-first command island and live operation badges.",
+  },
+  {
+    file: "overlay-smoke-hud-ide.png",
+    title: "HUD Over IDE",
+    note: "Compact HUD over an IDE-like backdrop.",
+  },
+];
+
+const acceptanceCriteria = [
+  "Text never overlaps or clips inside cards, rows, badges, or buttons.",
+  "Pinned widgets stay legible over dark, light, text-heavy, browser, and IDE backgrounds.",
+  "Edge Rail remains precise enough for mouse targeting and does not block underlying work outside controls.",
+  "Keyboard focus is visible and ordered.",
+  "Reduced motion is respected.",
+  "The UI reads as enterprise operations-grade, not marketing-style.",
+  "Apple-like liquid glass depth is visible without sacrificing precision.",
+  "Linear-like row density, command hierarchy, and contrast remain dominant.",
+];
+
+await fs.mkdir(distDir, { recursive: true });
+await assertScreenshotsExist();
+
+const buildSha = await readBuildSha();
+const generatedAt = new Date().toISOString();
+const html = renderReviewPage({ buildSha, generatedAt });
+await fs.writeFile(outputFile, html, "utf8");
+
+console.log(
+  JSON.stringify(
+    {
+      ok: true,
+      buildSha,
+      generatedAt,
+      output: outputFile,
+      screenshots: screenshots.map((entry) => path.join(distDir, entry.file)),
+    },
+    null,
+    2,
+  ),
+);
+
+async function assertScreenshotsExist() {
+  const missing = [];
+  for (const screenshot of screenshots) {
+    try {
+      await fs.access(path.join(distDir, screenshot.file));
+    } catch {
+      missing.push(screenshot.file);
+    }
+  }
+
+  if (missing.length > 0) {
+    throw new Error(
+      [
+        "SageOS Overlay MVP Visual Review requires fresh smoke screenshots.",
+        "Run `pnpm --dir apps/windows-overlay smoke:electron` before `review:visual`.",
+        `Missing: ${missing.join(", ")}`,
+      ].join("\n"),
+    );
+  }
+}
+
+async function readBuildSha() {
+  try {
+    const { stdout } = await execFileAsync("git", ["rev-parse", "--short=12", "HEAD"], {
+      cwd: repoRoot,
+      windowsHide: true,
+    });
+    return stdout.trim() || "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
+function renderReviewPage({ buildSha, generatedAt }) {
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SageOS Overlay MVP Visual Review</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #07080b;
+        color: #f8fafc;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at 20% 0%, rgba(56, 189, 248, 0.1), transparent 32rem),
+          linear-gradient(180deg, #0b0c10 0%, #050609 100%);
+      }
+
+      main {
+        display: grid;
+        gap: 24px;
+        width: min(1480px, calc(100vw - 40px));
+        margin: 0 auto;
+        padding: 28px 0 40px;
+      }
+
+      header,
+      section {
+        border: 1px solid rgba(226, 232, 240, 0.16);
+        border-radius: 8px;
+        background: rgba(15, 17, 22, 0.82);
+        box-shadow: 0 18px 52px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      }
+
+      header {
+        display: grid;
+        gap: 14px;
+        padding: 22px;
+      }
+
+      h1,
+      h2,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 24px;
+        letter-spacing: 0;
+      }
+
+      h2 {
+        font-size: 16px;
+        letter-spacing: 0;
+      }
+
+      p,
+      li {
+        color: #cbd5e1;
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .pill {
+        border: 1px solid rgba(226, 232, 240, 0.16);
+        border-radius: 999px;
+        background: rgba(248, 250, 252, 0.08);
+        color: #e2e8f0;
+        padding: 6px 10px;
+        font-size: 12px;
+      }
+
+      .criteria {
+        padding: 18px 22px;
+      }
+
+      .criteria ul {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 10px 18px;
+        margin: 14px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .criteria li {
+        min-height: 44px;
+        border: 1px solid rgba(226, 232, 240, 0.12);
+        border-radius: 8px;
+        background: rgba(248, 250, 252, 0.055);
+        padding: 10px 12px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+        gap: 18px;
+      }
+
+      figure {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        gap: 12px;
+        margin: 0;
+        border: 1px solid rgba(226, 232, 240, 0.14);
+        border-radius: 8px;
+        background: rgba(10, 12, 16, 0.84);
+        padding: 12px;
+      }
+
+      figcaption {
+        display: grid;
+        gap: 4px;
+      }
+
+      figcaption strong {
+        color: #f8fafc;
+        font-size: 14px;
+      }
+
+      figcaption span {
+        color: #cbd5e1;
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      img {
+        display: block;
+        width: 100%;
+        min-height: 220px;
+        max-height: 680px;
+        object-fit: contain;
+        border: 1px solid rgba(226, 232, 240, 0.1);
+        border-radius: 6px;
+        background: #020617;
+      }
+
+      @media print {
+        body {
+          background: #fff;
+          color: #111827;
+        }
+
+        header,
+        section,
+        figure {
+          break-inside: avoid;
+          box-shadow: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>SageOS Overlay MVP Visual Review</h1>
+        <p>
+          Jason acceptance companion for the Liquid Linear Windows overlay MVP. Review the contact sheet
+          against the criteria below after running the Electron smoke.
+        </p>
+        <div class="meta">
+          <span class="pill">Build ${escapeHtml(buildSha)}</span>
+          <span class="pill">Generated ${escapeHtml(generatedAt)}</span>
+          <span class="pill">Liquid Linear</span>
+          <span class="pill">Jason acceptance</span>
+        </div>
+      </header>
+      <section class="criteria">
+        <h2>Acceptance Criteria</h2>
+        <ul>
+          ${acceptanceCriteria.map((criterion) => `<li>${escapeHtml(criterion)}</li>`).join("\n          ")}
+        </ul>
+      </section>
+      <section class="criteria">
+        <h2>Smoke Screenshots</h2>
+        <div class="grid">
+          ${screenshots
+            .map(
+              (screenshot) => `<figure>
+            <figcaption>
+              <strong>${escapeHtml(screenshot.title)}</strong>
+              <span>${escapeHtml(screenshot.note)}</span>
+            </figcaption>
+            <a href="./${encodeURI(screenshot.file)}"><img src="./${encodeURI(screenshot.file)}" alt="${escapeHtml(
+              screenshot.title,
+            )}" /></a>
+          </figure>`,
+            )
+            .join("\n          ")}
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
+`;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
